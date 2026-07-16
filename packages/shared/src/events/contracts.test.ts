@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { EVENT_NAMES } from './contracts.js';
+import { EVENT_NAMES } from './contracts';
 
 describe('EVENT_NAMES', () => {
   it('has a unique event name for every entry', () => {
