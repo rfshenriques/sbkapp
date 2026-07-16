@@ -8,7 +8,7 @@
   },
   "packageManager": "pnpm@10.33.0",
   "scripts": {
-    "lint": "pnpm -r --if-present run lint",
+    "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r --if-present run typecheck",
@@ -16,7 +16,10 @@
     "build": "pnpm -r --if-present run build"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["esbuild", "@swc/core"]
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "@swc/core"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

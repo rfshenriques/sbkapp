@@ -1,0 +1,6 @@
+pnpm-lock.yaml
+dist/
+node_modules/
+
+# Living doc — kept byte-identical to the source brief, not auto-formatted.
+docs/PROJECT_BRIEF.md
