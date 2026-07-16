@@ -1,0 +1,72 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sportsbook}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sportsbook}
+      POSTGRES_DB: ${POSTGRES_DB:-sportsbook}
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-sportsbook}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - '6379:6379'
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ../..
+      dockerfile: apps/backend/Dockerfile
+    ports:
+      - '3000:3000'
+    environment:
+      PORT: 3000
+      DATABASE_URL: postgres://${POSTGRES_USER:-sportsbook}:${POSTGRES_PASSWORD:-sportsbook}@postgres:5432/${POSTGRES_DB:-sportsbook}
+      REDIS_URL: redis://redis:6379
+    volumes:
+      - ../../apps/backend/src:/workspace/apps/backend/src
+      - ../../packages/shared/src:/workspace/packages/shared/src
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  odds-engine:
+    build:
+      context: ../..
+      dockerfile: apps/odds-engine/Dockerfile
+    ports:
+      - '4001:4001'
+    environment:
+      PORT: 4001
+    volumes:
+      - ../../apps/odds-engine/src:/workspace/apps/odds-engine/src
+      - ../../packages/shared/src:/workspace/packages/shared/src
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: apps/frontend/Dockerfile
+    ports:
+      - '5173:5173'
+    volumes:
+      - ../../apps/frontend/src:/workspace/apps/frontend/src
+      - ../../packages/shared/src:/workspace/packages/shared/src
+    depends_on:
+      - backend
+
+volumes:
+  postgres-data:
