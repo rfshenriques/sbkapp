@@ -12,8 +12,11 @@
   },
   "dependencies": {
     "@sportsbook/shared": "workspace:*",
+    "@tanstack/react-query": "^5.101.2",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-router-dom": "^7.18.1",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
