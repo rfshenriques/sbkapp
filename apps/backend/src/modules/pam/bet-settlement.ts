@@ -13,13 +13,20 @@ export interface SettlementOutcome {
 
 /**
  * Combo-bet settlement rules:
- * - Any LOST leg kills the whole bet immediately, regardless of the others.
+ * - Any LOST leg kills the whole bet immediately, regardless of the others -
+ *   no partial payout for the legs that already won or are still open.
  * - Any leg still OPEN means the bet isn't fully graded yet (PENDING).
- * - A VOID leg counts as 1.00 odds (effectively removed from the multiplier)
- *   and its stake portion is returned - if every leg is VOID, the whole
- *   stake comes back.
+ * - A VOID leg is treated as 1.00 odds - excluded from the multiplier, not
+ *   given its own slice of the stake back. The bet's payout is the *full*
+ *   original stake times the recalculated product of the remaining legs'
+ *   odds; if every leg is VOID that product is 1, so the whole stake comes
+ *   back as a side effect of the same formula, not a special case.
  * - Otherwise, all legs are settled and none LOST: WON, paying out the
  *   stake times the product of the non-void legs' odds.
+ *
+ * Settling one selection never touches any other selection's own status -
+ * a leg that's already WON stays WON in its own record even if a sibling
+ * leg later settles LOST and kills the bet overall.
  */
 export function computeBetOutcome(
   selections: SettlementSelectionInput[],

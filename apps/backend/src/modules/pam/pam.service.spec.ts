@@ -216,6 +216,13 @@ describe('PamService', () => {
       expect(final.status).toBe('LOST');
       expect(final.settledPayoutCents).toBe(0);
 
+      // Settling one leg never touches another leg's own status - the WON
+      // leg stays WON in its own record even though it lost it the bet.
+      const wonLeg = final.selections.find((selection) => selection.id === bet.selections[0]!.id);
+      const lostLeg = final.selections.find((selection) => selection.id === bet.selections[1]!.id);
+      expect(wonLeg?.status).toBe('WON');
+      expect(lostLeg?.status).toBe('LOST');
+
       const wallet = await pamService.getWallet(userId);
       // Just the original stake deduction - no payout ever credited.
       expect(wallet.balanceCents).toBe(99_000);
