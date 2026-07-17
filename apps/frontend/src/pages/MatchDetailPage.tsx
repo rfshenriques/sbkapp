@@ -32,10 +32,12 @@ export default function MatchDetailPage() {
           LIVE
         </span>
       )}
-      {matchResult && (
+      {matchResult ? (
         <div className="mt-4">
           <MarketSelections matchId={match.id} matchLabel={matchLabel} market={matchResult} />
         </div>
+      ) : (
+        <p className="mt-4 text-text-secondary">No odds available for this match yet.</p>
       )}
     </div>
   );

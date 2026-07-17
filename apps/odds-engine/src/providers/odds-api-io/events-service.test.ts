@@ -67,6 +67,27 @@ describe('createEventsService', () => {
     expect(matches[0]?.isLive).toBe(true);
   });
 
+  it('surfaces major competitions ahead of minor ones that kick off sooner', async () => {
+    const getEvents = vi.fn().mockResolvedValue([
+      buildEvent({
+        id: 1,
+        date: '2026-07-17T02:00:00Z',
+        league: { name: 'New Zealand - Southern League', slug: 'nz-southern-league' },
+      }),
+      buildEvent({
+        id: 2,
+        date: '2026-07-19T19:00:00Z',
+        league: { name: 'International - FIFA World Cup', slug: 'international-fifa-world-cup' },
+      }),
+    ]);
+    const client: OddsApiIoClient = { getEvents, getOdds: vi.fn() };
+    const service = createEventsService({ client });
+
+    const matches = await service.listMatches();
+
+    expect(matches.map((match) => match.id)).toEqual(['2', '1']);
+  });
+
   it('caches the events list and only calls the client once within the TTL', async () => {
     const getEvents = vi.fn().mockResolvedValue([buildEvent()]);
     const client: OddsApiIoClient = { getEvents, getOdds: vi.fn() };

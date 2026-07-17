@@ -46,6 +46,24 @@ describe('MatchDetailPage', () => {
     expect(await screen.findByText('Match not found.')).toBeInTheDocument();
   });
 
+  it('shows a no-odds message when the match has no markets yet', async () => {
+    stubOddsEngineFetch([
+      {
+        id: 'match-6',
+        competition: 'Some Small League',
+        homeTeam: 'Home Team',
+        awayTeam: 'Away Team',
+        kickoff: '2026-07-20T15:00:00Z',
+        isLive: false,
+        markets: [],
+      },
+    ]);
+
+    renderAt('match-6');
+
+    expect(await screen.findByText('No odds available for this match yet.')).toBeInTheDocument();
+  });
+
   it('lets you add a selection to the bet slip from the match detail page', async () => {
     renderAt('match-1');
 

@@ -6,6 +6,30 @@ const EVENTS_CACHE_TTL_MS = 60_000;
 const ODDS_CACHE_TTL_MS = 20_000;
 const RELEVANT_STATUSES = new Set(['pending', 'live']);
 
+/**
+ * A global football feed is dominated by small regional matches kicking off
+ * today, which buries the competitions our two bookmakers actually tend to
+ * cover (majors, internationals). This is a heuristic guess, not confirmed
+ * bookmaker coverage - it just biases sort order, it doesn't filter anything out.
+ */
+const PRIORITY_COMPETITION_KEYWORDS = [
+  'world cup',
+  'champions league',
+  'europa league',
+  'premier league',
+  'la liga',
+  'serie a',
+  'bundesliga',
+  'ligue 1',
+  'international',
+];
+
+function competitionPriority(competition: string): number {
+  const lower = competition.toLowerCase();
+  const index = PRIORITY_COMPETITION_KEYWORDS.findIndex((keyword) => lower.includes(keyword));
+  return index === -1 ? PRIORITY_COMPETITION_KEYWORDS.length : index;
+}
+
 interface CacheEntry<T> {
   value: T;
   expiresAt: number;
@@ -41,7 +65,7 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
     client,
     sport = 'football',
     eventsLimit = 300,
-    maxMatches = 30,
+    maxMatches = 40,
     bookmaker = DEFAULT_BOOKMAKER,
     now = Date.now,
   } = options;
@@ -67,7 +91,11 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
         isLive: event.status === 'live',
         markets: [],
       }))
-      .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
+      .sort((a, b) => {
+        const priorityDiff =
+          competitionPriority(a.competition) - competitionPriority(b.competition);
+        return priorityDiff !== 0 ? priorityDiff : a.kickoff.localeCompare(b.kickoff);
+      })
       .slice(0, maxMatches);
 
     eventsCache = { value: matches, expiresAt: currentTime + EVENTS_CACHE_TTL_MS };
