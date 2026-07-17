@@ -1,4 +1,5 @@
 import { createServer, type Server } from 'node:http';
+import { config } from 'dotenv';
 import { WebSocketServer } from 'ws';
 import { createOddsApiIoClient } from './providers/odds-api-io/client';
 import { createEventsService, type EventsService } from './providers/odds-api-io/events-service';
@@ -106,6 +107,8 @@ export function createOddsEngine(options: OddsEngineOptions = {}): OddsEngine {
 }
 
 if (require.main === module) {
+  config();
+
   const port = process.env.PORT ? Number(process.env.PORT) : 4001;
   const apiKey = process.env.ODDS_API_IO_KEY;
 
