@@ -1,0 +1,21 @@
+{
+  "name": "sbkapp",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {}
+  },
+  "postCreateCommand": "corepack enable && pnpm install",
+  "forwardPorts": [3000, 4001, 5173],
+  "portsAttributes": {
+    "5173": {
+      "label": "Frontend",
+      "onAutoForward": "openPreview"
+    },
+    "4001": {
+      "label": "Odds Engine"
+    },
+    "3000": {
+      "label": "Backend"
+    }
+  }
+}
