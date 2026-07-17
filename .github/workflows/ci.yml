@@ -24,6 +24,7 @@ jobs:
           --health-retries=10
     env:
       DATABASE_URL: postgres://sportsbook:sportsbook@localhost:5432/sportsbook
+      JWT_SECRET: ci-test-secret-not-for-production
     steps:
       - uses: actions/checkout@v4
 

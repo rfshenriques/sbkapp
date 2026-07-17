@@ -10,9 +10,15 @@ describe('PrismaService', () => {
     const prisma = moduleRef.get(PrismaService);
     await prisma.onModuleInit();
 
-    const email = `test-${crypto.randomUUID()}@example.com`;
+    const unique = crypto.randomUUID();
+    const email = `test-${unique}@example.com`;
     const created = await prisma.user.create({
-      data: { email, passwordHash: 'hashed-password' },
+      data: {
+        email,
+        username: `user_${unique.slice(0, 8)}`,
+        phone: `+1555${unique.replace(/\D/g, '').slice(0, 7)}`,
+        passwordHash: 'hashed-password',
+      },
     });
 
     const found = await prisma.user.findUniqueOrThrow({ where: { id: created.id } });

@@ -1,9 +1,19 @@
 import { Module } from '@nestjs/common';
+import { JwtModule } from '@nestjs/jwt';
+import { PassportModule } from '@nestjs/passport';
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+import { JwtStrategy } from './jwt.strategy';
 
-/**
- * Placeholder module boundary. Detailed requirements land in
- * docs/modules/auth.md before this module is actually built (see
- * docs/PROJECT_BRIEF.md, Phase 5).
- */
-@Module({})
+@Module({
+  imports: [
+    PassportModule,
+    JwtModule.registerAsync({
+      useFactory: () => ({ secret: process.env.JWT_SECRET }),
+    }),
+  ],
+  controllers: [AuthController],
+  providers: [AuthService, JwtStrategy],
+  exports: [AuthService],
+})
 export class AuthModule {}
