@@ -1,9 +1,13 @@
 import { createServer, type Server } from 'node:http';
 import { WebSocketServer } from 'ws';
+import { createOddsApiIoClient } from './providers/odds-api-io/client';
+import { createEventsService, type EventsService } from './providers/odds-api-io/events-service';
 
 export interface OddsEngineOptions {
   /** How often to push a stub odds tick to connected clients. */
   tickIntervalMs?: number;
+  /** When provided, serves GET /events and GET /events/:id from this service. */
+  eventsService?: EventsService;
 }
 
 export interface OddsEngine {
@@ -22,11 +26,57 @@ export function createOddsEngine(options: OddsEngineOptions = {}): OddsEngine {
   const tickIntervalMs = options.tickIntervalMs ?? 5000;
 
   const httpServer = createServer((req, res) => {
-    if (req.url === '/health' && req.method === 'GET') {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    if (req.method !== 'GET' || !req.url) {
+      res.writeHead(404);
+      res.end();
+      return;
+    }
+
+    if (req.url === '/health') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ status: 'ok' }));
       return;
     }
+
+    const { eventsService } = options;
+    const { pathname } = new URL(req.url, 'http://internal');
+
+    if (eventsService && pathname === '/events') {
+      eventsService
+        .listMatches()
+        .then((matches) => {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(matches));
+        })
+        .catch(() => {
+          res.writeHead(502);
+          res.end();
+        });
+      return;
+    }
+
+    const eventIdMatch = eventsService ? /^\/events\/([^/]+)$/.exec(pathname) : null;
+    if (eventsService && eventIdMatch) {
+      eventsService
+        .getMatchOdds(eventIdMatch[1] as string)
+        .then((match) => {
+          if (!match) {
+            res.writeHead(404);
+            res.end();
+            return;
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(match));
+        })
+        .catch(() => {
+          res.writeHead(502);
+          res.end();
+        });
+      return;
+    }
+
     res.writeHead(404);
     res.end();
   });
@@ -57,5 +107,14 @@ export function createOddsEngine(options: OddsEngineOptions = {}): OddsEngine {
 
 if (require.main === module) {
   const port = process.env.PORT ? Number(process.env.PORT) : 4001;
-  void createOddsEngine().listen(port);
+  const apiKey = process.env.ODDS_API_IO_KEY;
+
+  let eventsService: EventsService | undefined;
+  if (apiKey) {
+    eventsService = createEventsService({ client: createOddsApiIoClient({ apiKey }) });
+  } else {
+    console.warn('ODDS_API_IO_KEY not set - /events endpoints will 404.');
+  }
+
+  void createOddsEngine({ eventsService }).listen(port);
 }

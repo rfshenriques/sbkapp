@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchMatchById } from '../../mocks/api';
+import { fetchMatchById } from '../../lib/oddsEngineApi';
 
 export function matchQueryKey(matchId: string) {
   return ['match', matchId] as const;

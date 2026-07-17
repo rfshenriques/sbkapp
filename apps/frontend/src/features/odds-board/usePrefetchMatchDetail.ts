@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { loadMatchDetailPage } from '../../app/routes';
 import { matchQueryKey } from '../match-detail/useMatch';
-import { fetchMatchById } from '../../mocks/api';
+import { fetchMatchById } from '../../lib/oddsEngineApi';
 
 /**
  * Warms both the match-detail route chunk and its data on touchstart/hover,

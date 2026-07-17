@@ -1,7 +1,8 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { stubOddsEngineFetch } from '../test/mockOddsEngine';
 import OddsBoardPage from './OddsBoardPage';
 
 function renderPage() {
@@ -14,6 +15,14 @@ function renderPage() {
     </QueryClientProvider>,
   );
 }
+
+beforeEach(() => {
+  stubOddsEngineFetch();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('OddsBoardPage', () => {
   it('shows a loading skeleton before matches resolve, then renders the matches', async () => {

@@ -2,9 +2,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { matchQueryKey } from '../match-detail/useMatch';
 import type { Match } from '../../mocks/types';
+import { stubOddsEngineFetch } from '../../test/mockOddsEngine';
 import { useBetSlipStore } from '../bet-slip/betSlipStore';
 import { MatchCard } from './MatchCard';
 
@@ -42,6 +43,11 @@ function renderMatchCard(match: Match) {
 
 beforeEach(() => {
   useBetSlipStore.setState({ selections: [] });
+  stubOddsEngineFetch([baseMatch]);
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('MatchCard', () => {

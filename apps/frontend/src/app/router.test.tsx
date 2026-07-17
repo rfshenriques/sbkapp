@@ -1,8 +1,17 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { stubOddsEngineFetch } from '../test/mockOddsEngine';
 import { routes } from './routes';
+
+beforeEach(() => {
+  stubOddsEngineFetch();
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function renderAt(initialPath: string) {
   const queryClient = new QueryClient();
