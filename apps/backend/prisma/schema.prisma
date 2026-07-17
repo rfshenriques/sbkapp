@@ -47,6 +47,13 @@ enum BetStatus {
   VOID
 }
 
+enum SelectionStatus {
+  OPEN
+  WON
+  LOST
+  VOID
+}
+
 /**
  * One combined-odds bet, made up of one or more selections (a single bet has exactly one).
  */
@@ -60,6 +67,12 @@ model Bet {
   status               BetStatus @default(PENDING)
   createdAt            DateTime  @default(now())
 
+  /**
+   * Null until every selection is settled (or the bet is LOST outright).
+   */
+  settledPayoutCents Int?
+  settledAt          DateTime?
+
   selections BetSelection[]
 
   @@index([userId])
@@ -71,16 +84,17 @@ model Bet {
  * odds feed, which has no persistence of its own and can reshuffle/expire.
  */
 model BetSelection {
-  id            String  @id @default(uuid())
+  id            String          @id @default(uuid())
   betId         String
-  bet           Bet     @relation(fields: [betId], references: [id], onDelete: Cascade)
+  bet           Bet             @relation(fields: [betId], references: [id], onDelete: Cascade)
   matchId       String
   marketId      String
   selectionId   String
   matchLabel    String
   marketName    String
   selectionName String
-  odds          Decimal @db.Decimal(10, 2)
+  odds          Decimal         @db.Decimal(10, 2)
+  status        SelectionStatus @default(OPEN)
 
   @@index([betId])
   @@map("bet_selections")

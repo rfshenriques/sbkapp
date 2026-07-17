@@ -1,5 +1,7 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import type { BetStatus, SelectionStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { computeBetOutcome } from './bet-settlement';
 import type { PlaceBetDto } from './dto/place-bet.dto';
 
 @Injectable()
@@ -54,6 +56,69 @@ export class PamService {
       where: { userId },
       include: { selections: true },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /** Admin-only: lists bets across all users, for manual settlement. */
+  async listBetsForSettlement(status?: BetStatus) {
+    return this.prisma.bet.findMany({
+      where: status ? { status } : undefined,
+      include: {
+        selections: true,
+        user: { select: { id: true, username: true, email: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  /**
+   * Admin-only: settles one selection and recomputes the whole bet's
+   * outcome from every selection's current status. Re-settling a selection
+   * (including back to OPEN, as a correction) claws back or tops up
+   * whatever was previously credited, rather than double-crediting.
+   */
+  async settleSelection(betId: string, selectionId: string, status: SelectionStatus) {
+    return this.prisma.$transaction(async (tx) => {
+      const selection = await tx.betSelection.findUnique({ where: { id: selectionId } });
+      if (!selection || selection.betId !== betId) {
+        throw new NotFoundException('Selection not found on this bet');
+      }
+
+      await tx.betSelection.update({ where: { id: selectionId }, data: { status } });
+
+      const bet = await tx.bet.findUniqueOrThrow({
+        where: { id: betId },
+        include: { selections: true },
+      });
+
+      const outcome = computeBetOutcome(
+        bet.selections.map((betSelection) => ({
+          status: betSelection.status,
+          odds: Number(betSelection.odds),
+        })),
+        bet.stakeCents,
+      );
+
+      const previousCredited = bet.settledPayoutCents ?? 0;
+      const newCredited = outcome.overallStatus === 'PENDING' ? 0 : outcome.payoutCents;
+      const delta = newCredited - previousCredited;
+
+      if (delta !== 0) {
+        await tx.user.update({
+          where: { id: bet.userId },
+          data: { balanceCents: { increment: delta } },
+        });
+      }
+
+      return tx.bet.update({
+        where: { id: betId },
+        data: {
+          status: outcome.overallStatus,
+          settledPayoutCents: outcome.overallStatus === 'PENDING' ? null : outcome.payoutCents,
+          settledAt: outcome.overallStatus === 'PENDING' ? null : new Date(),
+        },
+        include: { selections: true },
+      });
     });
   }
 }
