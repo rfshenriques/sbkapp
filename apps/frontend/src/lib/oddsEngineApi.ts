@@ -1,6 +1,8 @@
 import type { Match } from '../mocks/types';
 
-const BASE_URL = import.meta.env.VITE_ODDS_ENGINE_URL ?? 'http://localhost:4001';
+// Same-origin path - Vite's dev server proxies /api to the odds-engine (see
+// vite.config.ts), so the browser never needs a second URL or CORS at all.
+const BASE_URL = '/api';
 
 export async function fetchMatches(): Promise<Match[]> {
   const response = await fetch(`${BASE_URL}/events`);

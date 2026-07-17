@@ -65,11 +65,14 @@ services:
       dockerfile: apps/frontend/Dockerfile
     ports:
       - '5173:5173'
+    environment:
+      ODDS_ENGINE_PROXY_TARGET: http://odds-engine:4001
     volumes:
       - ../../apps/frontend/src:/workspace/apps/frontend/src
       - ../../packages/shared/src:/workspace/packages/shared/src
     depends_on:
       - backend
+      - odds-engine
 
 volumes:
   postgres-data:

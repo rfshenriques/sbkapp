@@ -2,7 +2,7 @@ import { vi } from 'vitest';
 import { mockMatches } from '../mocks/matches';
 import type { Match } from '../mocks/types';
 
-const BASE_URL = 'http://localhost:4001';
+const BASE_URL = '/api';
 
 /** Stubs global fetch to behave like the odds-engine's GET /events and /events/:id. */
 export function stubOddsEngineFetch(matches: Match[] = mockMatches) {
