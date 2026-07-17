@@ -51,9 +51,11 @@ export function createOddsEngine(options: OddsEngineOptions = {}): OddsEngine {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(matches));
         })
-        .catch(() => {
-          res.writeHead(502);
-          res.end();
+        .catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error('GET /events failed:', message);
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: message }));
         });
       return;
     }
@@ -71,9 +73,11 @@ export function createOddsEngine(options: OddsEngineOptions = {}): OddsEngine {
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify(match));
         })
-        .catch(() => {
-          res.writeHead(502);
-          res.end();
+        .catch((error: unknown) => {
+          const message = error instanceof Error ? error.message : String(error);
+          console.error(`GET /events/${eventIdMatch[1]} failed:`, message);
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: message }));
         });
       return;
     }

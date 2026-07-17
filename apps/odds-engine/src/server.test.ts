@@ -100,6 +100,25 @@ describe('odds engine stub', () => {
     expect(await response.json()).toEqual(matchWithOdds);
   });
 
+  it('returns the underlying error message when the events service fails', async () => {
+    const eventsService: EventsService = {
+      listMatches: async () => {
+        throw new Error('odds-api.io GET /events failed: 429 Too Many Requests');
+      },
+      getMatchOdds: async () => undefined,
+    };
+    engine = createOddsEngine({ eventsService });
+    await engine.listen(0);
+    const port = (engine.httpServer.address() as AddressInfo).port;
+
+    const response = await fetch(`http://127.0.0.1:${port}/events`);
+
+    expect(response.status).toBe(502);
+    expect(await response.json()).toEqual({
+      error: 'odds-api.io GET /events failed: 429 Too Many Requests',
+    });
+  });
+
   it('404s on GET /events/:id when the event is unknown', async () => {
     const eventsService: EventsService = {
       listMatches: async () => [],

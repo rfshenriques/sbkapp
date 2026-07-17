@@ -2,8 +2,10 @@ import type { Match } from '../../domain/odds';
 import type { OddsApiIoClient } from './client';
 import { DEFAULT_BOOKMAKER, normalizeOddsApiIoResponse } from './normalize';
 
-const EVENTS_CACHE_TTL_MS = 60_000;
-const ODDS_CACHE_TTL_MS = 20_000;
+// Deliberately generous: a dev-server restart burns one request regardless
+// of TTL, and it's easy to restart several times in a debugging session.
+const EVENTS_CACHE_TTL_MS = 5 * 60_000;
+const ODDS_CACHE_TTL_MS = 2 * 60_000;
 const RELEVANT_STATUSES = new Set(['pending', 'live']);
 
 /**

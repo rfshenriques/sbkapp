@@ -98,7 +98,7 @@ describe('createEventsService', () => {
     await service.listMatches();
     expect(getEvents).toHaveBeenCalledTimes(1);
 
-    currentTime = 61_000;
+    currentTime = 5 * 60_000 + 1;
     await service.listMatches();
     expect(getEvents).toHaveBeenCalledTimes(2);
   });
@@ -134,7 +134,7 @@ describe('createEventsService', () => {
     await service.getMatchOdds('1');
     expect(getOdds).toHaveBeenCalledTimes(1);
 
-    currentTime = 21_000;
+    currentTime = 2 * 60_000 + 1;
     await service.getMatchOdds('1');
     expect(getOdds).toHaveBeenCalledTimes(2);
   });
