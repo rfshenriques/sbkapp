@@ -1,4 +1,4 @@
-import type { Match } from '../mocks/types';
+import type { Match } from '@sportsbook/shared';
 
 // Same-origin path - Vite's dev server proxies /api to the odds-engine (see
 // vite.config.ts), so the browser never needs a second URL or CORS at all.

@@ -1,5 +1,5 @@
 import { mockMatches } from './matches';
-import type { Match } from './types';
+import type { Match } from '@sportsbook/shared';
 
 const SIMULATED_LATENCY_MS = 400;
 

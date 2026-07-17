@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import { mockMatches } from '../mocks/matches';
-import type { Match } from '../mocks/types';
+import type { Match } from '@sportsbook/shared';
 
 const BASE_URL = '/api';
 

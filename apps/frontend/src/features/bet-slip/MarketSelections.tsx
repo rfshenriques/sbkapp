@@ -1,5 +1,5 @@
 import { Button } from '../../components/ui/Button';
-import type { Market } from '../../mocks/types';
+import type { Market } from '@sportsbook/shared';
 import { useBetSlipStore } from './betSlipStore';
 
 interface MarketSelectionsProps {

@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { MarketSelections } from '../bet-slip/MarketSelections';
 import { usePrefetchMatchDetail } from './usePrefetchMatchDetail';
-import type { Match } from '../../mocks/types';
+import type { Match } from '@sportsbook/shared';
 
 interface MatchCardProps {
   match: Match;

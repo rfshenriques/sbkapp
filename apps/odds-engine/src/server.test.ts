@@ -1,7 +1,7 @@
 import type { AddressInfo } from 'node:net';
 import WebSocket from 'ws';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { Match } from './domain/odds';
+import type { Match } from '@sportsbook/shared';
 import type { EventsService } from './providers/odds-api-io/events-service';
 import { createOddsEngine, type OddsEngine } from './server';
 

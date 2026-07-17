@@ -1,4 +1,4 @@
-import type { Market, Match, Selection } from '../../domain/odds';
+import type { Market, Match, Selection } from '@sportsbook/shared';
 import type { OddsApiIoOddsResponse, OddsApiIoOutcome } from './types';
 
 /** Default source of truth when a bookmaker isn't specified explicitly. */

@@ -1,4 +1,4 @@
-import type { Match } from './types';
+import type { Match } from '@sportsbook/shared';
 
 function matchResultMarket(home: number, draw: number, away: number): Match['markets'] {
   return [

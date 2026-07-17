@@ -1,4 +1,4 @@
-import type { Match } from '../../domain/odds';
+import type { Match } from '@sportsbook/shared';
 import type { OddsApiIoClient } from './client';
 import { DEFAULT_BOOKMAKER, normalizeOddsApiIoResponse } from './normalize';
 

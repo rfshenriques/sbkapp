@@ -4,7 +4,7 @@ import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { matchQueryKey } from '../match-detail/useMatch';
-import type { Match } from '../../mocks/types';
+import type { Match } from '@sportsbook/shared';
 import { stubOddsEngineFetch } from '../../test/mockOddsEngine';
 import { useBetSlipStore } from '../bet-slip/betSlipStore';
 import { MatchCard } from './MatchCard';
