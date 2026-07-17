@@ -1,24 +1,36 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useAuthStore } from '../features/auth/authStore';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { AppShell } from './AppShell';
 
 function renderShell() {
+  const queryClient = new QueryClient();
   return render(
-    <MemoryRouter initialEntries={['/']}>
-      <Routes>
-        <Route path="/" element={<AppShell />}>
-          <Route index element={<div>Page content</div>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<AppShell />}>
+            <Route index element={<div>Page content</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
 beforeEach(() => {
   useBetSlipStore.setState({ selections: [] });
+  useAuthStore.setState({ accessToken: null, user: null, isInitialized: false });
+  // Not logged in by default - the silent-refresh call on mount finds no session.
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe('AppShell', () => {

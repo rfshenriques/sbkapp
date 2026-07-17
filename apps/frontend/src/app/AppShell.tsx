@@ -3,13 +3,19 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { BetSlipPanel } from '../features/bet-slip/BetSlipPanel';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
+import { useAuth } from '../features/auth/useAuth';
+import { useBootstrapAuth } from '../features/auth/useBootstrapAuth';
+import { formatCents, useWallet } from '../features/wallet/useWallet';
 
 const navLinkClassName = ({ isActive }: { isActive: boolean }) =>
   isActive ? 'text-text-primary' : 'text-text-secondary hover:text-text-primary';
 
 export function AppShell() {
+  useBootstrapAuth();
   const [isSlipOpen, setIsSlipOpen] = useState(false);
   const selectionCount = useBetSlipStore((state) => state.selections.length);
+  const { isAuthenticated, isInitialized, user, logout } = useAuth();
+  const { data: wallet } = useWallet();
 
   return (
     <div className="min-h-screen bg-background text-text-primary">
@@ -19,13 +25,38 @@ export function AppShell() {
           <NavLink to="/" end className={navLinkClassName}>
             Odds Board
           </NavLink>
-          <button
-            type="button"
-            onClick={() => setIsSlipOpen((open) => !open)}
-            className="ml-auto rounded-md bg-surface px-3 py-1.5 text-sm font-medium hover:bg-surface-hover"
-          >
-            Bet Slip{selectionCount > 0 && ` (${selectionCount})`}
-          </button>
+          <div className="ml-auto flex items-center gap-3">
+            {isInitialized && isAuthenticated ? (
+              <>
+                {wallet && (
+                  <span className="text-sm text-text-secondary">
+                    {formatCents(wallet.balanceCents)} (paper)
+                  </span>
+                )}
+                <span className="text-sm text-text-secondary">{user?.username}</span>
+                <button
+                  type="button"
+                  onClick={() => void logout()}
+                  className="text-sm text-text-secondary hover:text-text-primary"
+                >
+                  Log out
+                </button>
+              </>
+            ) : (
+              isInitialized && (
+                <NavLink to="/login" className={navLinkClassName}>
+                  Log in
+                </NavLink>
+              )
+            )}
+            <button
+              type="button"
+              onClick={() => setIsSlipOpen((open) => !open)}
+              className="rounded-md bg-surface px-3 py-1.5 text-sm font-medium hover:bg-surface-hover"
+            >
+              Bet Slip{selectionCount > 0 && ` (${selectionCount})`}
+            </button>
+          </div>
         </nav>
       </header>
       <main className="p-4">

@@ -4,8 +4,9 @@ import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // Same-container default (plain `pnpm dev`, Codespaces). Docker Compose overrides
-// this to the odds-engine's service name since it's a separate container there.
+// these to each service's container name since they're separate containers there.
 const oddsEngineTarget = process.env.ODDS_ENGINE_PROXY_TARGET ?? 'http://localhost:4001';
+const backendTarget = process.env.BACKEND_PROXY_TARGET ?? 'http://localhost:3000';
 
 export default defineConfig({
   plugins: [
@@ -29,6 +30,11 @@ export default defineConfig({
         target: oddsEngineTarget,
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      '/backend': {
+        target: backendTarget,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/backend/, ''),
       },
     },
   },

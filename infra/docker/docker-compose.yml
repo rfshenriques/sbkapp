@@ -69,6 +69,7 @@ services:
       - '5173:5173'
     environment:
       ODDS_ENGINE_PROXY_TARGET: http://odds-engine:4001
+      BACKEND_PROXY_TARGET: http://backend:3000
     volumes:
       - ../../apps/frontend/src:/workspace/apps/frontend/src
       - ../../packages/shared/src:/workspace/packages/shared/src
