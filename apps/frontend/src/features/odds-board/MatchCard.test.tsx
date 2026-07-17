@@ -1,7 +1,9 @@
 import { render, screen } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { Match } from '../../mocks/types';
+import { useBetSlipStore } from '../bet-slip/betSlipStore';
 import { MatchCard } from './MatchCard';
 
 const baseMatch: Match = {
@@ -31,6 +33,10 @@ function renderMatchCard(match: Match) {
     </MemoryRouter>,
   );
 }
+
+beforeEach(() => {
+  useBetSlipStore.setState({ selections: [] });
+});
 
 describe('MatchCard', () => {
   it('renders the competition, teams, and a link to the match detail page', () => {
@@ -63,5 +69,44 @@ describe('MatchCard', () => {
       </MemoryRouter>,
     );
     expect(screen.getByText('LIVE')).toBeInTheDocument();
+  });
+
+  it('adds a selection to the bet slip store when clicked', async () => {
+    renderMatchCard(baseMatch);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Home2.10' }));
+
+    expect(useBetSlipStore.getState().selections).toEqual([
+      {
+        matchId: 'match-1',
+        marketId: 'match-result',
+        selectionId: 'home',
+        matchLabel: 'Arsenal vs Chelsea',
+        marketName: 'Match Result',
+        selectionName: 'Home',
+        odds: 2.1,
+      },
+    ]);
+  });
+
+  it('clicking a different selection in the same market replaces the pick', async () => {
+    renderMatchCard(baseMatch);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Home2.10' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Away3.20' }));
+
+    const selections = useBetSlipStore.getState().selections;
+    expect(selections).toHaveLength(1);
+    expect(selections[0]?.selectionId).toBe('away');
+  });
+
+  it('clicking the same selection twice removes it', async () => {
+    renderMatchCard(baseMatch);
+
+    const homeButton = screen.getByRole('button', { name: 'Home2.10' });
+    await userEvent.click(homeButton);
+    await userEvent.click(homeButton);
+
+    expect(useBetSlipStore.getState().selections).toEqual([]);
   });
 });
