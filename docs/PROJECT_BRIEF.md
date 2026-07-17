@@ -483,12 +483,23 @@ trying to avoid.
   a reload. `User.balanceCents` (paper money, see Payments above) +
   `Bet`/`BetSelection` models (`apps/backend/src/modules/pam/`) support
   combo bets - one bet can carry multiple selections with combined odds,
-  matching how the bet slip already worked since Phase 1. What's still
-  missing:
-  - **Settlement**: bets are created as `PENDING` and never move to
-    `WON`/`LOST`/`VOID` - there's no result-grading logic yet. This is
-    the Trading/Odds module's "settlement backoffice" (Section 8.4),
-    not built.
+  matching how the bet slip already worked since Phase 1.
+  - ~~Settlement~~ **Manual settlement done** (Trading/Odds module's
+    "settlement backoffice", Section 8.4): staff grade one selection at a
+    time as `WON`/`LOST`/`VOID`/`OPEN`
+    (`PATCH /admin/bets/:betId/selections/:selectionId/settlement`), the
+    bet's overall outcome is recomputed from every selection's current
+    status (one `LOST` leg kills the whole combo, `VOID` counts as 1.00
+    odds and refunds its share), and re-settling (including reopening a
+    leg as a correction) diffs against whatever was already credited
+    rather than double-crediting. **Auto-settlement from real match
+    results is still not built** - deliberately deferred, next up when
+    prioritized.
+  - **No real staff auth gates settlement yet** - `/admin/*` is a shared
+    `X-Admin-Key` header stopgap (`AdminKeyGuard`,
+    `apps/backend/src/modules/pam/pam-admin.controller.ts`), not real
+    RBAC. Anyone with the key can settle anyone's bets. Needs replacing
+    once backoffice staff auth (above) is built.
   - A real bug worth remembering the shape of: React StrictMode
     double-invokes effects in dev, which raced two concurrent
     `/auth/refresh` calls against the same single-use refresh token -
