@@ -425,21 +425,58 @@ trying to avoid.
 - **Payments/Cashier module**: deposits, withdrawals, payment provider
   integrations, currency handling — implied throughout (Wallet, Fraud
   chargebacks, Bonus cash/bonus wallets) but not yet defined as its own
-  module.
-- **Backoffice roles & permissions / audit log**: with Risk, Trading, CRM,
-  Fraud, and CMS as effectively separate internal teams, role-based access
-  control and an audit trail (especially for price/liability changes and
-  manual settlement overrides) is needed.
+  module. Player auth (see below) currently has no wallet/balance concept
+  at all yet - bet placement will need at least a paper-money balance
+  before this is decided for real.
+- **Backoffice staff auth + roles & permissions / audit log**: with Risk,
+  Trading, CRM, Fraud, and CMS as effectively separate internal teams,
+  role-based access control and an audit trail (especially for
+  price/liability changes and manual settlement overrides) is needed.
+  Explicitly a *separate* system from player auth (built - see below), not
+  a shared login - tied to the `admin` module.
 - **Reporting / BI**: P&L, GGR/NGR, trader performance, campaign ROI —
   likely a read-layer over other modules' data rather than an operational
   module of its own.
-- **Odds feed ingestion/normalization layer**: sits in front of the Odds
-  Engine, translating the data provider's format into the internal
-  market/selection model — contains the blast radius if the provider is
-  ever swapped.
 - **KYC/AML**: explicitly deferred by the owner — architecture should
   leave a clean integration seam (e.g., a `kyc` module boundary already
   exists in the repo structure) without building the logic yet.
+- ~~Odds feed ingestion/normalization layer~~ **Done**: built in
+  `apps/odds-engine/src/providers/odds-api-io/` against a free-tier
+  odds-api.io key (2 bookmakers, 100 req/hour, fetch-on-open only - no
+  prices on the board list itself). Provider-specific code is isolated
+  under that `providers/odds-api-io/` folder specifically so swapping in a
+  licensed provider later doesn't touch the rest of the system - but the
+  free tier's real limitations (partial bookmaker coverage, no sport/
+  country/league browsing, no real-time push) mean a decent amount of this
+  will need revisiting once a real provider is in place:
+  - Real-time push: the odds-engine's WebSocket (`/odds`) still only
+    sends a stub tick - actual market updates are HTTP-polled via
+    `GET /events` / `GET /events/:id`, not pushed.
+  - No hard rate-limit guard - only soft TTL caching (5min board list,
+    2min per-match odds). Fine for one dev poking at it, not for real
+    traffic.
+  - No sport/country/league grouping on the board - flat list, sorted by
+    a hand-picked "which competitions are probably covered" heuristic
+    (see `PRIORITY_COMPETITION_KEYWORDS` in `events-service.ts`), not
+    actual confirmed coverage data.
+- **Player auth**: built (`apps/backend/src/modules/auth/`) - register/
+  login/refresh/logout + JWT, scoped to email/username + password only.
+  Two follow-ups intentionally left out of that piece:
+  - Phone number is captured at registration but never verified - needs
+    an SMS provider (Twilio or similar) decided, same category of gap as
+    Payments above.
+  - Biometric login (WebAuthn/passkeys) was discussed and deferred - no
+    external provider needed for it, unlike the phone OTP piece, so it's
+    a reasonable next auth piece whenever it's prioritized.
+- **Bet placement / paper-money wallet**: the actual remainder of the
+  Phase 3 goal ("one real bet, placed by a logged-in user, on a
+  live-updating odds board, working start to finish") - player auth and
+  the odds pipeline are both in place now, but there's no wallet/balance
+  model or bet-placement endpoint yet.
+- **Redis**: provisioned in `docker-compose.yml` since Phase 0 but nothing
+  in the backend actually talks to it yet (refresh tokens deliberately
+  went to Postgres instead, to avoid wiring an unproven integration into
+  the same piece as auth). Session/cache use cases may want it later.
 
 ---
 
