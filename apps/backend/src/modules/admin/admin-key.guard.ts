@@ -2,11 +2,12 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from
 import type { Request } from 'express';
 
 /**
- * Stopgap only: backoffice staff auth + RBAC is an explicitly deferred open
- * item (see PROJECT_BRIEF.md Section 10 - it's a separate system from player
- * auth, not built yet). Until that exists, admin-only endpoints are gated by
- * a shared secret header instead of leaving them reachable by any logged-in
- * player. Replace this with a real staff-auth guard once that module lands.
+ * Bootstrap-only gate, now narrowed to just staff-user provisioning
+ * (POST /admin/staff-users) - real staff auth (see staff-auth.service.ts)
+ * handles everything else, including bet settlement, which used to sit
+ * behind this same guard. There's no other way to create the first staff
+ * account without a chicken-and-egg problem, so this stays as the seam
+ * for that one action.
  */
 @Injectable()
 export class AdminKeyGuard implements CanActivate {

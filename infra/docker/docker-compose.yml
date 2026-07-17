@@ -36,6 +36,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-sportsbook}:${POSTGRES_PASSWORD:-sportsbook}@postgres:5432/${POSTGRES_DB:-sportsbook}
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me}
+      STAFF_JWT_SECRET: ${STAFF_JWT_SECRET:-dev-only-insecure-staff-secret-change-me}
       ADMIN_API_KEY: ${ADMIN_API_KEY:-dev-only-insecure-admin-key-change-me}
     volumes:
       - ../../apps/backend/src:/workspace/apps/backend/src
