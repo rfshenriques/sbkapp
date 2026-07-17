@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { useBetSlipStore } from '../bet-slip/betSlipStore';
+import { usePrefetchMatchDetail } from './usePrefetchMatchDetail';
 import type { Match } from '../../mocks/types';
 
 interface MatchCardProps {
@@ -17,13 +18,19 @@ export function MatchCard({ match }: MatchCardProps) {
         (selection) => selection.matchId === match.id && selection.marketId === matchResult?.id,
       )?.selectionId,
   );
+  const prefetchMatchDetail = usePrefetchMatchDetail();
 
   return (
     <Card>
       <div className="flex items-center justify-between gap-2">
         <div>
           <p className="text-xs text-text-muted">{match.competition}</p>
-          <Link to={`/matches/${match.id}`} className="font-medium hover:underline">
+          <Link
+            to={`/matches/${match.id}`}
+            className="font-medium hover:underline"
+            onMouseEnter={() => prefetchMatchDetail(match.id)}
+            onTouchStart={() => prefetchMatchDetail(match.id)}
+          >
             {match.homeTeam} vs {match.awayTeam}
           </Link>
         </div>

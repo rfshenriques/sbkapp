@@ -1,7 +1,9 @@
-import { render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { matchQueryKey } from '../match-detail/useMatch';
 import type { Match } from '../../mocks/types';
 import { useBetSlipStore } from '../bet-slip/betSlipStore';
 import { MatchCard } from './MatchCard';
@@ -27,11 +29,15 @@ const baseMatch: Match = {
 };
 
 function renderMatchCard(match: Match) {
-  return render(
-    <MemoryRouter>
-      <MatchCard match={match} />
-    </MemoryRouter>,
+  const queryClient = new QueryClient();
+  const result = render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>
+        <MatchCard match={match} />
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
+  return { ...result, queryClient };
 }
 
 beforeEach(() => {
@@ -56,17 +62,22 @@ describe('MatchCard', () => {
   });
 
   it('shows a LIVE badge only when the match is live', () => {
+    const queryClient = new QueryClient();
     const { rerender } = render(
-      <MemoryRouter>
-        <MatchCard match={baseMatch} />
-      </MemoryRouter>,
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <MatchCard match={baseMatch} />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
     expect(screen.queryByText('LIVE')).not.toBeInTheDocument();
 
     rerender(
-      <MemoryRouter>
-        <MatchCard match={{ ...baseMatch, isLive: true }} />
-      </MemoryRouter>,
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <MatchCard match={{ ...baseMatch, isLive: true }} />
+        </MemoryRouter>
+      </QueryClientProvider>,
     );
     expect(screen.getByText('LIVE')).toBeInTheDocument();
   });
@@ -108,5 +119,17 @@ describe('MatchCard', () => {
     await userEvent.click(homeButton);
 
     expect(useBetSlipStore.getState().selections).toEqual([]);
+  });
+
+  it('prefetches the match detail data when the link is hovered', async () => {
+    const { queryClient } = renderMatchCard(baseMatch);
+
+    expect(queryClient.getQueryData(matchQueryKey('match-1'))).toBeUndefined();
+
+    await userEvent.hover(screen.getByRole('link', { name: 'Arsenal vs Chelsea' }));
+
+    await waitFor(() => {
+      expect(queryClient.getQueryData(matchQueryKey('match-1'))).toEqual(baseMatch);
+    });
   });
 });

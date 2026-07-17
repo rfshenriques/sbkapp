@@ -3,7 +3,8 @@ import type { RouteObject } from 'react-router-dom';
 import { AppShell } from './AppShell';
 
 const OddsBoardPage = lazy(() => import('../pages/OddsBoardPage'));
-const MatchDetailPage = lazy(() => import('../pages/MatchDetailPage'));
+export const loadMatchDetailPage = () => import('../pages/MatchDetailPage');
+const MatchDetailPage = lazy(loadMatchDetailPage);
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
 export const routes: RouteObject[] = [

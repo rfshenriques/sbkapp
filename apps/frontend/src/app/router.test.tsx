@@ -22,10 +22,10 @@ describe('router', () => {
     expect(await screen.findByRole('heading', { name: 'Odds Board' })).toBeInTheDocument();
   });
 
-  it('renders the match detail page with the route param', async () => {
-    renderAt('/matches/123');
+  it('renders the match detail page for a known match id', async () => {
+    renderAt('/matches/match-1');
 
-    expect(await screen.findByRole('heading', { name: 'Match 123' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Arsenal vs Chelsea' })).toBeInTheDocument();
   });
 
   it('renders the not-found page for unknown paths', async () => {
