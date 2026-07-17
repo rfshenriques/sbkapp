@@ -40,7 +40,9 @@ export function BetSlipPanel() {
         </Card>
       ))}
       <div className="flex items-center justify-between border-t border-border pt-3">
-        <span className="text-sm text-text-secondary">Combined odds</span>
+        <span className="text-sm text-text-secondary">
+          {selections.length > 1 ? 'Combined odds' : 'Odds'}
+        </span>
         <span className="font-semibold">{combinedOdds.toFixed(2)}</span>
       </div>
       <div className="flex gap-2">

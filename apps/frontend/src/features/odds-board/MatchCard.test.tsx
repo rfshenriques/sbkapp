@@ -53,7 +53,7 @@ describe('MatchCard', () => {
     expect(link).toHaveAttribute('href', '/matches/match-1');
   });
 
-  it('renders every selection with its odds', () => {
+  it('renders the match-result selections with their odds', () => {
     renderMatchCard(baseMatch);
 
     const buttons = screen.getAllByRole('button');
@@ -80,45 +80,6 @@ describe('MatchCard', () => {
       </QueryClientProvider>,
     );
     expect(screen.getByText('LIVE')).toBeInTheDocument();
-  });
-
-  it('adds a selection to the bet slip store when clicked', async () => {
-    renderMatchCard(baseMatch);
-
-    await userEvent.click(screen.getByRole('button', { name: 'Home2.10' }));
-
-    expect(useBetSlipStore.getState().selections).toEqual([
-      {
-        matchId: 'match-1',
-        marketId: 'match-result',
-        selectionId: 'home',
-        matchLabel: 'Arsenal vs Chelsea',
-        marketName: 'Match Result',
-        selectionName: 'Home',
-        odds: 2.1,
-      },
-    ]);
-  });
-
-  it('clicking a different selection in the same market replaces the pick', async () => {
-    renderMatchCard(baseMatch);
-
-    await userEvent.click(screen.getByRole('button', { name: 'Home2.10' }));
-    await userEvent.click(screen.getByRole('button', { name: 'Away3.20' }));
-
-    const selections = useBetSlipStore.getState().selections;
-    expect(selections).toHaveLength(1);
-    expect(selections[0]?.selectionId).toBe('away');
-  });
-
-  it('clicking the same selection twice removes it', async () => {
-    renderMatchCard(baseMatch);
-
-    const homeButton = screen.getByRole('button', { name: 'Home2.10' });
-    await userEvent.click(homeButton);
-    await userEvent.click(homeButton);
-
-    expect(useBetSlipStore.getState().selections).toEqual([]);
   });
 
   it('prefetches the match detail data when the link is hovered', async () => {

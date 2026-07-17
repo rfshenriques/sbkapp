@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { Skeleton } from '../components/ui/Skeleton';
+import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { useMatch } from '../features/match-detail/useMatch';
 
 export default function MatchDetailPage() {
@@ -20,27 +21,21 @@ export default function MatchDetailPage() {
   }
 
   const matchResult = match.markets.find((market) => market.id === 'match-result');
+  const matchLabel = `${match.homeTeam} vs ${match.awayTeam}`;
 
   return (
     <div>
       <p className="text-xs text-text-muted">{match.competition}</p>
-      <h1 className="text-2xl font-semibold">
-        {match.homeTeam} vs {match.awayTeam}
-      </h1>
+      <h1 className="text-2xl font-semibold">{matchLabel}</h1>
       {match.isLive && (
         <span className="mt-2 inline-block rounded bg-danger px-2 py-0.5 text-xs font-semibold text-white">
           LIVE
         </span>
       )}
       {matchResult && (
-        <dl className="mt-4 space-y-1">
-          {matchResult.selections.map((selection) => (
-            <div key={selection.id} className="flex justify-between text-sm">
-              <dt className="text-text-secondary">{selection.name}</dt>
-              <dd className="font-semibold">{selection.odds.toFixed(2)}</dd>
-            </div>
-          ))}
-        </dl>
+        <div className="mt-4">
+          <MarketSelections matchId={match.id} matchLabel={matchLabel} market={matchResult} />
+        </div>
       )}
     </div>
   );
