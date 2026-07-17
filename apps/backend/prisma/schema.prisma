@@ -14,10 +14,15 @@ model User {
   phone           String    @unique
   phoneVerifiedAt DateTime?
   passwordHash    String
+  /**
+   * Paper money only - no real payments/currency handling yet, see PROJECT_BRIEF.md Section 10.
+   */
+  balanceCents    Int       @default(100000)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   refreshTokens RefreshToken[]
+  bets          Bet[]
 
   @@map("users")
 }
@@ -33,4 +38,50 @@ model RefreshToken {
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+enum BetStatus {
+  PENDING
+  WON
+  LOST
+  VOID
+}
+
+/**
+ * One combined-odds bet, made up of one or more selections (a single bet has exactly one).
+ */
+model Bet {
+  id                   String    @id @default(uuid())
+  userId               String
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stakeCents           Int
+  combinedOdds         Decimal   @db.Decimal(10, 4)
+  potentialPayoutCents Int
+  status               BetStatus @default(PENDING)
+  createdAt            DateTime  @default(now())
+
+  selections BetSelection[]
+
+  @@index([userId])
+  @@map("bets")
+}
+
+/**
+ * A snapshot of what was picked at bet time - not a live reference to the
+ * odds feed, which has no persistence of its own and can reshuffle/expire.
+ */
+model BetSelection {
+  id            String  @id @default(uuid())
+  betId         String
+  bet           Bet     @relation(fields: [betId], references: [id], onDelete: Cascade)
+  matchId       String
+  marketId      String
+  selectionId   String
+  matchLabel    String
+  marketName    String
+  selectionName String
+  odds          Decimal @db.Decimal(10, 2)
+
+  @@index([betId])
+  @@map("bet_selections")
 }
