@@ -430,12 +430,23 @@ trying to avoid.
   no real payments provider. Real money will likely want its own Wallet
   model (possibly multiple: real vs. bonus balance) rather than reusing
   this field directly.
-- **Backoffice staff auth + roles & permissions / audit log**: with Risk,
-  Trading, CRM, Fraud, and CMS as effectively separate internal teams,
-  role-based access control and an audit trail (especially for
-  price/liability changes and manual settlement overrides) is needed.
-  Explicitly a *separate* system from player auth (built - see below), not
-  a shared login - tied to the `admin` module.
+- ~~Backoffice staff auth + roles~~ **Auth + basic roles done**
+  (`apps/backend/src/modules/admin/`) - a wholly separate identity system
+  from player auth (own `StaffUser` table, own JWT secret so tokens can't
+  cross over even by accident), with a `StaffRole` enum (ADMIN/TRADING/
+  RISK/CRM/FRAUD/CMS) and a `@Roles()` guard. This now gates bet
+  settlement (only ADMIN/TRADING can settle). Staff accounts are
+  provisioned via the admin-key stopgap (bootstrap only - no other way to
+  create the first account), then staff log in for real from there. What's
+  still open:
+  - **No audit log** - settlement actions (and anything else staff do)
+    aren't recorded anywhere yet. Especially important for price/liability
+    changes and settlement overrides per the original ask.
+  - **No backoffice UI** - staff operate via direct API calls today.
+    Building an actual admin panel is a distinctly separate, large piece.
+  - **Roles are coarse** - one enum value per staff member, no
+    fine-grained permissions within a role (e.g. TRADING can settle any
+    bet, no per-market/per-sport scoping).
 - **Reporting / BI**: P&L, GGR/NGR, trader performance, campaign ROI —
   likely a read-layer over other modules' data rather than an operational
   module of its own.
@@ -495,11 +506,10 @@ trying to avoid.
     rather than double-crediting. **Auto-settlement from real match
     results is still not built** - deliberately deferred, next up when
     prioritized.
-  - **No real staff auth gates settlement yet** - `/admin/*` is a shared
-    `X-Admin-Key` header stopgap (`AdminKeyGuard`,
-    `apps/backend/src/modules/pam/pam-admin.controller.ts`), not real
-    RBAC. Anyone with the key can settle anyone's bets. Needs replacing
-    once backoffice staff auth (above) is built.
+  - ~~No real staff auth gates settlement~~ **Fixed**: settlement now
+    requires a real staff JWT with ADMIN or TRADING role (see Backoffice
+    staff auth above) - the admin-key stopgap only remains for the one
+    bootstrap action of creating a staff account in the first place.
   - A real bug worth remembering the shape of: React StrictMode
     double-invokes effects in dev, which raced two concurrent
     `/auth/refresh` calls against the same single-use refresh token -
