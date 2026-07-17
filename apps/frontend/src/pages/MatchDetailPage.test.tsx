@@ -23,9 +23,7 @@ describe('MatchDetailPage', () => {
 
     expect(screen.getByRole('status', { name: 'Loading match' })).toBeInTheDocument();
 
-    expect(
-      await screen.findByRole('heading', { name: 'Arsenal vs Chelsea' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Arsenal vs Chelsea' })).toBeInTheDocument();
     expect(screen.getByText('Premier League')).toBeInTheDocument();
     expect(screen.getByText('2.10')).toBeInTheDocument();
   });
