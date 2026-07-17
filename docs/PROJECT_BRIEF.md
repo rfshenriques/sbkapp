@@ -425,9 +425,11 @@ trying to avoid.
 - **Payments/Cashier module**: deposits, withdrawals, payment provider
   integrations, currency handling — implied throughout (Wallet, Fraud
   chargebacks, Bonus cash/bonus wallets) but not yet defined as its own
-  module. Player auth (see below) currently has no wallet/balance concept
-  at all yet - bet placement will need at least a paper-money balance
-  before this is decided for real.
+  module. `User.balanceCents` (see Bet placement below) is paper money
+  only — a plain integer field, no currency, no deposit/withdrawal path,
+  no real payments provider. Real money will likely want its own Wallet
+  model (possibly multiple: real vs. bonus balance) rather than reusing
+  this field directly.
 - **Backoffice staff auth + roles & permissions / audit log**: with Risk,
   Trading, CRM, Fraud, and CMS as effectively separate internal teams,
   role-based access control and an audit trail (especially for
@@ -460,19 +462,41 @@ trying to avoid.
     (see `PRIORITY_COMPETITION_KEYWORDS` in `events-service.ts`), not
     actual confirmed coverage data.
 - **Player auth**: built (`apps/backend/src/modules/auth/`) - register/
-  login/refresh/logout + JWT, scoped to email/username + password only.
-  Two follow-ups intentionally left out of that piece:
+  login/refresh/logout + JWT (access token in the response body, refresh
+  token as an httpOnly/sameSite=lax cookie, rotated on every use), scoped
+  to email/username + password only. Frontend side is wired too
+  (`apps/frontend/src/features/auth/`, `pages/LoginPage.tsx`,
+  `RegisterPage.tsx`) - access token kept in memory only, re-derived on
+  page load via a silent refresh against the cookie. Two follow-ups
+  intentionally left out of that piece:
   - Phone number is captured at registration but never verified - needs
     an SMS provider (Twilio or similar) decided, same category of gap as
     Payments above.
   - Biometric login (WebAuthn/passkeys) was discussed and deferred - no
     external provider needed for it, unlike the phone OTP piece, so it's
     a reasonable next auth piece whenever it's prioritized.
-- **Bet placement / paper-money wallet**: the actual remainder of the
-  Phase 3 goal ("one real bet, placed by a logged-in user, on a
-  live-updating odds board, working start to finish") - player auth and
-  the odds pipeline are both in place now, but there's no wallet/balance
-  model or bet-placement endpoint yet.
+- ~~Bet placement / paper-money wallet~~ **Done - closes out Phase 3's
+  goal**: "one real bet, placed by a logged-in user, on a live-updating
+  odds board, working start to finish" now genuinely works end to end,
+  verified in a real browser (not just unit tests) - register, place a
+  combo bet from the bet slip, balance deducts correctly, session survives
+  a reload. `User.balanceCents` (paper money, see Payments above) +
+  `Bet`/`BetSelection` models (`apps/backend/src/modules/pam/`) support
+  combo bets - one bet can carry multiple selections with combined odds,
+  matching how the bet slip already worked since Phase 1. What's still
+  missing:
+  - **Settlement**: bets are created as `PENDING` and never move to
+    `WON`/`LOST`/`VOID` - there's no result-grading logic yet. This is
+    the Trading/Odds module's "settlement backoffice" (Section 8.4),
+    not built.
+  - A real bug worth remembering the shape of: React StrictMode
+    double-invokes effects in dev, which raced two concurrent
+    `/auth/refresh` calls against the same single-use refresh token -
+    the first rotated it, the second got a spurious 401 and looked like
+    a broken session. Fixed with a shared in-flight promise
+    (`inFlightRefresh` in `apps/frontend/src/lib/backendApi.ts`) so
+    concurrent refresh attempts share one real request. Worth
+    remembering this pattern for any other one-shot/rotating-token flow.
 - **Redis**: provisioned in `docker-compose.yml` since Phase 0 but nothing
   in the backend actually talks to it yet (refresh tokens deliberately
   went to Postgres instead, to avoid wiring an unproven integration into
