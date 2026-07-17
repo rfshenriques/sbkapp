@@ -79,5 +79,18 @@ services:
       - backend
       - odds-engine
 
+  backoffice:
+    build:
+      context: ../..
+      dockerfile: apps/backoffice/Dockerfile
+    ports:
+      - '5174:5174'
+    environment:
+      BACKEND_PROXY_TARGET: http://backend:3000
+    volumes:
+      - ../../apps/backoffice/src:/workspace/apps/backoffice/src
+    depends_on:
+      - backend
+
 volumes:
   postgres-data:

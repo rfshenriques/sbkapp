@@ -442,8 +442,17 @@ trying to avoid.
   - **No audit log** - settlement actions (and anything else staff do)
     aren't recorded anywhere yet. Especially important for price/liability
     changes and settlement overrides per the original ask.
-  - **No backoffice UI** - staff operate via direct API calls today.
-    Building an actual admin panel is a distinctly separate, large piece.
+  - ~~No backoffice UI~~ **Settlement UI done** (`apps/backoffice/`) - a
+    separate Vite+React staff app (port 5174 dev / distinct Docker
+    service) with its own login page and a settlement screen: filter bets
+    by status, see each bet's selections, and settle a selection
+    (OPEN/WON/LOST/VOID) with one click. Reuses the same JWT-in-memory +
+    httpOnly-refresh-cookie pattern as the player app, wired to the
+    staff-only auth endpoints and gated by `RequireStaffAuth`. Verified
+    with a real Postgres bet settled end-to-end through a real browser
+    (Playwright), confirming the player's wallet was actually credited.
+    Other backoffice functions (odds/market management, user admin,
+    reporting, etc.) aren't built yet - this is settlement only.
   - **Roles are coarse** - one enum value per staff member, no
     fine-grained permissions within a role (e.g. TRADING can settle any
     bet, no per-market/per-sport scoping).
