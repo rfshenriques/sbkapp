@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { EventBusModule } from './event-bus/event-bus.module';
 import { HealthModule } from './health/health.module';
+import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { KycModule } from './modules/kyc/kyc.module';
 import { PamModule } from './modules/pam/pam.module';
@@ -17,6 +18,7 @@ import { AdminModule } from './modules/admin/admin.module';
 
 @Module({
   imports: [
+    PrismaModule,
     EventBusModule,
     HealthModule,
     AuthModule,

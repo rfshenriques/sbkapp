@@ -9,14 +9,19 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/main.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.28",
     "@nestjs/core": "^11.1.28",
     "@nestjs/event-emitter": "^3.1.0",
     "@nestjs/platform-express": "^11.1.28",
+    "@prisma/client": "^6.2.1",
     "@sportsbook/shared": "workspace:*",
+    "dotenv": "^16.4.7",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2"
   },
@@ -25,6 +30,7 @@
     "@swc/core": "^1.10.1",
     "@types/node": "^22.10.2",
     "@types/supertest": "^6.0.2",
+    "prisma": "^6.2.1",
     "supertest": "^7.0.0",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",

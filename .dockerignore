@@ -7,3 +7,5 @@ node_modules
 **/.vite
 **/dev-dist
 .git
+**/.env
+!**/.env.example

@@ -8,6 +8,22 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sportsbook
+          POSTGRES_PASSWORD: sportsbook
+          POSTGRES_DB: sportsbook
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U sportsbook"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DATABASE_URL: postgres://sportsbook:sportsbook@localhost:5432/sportsbook
     steps:
       - uses: actions/checkout@v4
 
@@ -20,6 +36,12 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @sportsbook/backend prisma:generate
+
+      - name: Apply database migrations
+        run: pnpm --filter @sportsbook/backend prisma:migrate:deploy
 
       - name: Build
         run: pnpm run build

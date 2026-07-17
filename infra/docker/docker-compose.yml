@@ -37,6 +37,7 @@ services:
       REDIS_URL: redis://redis:6379
     volumes:
       - ../../apps/backend/src:/workspace/apps/backend/src
+      - ../../apps/backend/prisma:/workspace/apps/backend/prisma
       - ../../packages/shared/src:/workspace/packages/shared/src
     depends_on:
       postgres:

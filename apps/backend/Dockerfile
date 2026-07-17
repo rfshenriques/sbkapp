@@ -16,7 +16,8 @@ RUN pnpm install --frozen-lockfile
 COPY packages/shared packages/shared
 COPY apps/backend apps/backend
 RUN pnpm --filter @sportsbook/shared build
+RUN pnpm --filter @sportsbook/backend exec prisma generate
 
 WORKDIR /workspace/apps/backend
 EXPOSE 3000
-CMD ["pnpm", "dev"]
+CMD ["sh", "-c", "pnpm exec prisma migrate deploy && pnpm dev"]
