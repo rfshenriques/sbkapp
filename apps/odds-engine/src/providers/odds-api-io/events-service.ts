@@ -14,7 +14,10 @@ interface CacheEntry<T> {
 export interface EventsServiceOptions {
   client: OddsApiIoClient;
   sport?: string;
+  /** How many raw fixtures to request from the provider before filtering to pending/live. */
   eventsLimit?: number;
+  /** How many pending/live matches to actually return, after filtering. */
+  maxMatches?: number;
   bookmaker?: string;
   now?: () => number;
 }
@@ -37,7 +40,8 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
   const {
     client,
     sport = 'football',
-    eventsLimit = 30,
+    eventsLimit = 300,
+    maxMatches = 30,
     bookmaker = DEFAULT_BOOKMAKER,
     now = Date.now,
   } = options;
@@ -63,7 +67,8 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
         isLive: event.status === 'live',
         markets: [],
       }))
-      .sort((a, b) => a.kickoff.localeCompare(b.kickoff));
+      .sort((a, b) => a.kickoff.localeCompare(b.kickoff))
+      .slice(0, maxMatches);
 
     eventsCache = { value: matches, expiresAt: currentTime + EVENTS_CACHE_TTL_MS };
     return matches;
