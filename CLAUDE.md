@@ -1,0 +1,46 @@
+# Design system
+
+`apps/frontend` (player-facing) follows the design language from the owner's
+BETGER prototype (7 static HTML mockups delivered directly in chat, not
+committed to the repo: homepage, live event page, pre-match event page, bet
+builder, bet slip, boosts, highlights). Every new player-facing page or
+component, and every existing one that gets touched, should be built or
+reskinned to match this system rather than left in the old plain-Tailwind
+style. This is a standing instruction, not a one-time task.
+
+**Don't hardcode BETGER's literal colors.** The system is brand-neutral:
+
+- `apps/frontend/src/index.css` defines the token layer: fixed dark/light
+  base palettes (background/surface/border/text, swapped via
+  `[data-theme='light']`) plus brand-driven `--color-brand` (button color)
+  and `--color-highlight` (accent color) that come from the `Brand` model,
+  not from CSS.
+- `apps/frontend/src/features/brand/useBrandTheme.ts` fetches this
+  deployment's own brand (`GET /public/brands/:id`, unauthenticated) and
+  applies `themeMode`/`buttonColorHex`/`highlightColorHex` as CSS custom
+  properties + a `data-theme` attribute at runtime. Every brand created in
+  the master backoffice should render correctly through this, unchanged.
+- Shared primitives already exist for the recurring visual patterns: the
+  angular "slash" cut (`.slash`), odds buttons (`.odd-btn`, `.selected`),
+  primary/ghost CTAs (`.btn-primary`, `.btn-ghost`), the display font
+  (`.font-display`, Saira Condensed), and the tri-bar section marker
+  (`.brand-flag`). Extend these rather than inventing parallel ones.
+- Hover/deep color variants are derived with `color-mix()` from the two
+  brand colors - don't ask for or store a third color.
+
+**Only build what's backed by real data.** The mockups assume a fully-built
+multi-sport sportsbook (live scores/clock, per-sport tabs with counts,
+boosted parlays, a highlights feed, bet builder with correlation pricing).
+The actual data model today (`packages/shared`'s `Match`/`Market`/
+`Selection`) is much smaller - no sport field, no live score, no boosts/
+parlays/builder domain. When reskinning or building a page whose mockup
+section has no backing data yet, match the visual system for what's real
+and *omit* the rest rather than fabricating placeholder data - add those
+sections once the backend actually supports them. See `docs/PROJECT_BRIEF.md`
+Section 10 for what's been reskinned so far and what's still pending.
+
+**Verify visually, not just with tests.** Changes here are inherently visual
+- after editing, run the app for real (Playwright + a real browser, per the
+`verify` skill) and look at a screenshot before calling it done. Prove brand
+theming actually works by checking at least two brands with different colors
+render distinctly, not just that the code compiles.
