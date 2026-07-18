@@ -444,24 +444,35 @@ trying to avoid.
   `GET/POST /admin/staff-users` (`StaffUsersController`, gated by
   `StaffJwtAuthGuard` + `RolesGuard('ADMIN')`) - no shared key needed.
   What's still open:
-  - **No audit log** - settlement actions (and anything else staff do)
-    aren't recorded anywhere yet. Especially important for price/liability
-    changes and settlement overrides per the original ask.
-  - ~~No backoffice UI~~ **Settlement + staff-user management UI done**
-    (`apps/backoffice/`) - a separate Vite+React staff app (port 5174 dev
-    / distinct Docker service) with its own login page, a settlement
-    screen (filter bets by status, settle a selection OPEN/WON/LOST/VOID
-    with one click), and a staff-users screen (list existing staff, add a
-    new one with username/email/password/role) visible only to ADMIN -
-    both the nav link and the route itself are gated client-side
-    (`RequireAdminRole`), on top of the backend's own `RolesGuard`. Reuses
-    the same JWT-in-memory + httpOnly-refresh-cookie pattern as the player
-    app. Verified with real Postgres end-to-end through a real browser
-    (Playwright): bootstrapping the first ADMIN, settling a bet and
-    confirming the player's wallet was actually credited, creating a new
-    TRADING staff user through the form and confirming they can really log
-    in, and confirming a non-ADMIN sees the client-side block *and* gets a
-    403 from the backend independently. Other backoffice functions
+  - ~~No audit log~~ **Audit log done** - `AuditLogEntry` (append-only,
+    no FK to `StaffUser` so entries outlive a deleted staff account) is
+    written for `STAFF_USER_BOOTSTRAPPED`, `STAFF_USER_CREATED`, and
+    `SELECTION_SETTLED` (with before/after status in `metadata`), the
+    settlement entry written atomically inside the same Prisma
+    transaction as the settlement itself. `GET /admin/audit-log`
+    (`AuditLogController`, ADMIN only) backs a new "Audit log" screen in
+    `apps/backoffice/`. Not yet covered: staff logins, refresh-token
+    activity, or any action outside these three - extend
+    `AuditLogService.record()` call sites as more staff actions are
+    added.
+  - ~~No backoffice UI~~ **Settlement + staff-user management + audit log
+    UI done** (`apps/backoffice/`) - a separate Vite+React staff app
+    (port 5174 dev / distinct Docker service) with its own login page, a
+    settlement screen (filter bets by status, settle a selection
+    OPEN/WON/LOST/VOID with one click), a staff-users screen (list
+    existing staff, add a new one with username/email/password/role),
+    and an audit-log screen (time/actor/action/target/details) - the
+    latter two visible only to ADMIN, both the nav link and the route
+    itself gated client-side (`RequireAdminRole`), on top of the
+    backend's own `RolesGuard`. Reuses the same JWT-in-memory +
+    httpOnly-refresh-cookie pattern as the player app. Verified with real
+    Postgres end-to-end through a real browser (Playwright):
+    bootstrapping the first ADMIN, settling a bet and confirming the
+    player's wallet was actually credited, creating a new staff user
+    through the form and confirming they can really log in, confirming a
+    non-ADMIN sees the client-side block *and* gets a 403 from the
+    backend independently, and confirming both actions show up correctly
+    attributed on the audit-log screen. Other backoffice functions
     (odds/market management, user admin, reporting, etc.) aren't built
     yet.
   - **Roles are coarse** - one enum value per staff member, no

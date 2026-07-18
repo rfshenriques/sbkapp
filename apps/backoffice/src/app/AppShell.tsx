@@ -17,12 +17,20 @@ export function AppShell() {
                 Settlement
               </Link>
               {user?.role === 'ADMIN' && (
-                <Link
-                  to="/staff-users"
-                  className="text-sm text-text-secondary hover:text-text-primary"
-                >
-                  Staff users
-                </Link>
+                <>
+                  <Link
+                    to="/staff-users"
+                    className="text-sm text-text-secondary hover:text-text-primary"
+                  >
+                    Staff users
+                  </Link>
+                  <Link
+                    to="/audit-log"
+                    className="text-sm text-text-secondary hover:text-text-primary"
+                  >
+                    Audit log
+                  </Link>
+                </>
               )}
               <div className="ml-auto flex items-center gap-3 text-sm">
                 <span className="text-text-secondary">

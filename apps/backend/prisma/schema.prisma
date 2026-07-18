@@ -81,6 +81,31 @@ model StaffRefreshToken {
   @@map("staff_refresh_tokens")
 }
 
+enum AuditAction {
+  STAFF_USER_BOOTSTRAPPED
+  STAFF_USER_CREATED
+  SELECTION_SETTLED
+}
+
+/**
+ * Deliberately no FK relation to StaffUser - actor identity is a
+ * denormalized snapshot (id + username) so an audit entry survives even
+ * if the acting staff account is later deleted.
+ */
+model AuditLogEntry {
+  id               String      @id @default(uuid())
+  actorStaffUserId String?
+  actorUsername    String
+  action           AuditAction
+  targetType       String
+  targetId         String
+  metadata         Json?
+  createdAt        DateTime    @default(now())
+
+  @@index([createdAt])
+  @@map("audit_log_entries")
+}
+
 enum BetStatus {
   PENDING
   WON

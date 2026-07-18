@@ -1,9 +1,14 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { CreateStaffUserDto } from './dto/create-staff-user.dto';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
 import { StaffAuthService } from './staff-auth.service';
 import { StaffJwtAuthGuard } from './staff-jwt-auth.guard';
+import type { StaffJwtPayload } from './staff-jwt.strategy';
+
+interface AuthenticatedStaffRequest {
+  user: StaffJwtPayload;
+}
 
 @UseGuards(StaffJwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
@@ -17,7 +22,10 @@ export class StaffUsersController {
   }
 
   @Post()
-  createStaffUser(@Body() dto: CreateStaffUserDto) {
-    return this.staffAuthService.createStaffUser(dto);
+  createStaffUser(@Body() dto: CreateStaffUserDto, @Req() req: AuthenticatedStaffRequest) {
+    return this.staffAuthService.createStaffUser(dto, {
+      id: req.user.sub,
+      username: req.user.username,
+    });
   }
 }

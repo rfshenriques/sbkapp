@@ -1,12 +1,16 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { BetStatus, SelectionStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { computeBetOutcome } from './bet-settlement';
 import type { PlaceBetDto } from './dto/place-bet.dto';
 
 @Injectable()
 export class PamService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly auditLogService: AuditLogService,
+  ) {}
 
   async getWallet(userId: string): Promise<{ balanceCents: number }> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
@@ -77,14 +81,31 @@ export class PamService {
    * (including back to OPEN, as a correction) claws back or tops up
    * whatever was previously credited, rather than double-crediting.
    */
-  async settleSelection(betId: string, selectionId: string, status: SelectionStatus) {
+  async settleSelection(
+    betId: string,
+    selectionId: string,
+    status: SelectionStatus,
+    actor: AuditActor,
+  ) {
     return this.prisma.$transaction(async (tx) => {
       const selection = await tx.betSelection.findUnique({ where: { id: selectionId } });
       if (!selection || selection.betId !== betId) {
         throw new NotFoundException('Selection not found on this bet');
       }
+      const previousStatus = selection.status;
 
       await tx.betSelection.update({ where: { id: selectionId }, data: { status } });
+
+      await this.auditLogService.record(
+        {
+          actor,
+          action: 'SELECTION_SETTLED',
+          targetType: 'BetSelection',
+          targetId: selectionId,
+          metadata: { betId, previousStatus, newStatus: status },
+        },
+        tx,
+      );
 
       const bet = await tx.bet.findUniqueOrThrow({
         where: { id: betId },

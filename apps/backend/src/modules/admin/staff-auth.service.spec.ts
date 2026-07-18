@@ -4,6 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditLogService } from './audit-log.service';
 import type { CreateStaffUserDto } from './dto/create-staff-user.dto';
 import { StaffAuthService } from './staff-auth.service';
 
@@ -29,6 +30,7 @@ describe('StaffAuthService', () => {
       providers: [
         StaffAuthService,
         PrismaService,
+        AuditLogService,
         { provide: JwtService, useValue: new JwtService({}) },
       ],
     }).compile();
@@ -40,6 +42,9 @@ describe('StaffAuthService', () => {
 
   afterEach(async () => {
     if (createdStaffUserIds.length > 0) {
+      await prisma.auditLogEntry.deleteMany({
+        where: { targetType: 'StaffUser', targetId: { in: createdStaffUserIds } },
+      });
       await prisma.staffUser.deleteMany({ where: { id: { in: createdStaffUserIds } } });
       createdStaffUserIds.length = 0;
     }
@@ -144,5 +149,33 @@ describe('StaffAuthService', () => {
 
     expect(found).toMatchObject({ username: dto.username, email: dto.email, role: 'CRM' });
     expect(found).not.toHaveProperty('passwordHash');
+  });
+
+  it('records an audit entry attributed to the creating ADMIN when created by an authenticated actor', async () => {
+    const dto = buildCreateStaffUserDto();
+    const actor = { id: 'admin-staff-id', username: 'admin_amy' };
+    const created = await staffAuthService.createStaffUser(dto, actor);
+    createdStaffUserIds.push(created.id);
+
+    const entry = await prisma.auditLogEntry.findFirstOrThrow({
+      where: { targetType: 'StaffUser', targetId: created.id },
+    });
+    expect(entry.action).toBe('STAFF_USER_CREATED');
+    expect(entry.actorStaffUserId).toBe(actor.id);
+    expect(entry.actorUsername).toBe(actor.username);
+  });
+
+  it('records an audit entry attributed to the system when created via bootstrap', async () => {
+    // No prior staff users exist in this isolated test module instance.
+    const dto = buildCreateStaffUserDto();
+    const created = await staffAuthService.bootstrapStaffUser(dto);
+    createdStaffUserIds.push(created.id);
+
+    const entry = await prisma.auditLogEntry.findFirstOrThrow({
+      where: { targetType: 'StaffUser', targetId: created.id },
+    });
+    expect(entry.action).toBe('STAFF_USER_BOOTSTRAPPED');
+    expect(entry.actorStaffUserId).toBeNull();
+    expect(entry.actorUsername).toBe('SYSTEM_BOOTSTRAP');
   });
 });

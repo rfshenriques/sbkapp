@@ -1,4 +1,5 @@
 import type { RouteObject } from 'react-router-dom';
+import AuditLogPage from '../pages/AuditLogPage';
 import NotFoundPage from '../pages/NotFoundPage';
 import SettlementPage from '../pages/SettlementPage';
 import StaffLoginPage from '../pages/StaffLoginPage';
@@ -26,6 +27,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireAdminRole>
               <StaffUsersPage />
+            </RequireAdminRole>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'audit-log',
+        element: (
+          <RequireStaffAuth>
+            <RequireAdminRole>
+              <AuditLogPage />
             </RequireAdminRole>
           </RequireStaffAuth>
         ),

@@ -28,6 +28,17 @@ export interface CreateStaffUserPayload {
   role: StaffRole;
 }
 
+export interface AuditLogEntry {
+  id: string;
+  actorStaffUserId: string | null;
+  actorUsername: string;
+  action: string;
+  targetType: string;
+  targetId: string;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
 export type SelectionStatus = 'OPEN' | 'WON' | 'LOST' | 'VOID';
 export type BetStatus = 'PENDING' | 'WON' | 'LOST' | 'VOID';
 
@@ -180,4 +191,9 @@ export async function createStaffUser(payload: CreateStaffUserPayload): Promise<
     body: JSON.stringify(payload),
   });
   return parseJsonOrThrow(response, `Failed to create staff user: ${response.status}`);
+}
+
+export async function listAuditLog(): Promise<AuditLogEntry[]> {
+  const response = await authenticatedFetch('/admin/audit-log');
+  return parseJsonOrThrow(response, `Failed to load audit log: ${response.status}`);
 }

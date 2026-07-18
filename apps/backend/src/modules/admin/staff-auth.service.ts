@@ -9,6 +9,7 @@ import { JwtService } from '@nestjs/jwt';
 import type { StaffRole } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditLogService, type AuditActor } from './audit-log.service';
 import type { CreateStaffUserDto } from './dto/create-staff-user.dto';
 import type { StaffLoginDto } from './dto/staff-login.dto';
 
@@ -30,9 +31,15 @@ export class StaffAuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly auditLogService: AuditLogService,
   ) {}
 
-  async createStaffUser(dto: CreateStaffUserDto) {
+  /**
+   * `actor` is the authenticated ADMIN creating this account, or undefined
+   * when called from the one-time bootstrap path (no staff user is
+   * authenticated yet - see bootstrapStaffUser).
+   */
+  async createStaffUser(dto: CreateStaffUserDto, actor?: AuditActor) {
     const existing = await this.prisma.staffUser.findFirst({
       where: { OR: [{ email: dto.email }, { username: dto.username }] },
     });
@@ -43,6 +50,14 @@ export class StaffAuthService {
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_SALT_ROUNDS);
     const staffUser = await this.prisma.staffUser.create({
       data: { email: dto.email, username: dto.username, passwordHash, role: dto.role },
+    });
+
+    await this.auditLogService.record({
+      actor: actor ?? { id: null, username: 'SYSTEM_BOOTSTRAP' },
+      action: actor ? 'STAFF_USER_CREATED' : 'STAFF_USER_BOOTSTRAPPED',
+      targetType: 'StaffUser',
+      targetId: staffUser.id,
+      metadata: { username: staffUser.username, email: staffUser.email, role: staffUser.role },
     });
 
     return {

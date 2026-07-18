@@ -3,8 +3,11 @@ import { BadRequestException } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { PamService } from './pam.service';
 import type { PlaceBetDto } from './dto/place-bet.dto';
+
+const TEST_ACTOR: AuditActor = { id: 'staff-test-id', username: 'test_trader' };
 
 function buildSelection(overrides: Partial<PlaceBetDto['selections'][number]> = {}) {
   return {
@@ -27,7 +30,7 @@ describe('PamService', () => {
 
   beforeEach(async () => {
     moduleRef = await Test.createTestingModule({
-      providers: [PamService, PrismaService],
+      providers: [PamService, PrismaService, AuditLogService],
     }).compile();
     await moduleRef.init();
 
@@ -37,6 +40,7 @@ describe('PamService', () => {
 
   afterEach(async () => {
     if (createdUserIds.length > 0) {
+      await prisma.auditLogEntry.deleteMany({ where: { actorUsername: TEST_ACTOR.username } });
       await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
       createdUserIds.length = 0;
     }
@@ -131,11 +135,27 @@ describe('PamService', () => {
         stakeCents: 1_000,
       });
 
-      const settled = await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'WON');
+      const settled = await pamService.settleSelection(
+        bet.id,
+        bet.selections[0]!.id,
+        'WON',
+        TEST_ACTOR,
+      );
 
       expect(settled.status).toBe('WON');
       expect(settled.settledPayoutCents).toBe(2_100);
       expect(settled.settledAt).not.toBeNull();
+
+      const auditEntry = await prisma.auditLogEntry.findFirstOrThrow({
+        where: { targetType: 'BetSelection', targetId: bet.selections[0]!.id },
+      });
+      expect(auditEntry.action).toBe('SELECTION_SETTLED');
+      expect(auditEntry.actorUsername).toBe(TEST_ACTOR.username);
+      expect(auditEntry.metadata).toMatchObject({
+        betId: bet.id,
+        previousStatus: 'OPEN',
+        newStatus: 'WON',
+      });
 
       const wallet = await pamService.getWallet(userId);
       // 100_000 - 1_000 stake + 2_100 payout
@@ -149,7 +169,12 @@ describe('PamService', () => {
         stakeCents: 1_000,
       });
 
-      const settled = await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'LOST');
+      const settled = await pamService.settleSelection(
+        bet.id,
+        bet.selections[0]!.id,
+        'LOST',
+        TEST_ACTOR,
+      );
 
       expect(settled.status).toBe('LOST');
       expect(settled.settledPayoutCents).toBe(0);
@@ -165,7 +190,12 @@ describe('PamService', () => {
         stakeCents: 1_000,
       });
 
-      const settled = await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'VOID');
+      const settled = await pamService.settleSelection(
+        bet.id,
+        bet.selections[0]!.id,
+        'VOID',
+        TEST_ACTOR,
+      );
 
       expect(settled.status).toBe('VOID');
       expect(settled.settledPayoutCents).toBe(1_000);
@@ -184,14 +214,24 @@ describe('PamService', () => {
         stakeCents: 1_000,
       });
 
-      const afterFirstLeg = await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'WON');
+      const afterFirstLeg = await pamService.settleSelection(
+        bet.id,
+        bet.selections[0]!.id,
+        'WON',
+        TEST_ACTOR,
+      );
       expect(afterFirstLeg.status).toBe('PENDING');
       expect(afterFirstLeg.settledPayoutCents).toBeNull();
 
       const walletMidway = await pamService.getWallet(userId);
       expect(walletMidway.balanceCents).toBe(99_000);
 
-      const afterSecondLeg = await pamService.settleSelection(bet.id, bet.selections[1]!.id, 'WON');
+      const afterSecondLeg = await pamService.settleSelection(
+        bet.id,
+        bet.selections[1]!.id,
+        'WON',
+        TEST_ACTOR,
+      );
       expect(afterSecondLeg.status).toBe('WON');
       // 2.1 * 3.2 = 6.72
       expect(afterSecondLeg.settledPayoutCents).toBe(6_720);
@@ -210,8 +250,13 @@ describe('PamService', () => {
         stakeCents: 1_000,
       });
 
-      await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'WON');
-      const final = await pamService.settleSelection(bet.id, bet.selections[1]!.id, 'LOST');
+      await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+      const final = await pamService.settleSelection(
+        bet.id,
+        bet.selections[1]!.id,
+        'LOST',
+        TEST_ACTOR,
+      );
 
       expect(final.status).toBe('LOST');
       expect(final.settledPayoutCents).toBe(0);
@@ -235,10 +280,15 @@ describe('PamService', () => {
         stakeCents: 1_000,
       });
 
-      await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'WON');
+      await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
       expect((await pamService.getWallet(userId)).balanceCents).toBe(101_100);
 
-      const reopened = await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'OPEN');
+      const reopened = await pamService.settleSelection(
+        bet.id,
+        bet.selections[0]!.id,
+        'OPEN',
+        TEST_ACTOR,
+      );
 
       expect(reopened.status).toBe('PENDING');
       expect(reopened.settledPayoutCents).toBeNull();
@@ -253,10 +303,10 @@ describe('PamService', () => {
         stakeCents: 1_000,
       });
 
-      await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'WON');
+      await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
       expect((await pamService.getWallet(userId)).balanceCents).toBe(101_100);
 
-      await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'LOST');
+      await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'LOST', TEST_ACTOR);
       expect((await pamService.getWallet(userId)).balanceCents).toBe(99_000);
     });
 
@@ -270,7 +320,7 @@ describe('PamService', () => {
         selections: [buildSelection({ selectionId: 'away', odds: 3.2 })],
         stakeCents: 700,
       });
-      await pamService.settleSelection(wonBet.id, wonBet.selections[0]!.id, 'WON');
+      await pamService.settleSelection(wonBet.id, wonBet.selections[0]!.id, 'WON', TEST_ACTOR);
 
       const pendingBets = await pamService.listBetsForSettlement('PENDING');
       expect(pendingBets.map((bet) => bet.id)).toContain(pendingBet.id);

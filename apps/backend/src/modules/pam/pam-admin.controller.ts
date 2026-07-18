@@ -1,10 +1,15 @@
-import { Body, Controller, Get, Param, Patch, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { Roles } from '../admin/roles.decorator';
 import { RolesGuard } from '../admin/roles.guard';
 import { StaffJwtAuthGuard } from '../admin/staff-jwt-auth.guard';
+import type { StaffJwtPayload } from '../admin/staff-jwt.strategy';
 import { ListBetsQueryDto } from './dto/list-bets-query.dto';
 import { SettleSelectionDto } from './dto/settle-selection.dto';
 import { PamService } from './pam.service';
+
+interface AuthenticatedStaffRequest {
+  user: StaffJwtPayload;
+}
 
 @UseGuards(StaffJwtAuthGuard, RolesGuard)
 @Roles('ADMIN', 'TRADING')
@@ -22,7 +27,11 @@ export class PamAdminController {
     @Param('betId') betId: string,
     @Param('selectionId') selectionId: string,
     @Body() dto: SettleSelectionDto,
+    @Req() req: AuthenticatedStaffRequest,
   ) {
-    return this.pamService.settleSelection(betId, selectionId, dto.status);
+    return this.pamService.settleSelection(betId, selectionId, dto.status, {
+      id: req.user.sub,
+      username: req.user.username,
+    });
   }
 }
