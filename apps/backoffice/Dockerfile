@@ -14,7 +14,9 @@ COPY apps/backoffice/package.json apps/backoffice/package.json
 COPY apps/odds-engine/package.json apps/odds-engine/package.json
 RUN pnpm install --frozen-lockfile
 
+COPY packages/shared packages/shared
 COPY apps/backoffice apps/backoffice
+RUN pnpm --filter @sportsbook/shared build
 
 WORKDIR /workspace/apps/backoffice
 EXPOSE 5174

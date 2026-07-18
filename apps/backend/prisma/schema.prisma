@@ -85,6 +85,8 @@ enum AuditAction {
   STAFF_USER_BOOTSTRAPPED
   STAFF_USER_CREATED
   SELECTION_SETTLED
+  MARKET_SUSPENDED
+  MARKET_UNSUSPENDED
 }
 
 /**
@@ -143,6 +145,24 @@ model Bet {
 
   @@index([userId])
   @@map("bets")
+}
+
+/**
+ * Blocks new bets on a match (marketId = "") or one specific market within
+ * it. The odds-engine itself is a stateless read-through proxy over the
+ * live feed with no persistence of its own - this is our own DB's record
+ * of what trading has locked, checked by PamService.placeBet.
+ */
+model MarketSuspension {
+  id        String   @id @default(uuid())
+  matchId   String
+  marketId  String   @default("")
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@unique([matchId, marketId])
+  @@index([matchId])
+  @@map("market_suspensions")
 }
 
 /**

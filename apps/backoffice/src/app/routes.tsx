@@ -1,11 +1,12 @@
 import type { RouteObject } from 'react-router-dom';
 import AuditLogPage from '../pages/AuditLogPage';
+import MarketsPage from '../pages/MarketsPage';
 import NotFoundPage from '../pages/NotFoundPage';
 import SettlementPage from '../pages/SettlementPage';
 import StaffLoginPage from '../pages/StaffLoginPage';
 import StaffUsersPage from '../pages/StaffUsersPage';
 import { AppShell } from './AppShell';
-import { RequireAdminRole } from './RequireAdminRole';
+import { RequireRoles } from './RequireRoles';
 import { RequireStaffAuth } from './RequireStaffAuth';
 
 export const routes: RouteObject[] = [
@@ -22,12 +23,22 @@ export const routes: RouteObject[] = [
         ),
       },
       {
+        path: 'markets',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'TRADING']}>
+              <MarketsPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
         path: 'staff-users',
         element: (
           <RequireStaffAuth>
-            <RequireAdminRole>
+            <RequireRoles roles={['ADMIN']}>
               <StaffUsersPage />
-            </RequireAdminRole>
+            </RequireRoles>
           </RequireStaffAuth>
         ),
       },
@@ -35,9 +46,9 @@ export const routes: RouteObject[] = [
         path: 'audit-log',
         element: (
           <RequireStaffAuth>
-            <RequireAdminRole>
+            <RequireRoles roles={['ADMIN']}>
               <AuditLogPage />
-            </RequireAdminRole>
+            </RequireRoles>
           </RequireStaffAuth>
         ),
       },

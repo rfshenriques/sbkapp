@@ -4,12 +4,14 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { computeBetOutcome } from './bet-settlement';
 import type { PlaceBetDto } from './dto/place-bet.dto';
+import { MarketSuspensionService } from './market-suspension.service';
 
 @Injectable()
 export class PamService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
+    private readonly marketSuspensionService: MarketSuspensionService,
   ) {}
 
   async getWallet(userId: string): Promise<{ balanceCents: number }> {
@@ -25,6 +27,19 @@ export class PamService {
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       if (user.balanceCents < dto.stakeCents) {
         throw new BadRequestException('Insufficient balance');
+      }
+
+      for (const selection of dto.selections) {
+        const suspended = await this.marketSuspensionService.isSuspended(
+          selection.matchId,
+          selection.marketId,
+          tx,
+        );
+        if (suspended) {
+          throw new BadRequestException(
+            `Market is suspended: ${selection.matchLabel} - ${selection.marketName}`,
+          );
+        }
       }
 
       await tx.user.update({

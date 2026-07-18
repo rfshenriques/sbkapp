@@ -455,29 +455,49 @@ trying to avoid.
     activity, or any action outside these three - extend
     `AuditLogService.record()` call sites as more staff actions are
     added.
-  - ~~No backoffice UI~~ **Settlement + staff-user management + audit log
-    UI done** (`apps/backoffice/`) - a separate Vite+React staff app
-    (port 5174 dev / distinct Docker service) with its own login page, a
-    settlement screen (filter bets by status, settle a selection
-    OPEN/WON/LOST/VOID with one click), a staff-users screen (list
-    existing staff, add a new one with username/email/password/role),
-    and an audit-log screen (time/actor/action/target/details) - the
-    latter two visible only to ADMIN, both the nav link and the route
-    itself gated client-side (`RequireAdminRole`), on top of the
-    backend's own `RolesGuard`. Reuses the same JWT-in-memory +
-    httpOnly-refresh-cookie pattern as the player app. Verified with real
-    Postgres end-to-end through a real browser (Playwright):
-    bootstrapping the first ADMIN, settling a bet and confirming the
-    player's wallet was actually credited, creating a new staff user
-    through the form and confirming they can really log in, confirming a
-    non-ADMIN sees the client-side block *and* gets a 403 from the
-    backend independently, and confirming both actions show up correctly
-    attributed on the audit-log screen. Other backoffice functions
-    (odds/market management, user admin, reporting, etc.) aren't built
-    yet.
+  - ~~No backoffice UI~~ **Settlement + market suspension + staff-user
+    management + audit log UI done** (`apps/backoffice/`) - a separate
+    Vite+React staff app (port 5174 dev / distinct Docker service, also
+    proxies `/api` to the odds-engine now) with its own login page and:
+    - a settlement screen (filter bets by status, settle a selection
+      OPEN/WON/LOST/VOID with one click) - ADMIN/TRADING;
+    - a markets screen: browse live matches from the odds-engine,
+      expand one to see its markets, and suspend/unsuspend a whole match
+      or one specific market - ADMIN/TRADING;
+    - a staff-users screen (list existing staff, add a new one) - ADMIN
+      only;
+    - an audit-log screen (time/actor/action/target/details) - ADMIN
+      only.
+
+    Role gating uses a general `RequireRoles(roles)` route/nav guard
+    (superseded the earlier ADMIN-only `RequireAdminRole`), backed by the
+    server's own `RolesGuard` so the restriction isn't just cosmetic.
+    Reuses the same JWT-in-memory + httpOnly-refresh-cookie pattern as
+    the player app. Verified with real Postgres end-to-end through a
+    real browser (Playwright): bootstrapping the first ADMIN, settling a
+    bet and confirming the player's wallet was actually credited,
+    creating a new staff user through the form and confirming they can
+    really log in, confirming a non-ADMIN/non-TRADING sees the
+    client-side block *and* gets a 403 from the backend independently on
+    every gated screen, and confirming settlement/staff-creation/market
+    actions all show up correctly attributed on the audit-log screen.
+    Market suspension's *blocking* behavior (`PamService.placeBet`
+    rejects a suspended match/market) was verified via real HTTP calls
+    against the real backend; the live-match-browsing half of that
+    screen could only be verified against its unit tests (mocked fetch)
+    in this dev sandbox, because outbound access to `api.odds-api.io` is
+    blocked by the sandbox's own egress policy (confirmed via the proxy
+    status endpoint - a policy denial, not a data-source problem) -
+    worth a real check next time this runs somewhere with that host
+    allowed. Other backoffice functions (user admin, reporting, etc.)
+    aren't built yet.
   - **Roles are coarse** - one enum value per staff member, no
     fine-grained permissions within a role (e.g. TRADING can settle any
     bet, no per-market/per-sport scoping).
+  - **Market suspension has no expiry/auto-clear** - a suspended
+    match/market stays suspended until a staff member manually
+    unsuspends it, even after the match finishes. No cron/cleanup job
+    exists yet.
 - **Reporting / BI**: P&L, GGR/NGR, trader performance, campaign ROI —
   likely a read-layer over other modules' data rather than an operational
   module of its own.

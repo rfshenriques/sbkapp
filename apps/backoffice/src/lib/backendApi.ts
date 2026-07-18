@@ -39,6 +39,15 @@ export interface AuditLogEntry {
   createdAt: string;
 }
 
+export interface MarketSuspension {
+  id: string;
+  matchId: string;
+  /** Empty string means the whole match is suspended, not one specific market. */
+  marketId: string;
+  reason: string | null;
+  createdAt: string;
+}
+
 export type SelectionStatus = 'OPEN' | 'WON' | 'LOST' | 'VOID';
 export type BetStatus = 'PENDING' | 'WON' | 'LOST' | 'VOID';
 
@@ -196,4 +205,31 @@ export async function createStaffUser(payload: CreateStaffUserPayload): Promise<
 export async function listAuditLog(): Promise<AuditLogEntry[]> {
   const response = await authenticatedFetch('/admin/audit-log');
   return parseJsonOrThrow(response, `Failed to load audit log: ${response.status}`);
+}
+
+export async function listMarketSuspensions(): Promise<MarketSuspension[]> {
+  const response = await authenticatedFetch('/admin/market-suspensions');
+  return parseJsonOrThrow(response, `Failed to load market suspensions: ${response.status}`);
+}
+
+export async function suspendMarket(
+  matchId: string,
+  marketId: string | undefined,
+  reason: string | undefined,
+): Promise<MarketSuspension> {
+  const response = await authenticatedFetch('/admin/market-suspensions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ matchId, marketId, reason }),
+  });
+  return parseJsonOrThrow(response, `Failed to suspend market: ${response.status}`);
+}
+
+export async function unsuspendMarket(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/market-suspensions/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to unsuspend market: ${response.status}`);
+  }
 }

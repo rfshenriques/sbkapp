@@ -8,6 +8,7 @@ import { defineConfig } from 'vite';
 // same-origin with the backend so the staff refresh cookie just works, no
 // CORS/credentials dance needed.
 const backendTarget = process.env.BACKEND_PROXY_TARGET ?? 'http://localhost:3000';
+const oddsEngineTarget = process.env.ODDS_ENGINE_PROXY_TARGET ?? 'http://localhost:4001';
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
@@ -19,6 +20,11 @@ export default defineConfig({
         target: backendTarget,
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/backend/, ''),
+      },
+      '/api': {
+        target: oddsEngineTarget,
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
     },
   },

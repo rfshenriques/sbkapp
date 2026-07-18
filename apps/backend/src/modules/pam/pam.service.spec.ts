@@ -4,6 +4,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { MarketSuspensionService } from './market-suspension.service';
 import { PamService } from './pam.service';
 import type { PlaceBetDto } from './dto/place-bet.dto';
 
@@ -25,20 +26,23 @@ function buildSelection(overrides: Partial<PlaceBetDto['selections'][number]> = 
 describe('PamService', () => {
   let moduleRef: TestingModule;
   let pamService: PamService;
+  let marketSuspensionService: MarketSuspensionService;
   let prisma: PrismaService;
   const createdUserIds: string[] = [];
 
   beforeEach(async () => {
     moduleRef = await Test.createTestingModule({
-      providers: [PamService, PrismaService, AuditLogService],
+      providers: [PamService, PrismaService, AuditLogService, MarketSuspensionService],
     }).compile();
     await moduleRef.init();
 
     pamService = moduleRef.get(PamService);
+    marketSuspensionService = moduleRef.get(MarketSuspensionService);
     prisma = moduleRef.get(PrismaService);
   });
 
   afterEach(async () => {
+    await prisma.marketSuspension.deleteMany({ where: { matchId: { startsWith: 'match-' } } });
     if (createdUserIds.length > 0) {
       await prisma.auditLogEntry.deleteMany({ where: { actorUsername: TEST_ACTOR.username } });
       await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
@@ -99,6 +103,52 @@ describe('PamService', () => {
     expect(Number(bet.combinedOdds)).toBeCloseTo(3.15);
     expect(bet.potentialPayoutCents).toBe(3_150);
     expect(bet.selections).toHaveLength(2);
+  });
+
+  it('rejects placing a bet on a suspended match', async () => {
+    const userId = await createTestUser(100_000);
+    await marketSuspensionService.suspend(
+      'match-suspended',
+      undefined,
+      'kickoff imminent',
+      TEST_ACTOR,
+    );
+
+    await expect(
+      pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'match-suspended' })],
+        stakeCents: 1_000,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    const wallet = await pamService.getWallet(userId);
+    expect(wallet.balanceCents).toBe(100_000);
+  });
+
+  it('rejects placing a bet on a suspended market even if the match itself is not suspended', async () => {
+    const userId = await createTestUser(100_000);
+    await marketSuspensionService.suspend(
+      'match-market-suspended',
+      'match-result',
+      undefined,
+      TEST_ACTOR,
+    );
+
+    await expect(
+      pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-market-suspended', marketId: 'match-result' }),
+        ],
+        stakeCents: 1_000,
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    // A different market on that same match is unaffected.
+    const bet = await pamService.placeBet(userId, {
+      selections: [buildSelection({ matchId: 'match-market-suspended', marketId: 'total-goals' })],
+      stakeCents: 1_000,
+    });
+    expect(bet.stakeCents).toBe(1_000);
   });
 
   it('rejects a bet when the stake exceeds the balance', async () => {

@@ -126,6 +126,9 @@ importers:
 
   apps/backoffice:
     dependencies:
+      '@sportsbook/shared':
+        specifier: workspace:*
+        version: link:../../packages/shared
       '@tanstack/react-query':
         specifier: ^5.101.2
         version: 5.101.2(react@19.2.7)

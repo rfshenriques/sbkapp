@@ -16,6 +16,11 @@ export function AppShell() {
               <Link to="/" className="text-sm text-text-secondary hover:text-text-primary">
                 Settlement
               </Link>
+              {(user?.role === 'ADMIN' || user?.role === 'TRADING') && (
+                <Link to="/markets" className="text-sm text-text-secondary hover:text-text-primary">
+                  Markets
+                </Link>
+              )}
               {user?.role === 'ADMIN' && (
                 <>
                   <Link

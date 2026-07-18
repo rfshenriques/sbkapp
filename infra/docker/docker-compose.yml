@@ -87,10 +87,13 @@ services:
       - '5174:5174'
     environment:
       BACKEND_PROXY_TARGET: http://backend:3000
+      ODDS_ENGINE_PROXY_TARGET: http://odds-engine:4001
     volumes:
       - ../../apps/backoffice/src:/workspace/apps/backoffice/src
+      - ../../packages/shared/src:/workspace/packages/shared/src
     depends_on:
       - backend
+      - odds-engine
 
 volumes:
   postgres-data:
