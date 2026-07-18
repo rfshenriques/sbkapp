@@ -1,28 +1,45 @@
 import { randomUUID } from 'node:crypto';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, type TestingModule } from '@nestjs/testing';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuthService } from './auth.service';
 import type { RegisterDto } from './dto/register.dto';
-
-function buildRegisterDto(overrides: Partial<RegisterDto> = {}): RegisterDto {
-  const unique = randomUUID();
-  return {
-    email: `test-${unique}@example.com`,
-    username: `user_${unique.slice(0, 8)}`,
-    phone: `+1555${unique.replace(/\D/g, '').slice(0, 7)}`,
-    password: 'correct-horse-battery-staple',
-    ...overrides,
-  };
-}
 
 describe('AuthService', () => {
   let moduleRef: TestingModule;
   let authService: AuthService;
   let prisma: PrismaService;
+  let setupPrisma: PrismaService;
+  let testBrandId: string;
   const createdUserIds: string[] = [];
+
+  function buildRegisterDto(overrides: Partial<RegisterDto> = {}): RegisterDto {
+    const unique = randomUUID();
+    return {
+      brandId: testBrandId,
+      email: `test-${unique}@example.com`,
+      username: `user_${unique.slice(0, 8)}`,
+      phone: `+1555${unique.replace(/\D/g, '').slice(0, 7)}`,
+      password: 'correct-horse-battery-staple',
+      ...overrides,
+    };
+  }
+
+  beforeAll(async () => {
+    setupPrisma = new PrismaService();
+    const unique = randomUUID();
+    const brand = await setupPrisma.brand.create({
+      data: { name: `Test Brand ${unique}`, slug: `test-brand-${unique}` },
+    });
+    testBrandId = brand.id;
+  });
+
+  afterAll(async () => {
+    await setupPrisma.brand.delete({ where: { id: testBrandId } });
+    await setupPrisma.$disconnect();
+  });
 
   beforeEach(async () => {
     moduleRef = await Test.createTestingModule({
@@ -44,6 +61,12 @@ describe('AuthService', () => {
       createdUserIds.length = 0;
     }
     await moduleRef.close();
+  });
+
+  it('rejects registration for an unknown brand', async () => {
+    await expect(
+      authService.register(buildRegisterDto({ brandId: 'does-not-exist' })),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('registers a new user and returns an access + refresh token pair', async () => {

@@ -42,9 +42,9 @@ export class ReportsService {
     };
   }
 
-  async getSummary(range: ReportRange): Promise<ReportSummary> {
+  async getSummary(brandId: string, range: ReportRange): Promise<ReportSummary> {
     const createdAt = this.dateFilter(range);
-    const where = createdAt ? { createdAt } : {};
+    const where = { brandId, ...(createdAt ? { createdAt } : {}) };
 
     const [betCount, totalStakeAgg, statusGroups] = await Promise.all([
       this.prisma.bet.count({ where }),
@@ -88,11 +88,11 @@ export class ReportsService {
   }
 
   /** How many selections each staff member has settled - a proxy for trader activity, not a judgement of quality. */
-  async getStaffActivity(range: ReportRange): Promise<StaffActivityEntry[]> {
+  async getStaffActivity(brandId: string, range: ReportRange): Promise<StaffActivityEntry[]> {
     const createdAt = this.dateFilter(range);
     const groups = await this.prisma.auditLogEntry.groupBy({
       by: ['actorUsername'],
-      where: { action: 'SELECTION_SETTLED', ...(createdAt ? { createdAt } : {}) },
+      where: { brandId, action: 'SELECTION_SETTLED', ...(createdAt ? { createdAt } : {}) },
       _count: { _all: true },
     });
 

@@ -7,6 +7,7 @@ export interface StaffJwtPayload {
   sub: string;
   username: string;
   role: StaffRole;
+  brandId: string;
 }
 
 /**

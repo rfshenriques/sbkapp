@@ -31,6 +31,7 @@ export class PamService {
 
       for (const selection of dto.selections) {
         const suspended = await this.marketSuspensionService.isSuspended(
+          user.brandId,
           selection.matchId,
           selection.marketId,
           tx,
@@ -50,6 +51,7 @@ export class PamService {
       return tx.bet.create({
         data: {
           userId,
+          brandId: user.brandId,
           stakeCents: dto.stakeCents,
           combinedOdds,
           potentialPayoutCents,
@@ -78,10 +80,10 @@ export class PamService {
     });
   }
 
-  /** Admin-only: lists bets across all users, for manual settlement. */
-  async listBetsForSettlement(status?: BetStatus) {
+  /** Admin-only: lists bets across all users in one brand, for manual settlement. */
+  async listBetsForSettlement(brandId: string, status?: BetStatus) {
     return this.prisma.bet.findMany({
-      where: status ? { status } : undefined,
+      where: { brandId, ...(status ? { status } : {}) },
       include: {
         selections: true,
         user: { select: { id: true, username: true, email: true } },
@@ -95,8 +97,11 @@ export class PamService {
    * outcome from every selection's current status. Re-settling a selection
    * (including back to OPEN, as a correction) claws back or tops up
    * whatever was previously credited, rather than double-crediting.
+   * `brandId` must match the bet's own brand - a staff member can never
+   * settle a bet belonging to another brand, even by guessing its id.
    */
   async settleSelection(
+    brandId: string,
     betId: string,
     selectionId: string,
     status: SelectionStatus,
@@ -105,6 +110,14 @@ export class PamService {
     return this.prisma.$transaction(async (tx) => {
       const selection = await tx.betSelection.findUnique({ where: { id: selectionId } });
       if (!selection || selection.betId !== betId) {
+        throw new NotFoundException('Selection not found on this bet');
+      }
+
+      const bet = await tx.bet.findUniqueOrThrow({
+        where: { id: betId },
+        include: { selections: true },
+      });
+      if (bet.brandId !== brandId) {
         throw new NotFoundException('Selection not found on this bet');
       }
       const previousStatus = selection.status;
@@ -122,26 +135,26 @@ export class PamService {
         tx,
       );
 
-      const bet = await tx.bet.findUniqueOrThrow({
+      const updatedBet = await tx.bet.findUniqueOrThrow({
         where: { id: betId },
         include: { selections: true },
       });
 
       const outcome = computeBetOutcome(
-        bet.selections.map((betSelection) => ({
+        updatedBet.selections.map((betSelection) => ({
           status: betSelection.status,
           odds: Number(betSelection.odds),
         })),
-        bet.stakeCents,
+        updatedBet.stakeCents,
       );
 
-      const previousCredited = bet.settledPayoutCents ?? 0;
+      const previousCredited = updatedBet.settledPayoutCents ?? 0;
       const newCredited = outcome.overallStatus === 'PENDING' ? 0 : outcome.payoutCents;
       const delta = newCredited - previousCredited;
 
       if (delta !== 0) {
         await tx.user.update({
-          where: { id: bet.userId },
+          where: { id: updatedBet.userId },
           data: { balanceCents: { increment: delta } },
         });
       }

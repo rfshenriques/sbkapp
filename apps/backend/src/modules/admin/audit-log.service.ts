@@ -5,6 +5,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 export interface AuditActor {
   id: string | null;
   username: string;
+  /** Which brand this action happened in - staff only ever act within their own brand. */
+  brandId: string;
 }
 
 export interface RecordAuditEntry {
@@ -27,6 +29,7 @@ export class AuditLogService {
       data: {
         actorStaffUserId: entry.actor.id,
         actorUsername: entry.actor.username,
+        brandId: entry.actor.brandId,
         action: entry.action,
         targetType: entry.targetType,
         targetId: entry.targetId,
@@ -35,8 +38,9 @@ export class AuditLogService {
     });
   }
 
-  async listEntries(limit: number) {
+  async listEntries(brandId: string, limit: number) {
     return this.prisma.auditLogEntry.findMany({
+      where: { brandId },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });

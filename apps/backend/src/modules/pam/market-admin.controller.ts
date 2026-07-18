@@ -17,23 +17,27 @@ export class MarketAdminController {
   constructor(private readonly marketSuspensionService: MarketSuspensionService) {}
 
   @Get()
-  list() {
-    return this.marketSuspensionService.listSuspensions();
+  list(@Req() req: AuthenticatedStaffRequest) {
+    return this.marketSuspensionService.listSuspensions(req.user.brandId);
   }
 
   @Post()
   suspend(@Body() dto: SuspendMarketDto, @Req() req: AuthenticatedStaffRequest) {
-    return this.marketSuspensionService.suspend(dto.matchId, dto.marketId, dto.reason, {
-      id: req.user.sub,
-      username: req.user.username,
-    });
+    return this.marketSuspensionService.suspend(
+      req.user.brandId,
+      dto.matchId,
+      dto.marketId,
+      dto.reason,
+      { id: req.user.sub, username: req.user.username, brandId: req.user.brandId },
+    );
   }
 
   @Delete(':id')
   unsuspend(@Param('id') id: string, @Req() req: AuthenticatedStaffRequest) {
-    return this.marketSuspensionService.unsuspend(id, {
+    return this.marketSuspensionService.unsuspend(req.user.brandId, id, {
       id: req.user.sub,
       username: req.user.username,
+      brandId: req.user.brandId,
     });
   }
 }

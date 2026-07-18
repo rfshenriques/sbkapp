@@ -11,6 +11,10 @@ describe('PrismaService', () => {
     await prisma.onModuleInit();
 
     const unique = crypto.randomUUID();
+    const brand = await prisma.brand.create({
+      data: { name: `Test Brand ${unique}`, slug: `test-brand-${unique}` },
+    });
+
     const email = `test-${unique}@example.com`;
     const created = await prisma.user.create({
       data: {
@@ -18,6 +22,7 @@ describe('PrismaService', () => {
         username: `user_${unique.slice(0, 8)}`,
         phone: `+1555${unique.replace(/\D/g, '').slice(0, 7)}`,
         passwordHash: 'hashed-password',
+        brandId: brand.id,
       },
     });
 
@@ -26,6 +31,8 @@ describe('PrismaService', () => {
 
     await prisma.user.delete({ where: { id: created.id } });
     await expect(prisma.user.findUnique({ where: { id: created.id } })).resolves.toBeNull();
+
+    await prisma.brand.delete({ where: { id: brand.id } });
 
     await prisma.onModuleDestroy();
   });

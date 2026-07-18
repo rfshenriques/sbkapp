@@ -1,5 +1,10 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -27,6 +32,11 @@ export class AuthService {
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthTokens> {
+    const brand = await this.prisma.brand.findUnique({ where: { id: dto.brandId } });
+    if (!brand) {
+      throw new NotFoundException('Unknown brand');
+    }
+
     const existing = await this.prisma.user.findFirst({
       where: { OR: [{ email: dto.email }, { username: dto.username }, { phone: dto.phone }] },
     });
@@ -36,10 +46,16 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_SALT_ROUNDS);
     const user = await this.prisma.user.create({
-      data: { email: dto.email, username: dto.username, phone: dto.phone, passwordHash },
+      data: {
+        email: dto.email,
+        username: dto.username,
+        phone: dto.phone,
+        passwordHash,
+        brandId: dto.brandId,
+      },
     });
 
-    return this.issueTokens(user.id, user.username, user.email);
+    return this.issueTokens(user.id, user.username, user.email, user.brandId);
   }
 
   async login(dto: LoginDto): Promise<AuthTokens> {
@@ -50,7 +66,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.issueTokens(user.id, user.username, user.email);
+    return this.issueTokens(user.id, user.username, user.email, user.brandId);
   }
 
   async refresh(refreshToken: string): Promise<AuthTokens> {
@@ -68,7 +84,12 @@ export class AuthService {
       data: { revokedAt: new Date() },
     });
 
-    return this.issueTokens(stored.user.id, stored.user.username, stored.user.email);
+    return this.issueTokens(
+      stored.user.id,
+      stored.user.username,
+      stored.user.email,
+      stored.user.brandId,
+    );
   }
 
   async logout(refreshToken: string): Promise<void> {
@@ -78,9 +99,14 @@ export class AuthService {
     });
   }
 
-  private async issueTokens(userId: string, username: string, email: string): Promise<AuthTokens> {
+  private async issueTokens(
+    userId: string,
+    username: string,
+    email: string,
+    brandId: string,
+  ): Promise<AuthTokens> {
     const accessToken = await this.jwtService.signAsync(
-      { sub: userId, username, email },
+      { sub: userId, username, email, brandId },
       { expiresIn: ACCESS_TOKEN_TTL },
     );
 

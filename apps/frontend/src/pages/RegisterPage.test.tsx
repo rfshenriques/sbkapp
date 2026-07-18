@@ -50,6 +50,9 @@ describe('RegisterPage', () => {
       username: 'new_user',
       phone: '+15551234567',
       password: 'correct-horse-battery-staple',
+      // Whatever this environment is configured with (see VITE_BRAND_ID)
+      // - not hardcoded, so this test doesn't drift from the real value.
+      brandId: import.meta.env.VITE_BRAND_ID,
     });
   });
 

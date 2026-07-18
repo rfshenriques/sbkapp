@@ -17,6 +17,7 @@ export class MarketSuspensionService {
 
   /** Idempotent - re-suspending an already-suspended match/market just updates the reason. */
   async suspend(
+    brandId: string,
     matchId: string,
     marketId: string | undefined,
     reason: string | undefined,
@@ -24,8 +25,8 @@ export class MarketSuspensionService {
   ) {
     const normalizedMarketId = marketId ?? WHOLE_MATCH_MARKER;
     const suspension = await this.prisma.marketSuspension.upsert({
-      where: { matchId_marketId: { matchId, marketId: normalizedMarketId } },
-      create: { matchId, marketId: normalizedMarketId, reason },
+      where: { brandId_matchId_marketId: { brandId, matchId, marketId: normalizedMarketId } },
+      create: { brandId, matchId, marketId: normalizedMarketId, reason },
       update: { reason },
     });
 
@@ -41,15 +42,14 @@ export class MarketSuspensionService {
     return suspension;
   }
 
-  async unsuspend(id: string, actor: AuditActor) {
-    const suspension = await this.prisma.marketSuspension
-      .delete({ where: { id } })
-      .catch((error: unknown) => {
-        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-          throw new NotFoundException('Suspension not found');
-        }
-        throw error;
-      });
+  /** `brandId` must match the suspension's own brand - a staff member can never unsuspend another brand's market, even by guessing its id. */
+  async unsuspend(brandId: string, id: string, actor: AuditActor) {
+    const existing = await this.prisma.marketSuspension.findUnique({ where: { id } });
+    if (!existing || existing.brandId !== brandId) {
+      throw new NotFoundException('Suspension not found');
+    }
+
+    const suspension = await this.prisma.marketSuspension.delete({ where: { id } });
 
     await this.auditLogService.record({
       actor,
@@ -65,18 +65,22 @@ export class MarketSuspensionService {
     return suspension;
   }
 
-  async listSuspensions() {
-    return this.prisma.marketSuspension.findMany({ orderBy: { createdAt: 'desc' } });
+  async listSuspensions(brandId: string) {
+    return this.prisma.marketSuspension.findMany({
+      where: { brandId },
+      orderBy: { createdAt: 'desc' },
+    });
   }
 
-  /** Whole-match and market-specific suspensions both block bets on that market. */
+  /** Whole-match and market-specific suspensions both block bets on that market, scoped to one brand. */
   async isSuspended(
+    brandId: string,
     matchId: string,
     marketId: string,
     client: PrismaClientLike = this.prisma,
   ): Promise<boolean> {
     const suspension = await client.marketSuspension.findFirst({
-      where: { matchId, marketId: { in: [WHOLE_MATCH_MARKER, marketId] } },
+      where: { brandId, matchId, marketId: { in: [WHOLE_MATCH_MARKER, marketId] } },
     });
     return suspension !== null;
   }

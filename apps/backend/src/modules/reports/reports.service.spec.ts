@@ -1,15 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { Test, type TestingModule } from '@nestjs/testing';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { MarketSuspensionService } from '../pam/market-suspension.service';
 import { PamService } from '../pam/pam.service';
 import type { PlaceBetDto } from '../pam/dto/place-bet.dto';
 import { ReportsService } from './reports.service';
-
-const ACTOR_A: AuditActor = { id: 'staff-a', username: 'test_reports_trader_a' };
-const ACTOR_B: AuditActor = { id: 'staff-b', username: 'test_reports_trader_b' };
 
 function buildSelection(overrides: Partial<PlaceBetDto['selections'][number]> = {}) {
   return {
@@ -29,7 +26,27 @@ describe('ReportsService', () => {
   let reportsService: ReportsService;
   let pamService: PamService;
   let prisma: PrismaService;
+  let setupPrisma: PrismaService;
+  let testBrandId: string;
+  let ACTOR_A: AuditActor;
+  let ACTOR_B: AuditActor;
   const createdUserIds: string[] = [];
+
+  beforeAll(async () => {
+    setupPrisma = new PrismaService();
+    const unique = randomUUID();
+    const brand = await setupPrisma.brand.create({
+      data: { name: `Test Brand ${unique}`, slug: `test-brand-${unique}` },
+    });
+    testBrandId = brand.id;
+    ACTOR_A = { id: 'staff-a', username: 'test_reports_trader_a', brandId: testBrandId };
+    ACTOR_B = { id: 'staff-b', username: 'test_reports_trader_b', brandId: testBrandId };
+  });
+
+  afterAll(async () => {
+    await setupPrisma.brand.delete({ where: { id: testBrandId } });
+    await setupPrisma.$disconnect();
+  });
 
   beforeEach(async () => {
     moduleRef = await Test.createTestingModule({
@@ -68,6 +85,7 @@ describe('ReportsService', () => {
         phone: `+1555${unique.replace(/\D/g, '').slice(0, 7)}`,
         passwordHash: 'irrelevant',
         balanceCents: 1_000_000,
+        brandId: testBrandId,
       },
     });
     createdUserIds.push(user.id);
@@ -82,20 +100,32 @@ describe('ReportsService', () => {
       selections: [buildSelection({ odds: 2 })],
       stakeCents: 1_000,
     });
-    await pamService.settleSelection(wonBet.id, wonBet.selections[0]!.id, 'WON', ACTOR_A);
+    await pamService.settleSelection(
+      testBrandId,
+      wonBet.id,
+      wonBet.selections[0]!.id,
+      'WON',
+      ACTOR_A,
+    );
 
     const lostBet = await pamService.placeBet(userId, {
       selections: [buildSelection({ matchId: 'match-reports-2', odds: 3 })],
       stakeCents: 500,
     });
-    await pamService.settleSelection(lostBet.id, lostBet.selections[0]!.id, 'LOST', ACTOR_A);
+    await pamService.settleSelection(
+      testBrandId,
+      lostBet.id,
+      lostBet.selections[0]!.id,
+      'LOST',
+      ACTOR_A,
+    );
 
     await pamService.placeBet(userId, {
       selections: [buildSelection({ matchId: 'match-reports-3', odds: 1.5 })],
       stakeCents: 300,
     });
 
-    const summary = await reportsService.getSummary({ from });
+    const summary = await reportsService.getSummary(testBrandId, { from });
 
     expect(summary.betCount).toBe(3);
     expect(summary.totalStakeCents).toBe(1_800);
@@ -111,7 +141,9 @@ describe('ReportsService', () => {
     expect(lostBreakdown).toMatchObject({ count: 1, stakeCents: 500 });
     expect(pendingBreakdown).toMatchObject({ count: 1, stakeCents: 300 });
 
-    const emptyFutureSummary = await reportsService.getSummary({ from: new Date('2999-01-01') });
+    const emptyFutureSummary = await reportsService.getSummary(testBrandId, {
+      from: new Date('2999-01-01'),
+    });
     expect(emptyFutureSummary.betCount).toBe(0);
     expect(emptyFutureSummary.ggrCents).toBe(0);
   });
@@ -124,14 +156,20 @@ describe('ReportsService', () => {
       selections: [buildSelection({ matchId: 'match-reports-ggr', odds: 2 })],
       stakeCents: 1_000,
     });
-    await pamService.settleSelection(wonBet.id, wonBet.selections[0]!.id, 'WON', ACTOR_A);
+    await pamService.settleSelection(
+      testBrandId,
+      wonBet.id,
+      wonBet.selections[0]!.id,
+      'WON',
+      ACTOR_A,
+    );
 
     await pamService.placeBet(userId, {
       selections: [buildSelection({ matchId: 'match-reports-ggr-pending', odds: 5 })],
       stakeCents: 10_000,
     });
 
-    const summary = await reportsService.getSummary({ from });
+    const summary = await reportsService.getSummary(testBrandId, { from });
 
     expect(summary.betCount).toBe(2);
     expect(summary.settledBetCount).toBe(1);
@@ -148,21 +186,39 @@ describe('ReportsService', () => {
       selections: [buildSelection({ matchId: 'match-reports-activity-1' })],
       stakeCents: 100,
     });
-    await pamService.settleSelection(betOne.id, betOne.selections[0]!.id, 'WON', ACTOR_A);
+    await pamService.settleSelection(
+      testBrandId,
+      betOne.id,
+      betOne.selections[0]!.id,
+      'WON',
+      ACTOR_A,
+    );
 
     const betTwo = await pamService.placeBet(userId, {
       selections: [buildSelection({ matchId: 'match-reports-activity-2' })],
       stakeCents: 100,
     });
-    await pamService.settleSelection(betTwo.id, betTwo.selections[0]!.id, 'LOST', ACTOR_A);
+    await pamService.settleSelection(
+      testBrandId,
+      betTwo.id,
+      betTwo.selections[0]!.id,
+      'LOST',
+      ACTOR_A,
+    );
 
     const betThree = await pamService.placeBet(userId, {
       selections: [buildSelection({ matchId: 'match-reports-activity-3' })],
       stakeCents: 100,
     });
-    await pamService.settleSelection(betThree.id, betThree.selections[0]!.id, 'WON', ACTOR_B);
+    await pamService.settleSelection(
+      testBrandId,
+      betThree.id,
+      betThree.selections[0]!.id,
+      'WON',
+      ACTOR_B,
+    );
 
-    const activity = await reportsService.getStaffActivity({});
+    const activity = await reportsService.getStaffActivity(testBrandId, {});
 
     const actorAEntry = activity.find((entry) => entry.actorUsername === ACTOR_A.username);
     const actorBEntry = activity.find((entry) => entry.actorUsername === ACTOR_B.username);

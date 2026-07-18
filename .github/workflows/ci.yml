@@ -29,6 +29,7 @@ jobs:
       ADMIN_API_KEY: ci-test-admin-key-not-for-production
       MASTER_JWT_SECRET: ci-test-master-secret-not-for-production
       MASTER_ADMIN_KEY: ci-test-master-key-not-for-production
+      VITE_BRAND_ID: 00000000-0000-0000-0000-000000000001
     steps:
       - uses: actions/checkout@v4
 

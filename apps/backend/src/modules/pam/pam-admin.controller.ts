@@ -18,8 +18,8 @@ export class PamAdminController {
   constructor(private readonly pamService: PamService) {}
 
   @Get('bets')
-  listBets(@Query() query: ListBetsQueryDto) {
-    return this.pamService.listBetsForSettlement(query.status);
+  listBets(@Query() query: ListBetsQueryDto, @Req() req: AuthenticatedStaffRequest) {
+    return this.pamService.listBetsForSettlement(req.user.brandId, query.status);
   }
 
   @Patch('bets/:betId/selections/:selectionId/settlement')
@@ -29,9 +29,10 @@ export class PamAdminController {
     @Body() dto: SettleSelectionDto,
     @Req() req: AuthenticatedStaffRequest,
   ) {
-    return this.pamService.settleSelection(betId, selectionId, dto.status, {
+    return this.pamService.settleSelection(req.user.brandId, betId, selectionId, dto.status, {
       id: req.user.sub,
       username: req.user.username,
+      brandId: req.user.brandId,
     });
   }
 }

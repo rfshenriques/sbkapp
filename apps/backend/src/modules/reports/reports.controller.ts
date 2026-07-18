@@ -1,9 +1,14 @@
-import { Controller, Get, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, Query, Req, UseGuards } from '@nestjs/common';
 import { Roles } from '../admin/roles.decorator';
 import { RolesGuard } from '../admin/roles.guard';
 import { StaffJwtAuthGuard } from '../admin/staff-jwt-auth.guard';
+import type { StaffJwtPayload } from '../admin/staff-jwt.strategy';
 import { ReportRangeQueryDto } from './dto/report-range-query.dto';
 import { ReportsService, type ReportRange } from './reports.service';
+
+interface AuthenticatedStaffRequest {
+  user: StaffJwtPayload;
+}
 
 @UseGuards(StaffJwtAuthGuard, RolesGuard)
 @Roles('ADMIN')
@@ -12,13 +17,13 @@ export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
   @Get('summary')
-  summary(@Query() query: ReportRangeQueryDto) {
-    return this.reportsService.getSummary(toRange(query));
+  summary(@Query() query: ReportRangeQueryDto, @Req() req: AuthenticatedStaffRequest) {
+    return this.reportsService.getSummary(req.user.brandId, toRange(query));
   }
 
   @Get('staff-activity')
-  staffActivity(@Query() query: ReportRangeQueryDto) {
-    return this.reportsService.getStaffActivity(toRange(query));
+  staffActivity(@Query() query: ReportRangeQueryDto, @Req() req: AuthenticatedStaffRequest) {
+    return this.reportsService.getStaffActivity(req.user.brandId, toRange(query));
   }
 }
 

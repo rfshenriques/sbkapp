@@ -8,7 +8,17 @@ datasource db {
 }
 
 model User {
-  id              String    @id @default(uuid())
+  id     String @id @default(uuid())
+  /**
+   * Kept globally unique rather than unique-per-brand for now: there's no
+   * domain-based tenant resolution yet (see PROJECT_BRIEF.md Section 10),
+   * so a pre-auth request (register, login) has no other way to know
+   * which brand it's for. Login therefore still looks a user up globally
+   * by email/username and reads brandId off the row it finds; register
+   * requires an explicit brandId in the request. Revisit once tenant
+   * resolution exists - a real deployment will likely want these unique
+   * per-brand instead.
+   */
   email           String    @unique
   username        String    @unique
   phone           String    @unique
@@ -21,9 +31,13 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  brandId String
+  brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Restrict)
+
   refreshTokens RefreshToken[]
   bets          Bet[]
 
+  @@index([brandId])
   @@map("users")
 }
 
@@ -52,7 +66,9 @@ enum StaffRole {
 /**
  * A wholly separate identity system from User (players) - not a shared
  * login. See PROJECT_BRIEF.md Section 10: backoffice staff auth explicitly
- * isn't the same system as player auth.
+ * isn't the same system as player auth. Kept globally unique on
+ * email/username for the same pre-auth-lookup reason as User - see the
+ * comment there.
  */
 model StaffUser {
   id           String    @id @default(uuid())
@@ -63,8 +79,12 @@ model StaffUser {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  brandId String
+  brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Restrict)
+
   refreshTokens StaffRefreshToken[]
 
+  @@index([brandId])
   @@map("staff_users")
 }
 
@@ -92,7 +112,9 @@ enum AuditAction {
 /**
  * Deliberately no FK relation to StaffUser - actor identity is a
  * denormalized snapshot (id + username) so an audit entry survives even
- * if the acting staff account is later deleted.
+ * if the acting staff account is later deleted. brandId IS a real FK
+ * (Brand deletion isn't supported yet, and unlike a staff account, a
+ * brand disappearing should take its audit trail with it).
  */
 model AuditLogEntry {
   id               String      @id @default(uuid())
@@ -104,6 +126,10 @@ model AuditLogEntry {
   metadata         Json?
   createdAt        DateTime    @default(now())
 
+  brandId String
+  brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId])
   @@index([createdAt])
   @@map("audit_log_entries")
 }
@@ -124,11 +150,17 @@ enum SelectionStatus {
 
 /**
  * One combined-odds bet, made up of one or more selections (a single bet has exactly one).
+ * brandId is denormalized from user.brandId at creation time (rather than
+ * joined through User on every query) so bet-listing/reporting queries
+ * can filter directly without a join - a player never moves brands, so
+ * this can't drift.
  */
 model Bet {
   id                   String    @id @default(uuid())
   userId               String
   user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brandId              String
+  brand                Brand     @relation(fields: [brandId], references: [id], onDelete: Restrict)
   stakeCents           Int
   combinedOdds         Decimal   @db.Decimal(10, 4)
   potentialPayoutCents Int
@@ -144,6 +176,7 @@ model Bet {
   selections BetSelection[]
 
   @@index([userId])
+  @@index([brandId])
   @@map("bets")
 }
 
@@ -151,17 +184,22 @@ model Bet {
  * Blocks new bets on a match (marketId = "") or one specific market within
  * it. The odds-engine itself is a stateless read-through proxy over the
  * live feed with no persistence of its own - this is our own DB's record
- * of what trading has locked, checked by PamService.placeBet.
+ * of what trading has locked, checked by PamService.placeBet. Scoped per
+ * brand: the same externally-sourced matchId is shared across all brands
+ * (one global odds feed), but suspending it is each brand's own trading
+ * decision, independent of every other brand's.
  */
 model MarketSuspension {
   id        String   @id @default(uuid())
+  brandId   String
+  brand     Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
   matchId   String
   marketId  String   @default("")
   reason    String?
   createdAt DateTime @default(now())
 
-  @@unique([matchId, marketId])
-  @@index([matchId])
+  @@unique([brandId, matchId, marketId])
+  @@index([brandId, matchId])
   @@map("market_suspensions")
 }
 
@@ -221,11 +259,9 @@ model MasterRefreshToken {
 }
 
 /**
- * One sportsbook brand under the master product. Existing tables (User,
- * Bet, StaffUser, etc.) are NOT yet scoped to a brand - that retrofit is a
- * separate, later piece (see PROJECT_BRIEF.md Section 10). This model is
- * deliberately additive only: brand configuration, not yet wired into
- * anything that already exists.
+ * One sportsbook brand under the master product. Every player, staff
+ * account, bet, audit entry, and market suspension belongs to exactly
+ * one brand - see PROJECT_BRIEF.md Section 10 for the brandId retrofit.
  */
 model Brand {
   id                String   @id @default(uuid())
@@ -240,7 +276,12 @@ model Brand {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  productFlags BrandProductFlag[]
+  productFlags      BrandProductFlag[]
+  users             User[]
+  staffUsers        StaffUser[]
+  bets              Bet[]
+  auditLogEntries   AuditLogEntry[]
+  marketSuspensions MarketSuspension[]
 
   @@map("brands")
 }

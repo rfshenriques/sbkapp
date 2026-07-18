@@ -1,14 +1,12 @@
 import { randomUUID } from 'node:crypto';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { MarketSuspensionService } from './market-suspension.service';
 import { PamService } from './pam.service';
 import type { PlaceBetDto } from './dto/place-bet.dto';
-
-const TEST_ACTOR: AuditActor = { id: 'staff-test-id', username: 'test_trader' };
 
 function buildSelection(overrides: Partial<PlaceBetDto['selections'][number]> = {}) {
   return {
@@ -28,7 +26,31 @@ describe('PamService', () => {
   let pamService: PamService;
   let marketSuspensionService: MarketSuspensionService;
   let prisma: PrismaService;
+  let setupPrisma: PrismaService;
+  let testBrandId: string;
+  let otherBrandId: string;
+  let TEST_ACTOR: AuditActor;
   const createdUserIds: string[] = [];
+
+  beforeAll(async () => {
+    setupPrisma = new PrismaService();
+    const unique = randomUUID();
+    const brand = await setupPrisma.brand.create({
+      data: { name: `Test Brand ${unique}`, slug: `test-brand-${unique}` },
+    });
+    const otherBrand = await setupPrisma.brand.create({
+      data: { name: `Other Test Brand ${unique}`, slug: `other-test-brand-${unique}` },
+    });
+    testBrandId = brand.id;
+    otherBrandId = otherBrand.id;
+    TEST_ACTOR = { id: 'staff-test-id', username: 'test_trader', brandId: testBrandId };
+  });
+
+  afterAll(async () => {
+    await setupPrisma.brand.delete({ where: { id: testBrandId } });
+    await setupPrisma.brand.delete({ where: { id: otherBrandId } });
+    await setupPrisma.$disconnect();
+  });
 
   beforeEach(async () => {
     moduleRef = await Test.createTestingModule({
@@ -51,7 +73,7 @@ describe('PamService', () => {
     await moduleRef.close();
   });
 
-  async function createTestUser(balanceCents = 100_000): Promise<string> {
+  async function createTestUser(balanceCents = 100_000, brandId = testBrandId): Promise<string> {
     const unique = randomUUID();
     const user = await prisma.user.create({
       data: {
@@ -60,6 +82,7 @@ describe('PamService', () => {
         phone: `+1555${unique.replace(/\D/g, '').slice(0, 7)}`,
         passwordHash: 'irrelevant',
         balanceCents,
+        brandId,
       },
     });
     createdUserIds.push(user.id);
@@ -108,6 +131,7 @@ describe('PamService', () => {
   it('rejects placing a bet on a suspended match', async () => {
     const userId = await createTestUser(100_000);
     await marketSuspensionService.suspend(
+      testBrandId,
       'match-suspended',
       undefined,
       'kickoff imminent',
@@ -128,6 +152,7 @@ describe('PamService', () => {
   it('rejects placing a bet on a suspended market even if the match itself is not suspended', async () => {
     const userId = await createTestUser(100_000);
     await marketSuspensionService.suspend(
+      testBrandId,
       'match-market-suspended',
       'match-result',
       undefined,
@@ -186,6 +211,7 @@ describe('PamService', () => {
       });
 
       const settled = await pamService.settleSelection(
+        testBrandId,
         bet.id,
         bet.selections[0]!.id,
         'WON',
@@ -220,6 +246,7 @@ describe('PamService', () => {
       });
 
       const settled = await pamService.settleSelection(
+        testBrandId,
         bet.id,
         bet.selections[0]!.id,
         'LOST',
@@ -241,6 +268,7 @@ describe('PamService', () => {
       });
 
       const settled = await pamService.settleSelection(
+        testBrandId,
         bet.id,
         bet.selections[0]!.id,
         'VOID',
@@ -265,6 +293,7 @@ describe('PamService', () => {
       });
 
       const afterFirstLeg = await pamService.settleSelection(
+        testBrandId,
         bet.id,
         bet.selections[0]!.id,
         'WON',
@@ -277,6 +306,7 @@ describe('PamService', () => {
       expect(walletMidway.balanceCents).toBe(99_000);
 
       const afterSecondLeg = await pamService.settleSelection(
+        testBrandId,
         bet.id,
         bet.selections[1]!.id,
         'WON',
@@ -300,8 +330,15 @@ describe('PamService', () => {
         stakeCents: 1_000,
       });
 
-      await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(
+        testBrandId,
+        bet.id,
+        bet.selections[0]!.id,
+        'WON',
+        TEST_ACTOR,
+      );
       const final = await pamService.settleSelection(
+        testBrandId,
         bet.id,
         bet.selections[1]!.id,
         'LOST',
@@ -330,10 +367,17 @@ describe('PamService', () => {
         stakeCents: 1_000,
       });
 
-      await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(
+        testBrandId,
+        bet.id,
+        bet.selections[0]!.id,
+        'WON',
+        TEST_ACTOR,
+      );
       expect((await pamService.getWallet(userId)).balanceCents).toBe(101_100);
 
       const reopened = await pamService.settleSelection(
+        testBrandId,
         bet.id,
         bet.selections[0]!.id,
         'OPEN',
@@ -353,10 +397,22 @@ describe('PamService', () => {
         stakeCents: 1_000,
       });
 
-      await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(
+        testBrandId,
+        bet.id,
+        bet.selections[0]!.id,
+        'WON',
+        TEST_ACTOR,
+      );
       expect((await pamService.getWallet(userId)).balanceCents).toBe(101_100);
 
-      await pamService.settleSelection(bet.id, bet.selections[0]!.id, 'LOST', TEST_ACTOR);
+      await pamService.settleSelection(
+        testBrandId,
+        bet.id,
+        bet.selections[0]!.id,
+        'LOST',
+        TEST_ACTOR,
+      );
       expect((await pamService.getWallet(userId)).balanceCents).toBe(99_000);
     });
 
@@ -370,15 +426,53 @@ describe('PamService', () => {
         selections: [buildSelection({ selectionId: 'away', odds: 3.2 })],
         stakeCents: 700,
       });
-      await pamService.settleSelection(wonBet.id, wonBet.selections[0]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(
+        testBrandId,
+        wonBet.id,
+        wonBet.selections[0]!.id,
+        'WON',
+        TEST_ACTOR,
+      );
 
-      const pendingBets = await pamService.listBetsForSettlement('PENDING');
+      const pendingBets = await pamService.listBetsForSettlement(testBrandId, 'PENDING');
       expect(pendingBets.map((bet) => bet.id)).toContain(pendingBet.id);
       expect(pendingBets.map((bet) => bet.id)).not.toContain(wonBet.id);
 
-      const wonBets = await pamService.listBetsForSettlement('WON');
+      const wonBets = await pamService.listBetsForSettlement(testBrandId, 'WON');
       expect(wonBets.map((bet) => bet.id)).toContain(wonBet.id);
       expect(wonBets.map((bet) => bet.id)).not.toContain(pendingBet.id);
+    });
+
+    it("never lists another brand's bets for settlement", async () => {
+      const otherBrandUserId = await createTestUser(100_000, otherBrandId);
+      const otherBrandBet = await pamService.placeBet(otherBrandUserId, {
+        selections: [buildSelection({ matchId: 'match-other-brand' })],
+        stakeCents: 500,
+      });
+
+      const pendingBets = await pamService.listBetsForSettlement(testBrandId, 'PENDING');
+      expect(pendingBets.map((bet) => bet.id)).not.toContain(otherBrandBet.id);
+    });
+
+    it("never settles another brand's bet, even by guessing its id", async () => {
+      const otherBrandUserId = await createTestUser(100_000, otherBrandId);
+      const otherBrandBet = await pamService.placeBet(otherBrandUserId, {
+        selections: [buildSelection({ matchId: 'match-other-brand-2' })],
+        stakeCents: 500,
+      });
+
+      await expect(
+        pamService.settleSelection(
+          testBrandId,
+          otherBrandBet.id,
+          otherBrandBet.selections[0]!.id,
+          'WON',
+          TEST_ACTOR,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+
+      const wallet = await pamService.getWallet(otherBrandUserId);
+      expect(wallet.balanceCents).toBe(99_500); // stake deducted, never settled
     });
   });
 });

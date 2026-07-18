@@ -17,15 +17,16 @@ export class StaffUsersController {
   constructor(private readonly staffAuthService: StaffAuthService) {}
 
   @Get()
-  listStaffUsers() {
-    return this.staffAuthService.listStaffUsers();
+  listStaffUsers(@Req() req: AuthenticatedStaffRequest) {
+    return this.staffAuthService.listStaffUsers(req.user.brandId);
   }
 
   @Post()
   createStaffUser(@Body() dto: CreateStaffUserDto, @Req() req: AuthenticatedStaffRequest) {
-    return this.staffAuthService.createStaffUser(dto, {
+    return this.staffAuthService.createStaffUser(dto, req.user.brandId, {
       id: req.user.sub,
       username: req.user.username,
+      brandId: req.user.brandId,
     });
   }
 }

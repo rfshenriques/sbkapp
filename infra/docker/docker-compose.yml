@@ -74,6 +74,7 @@ services:
     environment:
       ODDS_ENGINE_PROXY_TARGET: http://odds-engine:4001
       BACKEND_PROXY_TARGET: http://backend:3000
+      VITE_BRAND_ID: ${VITE_BRAND_ID:-00000000-0000-0000-0000-000000000001}
     volumes:
       - ../../apps/frontend/src:/workspace/apps/frontend/src
       - ../../packages/shared/src:/workspace/packages/shared/src

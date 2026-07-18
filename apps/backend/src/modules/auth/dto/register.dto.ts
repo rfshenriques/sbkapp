@@ -1,6 +1,15 @@
-import { IsEmail, IsPhoneNumber, Matches, MinLength } from 'class-validator';
+import { IsEmail, IsPhoneNumber, IsString, Matches, MinLength } from 'class-validator';
 
 export class RegisterDto {
+  /**
+   * Which brand this player is joining. Required because there's no
+   * domain-based tenant resolution yet (see PROJECT_BRIEF.md Section 10) -
+   * once that exists, this can be inferred from the request's hostname
+   * instead of the client having to send it explicitly.
+   */
+  @IsString()
+  brandId!: string;
+
   @IsEmail()
   email!: string;
 

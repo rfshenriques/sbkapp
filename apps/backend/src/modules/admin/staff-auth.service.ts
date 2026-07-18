@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -10,6 +11,7 @@ import type { StaffRole } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from './audit-log.service';
+import type { BootstrapStaffUserDto } from './dto/bootstrap-staff-user.dto';
 import type { CreateStaffUserDto } from './dto/create-staff-user.dto';
 import type { StaffLoginDto } from './dto/staff-login.dto';
 
@@ -35,11 +37,14 @@ export class StaffAuthService {
   ) {}
 
   /**
-   * `actor` is the authenticated ADMIN creating this account, or undefined
-   * when called from the one-time bootstrap path (no staff user is
-   * authenticated yet - see bootstrapStaffUser).
+   * `actor` is the authenticated ADMIN creating this account - their own
+   * brandId is always used, an ADMIN can never create a staff account in
+   * a brand other than their own. `actor` is undefined only when called
+   * from the one-time bootstrap path (no staff user is authenticated yet
+   * - see bootstrapStaffUser), where brandId comes from the bootstrap
+   * request instead.
    */
-  async createStaffUser(dto: CreateStaffUserDto, actor?: AuditActor) {
+  async createStaffUser(dto: CreateStaffUserDto, brandId: string, actor?: AuditActor) {
     const existing = await this.prisma.staffUser.findFirst({
       where: { OR: [{ email: dto.email }, { username: dto.username }] },
     });
@@ -49,11 +54,11 @@ export class StaffAuthService {
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_SALT_ROUNDS);
     const staffUser = await this.prisma.staffUser.create({
-      data: { email: dto.email, username: dto.username, passwordHash, role: dto.role },
+      data: { email: dto.email, username: dto.username, passwordHash, role: dto.role, brandId },
     });
 
     await this.auditLogService.record({
-      actor: actor ?? { id: null, username: 'SYSTEM_BOOTSTRAP' },
+      actor: actor ?? { id: null, username: 'SYSTEM_BOOTSTRAP', brandId },
       action: actor ? 'STAFF_USER_CREATED' : 'STAFF_USER_BOOTSTRAPPED',
       targetType: 'StaffUser',
       targetId: staffUser.id,
@@ -65,22 +70,29 @@ export class StaffAuthService {
       email: staffUser.email,
       username: staffUser.username,
       role: staffUser.role,
+      brandId: staffUser.brandId,
     };
   }
 
-  /** Only usable while no staff users exist yet - the AdminKeyGuard's sole remaining purpose. */
-  async bootstrapStaffUser(dto: CreateStaffUserDto) {
-    const staffUserCount = await this.prisma.staffUser.count();
+  /** Only usable while no staff users exist yet for this brand - the AdminKeyGuard's sole remaining purpose. */
+  async bootstrapStaffUser(dto: BootstrapStaffUserDto) {
+    const brand = await this.prisma.brand.findUnique({ where: { id: dto.brandId } });
+    if (!brand) {
+      throw new NotFoundException('Unknown brand');
+    }
+
+    const staffUserCount = await this.prisma.staffUser.count({ where: { brandId: dto.brandId } });
     if (staffUserCount > 0) {
       throw new ForbiddenException(
-        'Staff users already exist - log in as an ADMIN and use staff-user management instead',
+        'Staff users already exist for this brand - log in as an ADMIN and use staff-user management instead',
       );
     }
-    return this.createStaffUser(dto);
+    return this.createStaffUser(dto, dto.brandId);
   }
 
-  async listStaffUsers() {
+  async listStaffUsers(brandId: string) {
     return this.prisma.staffUser.findMany({
+      where: { brandId },
       select: { id: true, email: true, username: true, role: true, createdAt: true },
       orderBy: { createdAt: 'asc' },
     });
@@ -94,7 +106,7 @@ export class StaffAuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    return this.issueTokens(staffUser.id, staffUser.username, staffUser.role);
+    return this.issueTokens(staffUser.id, staffUser.username, staffUser.role, staffUser.brandId);
   }
 
   async refresh(refreshToken: string): Promise<StaffAuthTokens> {
@@ -112,7 +124,12 @@ export class StaffAuthService {
       data: { revokedAt: new Date() },
     });
 
-    return this.issueTokens(stored.staffUser.id, stored.staffUser.username, stored.staffUser.role);
+    return this.issueTokens(
+      stored.staffUser.id,
+      stored.staffUser.username,
+      stored.staffUser.role,
+      stored.staffUser.brandId,
+    );
   }
 
   async logout(refreshToken: string): Promise<void> {
@@ -126,9 +143,10 @@ export class StaffAuthService {
     staffUserId: string,
     username: string,
     role: StaffRole,
+    brandId: string,
   ): Promise<StaffAuthTokens> {
     const accessToken = await this.jwtService.signAsync(
-      { sub: staffUserId, username, role },
+      { sub: staffUserId, username, role, brandId },
       { secret: process.env.STAFF_JWT_SECRET, expiresIn: ACCESS_TOKEN_TTL },
     );
 

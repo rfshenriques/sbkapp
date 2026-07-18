@@ -63,12 +63,21 @@ async function parseJsonOrThrow<T>(response: Response, fallbackMessage: string):
   return body as T;
 }
 
+/**
+ * Every player belongs to exactly one brand (see PROJECT_BRIEF.md Section
+ * 10's brandId retrofit). There's no domain-based tenant resolution yet,
+ * so this app - like every other deployment of it - is configured with
+ * which brand it's registering players into via this env var, rather
+ * than the registration form asking the player to pick one.
+ */
+const BRAND_ID = import.meta.env.VITE_BRAND_ID as string | undefined;
+
 export async function register(payload: RegisterPayload): Promise<AuthTokenResponse> {
   const response = await fetch(`${BASE_URL}/auth/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ ...payload, brandId: BRAND_ID }),
   });
   return parseJsonOrThrow(response, `Registration failed: ${response.status}`);
 }

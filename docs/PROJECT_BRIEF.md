@@ -533,9 +533,11 @@ trying to avoid.
   table, not a DB/schema per brand; **(2)** the master backoffice is its
   own separate app with its own single-owner auth, not a role bolted
   onto the existing `StaffUser` system; **(3)** the first piece is
-  additive-only - the `Brand` model and master CRUD - with **no
-  `brandId` retrofit onto existing tables yet**. That first piece is
-  done:
+  additive-only - the `Brand` model and master CRUD - with the
+  `brandId` retrofit onto existing tables as an explicit next piece.
+  Both pieces are now done:
+
+  **Piece 1 - Brand model + master CRUD:**
   - `MasterUser`/`MasterRefreshToken` (`apps/backend/src/modules/master/`)
     - a third wholly separate identity system alongside player auth and
     staff auth, own `MASTER_JWT_SECRET`, same one-time-bootstrap-then-403
@@ -546,53 +548,99 @@ trying to avoid.
     `domain`, `logoUrl`, `buttonColorHex`, `highlightColorHex`; products
     are a free-text key validated against `KNOWN_PRODUCTS` (currently
     `CASHOUT`, `BET_BUILDER`) rather than a DB enum, so adding a new
-    product later doesn't need a migration. `GET/POST /master/brands`,
-    `GET/PATCH /master/brands/:id`, `PATCH
-    /master/brands/:id/products/:product` (all behind `MasterJwtAuthGuard`
-    only - single owner, no roles to gate by yet).
+    product later doesn't need a migration.
   - New `apps/master-backoffice/` app (port 5175 dev), structurally a
-    clone of `apps/backoffice/`'s proven shape (JWT-in-memory +
-    httpOnly-refresh-cookie, TanStack Query, same UI primitives): a login
-    page, a brands list with an inline create form, and a brand detail
-    page for editing theme fields and toggling product flags.
-  - Verified with real Postgres + a real browser: bootstrap-then-403,
-    logging in, creating a real brand, saving theme colors and enabling
-    a product through the actual UI, and independently confirming via
-    direct backend calls that the domain/color/product-flag data was
-    really persisted (not just reflected optimistically in the UI).
+    clone of `apps/backoffice/`'s proven shape: a login page, a brands
+    list with an inline create form, and a brand detail page for editing
+    theme fields and toggling product flags.
 
-  Explicitly **not done yet** - this was step one of a multi-step plan,
-  not the finish line:
-  - **No `brandId` on anything that already exists** - `User`, `Bet`,
-    `BetSelection`, `StaffUser`, `AuditLogEntry`, `MarketSuspension` are
-    all still global/single-tenant. A brand can be configured in the
-    master backoffice today but nothing in the product actually reads
-    or enforces it yet - that retrofit (adding `brandId` everywhere,
-    scoping every existing backoffice endpoint and query to one brand)
-    is the next major piece.
+  **Piece 2 - `brandId` retrofit:** every player, staff account, bet,
+  audit entry, and market suspension now belongs to exactly one brand.
+  - Schema: `brandId` (required FK to `Brand`) added to `User`,
+    `StaffUser`, `Bet` (denormalized from `user.brandId` at bet-creation
+    time so listing/reporting queries don't need a join), `AuditLogEntry`,
+    and `MarketSuspension` (whose unique constraint became
+    `[brandId, matchId, marketId]` - the same externally-sourced matchId
+    is shared across all brands via one global odds feed, but suspending
+    it is each brand's own independent trading decision). Applied as a
+    single migration adding the columns as NOT NULL directly (no
+    nullable-then-backfill dance) since every environment this runs
+    against - local dev, CI's ephemeral Postgres - starts with empty
+    tables; the migration also seeds one deterministic "Default Brand"
+    (fixed id `00000000-0000-0000-0000-000000000001`) so dev/CI don't
+    need a manual bootstrap step to keep working.
+  - **Kept `User.email`/`username`/`phone` and `StaffUser.email`/`username`
+    globally unique rather than unique-per-brand** - a deliberate
+    simplification, not an oversight. There's no domain-based tenant
+    resolution yet, so a pre-auth request (register, login) has no other
+    way to know which brand it's for; keeping these global means login
+    can still look a user up by identifier alone and just read `brandId`
+    off the row it finds, with zero client-side changes to the login
+    flow. `register` is the one place that genuinely needs an explicit
+    `brandId` in the request (nothing else to infer it from), and staff
+    bootstrap likewise takes an explicit `brandId` now (bootstrap is
+    per-brand, not global - `StaffAuthService.bootstrapStaffUser` checks
+    `count({ where: { brandId } })`, so brand B can still bootstrap its
+    first ADMIN even after brand A already has staff). Revisit
+    per-brand-unique identifiers once real tenant resolution exists.
+  - Every staff-facing read/write is now scoped off the acting staff
+    member's own `brandId`, carried in the `StaffJwtPayload` (and the
+    player `JwtPayload`) rather than trusted from client input -
+    `PamService` (bet listing/settlement - `settleSelection` 404s if the
+    bet belongs to another brand, even if the id is guessed correctly),
+    `MarketSuspensionService` (suspend/unsuspend/isSuspended -
+    `unsuspend` 404s across brands the same way), `AuditLogService`
+    (`record`'s `AuditActor` now carries `brandId`; `listEntries` is
+    brand-scoped), and `ReportsService` (`getSummary`/`getStaffActivity`
+    both brand-scoped - this incidentally made obsolete, but didn't
+    replace, the `fileParallelism: false` fix from the previous piece,
+    since brand-scoped tests can no longer race each other's global
+    aggregates regardless of file parallelism).
+  - `apps/backoffice` and `apps/master-backoffice` needed **zero UI
+    changes** for this - brand scoping is entirely transparent through
+    the JWT a staff member already has.
+  - `apps/frontend` needed one small change: `register` now sends a
+    `brandId`, read from a new `VITE_BRAND_ID` env var rather than
+    asked of the player - each deployment of the player app is pinned to
+    one brand (same reasoning as `apps/backoffice` being one-deployment-
+    per-brand), defaulting to the seeded Default Brand's id for local
+    dev/CI.
+  - Verified with real Postgres + a real browser: created two real
+    brands via the master backoffice, bootstrapped a separate ADMIN and
+    registered a separate player for each, placed and settled a bet in
+    each, then logged into `apps/backoffice` as each brand's ADMIN and
+    confirmed - visibly, in the actual settlement screen - that each
+    saw only their own brand's bet and never the other's. Independently
+    confirmed via direct API calls that Reports and the Audit log were
+    equally isolated per brand, and that brand A's ADMIN token got a 404
+    (not just a UI-level hide) when attempting to settle brand B's bet
+    directly by id.
+
+  Still explicitly **not done**:
   - **No domain-based routing** - `Brand.domain` is stored but nothing
     resolves an incoming request's hostname to a brand yet, in either
-    the backend or `apps/frontend`.
+    the backend or `apps/frontend`. This is why `apps/frontend` still
+    needs `VITE_BRAND_ID` as a manual per-deployment config instead of
+    inferring the brand from the hostname.
   - **No per-brand theming applied anywhere** - the color/logo fields
     are stored but not yet consumed by `apps/frontend`'s CSS custom
-    properties or any other player-facing surface.
+    properties or any other player-facing surface. Waiting on the
+    owner's mockups for this.
   - **Product flags aren't enforced anywhere** - `BrandProductFlag`
     records intent (cashout/bet builder enabled Y/N) but nothing in
     `pam` or elsewhere checks it, since there's no cashout or bet
     builder feature built yet regardless.
   - **No audit log for master actions** - unlike staff actions,
     brand-create/update/product-flag-change aren't recorded anywhere.
-    Deliberately skipped to keep this first piece additive-only; the
-    existing `AuditLogEntry` model is generic enough to extend to this
-    later (it already has no FK to a specific actor table).
+    The existing `AuditLogEntry` model is generic enough to extend to
+    this later (it already has no FK to a specific actor table).
   - **Only one master account, no master-user management UI** -
     `bootstrapMasterUser` is the only way to create a `MasterUser`, and
-    there's no `POST /master/... ` equivalent to `StaffUsersController`
+    there's no `POST /master/...` equivalent to `StaffUsersController`
     for adding a second one. Matches "one login auth only" as described,
     revisit if that changes.
-  - The owner is expected to send frontend mockups next to guide how
-    `apps/frontend` should actually consume brand theming/product flags -
-    nothing in this piece assumes what that will look like.
+  - **Per-brand-unique player/staff identifiers** - see above; deferred
+    alongside domain-based tenant resolution, not forgotten.
 - ~~Odds feed ingestion/normalization layer~~ **Done**: built in
   `apps/odds-engine/src/providers/odds-api-io/` against a free-tier
   odds-api.io key (2 bookmakers, 100 req/hour, fetch-on-open only - no
