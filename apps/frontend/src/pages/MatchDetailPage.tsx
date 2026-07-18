@@ -1,11 +1,14 @@
 import { useParams } from 'react-router-dom';
 import { Skeleton } from '../components/ui/Skeleton';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
+import { LiveMatchTracker } from '../features/match-detail/LiveMatchTracker';
+import { useLiveMatch } from '../features/match-detail/useLiveMatch';
 import { useMatch } from '../features/match-detail/useMatch';
 
 export default function MatchDetailPage() {
   const { matchId } = useParams();
   const { data: match, isPending, isError } = useMatch(matchId);
+  const { data: liveState } = useLiveMatch(matchId, match?.isLive ?? false);
 
   if (isPending) {
     return (
@@ -49,6 +52,12 @@ export default function MatchDetailPage() {
           </p>
         )}
       </section>
+
+      {match.isLive && liveState && (
+        <div className="mt-6">
+          <LiveMatchTracker state={liveState} homeTeam={match.homeTeam} awayTeam={match.awayTeam} />
+        </div>
+      )}
 
       {matchResult ? (
         <div className="mt-6">

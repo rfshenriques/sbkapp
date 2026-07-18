@@ -660,8 +660,59 @@ trying to avoid.
     `CLAUDE.md` (repo root) now records this as a standing instruction:
     every player-facing page, new or existing, should match this system
     going forward rather than being left in the old plain-Tailwind style.
-    Live/pre-match event pages, bet builder, boosts, and highlights
-    remain to be built once their backing data models exist.
+    Bet builder, boosts, and highlights still remain to be built once their
+    backing data models exist; the live match tracker (below) is now done.
+  - **Live match tracker: scoreboard, momentum, stats, key events - built
+    on `MatchDetailPage` for live matches.** A second real-data provider,
+    `apps/odds-engine/src/providers/api-sports/` (api-sports.io football
+    v3), wired the same way as odds-api.io: `client.ts` (thin fetch
+    wrapper), `normalize.ts` (raw → `LiveMatchEvent`/`LiveMatchStat`),
+    `match-fixture-mapper.ts` (resolves a `Match` to an api-sports fixture
+    by team-name token overlap - the two providers share no id, so this is
+    a heuristic join, not a guaranteed-correct one), and
+    `live-tracker-service.ts` (the poller/cache). New shared domain types:
+    `LiveMatchState`/`LiveMatchEvent`/`LiveMatchStat`/`LiveMatchMomentum`
+    (`packages/shared/src/domain/live-match.ts`).
+    - **Momentum is derived, not a provider field** (nobody in this space
+      ships it raw) - computed server-side from the delta in shots+corners
+      between consecutive polls (see `momentum.ts`), falling back to the
+      previous value when there's been no attacking activity since the
+      last poll, rather than snapping to an arbitrary split.
+    - **Budget-driven design**: the free api-sports plan is 100
+      requests/day. One poll costs 3 requests (fixture score/status,
+      events, statistics), and only **one match is tracked at a time**
+      (single-slot service, `track()` retargeting drops the previous
+      match's state) at a **~3.5 minute** interval - keeps one
+      continuously-tracked ~105-minute match to ~90 requests/day. All of
+      this is a placeholder for the free tier; the owner has confirmed the
+      real deployment will be on api-sports' highest-tier plan, so this
+      budget logic will need revisiting (faster polling, multiple
+      concurrently-tracked matches) once that's live - it isn't wired to
+      an env var or config flag yet, just a constant with a comment.
+    - New odds-engine endpoint `GET /events/:id/live` (200 with a
+      `LiveMatchState` snapshot, 404 if the match isn't live or no
+      fixture could be resolved) plus a `live.match_update` WebSocket
+      broadcast on the existing `/odds` channel whenever the tracker
+      polls - `apps/frontend` currently only uses the REST endpoint
+      (polls every 20s via `useLiveMatch`, cheap since it just reads the
+      odds-engine's in-memory cache rather than hitting api-sports per
+      request); the WS push is built and tested but not yet consumed
+      client-side.
+    - `apps/frontend`: `LiveMatchTracker` component (scoreboard, a
+      momentum bar, a generic stats list with proportional bars for
+      whatever stats the provider returns - not hardcoded to
+      goals/corners/yellows specifically, though those are always
+      included), rendered on `MatchDetailPage` when `match.isLive`.
+    - **Could not verify the real external API call from within the dev
+      sandbox** - its egress policy blocks api-sports.io entirely (same
+      constraint that already applied to odds-api.io). Verified instead
+      with: full unit test coverage of the provider (client, mapper,
+      normalize, momentum, live-tracker-service, server wiring - all with
+      fakes, no real network) and an end-to-end real-browser check against
+      a local stub server standing in for both odds-engine dependencies.
+      The real api-sports.io call itself needs verifying in an
+      environment with actual network access (e.g. `pnpm dev` locally, or
+      CI/prod) before considering this fully proven.
   - **Product flags aren't enforced anywhere** - `BrandProductFlag`
     records intent (cashout/bet builder enabled Y/N) but nothing in
     `pam` or elsewhere checks it, since there's no cashout or bet

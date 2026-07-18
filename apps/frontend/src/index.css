@@ -178,3 +178,37 @@ body {
 .brand-flag i:nth-child(3) {
   background: var(--color-highlight);
 }
+
+/* ---------- Live match tracker ---------- */
+.momentum-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  overflow: hidden;
+  background-color: var(--color-surface-2);
+}
+.momentum-bar .side {
+  transition: flex-basis 1.2s ease;
+}
+.momentum-bar .home {
+  background: var(--color-brand);
+}
+.momentum-bar .away {
+  background: var(--color-highlight);
+}
+
+.stat-row .bar {
+  display: flex;
+  gap: 3px;
+  height: 6px;
+}
+.stat-row .bar .side {
+  border-radius: 3px;
+  transition: flex-basis 1.2s ease;
+}
+.stat-row .bar .home {
+  background: var(--color-brand);
+}
+.stat-row .bar .away {
+  background: var(--color-highlight);
+}

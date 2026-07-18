@@ -3,6 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { LiveMatchState } from '@sportsbook/shared';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { stubOddsEngineFetch } from '../test/mockOddsEngine';
 import MatchDetailPage from './MatchDetailPage';
@@ -62,6 +63,35 @@ describe('MatchDetailPage', () => {
     renderAt('match-6');
 
     expect(await screen.findByText('No odds available for this match yet.')).toBeInTheDocument();
+  });
+
+  it('shows the live match tracker for a live match once its live state loads', async () => {
+    const liveState: LiveMatchState = {
+      matchId: 'match-3',
+      minute: 57,
+      homeScore: 2,
+      awayScore: 1,
+      events: [
+        {
+          minute: 40,
+          type: 'goal',
+          team: 'home',
+          player: 'Vinicius Jr',
+          detail: 'Normal Goal',
+          assistPlayer: 'Jude Bellingham',
+        },
+      ],
+      stats: [{ type: 'Corner Kicks', home: 5, away: 2 }],
+      momentum: { home: 65, away: 35 },
+      updatedAt: '2026-07-17T22:40:00.000Z',
+    };
+    stubOddsEngineFetch(undefined, { 'match-3': liveState });
+
+    renderAt('match-3');
+
+    expect(await screen.findByText("57'")).toBeInTheDocument();
+    expect(screen.getByText('Vinicius Jr')).toBeInTheDocument();
+    expect(screen.getByText('Corner Kicks')).toBeInTheDocument();
   });
 
   it('lets you add a selection to the bet slip from the match detail page', async () => {

@@ -1,16 +1,27 @@
 import { vi } from 'vitest';
 import { mockMatches } from '../mocks/matches';
-import type { Match } from '@sportsbook/shared';
+import type { LiveMatchState, Match } from '@sportsbook/shared';
 
 const BASE_URL = '/api';
 
-/** Stubs global fetch to behave like the odds-engine's GET /events and /events/:id. */
-export function stubOddsEngineFetch(matches: Match[] = mockMatches) {
+/** Stubs global fetch to behave like the odds-engine's GET /events, /events/:id, and /events/:id/live. */
+export function stubOddsEngineFetch(
+  matches: Match[] = mockMatches,
+  liveStates: Record<string, LiveMatchState> = {},
+) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = typeof input === 'string' ? input : input.toString();
 
     if (url === `${BASE_URL}/events`) {
       return new Response(JSON.stringify(matches), { status: 200 });
+    }
+
+    const liveMatch = /\/events\/([^/]+)\/live$/.exec(url);
+    if (liveMatch) {
+      const state = liveStates[liveMatch[1] as string];
+      return state
+        ? new Response(JSON.stringify(state), { status: 200 })
+        : new Response(null, { status: 404 });
     }
 
     const eventIdMatch = /\/events\/([^/]+)$/.exec(url);
