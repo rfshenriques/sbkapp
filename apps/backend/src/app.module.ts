@@ -16,6 +16,7 @@ import { DesignBackofficeModule } from './modules/design-backoffice/design-backo
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { ReportsModule } from './modules/reports/reports.module';
+import { MasterModule } from './modules/master/master.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ReportsModule } from './modules/reports/reports.module';
     NotificationsModule,
     AdminModule,
     ReportsModule,
+    MasterModule,
   ],
 })
 export class AppModule {}

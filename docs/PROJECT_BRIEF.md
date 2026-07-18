@@ -521,6 +521,78 @@ trying to avoid.
 - **KYC/AML**: explicitly deferred by the owner — architecture should
   leave a clean integration seam (e.g., a `kyc` module boundary already
   exists in the repo structure) without building the logic yet.
+- **Multi-brand / white-label platform**: the owner's actual end goal -
+  run many sportsbook brands worldwide off one product, each with its own
+  domain, logo, button/highlight colors, and enabled-product set (cashout
+  Y/N, bet builder Y/N, more products later), managed from a single
+  master backoffice the owner alone can log into, with each brand's
+  existing per-brand backoffice (`apps/backoffice/`) continuing to
+  control/analyze just that one brand. Three architectural decisions were
+  made explicitly (not guessed) before writing any code: **(1)** data
+  isolation is a shared Postgres DB with a `brandId` column on every
+  table, not a DB/schema per brand; **(2)** the master backoffice is its
+  own separate app with its own single-owner auth, not a role bolted
+  onto the existing `StaffUser` system; **(3)** the first piece is
+  additive-only - the `Brand` model and master CRUD - with **no
+  `brandId` retrofit onto existing tables yet**. That first piece is
+  done:
+  - `MasterUser`/`MasterRefreshToken` (`apps/backend/src/modules/master/`)
+    - a third wholly separate identity system alongside player auth and
+    staff auth, own `MASTER_JWT_SECRET`, same one-time-bootstrap-then-403
+    pattern as staff auth's `AdminKeyGuard`/`StaffBootstrapController`
+    (`MasterKeyGuard` + `POST /master/auth/bootstrap`, gated by
+    `MASTER_ADMIN_KEY`, works exactly once).
+  - `Brand` + `BrandProductFlag` - `name`, unique `slug`, unique
+    `domain`, `logoUrl`, `buttonColorHex`, `highlightColorHex`; products
+    are a free-text key validated against `KNOWN_PRODUCTS` (currently
+    `CASHOUT`, `BET_BUILDER`) rather than a DB enum, so adding a new
+    product later doesn't need a migration. `GET/POST /master/brands`,
+    `GET/PATCH /master/brands/:id`, `PATCH
+    /master/brands/:id/products/:product` (all behind `MasterJwtAuthGuard`
+    only - single owner, no roles to gate by yet).
+  - New `apps/master-backoffice/` app (port 5175 dev), structurally a
+    clone of `apps/backoffice/`'s proven shape (JWT-in-memory +
+    httpOnly-refresh-cookie, TanStack Query, same UI primitives): a login
+    page, a brands list with an inline create form, and a brand detail
+    page for editing theme fields and toggling product flags.
+  - Verified with real Postgres + a real browser: bootstrap-then-403,
+    logging in, creating a real brand, saving theme colors and enabling
+    a product through the actual UI, and independently confirming via
+    direct backend calls that the domain/color/product-flag data was
+    really persisted (not just reflected optimistically in the UI).
+
+  Explicitly **not done yet** - this was step one of a multi-step plan,
+  not the finish line:
+  - **No `brandId` on anything that already exists** - `User`, `Bet`,
+    `BetSelection`, `StaffUser`, `AuditLogEntry`, `MarketSuspension` are
+    all still global/single-tenant. A brand can be configured in the
+    master backoffice today but nothing in the product actually reads
+    or enforces it yet - that retrofit (adding `brandId` everywhere,
+    scoping every existing backoffice endpoint and query to one brand)
+    is the next major piece.
+  - **No domain-based routing** - `Brand.domain` is stored but nothing
+    resolves an incoming request's hostname to a brand yet, in either
+    the backend or `apps/frontend`.
+  - **No per-brand theming applied anywhere** - the color/logo fields
+    are stored but not yet consumed by `apps/frontend`'s CSS custom
+    properties or any other player-facing surface.
+  - **Product flags aren't enforced anywhere** - `BrandProductFlag`
+    records intent (cashout/bet builder enabled Y/N) but nothing in
+    `pam` or elsewhere checks it, since there's no cashout or bet
+    builder feature built yet regardless.
+  - **No audit log for master actions** - unlike staff actions,
+    brand-create/update/product-flag-change aren't recorded anywhere.
+    Deliberately skipped to keep this first piece additive-only; the
+    existing `AuditLogEntry` model is generic enough to extend to this
+    later (it already has no FK to a specific actor table).
+  - **Only one master account, no master-user management UI** -
+    `bootstrapMasterUser` is the only way to create a `MasterUser`, and
+    there's no `POST /master/... ` equivalent to `StaffUsersController`
+    for adding a second one. Matches "one login auth only" as described,
+    revisit if that changes.
+  - The owner is expected to send frontend mockups next to guide how
+    `apps/frontend` should actually consume brand theming/product flags -
+    nothing in this piece assumes what that will look like.
 - ~~Odds feed ingestion/normalization layer~~ **Done**: built in
   `apps/odds-engine/src/providers/odds-api-io/` against a free-tier
   odds-api.io key (2 bookmakers, 100 req/hour, fetch-on-open only - no

@@ -38,6 +38,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-dev-only-insecure-secret-change-me}
       STAFF_JWT_SECRET: ${STAFF_JWT_SECRET:-dev-only-insecure-staff-secret-change-me}
       ADMIN_API_KEY: ${ADMIN_API_KEY:-dev-only-insecure-admin-key-change-me}
+      MASTER_JWT_SECRET: ${MASTER_JWT_SECRET:-dev-only-insecure-master-secret-change-me}
+      MASTER_ADMIN_KEY: ${MASTER_ADMIN_KEY:-dev-only-insecure-master-key-change-me}
     volumes:
       - ../../apps/backend/src:/workspace/apps/backend/src
       - ../../apps/backend/prisma:/workspace/apps/backend/prisma
@@ -94,6 +96,19 @@ services:
     depends_on:
       - backend
       - odds-engine
+
+  master-backoffice:
+    build:
+      context: ../..
+      dockerfile: apps/master-backoffice/Dockerfile
+    ports:
+      - '5175:5175'
+    environment:
+      BACKEND_PROXY_TARGET: http://backend:3000
+    volumes:
+      - ../../apps/master-backoffice/src:/workspace/apps/master-backoffice/src
+    depends_on:
+      - backend
 
 volumes:
   postgres-data:

@@ -185,3 +185,78 @@ model BetSelection {
   @@index([betId])
   @@map("bet_selections")
 }
+
+/**
+ * A wholly separate identity system from both player auth and staff auth -
+ * the single-owner login for the master backoffice (apps/master-backoffice),
+ * which creates and configures brands. Own JWT secret so a compromised
+ * staff or player token is cryptographically incapable of reaching this,
+ * not just logically rejected by a payload check. In practice this table
+ * is expected to hold very few rows (often just one).
+ */
+model MasterUser {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  refreshTokens MasterRefreshToken[]
+
+  @@map("master_users")
+}
+
+model MasterRefreshToken {
+  id           String     @id @default(uuid())
+  masterUserId String
+  masterUser   MasterUser @relation(fields: [masterUserId], references: [id], onDelete: Cascade)
+  tokenHash    String     @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime   @default(now())
+
+  @@index([masterUserId])
+  @@map("master_refresh_tokens")
+}
+
+/**
+ * One sportsbook brand under the master product. Existing tables (User,
+ * Bet, StaffUser, etc.) are NOT yet scoped to a brand - that retrofit is a
+ * separate, later piece (see PROJECT_BRIEF.md Section 10). This model is
+ * deliberately additive only: brand configuration, not yet wired into
+ * anything that already exists.
+ */
+model Brand {
+  id                String   @id @default(uuid())
+  name              String
+  /** URL-safe identifier, e.g. for future path-based routing. */
+  slug              String   @unique
+  /** The domain that resolves to this brand, once domain routing exists. */
+  domain            String?  @unique
+  logoUrl           String?
+  buttonColorHex    String?
+  highlightColorHex String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  productFlags BrandProductFlag[]
+
+  @@map("brands")
+}
+
+/**
+ * product is a free-text key (validated against a known list in the DTO,
+ * not a DB enum) so adding a new product doesn't require a migration -
+ * see KNOWN_PRODUCTS in apps/backend/src/modules/master/dto.
+ */
+model BrandProductFlag {
+  id      String  @id @default(uuid())
+  brandId String
+  brand   Brand   @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  product String
+  enabled Boolean @default(false)
+
+  @@unique([brandId, product])
+  @@map("brand_product_flags")
+}
