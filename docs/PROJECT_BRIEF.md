@@ -652,11 +652,16 @@ trying to avoid.
     parlays, and a highlights feed that don't exist as real data yet, so
     Home only reskins the header, a lightweight featured-match hero
     (earliest kickoff, live matches prioritized), and the real upcoming
-    match list. Login/Register/MatchDetail pages inherit the new odds-
-    button styling via the shared `MarketSelections` component but
-    haven't been fully reskinned yet. Live/pre-match event pages, bet
-    builder, boosts, and highlights remain to be built once their
-    backing data models exist.
+    match list.
+  - **Login/Register/MatchDetail/NotFound: now fully reskinned too** -
+    same tokens/primitives as Home (`.font-display`, `.brand-flag`,
+    `.btn-primary`, `.slash`), verified visually in a real browser
+    including both the live and pre-match badge states on MatchDetail.
+    `CLAUDE.md` (repo root) now records this as a standing instruction:
+    every player-facing page, new or existing, should match this system
+    going forward rather than being left in the old plain-Tailwind style.
+    Live/pre-match event pages, bet builder, boosts, and highlights
+    remain to be built once their backing data models exist.
   - **Product flags aren't enforced anywhere** - `BrandProductFlag`
     records intent (cashout/bet builder enabled Y/N) but nothing in
     `pam` or elsewhere checks it, since there's no cashout or bet

@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { useAuth } from '../features/auth/useAuth';
 
@@ -30,8 +29,15 @@ export default function RegisterPage() {
 
   return (
     <div className="mx-auto max-w-sm">
-      <h1 className="text-2xl font-semibold">Create your account</h1>
-      <Card className="mt-4">
+      <div className="mb-3 flex items-center gap-2">
+        <span className="brand-flag" aria-hidden="true">
+          <i></i>
+          <i></i>
+          <i></i>
+        </span>
+        <h1 className="font-display text-2xl">Create your account</h1>
+      </div>
+      <Card>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label htmlFor="email" className="block text-sm text-text-secondary">
@@ -91,14 +97,18 @@ export default function RegisterPage() {
             />
           </div>
           {error && <p className="text-sm text-danger">{error}</p>}
-          <Button type="submit" disabled={isSubmitting} className="w-full">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
+          >
             {isSubmitting ? 'Creating account…' : 'Register'}
-          </Button>
+          </button>
         </form>
       </Card>
       <p className="mt-3 text-sm text-text-secondary">
         Already have an account?{' '}
-        <Link to="/login" className="text-text-primary hover:underline">
+        <Link to="/login" className="text-highlight hover:underline">
           Log in
         </Link>
       </p>

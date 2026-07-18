@@ -35,12 +35,13 @@ The actual data model today (`packages/shared`'s `Match`/`Market`/
 `Selection`) is much smaller - no sport field, no live score, no boosts/
 parlays/builder domain. When reskinning or building a page whose mockup
 section has no backing data yet, match the visual system for what's real
-and *omit* the rest rather than fabricating placeholder data - add those
+and _omit_ the rest rather than fabricating placeholder data - add those
 sections once the backend actually supports them. See `docs/PROJECT_BRIEF.md`
 Section 10 for what's been reskinned so far and what's still pending.
 
 **Verify visually, not just with tests.** Changes here are inherently visual
+
 - after editing, run the app for real (Playwright + a real browser, per the
-`verify` skill) and look at a screenshot before calling it done. Prove brand
-theming actually works by checking at least two brands with different colors
-render distinctly, not just that the code compiles.
+  `verify` skill) and look at a screenshot before calling it done. Prove brand
+  theming actually works by checking at least two brands with different colors
+  render distinctly, not just that the code compiles.
