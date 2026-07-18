@@ -15,6 +15,7 @@ import { CmsModule } from './modules/cms/cms.module';
 import { DesignBackofficeModule } from './modules/design-backoffice/design-backoffice.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AdminModule } from './modules/admin/admin.module';
+import { ReportsModule } from './modules/reports/reports.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { AdminModule } from './modules/admin/admin.module';
     DesignBackofficeModule,
     NotificationsModule,
     AdminModule,
+    ReportsModule,
   ],
 })
 export class AppModule {}

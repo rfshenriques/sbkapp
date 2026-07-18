@@ -489,8 +489,8 @@ trying to avoid.
     blocked by the sandbox's own egress policy (confirmed via the proxy
     status endpoint - a policy denial, not a data-source problem) -
     worth a real check next time this runs somewhere with that host
-    allowed. Other backoffice functions (user admin, reporting, etc.)
-    aren't built yet.
+    allowed. Other backoffice functions (player/user admin, KYC/fraud
+    review, etc.) aren't built yet.
   - **Roles are coarse** - one enum value per staff member, no
     fine-grained permissions within a role (e.g. TRADING can settle any
     bet, no per-market/per-sport scoping).
@@ -498,9 +498,26 @@ trying to avoid.
     match/market stays suspended until a staff member manually
     unsuspends it, even after the match finishes. No cron/cleanup job
     exists yet.
-- **Reporting / BI**: P&L, GGR/NGR, trader performance, campaign ROI —
-  likely a read-layer over other modules' data rather than an operational
-  module of its own.
+- ~~Reporting / BI~~ **First slice done**: `ReportsService`
+  (`apps/backend/src/modules/reports/`) is exactly the "read-layer over
+  other modules' data" this section originally called for - it queries
+  `Bet`/`BetSelection` and `AuditLogEntry` directly rather than owning
+  any data of its own. `GET /admin/reports/summary` (bet counts by
+  status, total/settled stake, settled payout, and a **settled-only**
+  GGR = settled stake − settled payout, both filterable by an optional
+  `from`/`to` date range) and `GET /admin/reports/staff-activity`
+  (selections settled per staff member, sourced from the audit log) back
+  a new "Reports" screen in `apps/backoffice/`, ADMIN only. Verified with
+  real Postgres + a real browser: placing and settling real bets through
+  the actual settlement UI, then confirming the Reports screen's numbers
+  match by hand (stake/payout/GGR math, and the settling ADMIN's
+  activity count). Still open, deliberately not attempted because the
+  data model has nothing to compute them from yet: **NGR** (no
+  bonus/promo system exists to net out - NGR ≈ GGR for now), **campaign
+  ROI** (no marketing/campaign data exists at all), and any **time-series
+  / chart view** (the screen is summary-cards + tables only, matching the
+  rest of the backoffice's table-first UI - no charting library pulled
+  in for a single screen).
 - **KYC/AML**: explicitly deferred by the owner — architecture should
   leave a clean integration seam (e.g., a `kyc` module boundary already
   exists in the repo structure) without building the logic yet.

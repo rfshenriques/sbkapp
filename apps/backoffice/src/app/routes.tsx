@@ -2,6 +2,7 @@ import type { RouteObject } from 'react-router-dom';
 import AuditLogPage from '../pages/AuditLogPage';
 import MarketsPage from '../pages/MarketsPage';
 import NotFoundPage from '../pages/NotFoundPage';
+import ReportsPage from '../pages/ReportsPage';
 import SettlementPage from '../pages/SettlementPage';
 import StaffLoginPage from '../pages/StaffLoginPage';
 import StaffUsersPage from '../pages/StaffUsersPage';
@@ -48,6 +49,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN']}>
               <AuditLogPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'reports',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN']}>
+              <ReportsPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

@@ -48,6 +48,34 @@ export interface MarketSuspension {
   createdAt: string;
 }
 
+export interface StatusBreakdownEntry {
+  status: string;
+  count: number;
+  stakeCents: number;
+}
+
+export interface ReportSummary {
+  from: string | null;
+  to: string | null;
+  betCount: number;
+  totalStakeCents: number;
+  settledBetCount: number;
+  settledStakeCents: number;
+  settledPayoutCents: number;
+  ggrCents: number;
+  statusBreakdown: StatusBreakdownEntry[];
+}
+
+export interface StaffActivityEntry {
+  actorUsername: string;
+  settlementCount: number;
+}
+
+export interface ReportRange {
+  from?: string;
+  to?: string;
+}
+
 export type SelectionStatus = 'OPEN' | 'WON' | 'LOST' | 'VOID';
 export type BetStatus = 'PENDING' | 'WON' | 'LOST' | 'VOID';
 
@@ -232,4 +260,22 @@ export async function unsuspendMarket(id: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`Failed to unsuspend market: ${response.status}`);
   }
+}
+
+function rangeQuery(range: ReportRange): string {
+  const params = new URLSearchParams();
+  if (range.from) params.set('from', range.from);
+  if (range.to) params.set('to', range.to);
+  const query = params.toString();
+  return query ? `?${query}` : '';
+}
+
+export async function getReportSummary(range: ReportRange): Promise<ReportSummary> {
+  const response = await authenticatedFetch(`/admin/reports/summary${rangeQuery(range)}`);
+  return parseJsonOrThrow(response, `Failed to load report summary: ${response.status}`);
+}
+
+export async function getStaffActivity(range: ReportRange): Promise<StaffActivityEntry[]> {
+  const response = await authenticatedFetch(`/admin/reports/staff-activity${rangeQuery(range)}`);
+  return parseJsonOrThrow(response, `Failed to load staff activity: ${response.status}`);
 }

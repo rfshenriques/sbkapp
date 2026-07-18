@@ -35,6 +35,12 @@ export function AppShell() {
                   >
                     Audit log
                   </Link>
+                  <Link
+                    to="/reports"
+                    className="text-sm text-text-secondary hover:text-text-primary"
+                  >
+                    Reports
+                  </Link>
                 </>
               )}
               <div className="ml-auto flex items-center gap-3 text-sm">
