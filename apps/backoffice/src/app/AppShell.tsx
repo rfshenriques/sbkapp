@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom';
+import { Link, Outlet } from 'react-router-dom';
 import { useBootstrapStaffAuth } from '../features/auth/useBootstrapStaffAuth';
 import { useStaffAuth } from '../features/auth/useStaffAuth';
 
@@ -12,18 +12,31 @@ export function AppShell() {
         <nav className="flex items-center gap-6">
           <span className="text-lg font-semibold">Backoffice</span>
           {isInitialized && isAuthenticated && (
-            <div className="ml-auto flex items-center gap-3 text-sm">
-              <span className="text-text-secondary">
-                {user?.username} <span className="text-text-muted">({user?.role})</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => void logout()}
-                className="text-text-secondary hover:text-text-primary"
-              >
-                Log out
-              </button>
-            </div>
+            <>
+              <Link to="/" className="text-sm text-text-secondary hover:text-text-primary">
+                Settlement
+              </Link>
+              {user?.role === 'ADMIN' && (
+                <Link
+                  to="/staff-users"
+                  className="text-sm text-text-secondary hover:text-text-primary"
+                >
+                  Staff users
+                </Link>
+              )}
+              <div className="ml-auto flex items-center gap-3 text-sm">
+                <span className="text-text-secondary">
+                  {user?.username} <span className="text-text-muted">({user?.role})</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void logout()}
+                  className="text-text-secondary hover:text-text-primary"
+                >
+                  Log out
+                </button>
+              </div>
+            </>
           )}
         </nav>
       </header>

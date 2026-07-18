@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -123,5 +123,26 @@ describe('StaffAuthService', () => {
     await expect(staffAuthService.refresh(refreshToken)).rejects.toBeInstanceOf(
       UnauthorizedException,
     );
+  });
+
+  it('rejects bootstrapping a staff user once any staff user already exists', async () => {
+    const existing = await staffAuthService.createStaffUser(buildCreateStaffUserDto());
+    createdStaffUserIds.push(existing.id);
+
+    await expect(
+      staffAuthService.bootstrapStaffUser(buildCreateStaffUserDto()),
+    ).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('lists staff users without exposing their password hash', async () => {
+    const dto = buildCreateStaffUserDto({ role: 'CRM' });
+    const created = await staffAuthService.createStaffUser(dto);
+    createdStaffUserIds.push(created.id);
+
+    const listed = await staffAuthService.listStaffUsers();
+    const found = listed.find((staffUser) => staffUser.id === created.id);
+
+    expect(found).toMatchObject({ username: dto.username, email: dto.email, role: 'CRM' });
+    expect(found).not.toHaveProperty('passwordHash');
   });
 });

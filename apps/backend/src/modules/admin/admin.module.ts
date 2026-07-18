@@ -4,13 +4,14 @@ import { PassportModule } from '@nestjs/passport';
 import { RolesGuard } from './roles.guard';
 import { StaffAuthController } from './staff-auth.controller';
 import { StaffAuthService } from './staff-auth.service';
+import { StaffBootstrapController } from './staff-bootstrap.controller';
 import { StaffJwtAuthGuard } from './staff-jwt-auth.guard';
 import { StaffJwtStrategy } from './staff-jwt.strategy';
 import { StaffUsersController } from './staff-users.controller';
 
 @Module({
   imports: [PassportModule, JwtModule.register({})],
-  controllers: [StaffAuthController, StaffUsersController],
+  controllers: [StaffAuthController, StaffUsersController, StaffBootstrapController],
   providers: [StaffAuthService, StaffJwtStrategy, StaffJwtAuthGuard, RolesGuard],
   exports: [StaffJwtAuthGuard, RolesGuard],
 })

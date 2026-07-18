@@ -1,5 +1,10 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { ConflictException, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import type { StaffRole } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
@@ -46,6 +51,24 @@ export class StaffAuthService {
       username: staffUser.username,
       role: staffUser.role,
     };
+  }
+
+  /** Only usable while no staff users exist yet - the AdminKeyGuard's sole remaining purpose. */
+  async bootstrapStaffUser(dto: CreateStaffUserDto) {
+    const staffUserCount = await this.prisma.staffUser.count();
+    if (staffUserCount > 0) {
+      throw new ForbiddenException(
+        'Staff users already exist - log in as an ADMIN and use staff-user management instead',
+      );
+    }
+    return this.createStaffUser(dto);
+  }
+
+  async listStaffUsers() {
+    return this.prisma.staffUser.findMany({
+      select: { id: true, email: true, username: true, role: true, createdAt: true },
+      orderBy: { createdAt: 'asc' },
+    });
   }
 
   async login(dto: StaffLoginDto): Promise<StaffAuthTokens> {

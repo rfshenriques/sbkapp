@@ -11,6 +11,23 @@ export interface StaffLoginPayload {
   password: string;
 }
 
+export type StaffRole = 'ADMIN' | 'TRADING' | 'RISK' | 'CRM' | 'FRAUD' | 'CMS';
+
+export interface StaffUser {
+  id: string;
+  username: string;
+  email: string;
+  role: StaffRole;
+  createdAt: string;
+}
+
+export interface CreateStaffUserPayload {
+  username: string;
+  email: string;
+  password: string;
+  role: StaffRole;
+}
+
 export type SelectionStatus = 'OPEN' | 'WON' | 'LOST' | 'VOID';
 export type BetStatus = 'PENDING' | 'WON' | 'LOST' | 'VOID';
 
@@ -149,4 +166,18 @@ export async function settleSelection(
     },
   );
   return parseJsonOrThrow(response, `Failed to settle selection: ${response.status}`);
+}
+
+export async function listStaffUsers(): Promise<StaffUser[]> {
+  const response = await authenticatedFetch('/admin/staff-users');
+  return parseJsonOrThrow(response, `Failed to load staff users: ${response.status}`);
+}
+
+export async function createStaffUser(payload: CreateStaffUserPayload): Promise<StaffUser> {
+  const response = await authenticatedFetch('/admin/staff-users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to create staff user: ${response.status}`);
 }
