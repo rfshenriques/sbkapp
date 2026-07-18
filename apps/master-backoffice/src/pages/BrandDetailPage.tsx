@@ -29,6 +29,7 @@ export default function BrandDetailPage() {
   const [name, setName] = useState('');
   const [domain, setDomain] = useState('');
   const [logoUrl, setLogoUrl] = useState('');
+  const [themeMode, setThemeMode] = useState<backendApi.ThemeMode>('DARK');
   const [buttonColorHex, setButtonColorHex] = useState('');
   const [highlightColorHex, setHighlightColorHex] = useState('');
 
@@ -37,6 +38,7 @@ export default function BrandDetailPage() {
     setName(brand.name);
     setDomain(brand.domain ?? '');
     setLogoUrl(brand.logoUrl ?? '');
+    setThemeMode(brand.themeMode);
     setButtonColorHex(brand.buttonColorHex ?? '');
     setHighlightColorHex(brand.highlightColorHex ?? '');
   }, [brand]);
@@ -64,6 +66,7 @@ export default function BrandDetailPage() {
       name,
       domain: domain || undefined,
       logoUrl: logoUrl || undefined,
+      themeMode,
       buttonColorHex: buttonColorHex || undefined,
       highlightColorHex: highlightColorHex || undefined,
     });
@@ -123,6 +126,20 @@ export default function BrandDetailPage() {
                   placeholder="https://example.com/logo.png"
                   className="mt-1 w-full max-w-md rounded-md border border-border bg-background px-3 py-2 text-sm"
                 />
+              </div>
+              <div>
+                <label htmlFor="brand-theme-mode" className="block text-xs text-text-secondary">
+                  Appearance
+                </label>
+                <select
+                  id="brand-theme-mode"
+                  value={themeMode}
+                  onChange={(event) => setThemeMode(event.target.value as backendApi.ThemeMode)}
+                  className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="DARK">Dark</option>
+                  <option value="LIGHT">Light</option>
+                </select>
               </div>
               <div className="flex gap-4">
                 <div>

@@ -1,4 +1,13 @@
-import { IsBoolean, IsHexColor, IsOptional, IsUrl, Matches, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEnum,
+  IsHexColor,
+  IsOptional,
+  IsUrl,
+  Matches,
+  MinLength,
+} from 'class-validator';
+import { ThemeMode } from '@prisma/client';
 
 export class CreateBrandDto {
   @MinLength(2)
@@ -16,6 +25,10 @@ export class CreateBrandDto {
   @IsOptional()
   @IsUrl()
   logoUrl?: string;
+
+  @IsOptional()
+  @IsEnum(ThemeMode)
+  themeMode?: ThemeMode;
 
   @IsOptional()
   @IsHexColor()
@@ -38,6 +51,10 @@ export class UpdateBrandDto {
   @IsOptional()
   @IsUrl()
   logoUrl?: string;
+
+  @IsOptional()
+  @IsEnum(ThemeMode)
+  themeMode?: ThemeMode;
 
   @IsOptional()
   @IsHexColor()

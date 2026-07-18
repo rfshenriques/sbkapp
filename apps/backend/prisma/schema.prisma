@@ -258,23 +258,29 @@ model MasterRefreshToken {
   @@map("master_refresh_tokens")
 }
 
+enum ThemeMode {
+  LIGHT
+  DARK
+}
+
 /**
  * One sportsbook brand under the master product. Every player, staff
  * account, bet, audit entry, and market suspension belongs to exactly
  * one brand - see PROJECT_BRIEF.md Section 10 for the brandId retrofit.
  */
 model Brand {
-  id                String   @id @default(uuid())
+  id                String    @id @default(uuid())
   name              String
   /** URL-safe identifier, e.g. for future path-based routing. */
-  slug              String   @unique
+  slug              String    @unique
   /** The domain that resolves to this brand, once domain routing exists. */
-  domain            String?  @unique
+  domain            String?   @unique
   logoUrl           String?
+  themeMode         ThemeMode @default(DARK)
   buttonColorHex    String?
   highlightColorHex String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   productFlags      BrandProductFlag[]
   users             User[]

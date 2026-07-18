@@ -12,6 +12,7 @@ const existingBrand: Brand = {
   slug: 'acme-sportsbook',
   domain: 'www.acme-sportsbook.com',
   logoUrl: null,
+  themeMode: 'DARK',
   buttonColorHex: null,
   highlightColorHex: null,
   createdAt: '2026-07-18T00:00:00Z',
@@ -70,6 +71,7 @@ describe('BrandsPage', () => {
           name: 'New Brand',
           slug: 'new-brand',
           domain: undefined,
+          themeMode: 'DARK',
         });
         return new Response(JSON.stringify(createdBrand), { status: 201 });
       }

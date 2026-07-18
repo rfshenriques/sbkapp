@@ -43,6 +43,7 @@ describe('BrandsService', () => {
     const dto = buildCreateBrandDto({
       domain: `${randomUUID().slice(0, 8)}.example.com`,
       logoUrl: 'https://example.com/logo.png',
+      themeMode: 'LIGHT',
       buttonColorHex: '#112233',
       highlightColorHex: '#445566',
     });
@@ -53,8 +54,16 @@ describe('BrandsService', () => {
     expect(brand.name).toBe(dto.name);
     expect(brand.slug).toBe(dto.slug);
     expect(brand.domain).toBe(dto.domain);
+    expect(brand.themeMode).toBe('LIGHT');
     expect(brand.buttonColorHex).toBe('#112233');
     expect(brand.productFlags).toEqual([]);
+  });
+
+  it('defaults a new brand to dark appearance when themeMode is not given', async () => {
+    const brand = await brandsService.createBrand(buildCreateBrandDto());
+    createdBrandIds.push(brand.id);
+
+    expect(brand.themeMode).toBe('DARK');
   });
 
   it('rejects creating a brand with an already-used slug', async () => {
@@ -100,10 +109,12 @@ describe('BrandsService', () => {
 
     const updated = await brandsService.updateBrand(created.id, {
       name: 'Renamed Brand',
+      themeMode: 'LIGHT',
       buttonColorHex: '#abcdef',
     });
 
     expect(updated.name).toBe('Renamed Brand');
+    expect(updated.themeMode).toBe('LIGHT');
     expect(updated.buttonColorHex).toBe('#abcdef');
   });
 

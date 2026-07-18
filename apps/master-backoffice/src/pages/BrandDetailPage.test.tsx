@@ -12,6 +12,7 @@ const brand: Brand = {
   slug: 'acme-sportsbook',
   domain: 'www.acme-sportsbook.com',
   logoUrl: null,
+  themeMode: 'LIGHT',
   buttonColorHex: '#112233',
   highlightColorHex: null,
   createdAt: '2026-07-18T00:00:00Z',
@@ -48,6 +49,7 @@ describe('BrandDetailPage', () => {
     expect(await screen.findByDisplayValue('Acme Sportsbook')).toBeInTheDocument();
     expect(screen.getByDisplayValue('www.acme-sportsbook.com')).toBeInTheDocument();
     expect(screen.getByDisplayValue('#112233')).toBeInTheDocument();
+    expect(screen.getByLabelText('Appearance')).toHaveValue('LIGHT');
   });
 
   it('toggling a product flag sends the right PATCH request', async () => {

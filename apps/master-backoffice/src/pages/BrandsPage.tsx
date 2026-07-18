@@ -18,6 +18,7 @@ export default function BrandsPage() {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [domain, setDomain] = useState('');
+  const [themeMode, setThemeMode] = useState<backendApi.ThemeMode>('DARK');
 
   const createMutation = useMutation({
     mutationFn: backendApi.createBrand,
@@ -26,12 +27,13 @@ export default function BrandsPage() {
       setName('');
       setSlug('');
       setDomain('');
+      setThemeMode('DARK');
     },
   });
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
-    createMutation.mutate({ name, slug, domain: domain || undefined });
+    createMutation.mutate({ name, slug, domain: domain || undefined, themeMode });
   }
 
   return (
@@ -78,6 +80,20 @@ export default function BrandsPage() {
               className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
             />
           </div>
+          <div>
+            <label htmlFor="new-brand-theme-mode" className="block text-xs text-text-secondary">
+              Appearance
+            </label>
+            <select
+              id="new-brand-theme-mode"
+              value={themeMode}
+              onChange={(event) => setThemeMode(event.target.value as backendApi.ThemeMode)}
+              className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+            >
+              <option value="DARK">Dark</option>
+              <option value="LIGHT">Light</option>
+            </select>
+          </div>
           <Button type="submit" disabled={createMutation.isPending}>
             {createMutation.isPending ? 'Adding…' : 'Add brand'}
           </Button>
@@ -104,6 +120,7 @@ export default function BrandsPage() {
                 <th className="py-2 font-medium">Name</th>
                 <th className="py-2 font-medium">Slug</th>
                 <th className="py-2 font-medium">Domain</th>
+                <th className="py-2 font-medium">Appearance</th>
                 <th className="py-2 font-medium">Products enabled</th>
               </tr>
             </thead>
@@ -117,6 +134,9 @@ export default function BrandsPage() {
                   </td>
                   <td className="py-2 text-text-secondary">{brand.slug}</td>
                   <td className="py-2 text-text-secondary">{brand.domain ?? '—'}</td>
+                  <td className="py-2 text-text-secondary">
+                    {brand.themeMode === 'DARK' ? 'Dark' : 'Light'}
+                  </td>
                   <td className="py-2 text-text-secondary">
                     {brand.productFlags.filter((flag) => flag.enabled).length} /{' '}
                     {brand.productFlags.length}

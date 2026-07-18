@@ -14,6 +14,9 @@ export interface MasterLoginPayload {
 export const KNOWN_PRODUCTS = ['CASHOUT', 'BET_BUILDER'] as const;
 export type KnownProduct = (typeof KNOWN_PRODUCTS)[number];
 
+export const THEME_MODES = ['LIGHT', 'DARK'] as const;
+export type ThemeMode = (typeof THEME_MODES)[number];
+
 export interface BrandProductFlag {
   id: string;
   brandId: string;
@@ -27,6 +30,7 @@ export interface Brand {
   slug: string;
   domain: string | null;
   logoUrl: string | null;
+  themeMode: ThemeMode;
   buttonColorHex: string | null;
   highlightColorHex: string | null;
   createdAt: string;
@@ -39,6 +43,7 @@ export interface CreateBrandPayload {
   slug: string;
   domain?: string;
   logoUrl?: string;
+  themeMode?: ThemeMode;
   buttonColorHex?: string;
   highlightColorHex?: string;
 }
@@ -47,6 +52,7 @@ export interface UpdateBrandPayload {
   name?: string;
   domain?: string;
   logoUrl?: string;
+  themeMode?: ThemeMode;
   buttonColorHex?: string;
   highlightColorHex?: string;
 }

@@ -545,10 +545,15 @@ trying to avoid.
     (`MasterKeyGuard` + `POST /master/auth/bootstrap`, gated by
     `MASTER_ADMIN_KEY`, works exactly once).
   - `Brand` + `BrandProductFlag` - `name`, unique `slug`, unique
-    `domain`, `logoUrl`, `buttonColorHex`, `highlightColorHex`; products
-    are a free-text key validated against `KNOWN_PRODUCTS` (currently
-    `CASHOUT`, `BET_BUILDER`) rather than a DB enum, so adding a new
-    product later doesn't need a migration.
+    `domain`, `logoUrl`, `themeMode` (`LIGHT`/`DARK`, defaults `DARK`),
+    `buttonColorHex`, `highlightColorHex`; products are a free-text key
+    validated against `KNOWN_PRODUCTS` (currently `CASHOUT`,
+    `BET_BUILDER`) rather than a DB enum, so adding a new product later
+    doesn't need a migration. Per the owner: brand setup is deliberately
+    just "appearance (light/dark) + 2 colors (button, highlight)" - the
+    background/surface palette itself is *not* per-brand configurable,
+    it's derived from `themeMode` on the frontend side, so there's no
+    third color field to keep readable against arbitrary backgrounds.
   - New `apps/master-backoffice/` app (port 5175 dev), structurally a
     clone of `apps/backoffice/`'s proven shape: a login page, a brands
     list with an inline create form, and a brand detail page for editing
