@@ -61,4 +61,42 @@ describe('PublicBrandController', () => {
   it('404s for an unknown brand id', async () => {
     await expect(controller.getBrand(randomUUID())).rejects.toBeInstanceOf(NotFoundException);
   });
+
+  it('resolves a brand by its exact stored domain', async () => {
+    const unique = randomUUID().slice(0, 8);
+    const brand = await prisma.brand.create({
+      data: {
+        name: `Domain Brand ${unique}`,
+        slug: `domain-brand-${unique}`,
+        domain: `${unique}.example.com`,
+      },
+    });
+    createdBrandIds.push(brand.id);
+
+    const result = await controller.getBrandByDomain(`${unique}.example.com`);
+
+    expect(result.id).toBe(brand.id);
+  });
+
+  it('resolves by domain case-insensitively and ignoring a www. prefix', async () => {
+    const unique = randomUUID().slice(0, 8);
+    const brand = await prisma.brand.create({
+      data: {
+        name: `Domain Brand ${unique}`,
+        slug: `domain-brand-www-${unique}`,
+        domain: `${unique}.example.com`,
+      },
+    });
+    createdBrandIds.push(brand.id);
+
+    const result = await controller.getBrandByDomain(`WWW.${unique}.EXAMPLE.COM`);
+
+    expect(result.id).toBe(brand.id);
+  });
+
+  it('404s for a domain with no configured brand', async () => {
+    await expect(
+      controller.getBrandByDomain(`${randomUUID().slice(0, 8)}.example.com`),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
 });

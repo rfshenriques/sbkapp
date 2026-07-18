@@ -2,15 +2,18 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { CreateBrandDto, UpdateBrandDto } from './dto/create-brand.dto';
+import { normalizeDomain } from './normalize-domain';
 
 @Injectable()
 export class BrandsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async createBrand(dto: CreateBrandDto) {
+    const domain = dto.domain ? normalizeDomain(dto.domain) : undefined;
+
     const existing = await this.prisma.brand.findFirst({
       where: {
-        OR: [{ slug: dto.slug }, ...(dto.domain ? [{ domain: dto.domain }] : [])],
+        OR: [{ slug: dto.slug }, ...(domain ? [{ domain }] : [])],
       },
     });
     if (existing) {
@@ -21,7 +24,7 @@ export class BrandsService {
       data: {
         name: dto.name,
         slug: dto.slug,
-        domain: dto.domain,
+        domain,
         logoUrl: dto.logoUrl,
         themeMode: dto.themeMode,
         buttonColorHex: dto.buttonColorHex,
@@ -57,7 +60,7 @@ export class BrandsService {
         where: { id },
         data: {
           name: dto.name,
-          domain: dto.domain,
+          domain: dto.domain ? normalizeDomain(dto.domain) : dto.domain,
           logoUrl: dto.logoUrl,
           themeMode: dto.themeMode,
           buttonColorHex: dto.buttonColorHex,

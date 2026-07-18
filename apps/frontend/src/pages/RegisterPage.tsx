@@ -2,10 +2,12 @@ import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { useAuth } from '../features/auth/useAuth';
+import { useBrandStore } from '../features/brand/brandStore';
 
 export default function RegisterPage() {
   const { register } = useAuth();
   const navigate = useNavigate();
+  const brandId = useBrandStore((state) => state.brandId);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
@@ -99,10 +101,10 @@ export default function RegisterPage() {
           {error && <p className="text-sm text-danger">{error}</p>}
           <button
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || !brandId}
             className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {isSubmitting ? 'Creating account…' : 'Register'}
+            {isSubmitting ? 'Creating account…' : !brandId ? 'Loading…' : 'Register'}
           </button>
         </form>
       </Card>

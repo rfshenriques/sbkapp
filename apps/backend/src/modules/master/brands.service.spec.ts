@@ -86,6 +86,28 @@ describe('BrandsService', () => {
     );
   });
 
+  it('normalizes the domain to lowercase without a www. prefix at creation time', async () => {
+    const unique = randomUUID().slice(0, 8);
+    const brand = await brandsService.createBrand(
+      buildCreateBrandDto({ domain: `WWW.${unique}.Example.COM` }),
+    );
+    createdBrandIds.push(brand.id);
+
+    expect(brand.domain).toBe(`${unique}.example.com`);
+  });
+
+  it('rejects an already-used domain even when the new one differs only by case or www.', async () => {
+    const unique = randomUUID().slice(0, 8);
+    const first = await brandsService.createBrand(
+      buildCreateBrandDto({ domain: `${unique}.example.com` }),
+    );
+    createdBrandIds.push(first.id);
+
+    await expect(
+      brandsService.createBrand(buildCreateBrandDto({ domain: `WWW.${unique}.EXAMPLE.COM` })),
+    ).rejects.toBeInstanceOf(ConflictException);
+  });
+
   it('lists and fetches a brand', async () => {
     const created = await brandsService.createBrand(buildCreateBrandDto());
     createdBrandIds.push(created.id);

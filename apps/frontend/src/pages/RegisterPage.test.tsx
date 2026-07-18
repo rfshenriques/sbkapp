@@ -3,7 +3,10 @@ import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../features/auth/authStore';
+import { useBrandStore } from '../features/brand/brandStore';
 import RegisterPage from './RegisterPage';
+
+const TEST_BRAND_ID = 'test-brand-id';
 
 function renderRegisterPage() {
   return render(
@@ -18,6 +21,9 @@ function renderRegisterPage() {
 
 beforeEach(() => {
   useAuthStore.setState({ accessToken: null, user: null, isInitialized: false });
+  // Normally set by useBrandTheme once brand resolution completes - this
+  // page doesn't render inside AppShell here, so it's seeded directly.
+  useBrandStore.setState({ brandId: TEST_BRAND_ID });
 });
 
 afterEach(() => {
@@ -50,9 +56,7 @@ describe('RegisterPage', () => {
       username: 'new_user',
       phone: '+15551234567',
       password: 'correct-horse-battery-staple',
-      // Whatever this environment is configured with (see VITE_BRAND_ID)
-      // - not hardcoded, so this test doesn't drift from the real value.
-      brandId: import.meta.env.VITE_BRAND_ID,
+      brandId: TEST_BRAND_ID,
     });
   });
 

@@ -1,4 +1,5 @@
 import { useAuthStore } from '../features/auth/authStore';
+import { useBrandStore } from '../features/brand/brandStore';
 
 const BASE_URL = '/backend';
 
@@ -64,13 +65,13 @@ async function parseJsonOrThrow<T>(response: Response, fallbackMessage: string):
 }
 
 /**
- * Every player belongs to exactly one brand (see PROJECT_BRIEF.md Section
- * 10's brandId retrofit). There's no domain-based tenant resolution yet,
- * so this app - like every other deployment of it - is configured with
- * which brand it's registering players into via this env var, rather
- * than the registration form asking the player to pick one.
+ * Local-dev/CI fallback only - see getPublicBrand. One running apps/frontend
+ * deployment now serves many brands' domains (see PROJECT_BRIEF.md Section
+ * 10's domain-based brand resolution), so this env var is no longer "which
+ * brand does this deployment belong to." It only matters when the current
+ * hostname (e.g. localhost) has no brand configured for it.
  */
-const BRAND_ID = import.meta.env.VITE_BRAND_ID as string | undefined;
+const FALLBACK_BRAND_ID = import.meta.env.VITE_BRAND_ID as string | undefined;
 
 export interface PublicBrand {
   id: string;
@@ -81,11 +82,28 @@ export interface PublicBrand {
   highlightColorHex: string | null;
 }
 
+/**
+ * Every player belongs to exactly one brand (see PROJECT_BRIEF.md Section
+ * 10's brandId retrofit). Resolves it from the hostname the app is actually
+ * being served on - the mechanism that lets one deployment serve many
+ * brands' domains - falling back to VITE_BRAND_ID (a fixed brand for local
+ * dev/CI, where the hostname is just "localhost") when that hostname has no
+ * brand configured. Whatever this resolves to also becomes the brandId
+ * register() sends - see useBrandTheme, which is what actually calls this
+ * and stores the result in useBrandStore.
+ */
 export async function getPublicBrand(): Promise<PublicBrand | undefined> {
-  if (!BRAND_ID) return undefined;
-  const response = await fetch(`${BASE_URL}/public/brands/${BRAND_ID}`);
-  if (!response.ok) return undefined;
-  return (await response.json()) as PublicBrand;
+  const byDomainResponse = await fetch(
+    `${BASE_URL}/public/brands/by-domain/${encodeURIComponent(window.location.hostname)}`,
+  );
+  if (byDomainResponse.ok) {
+    return (await byDomainResponse.json()) as PublicBrand;
+  }
+
+  if (!FALLBACK_BRAND_ID) return undefined;
+  const byIdResponse = await fetch(`${BASE_URL}/public/brands/${FALLBACK_BRAND_ID}`);
+  if (!byIdResponse.ok) return undefined;
+  return (await byIdResponse.json()) as PublicBrand;
 }
 
 export async function register(payload: RegisterPayload): Promise<AuthTokenResponse> {
@@ -93,7 +111,7 @@ export async function register(payload: RegisterPayload): Promise<AuthTokenRespo
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ ...payload, brandId: BRAND_ID }),
+    body: JSON.stringify({ ...payload, brandId: useBrandStore.getState().brandId }),
   });
   return parseJsonOrThrow(response, `Registration failed: ${response.status}`);
 }

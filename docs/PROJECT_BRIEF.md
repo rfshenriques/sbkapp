@@ -621,12 +621,43 @@ trying to avoid.
     (not just a UI-level hide) when attempting to settle brand B's bet
     directly by id.
 
-  Still explicitly **not done**:
-  - **No domain-based routing** - `Brand.domain` is stored but nothing
-    resolves an incoming request's hostname to a brand yet, in either
-    the backend or `apps/frontend`. This is why `apps/frontend` still
-    needs `VITE_BRAND_ID` as a manual per-deployment config instead of
-    inferring the brand from the hostname.
+  - **Domain-based brand resolution: done.** The first real deployment
+    (owner-provided: BETPOR under `betsome.pt`) needs one running
+    `apps/frontend` to serve many brands' own domains, which the old
+    "`VITE_BRAND_ID` = which brand this deployment is" model couldn't do.
+    Now: `GET /public/brands/by-domain/:domain` (added alongside the
+    existing `GET /public/brands/:id`) resolves a brand from a hostname;
+    `normalizeDomain()` (`apps/backend/src/modules/master/normalize-domain.ts`)
+    lowercases and strips a leading `www.` at both storage time
+    (`brands.service.ts`, so `BrandsService.createBrand`/`updateBrand`
+    always store the canonical form) and lookup time, so `betsome.pt` and
+    `www.BetSome.PT` resolve to the same brand without depending on DNS
+    canonicalization being set up first. `apps/frontend`'s `getPublicBrand`
+    (`src/lib/backendApi.ts`) now tries `by-domain/<window.location.hostname>`
+    first, falling back to `VITE_BRAND_ID` (now just a local-dev/CI
+    convenience, not "this deployment's brand") only when the current
+    hostname has no brand configured - `localhost` in dev, for instance.
+    The resolved brand id is written to a new `useBrandStore`
+    (`src/features/brand/brandStore.ts`) by `useBrandTheme`, since
+    `register()` needs to read it too and can't depend on the old
+    build-time env var anymore; `RegisterPage` disables submission
+    ("Loading…") until it's resolved rather than risking an empty
+    `brandId`. **Verified for real, not just unit-tested**: added
+    `betpor.test`/`tealtest.test` to `/etc/hosts` pointing at 127.0.0.1,
+    temporarily set `server.allowedHosts: true` in `apps/frontend/vite.config.ts`
+    (Vite's dev server blocks arbitrary `Host` headers by default -
+    reverted after, not committed), and drove a real browser to both
+    hostnames plus `localhost` against the *same running dev server* -
+    each one rendered its own brand's theme, and a real registration
+    through `betpor.test` landed in Postgres with BETPOR's actual brand id
+    stamped on the JWT and the `users` row.
+  - **Still not done: real production hosting.** Domain → brand resolution
+    is pure application logic and works today; nothing yet points
+    `betsome.pt`/`betsome.me` at a real deployment (hosting, DNS, TLS,
+    CI/CD to production) - that's explicitly a separate next step, along
+    with the `betsome.me/backoffice` + `betsome.me/backoffice/super`
+    path-based routing for `apps/backoffice`/`apps/master-backoffice`
+    (currently separate apps on separate ports, no path-prefix awareness).
   - **Per-brand theming: now applied to `apps/frontend`'s Home page.**
     A new unauthenticated `GET /public/brands/:id` endpoint
     (`apps/backend/src/modules/master/public-brand.controller.ts`)
