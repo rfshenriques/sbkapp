@@ -12,6 +12,7 @@ COPY apps/backend/package.json apps/backend/package.json
 COPY apps/frontend/package.json apps/frontend/package.json
 COPY apps/backoffice/package.json apps/backoffice/package.json
 COPY apps/odds-engine/package.json apps/odds-engine/package.json
+COPY apps/master-backoffice/package.json apps/master-backoffice/package.json
 RUN pnpm install --frozen-lockfile
 
 COPY packages/shared packages/shared
