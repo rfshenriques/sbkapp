@@ -651,13 +651,38 @@ trying to avoid.
     each one rendered its own brand's theme, and a real registration
     through `betpor.test` landed in Postgres with BETPOR's actual brand id
     stamped on the JWT and the `users` row.
+  - **`betsome.me/backoffice` + `/backoffice/super` path-based routing:
+    the application-level piece is done.** `apps/backoffice` and
+    `apps/master-backoffice` were separate apps on separate ports with no
+    path-prefix awareness; both now support being served from a subpath.
+    Each `vite.config.ts` reads a new `VITE_BASE_PATH` build-time env var
+    into Vite's own `base` config (unset → `/`, unchanged local-dev
+    behavior); each `src/app/router.ts` reads `import.meta.env.BASE_URL`
+    (which Vite derives from `base` automatically) as
+    `createBrowserRouter`'s `basename`, so the two can't drift out of
+    sync - one build-time input, not two. A reference nginx config
+    (`infra/nginx/betsome.me.conf`) shows the intended routing: the
+    master backoffice's build goes under `/backoffice/super/` on the same
+    origin as the staff backoffice's `/backoffice/`, both proxying
+    `/backend`(`/api` for staff-only) the same way each app's own Vite
+    dev-server proxy already does. **Verified locally**: built both apps
+    with `VITE_BASE_PATH` set to their real production prefixes, confirmed
+    the emitted `index.html`s reference correctly-prefixed asset URLs, then
+    served both `dist/` outputs from one Node server mimicking nginx's
+    routing (path-prefix dispatch + SPA fallback, master-backoffice's
+    longer prefix checked first) and drove a real browser to both
+    subpaths - each app mounted, redirected to its own `/login` route
+    under the right prefix, no broken asset/router issues. **Not
+    verified**: the nginx config itself (no Docker/nginx available in the
+    dev sandbox that wrote it - see the file's own header comment), and
+    it isn't wired into `docker-compose.yml` yet, since the real
+    production hosting choice (below) will determine whether nginx is
+    even the right mechanism.
   - **Still not done: real production hosting.** Domain → brand resolution
-    is pure application logic and works today; nothing yet points
-    `betsome.pt`/`betsome.me` at a real deployment (hosting, DNS, TLS,
-    CI/CD to production) - that's explicitly a separate next step, along
-    with the `betsome.me/backoffice` + `betsome.me/backoffice/super`
-    path-based routing for `apps/backoffice`/`apps/master-backoffice`
-    (currently separate apps on separate ports, no path-prefix awareness).
+    and the path-routing mechanism above are pure application logic and
+    work today; nothing yet points `betsome.pt`/`betsome.me` at a real
+    deployment - hosting provider, DNS, TLS, CI/CD to production are all
+    still an open conversation, deliberately deferred until this piece.
   - **Per-brand theming: now applied to `apps/frontend`'s Home page.**
     A new unauthenticated `GET /public/brands/:id` endpoint
     (`apps/backend/src/modules/master/public-brand.controller.ts`)

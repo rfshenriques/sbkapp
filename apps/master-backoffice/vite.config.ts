@@ -10,6 +10,12 @@ import { defineConfig } from 'vite';
 const backendTarget = process.env.BACKEND_PROXY_TARGET ?? 'http://localhost:3000';
 
 export default defineConfig({
+  // Unset (root "/") for local dev. Production sets this to
+  // "/backoffice/super/" so this app can be reverse-proxied under
+  // betsome.me/backoffice/super - see infra/nginx/betsome.me.conf. React
+  // Router's basename (src/app/router.ts) reads import.meta.env.BASE_URL,
+  // which Vite derives from this, so the two never drift out of sync.
+  base: process.env.VITE_BASE_PATH || '/',
   plugins: [react(), tailwindcss()],
   server: {
     // Distinct from apps/frontend's 5173 and apps/backoffice's 5174 so all three can run side by side on a bare host.
