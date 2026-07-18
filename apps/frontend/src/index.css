@@ -1,23 +1,180 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-background: #0b0f1a;
-  --color-surface: #131a2b;
-  --color-surface-hover: #1b2438;
-  --color-border: #232d42;
+  /* Dark is the default base palette - see the :root[data-theme='light']
+     override below for the light alternative. Neither is brand-configurable
+     (see docs/PROJECT_BRIEF.md Section 10: only button/highlight colors are). */
+  --color-background: #0b0d11;
+  --color-surface: #12151b;
+  --color-surface-2: #181c24;
+  --color-surface-hover: #1e2330;
+  --color-border: #242a35;
 
-  --color-text-primary: #f1f5f9;
-  --color-text-secondary: #94a3b8;
-  --color-text-muted: #64748b;
+  --color-text-primary: #f2f4f8;
+  --color-text-secondary: #8b93a3;
+  --color-text-muted: #5b6472;
 
-  --color-brand: #22c55e;
-  --color-brand-hover: #16a34a;
-  --color-price-up: #22c55e;
+  /* Brand-driven - overridden at runtime from the acting Brand's
+     buttonColorHex/highlightColorHex (see useBrandTheme). These defaults
+     are only what an unbranded/misconfigured deployment falls back to. */
+  --color-brand: #6366f1;
+  --color-brand-hover: color-mix(in srgb, var(--color-brand) 85%, black);
+  --color-highlight: #f5b301;
+
+  /* Fixed regardless of brand - odds movement and error states shouldn't
+     shift with a brand's chosen palette. */
+  --color-price-up: #2ed573;
   --color-price-down: #ef4444;
   --color-danger: #ef4444;
+
+  --font-display: 'Saira Condensed', sans-serif;
+  --font-sans: 'Archivo', system-ui, sans-serif;
+}
+
+:root[data-theme='light'] {
+  --color-background: #f5f6f8;
+  --color-surface: #ffffff;
+  --color-surface-2: #eef0f4;
+  --color-surface-hover: #e6e9ee;
+  --color-border: #e2e5ea;
+
+  --color-text-primary: #14171c;
+  --color-text-secondary: #55606e;
+  --color-text-muted: #8890a0;
 }
 
 body {
   background-color: var(--color-background);
   color: var(--color-text-primary);
+  font-family: var(--font-sans);
+}
+
+/* ---------- Shared brand-styled primitives ---------- */
+/* Ported from the BETGER design prototype: an angular "slash" cut used on
+   primary CTAs, chips, and badges throughout. Kept generic (no brand name)
+   since it's shared across every brand, not just BETGER. */
+.slash {
+  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
+  border-radius: 0;
+}
+
+.font-display {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.odd-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 64px;
+  padding: 9px 10px;
+  border-radius: 9px;
+  background-color: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  transition:
+    border-color 0.15s,
+    background-color 0.15s,
+    transform 0.12s;
+}
+.odd-btn:hover {
+  border-color: color-mix(in srgb, var(--color-border) 50%, var(--color-text-secondary));
+}
+.odd-btn:active {
+  transform: scale(0.96);
+}
+.odd-btn .odd-label {
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.odd-btn .odd-value {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16.5px;
+  font-variant-numeric: tabular-nums;
+}
+.odd-btn.selected {
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-highlight) 22%, transparent),
+      color-mix(in srgb, var(--color-brand) 18%, transparent)
+    ),
+    var(--color-surface-2);
+  border-color: var(--color-highlight);
+}
+.odd-btn.selected .odd-value {
+  color: var(--color-highlight);
+}
+
+.btn-primary {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-size: 15px;
+  padding: 10px 22px;
+  white-space: nowrap;
+  background: linear-gradient(
+    135deg,
+    var(--color-brand),
+    color-mix(in srgb, var(--color-brand) 78%, black)
+  );
+  color: #fff;
+  transition:
+    transform 0.12s,
+    filter 0.15s;
+}
+.btn-primary:hover {
+  filter: brightness(1.08);
+}
+.btn-primary:active {
+  transform: scale(0.97);
+}
+
+.btn-ghost {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-size: 15px;
+  padding: 9px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  transition: border-color 0.15s;
+}
+.btn-ghost:hover {
+  border-color: var(--color-text-muted);
+}
+
+.brand-flag {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transform: skewX(-24deg);
+}
+.brand-flag i {
+  display: block;
+  width: 16px;
+  height: 4px;
+}
+.brand-flag i:nth-child(1) {
+  background: var(--color-text-muted);
+}
+.brand-flag i:nth-child(2) {
+  background: var(--color-brand);
+}
+.brand-flag i:nth-child(3) {
+  background: var(--color-highlight);
 }

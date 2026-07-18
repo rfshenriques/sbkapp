@@ -72,6 +72,22 @@ async function parseJsonOrThrow<T>(response: Response, fallbackMessage: string):
  */
 const BRAND_ID = import.meta.env.VITE_BRAND_ID as string | undefined;
 
+export interface PublicBrand {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+  themeMode: 'LIGHT' | 'DARK';
+  buttonColorHex: string | null;
+  highlightColorHex: string | null;
+}
+
+export async function getPublicBrand(): Promise<PublicBrand | undefined> {
+  if (!BRAND_ID) return undefined;
+  const response = await fetch(`${BASE_URL}/public/brands/${BRAND_ID}`);
+  if (!response.ok) return undefined;
+  return (await response.json()) as PublicBrand;
+}
+
 export async function register(payload: RegisterPayload): Promise<AuthTokenResponse> {
   const response = await fetch(`${BASE_URL}/auth/register`, {
     method: 'POST',

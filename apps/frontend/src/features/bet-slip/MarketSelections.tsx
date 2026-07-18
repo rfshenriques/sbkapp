@@ -1,4 +1,3 @@
-import { Button } from '../../components/ui/Button';
 import type { Market } from '@sportsbook/shared';
 import { useBetSlipStore } from './betSlipStore';
 
@@ -20,10 +19,10 @@ export function MarketSelections({ matchId, matchLabel, market }: MarketSelectio
   return (
     <div className="grid grid-cols-3 gap-2">
       {market.selections.map((selection) => (
-        <Button
+        <button
           key={selection.id}
-          variant={selectedSelectionId === selection.id ? 'primary' : 'secondary'}
-          className="flex flex-col items-center"
+          type="button"
+          className={`odd-btn${selectedSelectionId === selection.id ? ' selected' : ''}`}
           onClick={() =>
             toggleSelection({
               matchId,
@@ -36,9 +35,9 @@ export function MarketSelections({ matchId, matchLabel, market }: MarketSelectio
             })
           }
         >
-          <span className="text-xs text-text-secondary">{selection.name}</span>
-          <span className="font-semibold">{selection.odds.toFixed(2)}</span>
-        </Button>
+          <span className="odd-label">{selection.name}</span>
+          <span className="odd-value">{selection.odds.toFixed(2)}</span>
+        </button>
       ))}
     </div>
   );

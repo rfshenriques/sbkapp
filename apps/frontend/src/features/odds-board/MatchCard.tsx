@@ -12,15 +12,23 @@ export function MatchCard({ match }: MatchCardProps) {
   const matchResult = match.markets.find((market) => market.id === 'match-result');
   const prefetchMatchDetail = usePrefetchMatchDetail();
   const matchLabel = `${match.homeTeam} vs ${match.awayTeam}`;
+  const kickoff = new Date(match.kickoff);
 
   return (
-    <Card>
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <p className="text-xs text-text-muted">{match.competition}</p>
+    <Card className="transition-colors hover:border-text-muted">
+      <div className="flex items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+            <span>{match.competition}</span>
+            {!match.isLive && (
+              <span className="text-highlight">
+                {kickoff.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
+          </p>
           <Link
             to={`/matches/${match.id}`}
-            className="font-medium hover:underline"
+            className="font-semibold hover:underline"
             onMouseEnter={() => prefetchMatchDetail(match.id)}
             onTouchStart={() => prefetchMatchDetail(match.id)}
           >
@@ -28,7 +36,7 @@ export function MatchCard({ match }: MatchCardProps) {
           </Link>
         </div>
         {match.isLive && (
-          <span className="shrink-0 rounded bg-danger px-2 py-0.5 text-xs font-semibold text-white">
+          <span className="slash shrink-0 bg-price-down px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest text-white">
             LIVE
           </span>
         )}

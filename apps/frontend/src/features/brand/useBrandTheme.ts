@@ -1,0 +1,36 @@
+import { useQuery } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { getPublicBrand } from '../../lib/backendApi';
+
+/**
+ * Fetches this deployment's own brand (see VITE_BRAND_ID) and applies its
+ * theme - appearance (light/dark) plus the two brand colors - as CSS custom
+ * properties on the document root. Falls back to the built-in dark theme
+ * and default colors (see index.css) when there's no brand configured or
+ * the fetch fails, rather than blocking rendering on it.
+ */
+export function useBrandTheme() {
+  const query = useQuery({
+    queryKey: ['public-brand'],
+    queryFn: getPublicBrand,
+    staleTime: Infinity,
+  });
+
+  useEffect(() => {
+    const brand = query.data;
+    if (!brand) return;
+
+    document.documentElement.dataset.theme = brand.themeMode === 'LIGHT' ? 'light' : 'dark';
+    if (brand.buttonColorHex) {
+      document.documentElement.style.setProperty('--color-brand', brand.buttonColorHex);
+    }
+    if (brand.highlightColorHex) {
+      document.documentElement.style.setProperty('--color-highlight', brand.highlightColorHex);
+    }
+    if (brand.name) {
+      document.title = brand.name;
+    }
+  }, [query.data]);
+
+  return query;
+}

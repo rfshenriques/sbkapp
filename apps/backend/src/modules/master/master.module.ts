@@ -8,10 +8,16 @@ import { MasterAuthService } from './master-auth.service';
 import { MasterBootstrapController } from './master-bootstrap.controller';
 import { MasterJwtAuthGuard } from './master-jwt-auth.guard';
 import { MasterJwtStrategy } from './master-jwt.strategy';
+import { PublicBrandController } from './public-brand.controller';
 
 @Module({
   imports: [PassportModule, JwtModule.register({})],
-  controllers: [MasterAuthController, MasterBootstrapController, BrandsController],
+  controllers: [
+    MasterAuthController,
+    MasterBootstrapController,
+    BrandsController,
+    PublicBrandController,
+  ],
   providers: [MasterAuthService, MasterJwtStrategy, MasterJwtAuthGuard, BrandsService],
 })
 export class MasterModule {}

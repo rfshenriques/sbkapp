@@ -28,7 +28,11 @@ describe('router', () => {
     renderAt('/');
 
     expect(screen.getByText('Sportsbook')).toBeInTheDocument();
-    expect(await screen.findByRole('heading', { name: 'Odds Board' })).toBeInTheDocument();
+    // Real Madrid vs Barcelona is the only isLive:true fixture, so it's always
+    // the featured match's heading regardless of kickoff-time sort order.
+    expect(
+      await screen.findByRole('heading', { name: 'Real Madrid vs Barcelona' }),
+    ).toBeInTheDocument();
   });
 
   it('renders the match detail page for a known match id', async () => {

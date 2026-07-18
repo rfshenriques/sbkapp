@@ -627,10 +627,36 @@ trying to avoid.
     the backend or `apps/frontend`. This is why `apps/frontend` still
     needs `VITE_BRAND_ID` as a manual per-deployment config instead of
     inferring the brand from the hostname.
-  - **No per-brand theming applied anywhere** - the color/logo fields
-    are stored but not yet consumed by `apps/frontend`'s CSS custom
-    properties or any other player-facing surface. Waiting on the
-    owner's mockups for this.
+  - **Per-brand theming: now applied to `apps/frontend`'s Home page.**
+    A new unauthenticated `GET /public/brands/:id` endpoint
+    (`apps/backend/src/modules/master/public-brand.controller.ts`)
+    returns the safe-to-expose subset of a brand's fields (name,
+    logoUrl, themeMode, buttonColorHex, highlightColorHex) - needed
+    because a player can browse before ever logging in, so this can't
+    sit behind player/staff/master auth. `apps/frontend`'s
+    `useBrandTheme` hook (`src/features/brand/useBrandTheme.ts`) fetches
+    its own brand (via `VITE_BRAND_ID`) once on mount and applies it by
+    setting `--color-brand`/`--color-highlight` as inline CSS custom
+    properties on `<html>` and toggling `data-theme="light"|"dark"`;
+    `apps/frontend/src/index.css` defines the base token set (dark by
+    default, a `[data-theme='light']` override for the alternative) plus
+    shared BETGER-derived component primitives (`.odd-btn`, `.btn-primary`,
+    `.btn-ghost`, `.slash`, `.brand-flag`, `.font-display`) that use
+    `color-mix()` to derive hover/deep shades from the two brand colors
+    rather than needing a third stored color. Verified end-to-end with
+    two real brands (different colors, different `themeMode`) rendering
+    distinctly in an actual browser. Deliberately scoped to what the real
+    `Match`/`Market`/`Selection` data model supports - the owner's
+    delivered design mockups (a static HTML/CSS/JS prototype, not
+    committed to the repo) assume live scores, per-sport tabs, boosted
+    parlays, and a highlights feed that don't exist as real data yet, so
+    Home only reskins the header, a lightweight featured-match hero
+    (earliest kickoff, live matches prioritized), and the real upcoming
+    match list. Login/Register/MatchDetail pages inherit the new odds-
+    button styling via the shared `MarketSelections` component but
+    haven't been fully reskinned yet. Live/pre-match event pages, bet
+    builder, boosts, and highlights remain to be built once their
+    backing data models exist.
   - **Product flags aren't enforced anywhere** - `BrandProductFlag`
     records intent (cashout/bet builder enabled Y/N) but nothing in
     `pam` or elsewhere checks it, since there's no cashout or bet
