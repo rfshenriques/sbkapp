@@ -25,7 +25,7 @@ export function AppShell() {
   return (
     <div className="min-h-screen pb-20 sm:pb-0">
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
-        <div className="mx-auto flex max-w-[1440px] items-center gap-4 px-4 py-3">
+        <div className="mx-auto flex max-w-[1680px] items-center gap-4 px-4 py-3">
           <NavLink to="/" className="flex shrink-0 items-center gap-2">
             <span className="font-display text-xl">{brandName}</span>
             <span className="brand-flag" aria-hidden="true">
@@ -66,7 +66,7 @@ export function AppShell() {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-[1440px] gap-4 p-4">
+      <div className="mx-auto flex max-w-[1680px] gap-4 p-4">
         {/* Desktop: sports navigation is a persistent left column, same
             convention as the bet slip's persistent right column - the
             mobile drawer below is sm:hidden so the two never coexist.
@@ -74,7 +74,7 @@ export function AppShell() {
             the sport/country/competition tree and Top Competitions list
             need more room to stay readable than the compact bet slip does. */}
         <aside className="hidden sm:block sm:w-96 sm:shrink-0">
-          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-lg border border-border bg-surface p-4">
+          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-lg border border-border bg-surface p-4 [scrollbar-gutter:stable]">
             <Sidebar />
           </div>
         </aside>
@@ -91,7 +91,7 @@ export function AppShell() {
             content) even when empty, so the promotional empty state has
             room to center itself instead of sitting in a tiny box. */}
         <aside className="hidden sm:block sm:w-80 sm:shrink-0">
-          <div className="sticky top-20 flex h-[calc(100vh-6rem)] flex-col overflow-y-auto rounded-lg border border-border bg-surface p-4">
+          <div className="sticky top-20 flex h-[calc(100vh-6rem)] flex-col overflow-y-auto rounded-lg border border-border bg-surface p-4 [scrollbar-gutter:stable]">
             <BetSlipPanel showHistoryTab emptyStateVariant="promotional" />
           </div>
         </aside>
@@ -199,7 +199,7 @@ export function AppShell() {
           visible behind it - sm:hidden keeps it from ever coexisting with
           the persistent desktop aside above. */}
       {isNavOpen && (
-        <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-background p-4 sm:hidden">
+        <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-background p-4 [scrollbar-gutter:stable] sm:hidden">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-display text-lg">Sports</h2>
             <button

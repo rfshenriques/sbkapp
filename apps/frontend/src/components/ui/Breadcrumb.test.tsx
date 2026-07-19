@@ -108,11 +108,12 @@ describe('Breadcrumb (mobile layout)', () => {
     },
   ];
 
-  it('puts every ancestor except the last segment on a plain, non-dropdown trail line', () => {
+  it('puts every ancestor except Home and the last segment on a plain, non-dropdown trail line', () => {
     renderBreadcrumb(segments);
 
     const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb trail' }));
-    expect(trail.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    // Home is dropped on mobile - the back button and icon already say "you can leave this page".
+    expect(trail.queryByRole('link', { name: 'Home' })).not.toBeInTheDocument();
     expect(trail.getByRole('link', { name: 'Football' })).toBeInTheDocument();
     expect(trail.getByText('UEFA Champions League Qualification')).toBeInTheDocument();
     // The last segment (Match) belongs to the pill below, not the trail.
@@ -139,7 +140,7 @@ describe('Breadcrumb (mobile layout)', () => {
     expect(mobile().queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('puts a passed icon on the trail line, before Home', () => {
+  it('puts a passed icon on the trail line, before the rest of the trail', () => {
     renderBreadcrumb(segments, <span data-testid="my-icon">icon</span>);
 
     const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb trail' }));

@@ -18,7 +18,7 @@ export interface BreadcrumbSegment {
   options?: BreadcrumbOption[];
 }
 
-const PANEL_WIDTH = 288; // wide enough that most team/match names need at most one wrap, never an ellipsis
+const PANEL_WIDTH = 340; // wide enough that most team/match names need at most one wrap, never an ellipsis
 
 /**
  * The trigger can live inside a horizontally-scrolling row, so the dropdown
@@ -94,7 +94,7 @@ function BreadcrumbDropdown({
           ref={panelRef}
           role="listbox"
           style={{ top: panelPosition.top, left: panelPosition.left, width: PANEL_WIDTH }}
-          className="fixed z-30 max-h-72 overflow-y-auto rounded-lg border border-border bg-surface py-1 shadow-lg"
+          className="fixed z-30 max-h-72 overflow-y-auto rounded-lg border border-border bg-surface py-1 shadow-lg [scrollbar-gutter:stable]"
         >
           {options.map((option) => (
             <li key={option.key}>
@@ -104,7 +104,7 @@ function BreadcrumbDropdown({
                 aria-selected={option.label === label}
                 onClick={() => setPanelPosition(null)}
                 className={cn(
-                  'block px-3 py-2 text-sm transition-colors hover:bg-white/5',
+                  'block !whitespace-normal break-words px-3 py-2 text-sm transition-colors hover:bg-white/5',
                   option.label === label ? 'text-highlight' : 'text-text-secondary hover:text-text-primary',
                 )}
               >
@@ -134,15 +134,18 @@ function BreadcrumbDropdown({
  *   jumping anywhere, since desktop usually has the room to show everything.
  * - Mobile: cramming Home / Sport / Country / Competition / Match onto one
  *   line made every segment an unreadable sliver. Instead the ancestors
- *   (everything but the last segment) sit on their own plain, non-dropdown
- *   trail line, and only the final segment - the one thing worth switching
- *   on a phone - gets its own full-width pill-shaped dropdown button below,
- *   with its full label (and every option's full label) always shown in
- *   full - wrapping instead of ellipsis-truncating, since a half-cut team
- *   or match name isn't useful to a player picking between them.
+ *   (everything but the last segment, and dropping the "Home" crumb - the
+ *   `icon` and a back button already say "you can leave this page") sit on
+ *   their own plain, non-dropdown trail line, and only the final segment -
+ *   the one thing worth switching on a phone - gets its own full-width
+ *   pill-shaped dropdown button below, with its full label (and every
+ *   option's full label) always shown in full - wrapping instead of
+ *   ellipsis-truncating, since a half-cut team or match name isn't useful
+ *   to a player picking between them.
  */
 export function Breadcrumb({ segments, icon }: { segments: BreadcrumbSegment[]; icon?: ReactNode }) {
   const trailSegments = segments.slice(0, -1);
+  const mobileTrailSegments = trailSegments.filter((segment) => segment.key !== 'home');
   const activeSegment = segments[segments.length - 1];
   const scrollableRowClassName =
     'flex min-w-0 items-center gap-1.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
@@ -150,13 +153,13 @@ export function Breadcrumb({ segments, icon }: { segments: BreadcrumbSegment[]; 
   return (
     <div className="min-w-0">
       <div data-testid="breadcrumb-mobile" className="sm:hidden">
-        {trailSegments.length > 0 && (
+        {(icon || mobileTrailSegments.length > 0) && (
           <nav
             aria-label="Breadcrumb trail"
             className={cn(scrollableRowClassName, 'text-xs text-text-muted')}
           >
-            {icon && <span className="flex shrink-0 items-center">{icon}</span>}
-            {trailSegments.map((segment, index) => (
+            {icon && <span className="flex shrink-0 items-center gap-1">{icon}</span>}
+            {mobileTrailSegments.map((segment, index) => (
               <span key={segment.key} className="flex shrink-0 items-center gap-1.5">
                 {index > 0 && (
                   <ChevronIcon aria-hidden="true" className="h-3 w-3 shrink-0 -rotate-90 text-text-muted" />
@@ -197,7 +200,7 @@ export function Breadcrumb({ segments, icon }: { segments: BreadcrumbSegment[]; 
         aria-label="Breadcrumb"
         className={cn('hidden text-sm sm:flex', scrollableRowClassName)}
       >
-        {icon && <span className="flex shrink-0 items-center">{icon}</span>}
+        {icon && <span className="flex shrink-0 items-center gap-1">{icon}</span>}
         {segments.map((segment, index) => (
           <span key={segment.key} className="flex shrink-0 items-center gap-1.5">
             {index > 0 && (

@@ -1,6 +1,6 @@
 import type { Market } from '@sportsbook/shared';
 import { useBetSlipStore } from './betSlipStore';
-import { sortSelectionsWithDrawInMiddle } from './sortSelectionsWithDrawInMiddle';
+import { sortMatchResultSelections } from './sortMatchResultSelections';
 
 interface MarketSelectionsProps {
   matchId: string;
@@ -17,7 +17,7 @@ export function MarketSelections({ matchId, matchLabel, market }: MarketSelectio
       )?.selectionId,
   );
 
-  const orderedSelections = sortSelectionsWithDrawInMiddle(market.selections);
+  const orderedSelections = sortMatchResultSelections(market.selections);
 
   return (
     <div
