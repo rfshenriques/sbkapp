@@ -10,6 +10,7 @@ const PUBLIC_BRAND_SELECT = {
   themeMode: true,
   buttonColorHex: true,
   highlightColorHex: true,
+  filterColorHex: true,
 } as const;
 
 /**

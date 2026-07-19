@@ -98,6 +98,7 @@ export interface PublicBrand {
   themeMode: 'LIGHT' | 'DARK';
   buttonColorHex: string | null;
   highlightColorHex: string | null;
+  filterColorHex: string | null;
 }
 
 /**

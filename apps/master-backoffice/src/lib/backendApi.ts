@@ -33,6 +33,7 @@ export interface Brand {
   themeMode: ThemeMode;
   buttonColorHex: string | null;
   highlightColorHex: string | null;
+  filterColorHex: string | null;
   createdAt: string;
   updatedAt: string;
   productFlags: BrandProductFlag[];
@@ -46,6 +47,7 @@ export interface CreateBrandPayload {
   themeMode?: ThemeMode;
   buttonColorHex?: string;
   highlightColorHex?: string;
+  filterColorHex?: string;
 }
 
 export interface UpdateBrandPayload {
@@ -55,6 +57,7 @@ export interface UpdateBrandPayload {
   themeMode?: ThemeMode;
   buttonColorHex?: string;
   highlightColorHex?: string;
+  filterColorHex?: string;
 }
 
 function extractErrorMessage(body: unknown, fallback: string): string {

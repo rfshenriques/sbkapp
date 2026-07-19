@@ -25,7 +25,7 @@ export default function ErrorPage() {
           sorts it out.
         </p>
         <div className="mt-6 flex items-center justify-center gap-3">
-          <button type="button" onClick={() => window.location.reload()} className="btn-primary slash">
+          <button type="button" onClick={() => window.location.reload()} className="btn-primary">
             Reload page
           </button>
           <Link to="/" className="btn-ghost">

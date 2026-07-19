@@ -56,7 +56,7 @@ export function MatchCard({ match }: MatchCardProps) {
               side with vs/score centered between them. */}
           <Link
             to={matchHref}
-            className="group flex items-center gap-2"
+            className="flex items-center gap-2"
             aria-label={matchLabel}
             // Avoid a duplicate history entry from the card's own onClick
             // (React Router navigates internally on the link's click before
@@ -65,19 +65,19 @@ export function MatchCard({ match }: MatchCardProps) {
           >
             <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
               <TeamColorAccent colorHex={teamColors.get(match.homeTeam)} />
-              <span className="min-w-0 truncate font-semibold group-hover:underline">{homeTeamLabel}</span>
+              <span className="min-w-0 truncate font-semibold">{homeTeamLabel}</span>
             </span>
             <span className="shrink-0 text-xs font-bold text-text-muted tabular-nums">
               {centerLabel}
             </span>
             <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
-              <span className="min-w-0 truncate font-semibold group-hover:underline">{awayTeamLabel}</span>
+              <span className="min-w-0 truncate font-semibold">{awayTeamLabel}</span>
               <TeamColorAccent colorHex={teamColors.get(match.awayTeam)} />
             </span>
           </Link>
         </div>
         {match.isLive && (
-          <span className="slash shrink-0 bg-price-down px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest text-white">
+          <span className="shrink-0 rounded-full bg-price-down px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest text-white">
             LIVE
           </span>
         )}

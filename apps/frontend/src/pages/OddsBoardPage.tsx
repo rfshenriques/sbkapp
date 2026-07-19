@@ -77,7 +77,7 @@ export default function OddsBoardPage() {
               <SportCountryBadge sport={featured.sport} country={featured.country} />
               <span>{displayName('COMPETITION', featured.competition)}</span>
               {featured.isLive ? (
-                <span className="slash ml-auto bg-price-down px-2 py-0.5 text-[10px] font-extrabold text-white">
+                <span className="ml-auto rounded-full bg-price-down px-2 py-0.5 text-[10px] font-extrabold text-white">
                   LIVE
                 </span>
               ) : (
@@ -147,7 +147,7 @@ export default function OddsBoardPage() {
             ))}
           </div>
           {liveMatches.length > MAX_HOMEPAGE_ITEMS && (
-            <Link to="/sports/all" className="btn-ghost slash mt-3 inline-flex items-center justify-center">
+            <Link to="/sports/all" className="btn-ghost mt-3 inline-flex items-center justify-center">
               Load more live matches →
             </Link>
           )}
@@ -174,7 +174,7 @@ export default function OddsBoardPage() {
               <button
                 key={sport}
                 type="button"
-                className={`slash tab shrink-0${sport === effectiveSport ? ' active' : ''}`}
+                className={`tab shrink-0${sport === effectiveSport ? ' active' : ''}`}
                 aria-pressed={sport === effectiveSport}
                 onClick={() => setSelectedSport(sport)}
               >
@@ -198,7 +198,7 @@ export default function OddsBoardPage() {
         {upcomingForSport.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
           <Link
             to={`/sports/${encodeURIComponent(effectiveSport)}`}
-            className="btn-ghost slash mt-3 inline-flex items-center justify-center"
+            className="btn-ghost mt-3 inline-flex items-center justify-center"
           >
             Load more {displayName('SPORT', effectiveSport)} matches →
           </Link>

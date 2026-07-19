@@ -6,7 +6,7 @@ import { useBrandStore } from './brandStore';
 /**
  * Fetches this deployment's brand - resolved from the current hostname, see
  * getPublicBrand - and applies its theme - appearance (light/dark) plus the
- * two brand colors - as CSS custom properties on the document root. Falls
+ * three brand colors - as CSS custom properties on the document root. Falls
  * back to the built-in dark theme and default colors (see index.css) when
  * there's no brand configured or the fetch fails, rather than blocking
  * rendering on it.
@@ -29,6 +29,9 @@ export function useBrandTheme() {
     }
     if (brand.highlightColorHex) {
       document.documentElement.style.setProperty('--color-highlight', brand.highlightColorHex);
+    }
+    if (brand.filterColorHex) {
+      document.documentElement.style.setProperty('--color-filter', brand.filterColorHex);
     }
     if (brand.name) {
       document.title = brand.name;

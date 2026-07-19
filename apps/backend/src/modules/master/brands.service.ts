@@ -29,6 +29,7 @@ export class BrandsService {
         themeMode: dto.themeMode,
         buttonColorHex: dto.buttonColorHex,
         highlightColorHex: dto.highlightColorHex,
+        filterColorHex: dto.filterColorHex,
       },
       include: { productFlags: true },
     });
@@ -65,6 +66,7 @@ export class BrandsService {
           themeMode: dto.themeMode,
           buttonColorHex: dto.buttonColorHex,
           highlightColorHex: dto.highlightColorHex,
+          filterColorHex: dto.filterColorHex,
         },
         include: { productFlags: true },
       })

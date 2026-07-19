@@ -135,7 +135,7 @@ function PromotionalEmptyState({ confirmation }: { confirmation: string | null }
       <p className="max-w-[220px] text-sm text-text-secondary">
         Pick an odd on any match to start building a bet.
       </p>
-      <Link to="/" className="btn-primary slash">
+      <Link to="/" className="btn-primary">
         Browse matches
       </Link>
     </div>
@@ -223,7 +223,7 @@ export function BetSlipPanel({
               type="button"
               role="tab"
               aria-selected={tab === 'singles'}
-              className={`slash tab${tab === 'singles' ? ' active' : ''}`}
+              className={`tab${tab === 'singles' ? ' active' : ''}`}
               onClick={() => setActiveTab('singles')}
             >
               Singles
@@ -232,7 +232,7 @@ export function BetSlipPanel({
               type="button"
               role="tab"
               aria-selected={tab === 'accumulator'}
-              className={`slash tab${tab === 'accumulator' ? ' active' : ''}`}
+              className={`tab${tab === 'accumulator' ? ' active' : ''}`}
               onClick={() => setActiveTab('accumulator')}
             >
               Accumulator
@@ -347,7 +347,7 @@ export function BetSlipPanel({
             type="button"
             role="tab"
             aria-selected={panelView === 'slip'}
-            className={`slash tab${panelView === 'slip' ? ' active' : ''}`}
+            className={`tab${panelView === 'slip' ? ' active' : ''}`}
             onClick={() => setPanelView('slip')}
           >
             Bet Slip
@@ -356,7 +356,7 @@ export function BetSlipPanel({
             type="button"
             role="tab"
             aria-selected={panelView === 'history'}
-            className={`slash tab${panelView === 'history' ? ' active' : ''}`}
+            className={`tab${panelView === 'history' ? ' active' : ''}`}
             onClick={() => setPanelView('history')}
           >
             History

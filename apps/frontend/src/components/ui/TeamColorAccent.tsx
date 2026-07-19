@@ -12,7 +12,7 @@ export function TeamColorAccent({ colorHex, className }: TeamColorAccentProps) {
   return (
     <span
       aria-hidden="true"
-      className={cn('slash h-3.5 w-1 shrink-0', className)}
+      className={cn('h-3.5 w-1 shrink-0 rounded-full', className)}
       style={{ backgroundColor: colorHex }}
     />
   );

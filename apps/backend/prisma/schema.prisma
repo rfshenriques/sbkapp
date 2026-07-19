@@ -352,6 +352,10 @@ model Brand {
   themeMode         ThemeMode @default(DARK)
   buttonColorHex    String?
   highlightColorHex String?
+  /** Filter/tab active-state and gradient accent color - kept distinct from
+      both the CTA (buttonColorHex) and the general accent (highlightColorHex)
+      so a filter chip never visually reads as a button. */
+  filterColorHex    String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 

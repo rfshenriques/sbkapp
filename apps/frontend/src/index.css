@@ -3,7 +3,8 @@
 @theme {
   /* Dark is the default base palette - see the :root[data-theme='light']
      override below for the light alternative. Neither is brand-configurable
-     (see docs/PROJECT_BRIEF.md Section 10: only button/highlight colors are). */
+     (see docs/PROJECT_BRIEF.md Section 10: only button/highlight/filter
+     colors are). */
   --color-background: #0b0d11;
   --color-surface: #12151b;
   --color-surface-2: #181c24;
@@ -15,11 +16,17 @@
   --color-text-muted: #5b6472;
 
   /* Brand-driven - overridden at runtime from the acting Brand's
-     buttonColorHex/highlightColorHex (see useBrandTheme). These defaults
-     are only what an unbranded/misconfigured deployment falls back to. */
+     buttonColorHex/highlightColorHex/filterColorHex (see useBrandTheme).
+     These defaults are only what an unbranded/misconfigured deployment
+     falls back to. Three distinct roles on purpose: brand is the CTA color
+     (Register, Place Bet, Browse matches, ...), highlight is the general
+     accent (selected odds, live kickoff times, status badges), filter is
+     tabs/filter-chip active states - keeping all three visually distinct is
+     what stops a filter or a badge from ever reading as a button. */
   --color-brand: #6366f1;
   --color-brand-hover: color-mix(in srgb, var(--color-brand) 85%, black);
   --color-highlight: #f5b301;
+  --color-filter: #22d3ee;
 
   /* Fixed regardless of brand - odds movement and error states shouldn't
      shift with a brand's chosen palette. */
@@ -70,13 +77,6 @@ body {
 }
 
 /* ---------- Shared brand-styled primitives ---------- */
-/* Ported from the BETGER design prototype: an angular "slash" cut used on
-   primary CTAs, chips, and badges throughout. Kept generic (no brand name)
-   since it's shared across every brand, not just BETGER. */
-.slash {
-  clip-path: polygon(8% 0, 100% 0, 92% 100%, 0 100%);
-  border-radius: 0;
-}
 
 .font-display {
   font-family: var(--font-display);
@@ -134,6 +134,10 @@ body {
   color: var(--color-highlight);
 }
 
+/* CTAs only (Register, Place Bet, Browse matches, ...) - the one place
+   --color-brand appears. Filters/tabs/badges use --color-highlight instead
+   (see .tab.active below) so an actual call-to-action never blends into the
+   surrounding chrome. */
 .btn-primary {
   font-family: var(--font-display);
   font-style: italic;
@@ -142,6 +146,7 @@ body {
   letter-spacing: 0.8px;
   font-size: 13.5px;
   padding: 9px 20px;
+  border-radius: 10px;
   white-space: nowrap;
   background: linear-gradient(
     135deg,
@@ -168,7 +173,7 @@ body {
   letter-spacing: 0.8px;
   font-size: 13.5px;
   padding: 8px 16px;
-  border-radius: 8px;
+  border-radius: 10px;
   border: 1px solid var(--color-border);
   color: var(--color-text-primary);
   white-space: nowrap;
@@ -178,13 +183,16 @@ body {
   border-color: var(--color-text-muted);
 }
 
-/* Sport/league filter chips - pair with .slash in markup for the angular cut, matching odd-btn/badge treatment elsewhere. */
+/* Sport/league filter chips. Active state uses --color-filter, not
+   --color-brand - a filter is never a call-to-action, and sharing the CTA
+   color with it made buttons and filters visually indistinguishable. */
 .tab {
   display: flex;
   align-items: center;
   gap: 6px;
   white-space: nowrap;
   padding: 7px 14px;
+  border-radius: 10px;
   background-color: var(--color-surface-2);
   color: var(--color-text-secondary);
   font-family: var(--font-display);
@@ -203,10 +211,10 @@ body {
 .tab.active {
   background: linear-gradient(
     135deg,
-    var(--color-brand),
-    color-mix(in srgb, var(--color-brand) 78%, black)
+    var(--color-filter),
+    color-mix(in srgb, var(--color-filter) 78%, black)
   );
-  color: #fff;
+  color: #000;
 }
 
 .brand-flag {

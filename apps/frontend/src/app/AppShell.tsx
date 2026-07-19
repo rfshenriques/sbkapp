@@ -56,7 +56,7 @@ export function AppShell() {
                   <Link to="/login" className="btn-ghost">
                     Log in
                   </Link>
-                  <Link to="/register" className="btn-primary slash">
+                  <Link to="/register" className="btn-primary">
                     Register
                   </Link>
                 </>

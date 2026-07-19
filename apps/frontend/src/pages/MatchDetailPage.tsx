@@ -94,23 +94,19 @@ export default function MatchDetailPage() {
       />
 
       <section className="relative mt-2 overflow-hidden rounded-2xl border border-border bg-surface p-6">
-        <span
-          className={`slash mb-2 inline-flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest ${
-            match.isLive ? 'bg-price-down text-white' : 'bg-highlight text-black'
-          }`}
-        >
-          {match.isLive ? 'Live' : 'Pre-match'}
-        </span>
-        <h1 className="font-display text-2xl leading-none sm:text-3xl">{matchLabel}</h1>
-        {!match.isLive && (
-          <p className="mt-2 text-sm text-text-secondary">
-            {kickoff.toLocaleString(undefined, {
-              weekday: 'short',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </p>
-        )}
+        <div className="flex items-center gap-2.5">
+          <span
+            className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest ${
+              match.isLive ? 'bg-price-down text-white' : 'bg-highlight text-black'
+            }`}
+          >
+            {match.isLive ? 'Live' : 'Pre-match'}
+          </span>
+          {!match.isLive && (
+            <span className="text-sm font-semibold text-text-secondary">{formatKickoff(kickoff)}</span>
+          )}
+        </div>
+        <h1 className="mt-2.5 font-display text-2xl leading-none sm:text-3xl">{matchLabel}</h1>
       </section>
 
       {match.isLive && liveState && (

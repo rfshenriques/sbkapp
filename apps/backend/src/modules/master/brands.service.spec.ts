@@ -46,6 +46,7 @@ describe('BrandsService', () => {
       themeMode: 'LIGHT',
       buttonColorHex: '#112233',
       highlightColorHex: '#445566',
+      filterColorHex: '#778899',
     });
 
     const brand = await brandsService.createBrand(dto);
@@ -56,6 +57,8 @@ describe('BrandsService', () => {
     expect(brand.domain).toBe(dto.domain);
     expect(brand.themeMode).toBe('LIGHT');
     expect(brand.buttonColorHex).toBe('#112233');
+    expect(brand.highlightColorHex).toBe('#445566');
+    expect(brand.filterColorHex).toBe('#778899');
     expect(brand.productFlags).toEqual([]);
   });
 

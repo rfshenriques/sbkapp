@@ -15,6 +15,7 @@ const existingBrand: Brand = {
   themeMode: 'DARK',
   buttonColorHex: null,
   highlightColorHex: null,
+  filterColorHex: null,
   createdAt: '2026-07-18T00:00:00Z',
   updatedAt: '2026-07-18T00:00:00Z',
   productFlags: [

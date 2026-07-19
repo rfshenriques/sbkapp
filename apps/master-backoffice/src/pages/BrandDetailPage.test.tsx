@@ -15,6 +15,7 @@ const brand: Brand = {
   themeMode: 'LIGHT',
   buttonColorHex: '#112233',
   highlightColorHex: null,
+  filterColorHex: '#334455',
   createdAt: '2026-07-18T00:00:00Z',
   updatedAt: '2026-07-18T00:00:00Z',
   productFlags: [{ id: 'flag-1', brandId: 'brand-1', product: 'CASHOUT', enabled: false }],
@@ -49,6 +50,7 @@ describe('BrandDetailPage', () => {
     expect(await screen.findByDisplayValue('Acme Sportsbook')).toBeInTheDocument();
     expect(screen.getByDisplayValue('www.acme-sportsbook.com')).toBeInTheDocument();
     expect(screen.getByDisplayValue('#112233')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('#334455')).toBeInTheDocument();
     expect(screen.getByLabelText('Appearance')).toHaveValue('LIGHT');
   });
 

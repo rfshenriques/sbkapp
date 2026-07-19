@@ -37,6 +37,10 @@ export class CreateBrandDto {
   @IsOptional()
   @IsHexColor()
   highlightColorHex?: string;
+
+  @IsOptional()
+  @IsHexColor()
+  filterColorHex?: string;
 }
 
 export class UpdateBrandDto {
@@ -63,6 +67,10 @@ export class UpdateBrandDto {
   @IsOptional()
   @IsHexColor()
   highlightColorHex?: string;
+
+  @IsOptional()
+  @IsHexColor()
+  filterColorHex?: string;
 }
 
 export class SetProductFlagDto {

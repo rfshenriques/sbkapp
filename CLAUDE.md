@@ -12,21 +12,31 @@ style. This is a standing instruction, not a one-time task.
 
 - `apps/frontend/src/index.css` defines the token layer: fixed dark/light
   base palettes (background/surface/border/text, swapped via
-  `[data-theme='light']`) plus brand-driven `--color-brand` (button color)
-  and `--color-highlight` (accent color) that come from the `Brand` model,
-  not from CSS.
+  `[data-theme='light']`) plus three brand-driven colors that come from the
+  `Brand` model, not from CSS: `--color-brand` (CTA/button color, used only
+  by `.btn-primary`/`.btn-ghost` - Register, Place Bet, Browse matches, ...),
+  `--color-highlight` (general accent - selected odds, kickoff times, status
+  badges), and `--color-filter` (tabs/filter-chip active states, e.g. sport
+  filters, sort tabs, the bet slip's Singles/Accumulator tabs). Keeping all
+  three distinct is deliberate - a filter or a badge should never read as a
+  button.
 - `apps/frontend/src/features/brand/useBrandTheme.ts` fetches this
   deployment's own brand (`GET /public/brands/:id`, unauthenticated) and
-  applies `themeMode`/`buttonColorHex`/`highlightColorHex` as CSS custom
-  properties + a `data-theme` attribute at runtime. Every brand created in
-  the master backoffice should render correctly through this, unchanged.
-- Shared primitives already exist for the recurring visual patterns: the
-  angular "slash" cut (`.slash`), odds buttons (`.odd-btn`, `.selected`),
-  primary/ghost CTAs (`.btn-primary`, `.btn-ghost`), the display font
+  applies `themeMode`/`buttonColorHex`/`highlightColorHex`/`filterColorHex`
+  as CSS custom properties + a `data-theme` attribute at runtime. Every
+  brand created in the master backoffice should render correctly through
+  this, unchanged.
+- Shared primitives already exist for the recurring visual patterns: odds
+  buttons (`.odd-btn`, `.selected`), primary/ghost CTAs (`.btn-primary`,
+  `.btn-ghost`), filter/sort tabs (`.tab`, `.active`), the display font
   (`.font-display`, Saira Condensed), and the tri-bar section marker
-  (`.brand-flag`). Extend these rather than inventing parallel ones.
-- Hover/deep color variants are derived with `color-mix()` from the two
-  brand colors - don't ask for or store a third color.
+  (`.brand-flag`). Extend these rather than inventing parallel ones. Shape
+  language is consistently rounded corners throughout (buttons/tabs/cards
+  ~10px, small status pills like LIVE/PRE-MATCH/bet-status fully rounded) -
+  there's no angular "slash" cut anymore, it read as a rendering glitch on
+  small badges rather than a deliberate cut.
+- Hover/deep color variants are derived with `color-mix()` from each of the
+  three brand colors individually - don't ask for or store a 4th color.
 
 **Only build what's backed by real data.** The mockups assume a fully-built
 multi-sport sportsbook (live scores/clock, per-sport tabs with counts,

@@ -32,6 +32,7 @@ export default function BrandDetailPage() {
   const [themeMode, setThemeMode] = useState<backendApi.ThemeMode>('DARK');
   const [buttonColorHex, setButtonColorHex] = useState('');
   const [highlightColorHex, setHighlightColorHex] = useState('');
+  const [filterColorHex, setFilterColorHex] = useState('');
 
   useEffect(() => {
     if (!brand) return;
@@ -41,6 +42,7 @@ export default function BrandDetailPage() {
     setThemeMode(brand.themeMode);
     setButtonColorHex(brand.buttonColorHex ?? '');
     setHighlightColorHex(brand.highlightColorHex ?? '');
+    setFilterColorHex(brand.filterColorHex ?? '');
   }, [brand]);
 
   const updateMutation = useMutation({
@@ -69,6 +71,7 @@ export default function BrandDetailPage() {
       themeMode,
       buttonColorHex: buttonColorHex || undefined,
       highlightColorHex: highlightColorHex || undefined,
+      filterColorHex: filterColorHex || undefined,
     });
   }
 
@@ -166,6 +169,21 @@ export default function BrandDetailPage() {
                     value={highlightColorHex}
                     onChange={(event) => setHighlightColorHex(event.target.value)}
                     placeholder="#f59e0b"
+                    className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="brand-filter-color"
+                    className="block text-xs text-text-secondary"
+                  >
+                    Filter color
+                  </label>
+                  <input
+                    id="brand-filter-color"
+                    value={filterColorHex}
+                    onChange={(event) => setFilterColorHex(event.target.value)}
+                    placeholder="#22d3ee"
                     className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
                   />
                 </div>

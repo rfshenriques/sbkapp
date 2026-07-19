@@ -22,7 +22,7 @@ function BetCard({ bet }: { bet: PlacedBet }) {
   return (
     <Card className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <span className={`slash px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest ${STATUS_STYLES[bet.status]}`}>
+        <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest ${STATUS_STYLES[bet.status]}`}>
           {bet.status}
         </span>
         <span className="text-xs text-text-muted">

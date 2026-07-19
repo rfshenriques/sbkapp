@@ -116,7 +116,7 @@ export default function SportPage() {
         <div className="flex gap-2" role="group" aria-label="Sort matches">
           <button
             type="button"
-            className={`slash tab${sortMode === 'time' ? ' active' : ''}`}
+            className={`tab${sortMode === 'time' ? ' active' : ''}`}
             aria-pressed={sortMode === 'time'}
             onClick={() => setSortMode('time')}
           >
@@ -124,7 +124,7 @@ export default function SportPage() {
           </button>
           <button
             type="button"
-            className={`slash tab${sortMode === 'importance' ? ' active' : ''}`}
+            className={`tab${sortMode === 'importance' ? ' active' : ''}`}
             aria-pressed={sortMode === 'importance'}
             onClick={() => setSortMode('importance')}
           >
