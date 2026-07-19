@@ -3,6 +3,7 @@ import { Card } from '../../components/ui/Card';
 import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
 import { MarketSelections } from '../bet-slip/MarketSelections';
 import { usePrefetchMatchDetail } from './usePrefetchMatchDetail';
+import { useLiveMatch } from '../match-detail/useLiveMatch';
 import { formatKickoff } from '../../lib/formatKickoff';
 import type { Match } from '@sportsbook/shared';
 
@@ -17,6 +18,13 @@ export function MatchCard({ match }: MatchCardProps) {
   const matchLabel = `${match.homeTeam} vs ${match.awayTeam}`;
   const kickoff = new Date(match.kickoff);
   const matchHref = `/matches/${match.id}`;
+  const { data: liveState } = useLiveMatch(match.id, match.isLive);
+
+  const centerLabel = match.isLive
+    ? liveState
+      ? `${liveState.homeScore} : ${liveState.awayScore}`
+      : ':'
+    : 'vs';
 
   return (
     <Card
@@ -37,16 +45,26 @@ export function MatchCard({ match }: MatchCardProps) {
           {/* Real link kept for keyboard/screen-reader navigation and a
               correct accessible name - the card's onClick above is a mouse/
               touch convenience that enlarges the clickable area to the
-              whole card, not the primary access path. */}
+              whole card, not the primary access path. Teams sit at each
+              side with vs/score centered between them. */}
           <Link
             to={matchHref}
-            className="font-semibold hover:underline"
+            className="group flex items-center gap-2"
+            aria-label={matchLabel}
             // Avoid a duplicate history entry from the card's own onClick
             // (React Router navigates internally on the link's click before
             // it bubbles to the card).
             onClick={(event) => event.stopPropagation()}
           >
-            {matchLabel}
+            <span className="min-w-0 flex-1 truncate text-left font-semibold group-hover:underline">
+              {match.homeTeam}
+            </span>
+            <span className="shrink-0 text-xs font-bold text-text-muted tabular-nums">
+              {centerLabel}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-right font-semibold group-hover:underline">
+              {match.awayTeam}
+            </span>
           </Link>
         </div>
         {match.isLive && (

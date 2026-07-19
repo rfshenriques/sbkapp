@@ -86,7 +86,7 @@ describe('OddsBoardPage', () => {
 
     expect(screen.getByRole('status', { name: 'Loading matches' })).toBeInTheDocument();
 
-    expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Arsenal vs Chelsea' })).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading matches' })).not.toBeInTheDocument();
   });
 
@@ -116,9 +116,11 @@ describe('OddsBoardPage', () => {
     stubOddsEngineFetch(buildManySportsMatches());
     renderPage();
 
-    await screen.findByText('Football Home 1 vs Football Away 1');
+    await screen.findByRole('link', { name: 'Football Home 1 vs Football Away 1' });
     // 13 football matches, minus 1 taken as "Featured", leaves 12 - capped to 10 visible here.
-    expect(screen.getAllByText(/Football Home \d+ vs Football Away \d+/)).toHaveLength(10);
+    expect(screen.getAllByRole('link', { name: /Football Home \d+ vs Football Away \d+/ })).toHaveLength(
+      10,
+    );
 
     const loadMore = screen.getByRole('link', { name: 'Load more Football matches →' });
     expect(loadMore).toHaveAttribute('href', '/sports/Football');
@@ -155,12 +157,12 @@ describe('OddsBoardPage', () => {
     stubOddsEngineFetch(buildManySportsMatches());
     renderPage();
 
-    await screen.findByText('Football Home 1 vs Football Away 1');
-    expect(screen.queryByText('Hockey Home 0 vs Hockey Away 0')).not.toBeInTheDocument();
+    await screen.findByRole('link', { name: 'Football Home 1 vs Football Away 1' });
+    expect(screen.queryByRole('link', { name: 'Hockey Home 0 vs Hockey Away 0' })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: /Ice Hockey/ }));
 
-    expect(await screen.findByText('Hockey Home 0 vs Hockey Away 0')).toBeInTheDocument();
-    expect(screen.queryByText(/Football Home/)).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Hockey Home 0 vs Hockey Away 0' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Football Home/ })).not.toBeInTheDocument();
   });
 });

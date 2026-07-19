@@ -31,6 +31,17 @@ afterEach(() => {
 });
 
 describe('RegisterPage', () => {
+  it('renders as a bottom-sheet modal that closes back to the previous page', async () => {
+    const { container } = renderRegisterPage();
+
+    expect(container.querySelector('.sheet-slide-up')).toBeInTheDocument();
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Close registration' })[0] as HTMLElement);
+
+    expect(await screen.findByText('Odds board')).toBeInTheDocument();
+  });
+
+
   it('registers and navigates to the odds board on success', async () => {
     const fetchMock = vi
       .fn()

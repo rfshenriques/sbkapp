@@ -69,6 +69,41 @@ describe('MatchCard', () => {
     expect(texts).toEqual(['Home2.10', 'Draw3.40', 'Away3.20']);
   });
 
+  it('shows "vs" centered between the teams for a pre-match fixture', () => {
+    renderMatchCard(baseMatch);
+    expect(screen.getByText('vs')).toBeInTheDocument();
+  });
+
+  it('replaces "vs" with the live score once it loads for a live match', async () => {
+    const liveMatch: Match = { ...baseMatch, isLive: true };
+    stubOddsEngineFetch([liveMatch], {
+      [liveMatch.id]: {
+        matchId: liveMatch.id,
+        minute: 40,
+        homeScore: 2,
+        awayScore: 1,
+        events: [],
+        stats: [],
+        momentum: { home: 60, away: 40 },
+        updatedAt: '2026-07-18T15:40:00Z',
+      },
+    });
+
+    renderMatchCard(liveMatch);
+
+    expect(screen.queryByText('vs')).not.toBeInTheDocument();
+    expect(await screen.findByText('2 : 1')).toBeInTheDocument();
+  });
+
+  it('shows a colon placeholder for a live match before the score has loaded', () => {
+    const liveMatch: Match = { ...baseMatch, isLive: true };
+    stubOddsEngineFetch([liveMatch]);
+
+    renderMatchCard(liveMatch);
+
+    expect(screen.getByText(':')).toBeInTheDocument();
+  });
+
   it('shows a LIVE badge only when the match is live', () => {
     const queryClient = new QueryClient();
     const { rerender } = render(

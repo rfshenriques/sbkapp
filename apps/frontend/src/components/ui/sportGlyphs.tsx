@@ -1,46 +1,18 @@
 import type { ReactElement } from 'react';
 
 /**
- * Full-bleed circular sport artwork (not emoji) - each glyph fills the
- * entire 32x32 viewBox; the wrapping <span> in SportIcon clips it to a
- * circle via CSS, matching the reference mockup's solid colorful sport
- * icons rather than a small emoji floating in a padded gray badge.
+ * Football, Tennis, and Basketball use the real platform sport emoji
+ * instead of hand-drawn artwork (see SportIcon.tsx) - their emoji are
+ * already a filled circle/ball, so they read better than a redrawn
+ * approximation. Everything below is for the remaining sports, whose emoji
+ * (a hockey stick, a football, a boxing glove) aren't circular, so they get
+ * hand-drawn full-bleed circular artwork in the same visual style instead.
  */
-function Football() {
-  return (
-    <>
-      <circle cx="16" cy="16" r="16" fill="#f2f2f2" />
-      <path d="M16 10 L16 4" stroke="#111318" strokeWidth="1.4" />
-      <path d="M20.4 13 L27 11" stroke="#111318" strokeWidth="1.4" />
-      <path d="M18.7 18.5 L23 25.5" stroke="#111318" strokeWidth="1.4" />
-      <path d="M13.3 18.5 L9 25.5" stroke="#111318" strokeWidth="1.4" />
-      <path d="M11.6 13 L5 11" stroke="#111318" strokeWidth="1.4" />
-      <polygon points="16,10 20.4,13 18.7,18.5 13.3,18.5 11.6,13" fill="#111318" />
-    </>
-  );
-}
-
-function Tennis() {
-  return (
-    <>
-      <circle cx="16" cy="16" r="16" fill="#C6D82F" />
-      <path d="M4 6 C13 13, 13 19, 4 26" stroke="#ffffff" strokeWidth="2" fill="none" />
-      <path d="M28 6 C19 13, 19 19, 28 26" stroke="#ffffff" strokeWidth="2" fill="none" />
-    </>
-  );
-}
-
-function Basketball() {
-  return (
-    <>
-      <circle cx="16" cy="16" r="16" fill="#E67E22" />
-      <line x1="16" y1="0" x2="16" y2="32" stroke="#2b1a08" strokeWidth="1.3" />
-      <line x1="0" y1="16" x2="32" y2="16" stroke="#2b1a08" strokeWidth="1.3" />
-      <path d="M16 0 C25 8,25 24,16 32" stroke="#2b1a08" strokeWidth="1.3" fill="none" />
-      <path d="M16 0 C7 8,7 24,16 32" stroke="#2b1a08" strokeWidth="1.3" fill="none" />
-    </>
-  );
-}
+export const ROUND_SPORT_EMOJI: Record<string, string> = {
+  Football: '⚽',
+  Tennis: '🎾',
+  Basketball: '🏀',
+};
 
 function IceHockey() {
   return (
@@ -101,9 +73,6 @@ function Fallback() {
 }
 
 const SPORT_GLYPH: Record<string, () => ReactElement> = {
-  Football,
-  Tennis,
-  Basketball,
   'Ice Hockey': IceHockey,
   'American Football': AmericanFootball,
   MMA,

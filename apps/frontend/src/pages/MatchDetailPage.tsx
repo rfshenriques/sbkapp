@@ -43,7 +43,7 @@ export default function MatchDetailPage() {
         >
           {match.isLive ? 'Live' : 'Pre-match'}
         </span>
-        <h1 className="font-display text-3xl leading-none sm:text-4xl">{matchLabel}</h1>
+        <h1 className="font-display text-2xl leading-none sm:text-3xl">{matchLabel}</h1>
         {!match.isLive && (
           <p className="mt-2 text-sm text-text-secondary">
             {kickoff.toLocaleString(undefined, {
@@ -69,7 +69,7 @@ export default function MatchDetailPage() {
               <i></i>
               <i></i>
             </span>
-            <h2 className="font-display text-xl">{matchResult.name}</h2>
+            <h2 className="font-display text-lg">{matchResult.name}</h2>
           </div>
           <MarketSelections matchId={match.id} matchLabel={matchLabel} market={matchResult} />
         </div>

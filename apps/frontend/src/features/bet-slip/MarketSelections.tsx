@@ -1,5 +1,6 @@
 import type { Market } from '@sportsbook/shared';
 import { useBetSlipStore } from './betSlipStore';
+import { sortSelectionsWithDrawInMiddle } from './sortSelectionsWithDrawInMiddle';
 
 interface MarketSelectionsProps {
   matchId: string;
@@ -16,12 +17,14 @@ export function MarketSelections({ matchId, matchLabel, market }: MarketSelectio
       )?.selectionId,
   );
 
+  const orderedSelections = sortSelectionsWithDrawInMiddle(market.selections);
+
   return (
     <div
       className="grid gap-2"
-      style={{ gridTemplateColumns: `repeat(${market.selections.length}, minmax(0, 1fr))` }}
+      style={{ gridTemplateColumns: `repeat(${orderedSelections.length}, minmax(0, 1fr))` }}
     >
-      {market.selections.map((selection) => (
+      {orderedSelections.map((selection) => (
         <button
           key={selection.id}
           type="button"

@@ -25,6 +25,15 @@ afterEach(() => {
 });
 
 describe('LoginPage', () => {
+  it('closes back to the previous page when the backdrop is clicked', async () => {
+    renderLoginPage();
+
+    await userEvent.click(screen.getAllByRole('button', { name: 'Close login' })[0] as HTMLElement);
+
+    expect(await screen.findByText('Odds board')).toBeInTheDocument();
+  });
+
+
   it('logs in and navigates to the odds board on success', async () => {
     vi.stubGlobal(
       'fetch',

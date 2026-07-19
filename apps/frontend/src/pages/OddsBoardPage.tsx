@@ -57,7 +57,7 @@ export default function OddsBoardPage() {
           {/* Real link kept for keyboard/screen-reader navigation - the
               section's onClick above is a mouse/touch convenience that
               enlarges the clickable area to the whole card. */}
-          <h1 className="font-display text-4xl leading-none sm:text-5xl">
+          <h1 className="font-display text-3xl leading-none sm:text-4xl">
             <Link
               to={featuredHref}
               className="hover:underline"
@@ -94,7 +94,7 @@ export default function OddsBoardPage() {
               <i></i>
               <i></i>
             </span>
-            <h2 className="font-display text-xl">Live now</h2>
+            <h2 className="font-display text-lg">Live now</h2>
           </div>
           <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2">
             {liveCapped.map((match) => (
@@ -118,7 +118,7 @@ export default function OddsBoardPage() {
             <i></i>
             <i></i>
           </span>
-          <h2 className="font-display text-xl">Upcoming</h2>
+          <h2 className="font-display text-lg">Upcoming</h2>
         </div>
 
         {sportsPresent.length > 1 && (

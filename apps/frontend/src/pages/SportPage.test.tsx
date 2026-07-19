@@ -68,8 +68,8 @@ describe('SportPage', () => {
 
     renderAt('/sports/Football');
 
-    expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
-    expect(screen.queryByText('Bruins vs Rangers')).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Arsenal vs Chelsea' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Bruins vs Rangers' })).not.toBeInTheDocument();
   });
 
   it('shows every sport when the URL param is "all"', async () => {
@@ -81,8 +81,8 @@ describe('SportPage', () => {
 
     renderAt('/sports/all');
 
-    expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
-    expect(screen.getByText('Bruins vs Rangers')).toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Arsenal vs Chelsea' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Bruins vs Rangers' })).toBeInTheDocument();
   });
 
   it('sorts by importance rank when that mode is selected', async () => {
@@ -108,15 +108,19 @@ describe('SportPage', () => {
     ]);
 
     renderAt('/sports/all');
-    await screen.findByText('Small Club vs Tiny Club');
+    await screen.findByRole('link', { name: 'Small Club vs Tiny Club' });
 
     // Default "Time" mode: minor match kicks off first.
-    let headings = screen.getAllByText(/vs/).map((el) => el.textContent);
+    let headings = screen
+      .getAllByRole('link', { name: /vs/ })
+      .map((el) => el.getAttribute('aria-label'));
     expect(headings).toEqual(['Small Club vs Tiny Club', 'Big Club vs Huge Club']);
 
     await userEvent.click(screen.getByRole('button', { name: 'Importance' }));
 
-    headings = await screen.findAllByText(/vs/).then((els) => els.map((el) => el.textContent));
+    headings = await screen
+      .findAllByRole('link', { name: /vs/ })
+      .then((els) => els.map((el) => el.getAttribute('aria-label')));
     expect(headings).toEqual(['Big Club vs Huge Club', 'Small Club vs Tiny Club']);
   });
 
@@ -141,8 +145,8 @@ describe('SportPage', () => {
 
     renderAt('/sports/Football?competition=Premier%20League');
 
-    expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
-    expect(screen.queryByText('Leeds vs Norwich')).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Arsenal vs Chelsea' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Leeds vs Norwich' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Premier League' })).toBeInTheDocument();
   });
 
@@ -155,8 +159,8 @@ describe('SportPage', () => {
 
     renderAt('/sports/all?live=true');
 
-    expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
-    expect(screen.queryByText('Leeds vs Norwich')).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Arsenal vs Chelsea' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Leeds vs Norwich' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Live' })).toBeInTheDocument();
   });
 
@@ -169,8 +173,8 @@ describe('SportPage', () => {
 
     renderAt('/live');
 
-    expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
-    expect(screen.queryByText('Leeds vs Norwich')).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: 'Arsenal vs Chelsea' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Leeds vs Norwich' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Live' })).toBeInTheDocument();
   });
 

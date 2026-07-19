@@ -42,7 +42,7 @@ export default function SportPage() {
             <i></i>
             <i></i>
           </span>
-          <h1 className="font-display text-xl">{heading}</h1>
+          <h1 className="font-display text-lg">{heading}</h1>
         </div>
         <div className="flex gap-2" role="group" aria-label="Sort matches">
           <button

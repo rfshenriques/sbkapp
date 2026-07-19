@@ -9,7 +9,7 @@ export default function NotFoundPage() {
           <i></i>
           <i></i>
         </span>
-        <h1 className="font-display text-2xl">Page not found</h1>
+        <h1 className="font-display text-xl">Page not found</h1>
       </div>
       <p className="mt-2 text-sm text-text-secondary">The page you're looking for doesn't exist.</p>
       <Link to="/" className="btn-primary mt-6 inline-block">

@@ -33,9 +33,9 @@ export function LiveMatchTracker({ state, homeTeam, awayTeam }: LiveMatchTracker
         <div className="grid grid-cols-3 items-center gap-2 text-center">
           <p className="truncate font-semibold">{homeTeam}</p>
           <div className="flex items-center justify-center gap-3">
-            <span className="font-display text-4xl tabular-nums">{state.homeScore}</span>
+            <span className="font-display text-3xl tabular-nums">{state.homeScore}</span>
             <span className="text-text-muted">:</span>
-            <span className="font-display text-4xl tabular-nums">{state.awayScore}</span>
+            <span className="font-display text-3xl tabular-nums">{state.awayScore}</span>
           </div>
           <p className="truncate font-semibold">{awayTeam}</p>
         </div>

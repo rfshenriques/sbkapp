@@ -27,7 +27,7 @@ export function AppShell() {
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-[1440px] items-center gap-4 px-4 py-3">
           <NavLink to="/" className="flex shrink-0 items-center gap-2">
-            <span className="font-display text-2xl">{brandName}</span>
+            <span className="font-display text-xl">{brandName}</span>
             <span className="brand-flag" aria-hidden="true">
               <i></i>
               <i></i>
@@ -176,7 +176,7 @@ export function AppShell() {
           />
           <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-sm overflow-y-auto border-l border-border bg-background p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-display text-xl">Bet Slip</h2>
+              <h2 className="font-display text-lg">Bet Slip</h2>
               <button
                 type="button"
                 aria-label="Close bet slip"
@@ -204,7 +204,7 @@ export function AppShell() {
           />
           <aside className="fixed inset-y-0 left-0 z-50 w-full max-w-xs overflow-y-auto border-r border-border bg-background p-4">
             <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-display text-xl">Sports</h2>
+              <h2 className="font-display text-lg">Sports</h2>
               <button
                 type="button"
                 aria-label="Close sports navigation"

@@ -9,7 +9,7 @@ export default function MyBetsPage() {
           <i></i>
           <i></i>
         </span>
-        <h1 className="font-display text-xl">My Bets</h1>
+        <h1 className="font-display text-lg">My Bets</h1>
       </div>
 
       <BetHistoryList />

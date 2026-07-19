@@ -18,7 +18,7 @@ export default function ErrorPage() {
             <i></i>
             <i></i>
           </span>
-          <h1 className="font-display text-2xl">Well, that didn't go to plan</h1>
+          <h1 className="font-display text-xl">Well, that didn't go to plan</h1>
         </div>
         <p className="mt-2 text-sm text-text-secondary">
           Something went sideways on our end. Your wallet and bets are safe - a quick reload usually

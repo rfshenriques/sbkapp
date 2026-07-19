@@ -16,7 +16,7 @@ export default function PromotionsPage() {
           <i></i>
           <i></i>
         </span>
-        <h1 className="font-display text-xl">Promotions</h1>
+        <h1 className="font-display text-lg">Promotions</h1>
       </div>
 
       <Card className="text-text-secondary">No active promotions right now - check back soon.</Card>

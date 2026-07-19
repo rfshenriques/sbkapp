@@ -1,6 +1,5 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Card } from '../components/ui/Card';
 import { useAuth } from '../features/auth/useAuth';
 import { useBrandStore } from '../features/brand/brandStore';
 
@@ -30,16 +29,32 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="mx-auto max-w-sm">
-      <div className="mb-3 flex items-center gap-2">
-        <span className="brand-flag" aria-hidden="true">
-          <i></i>
-          <i></i>
-          <i></i>
-        </span>
-        <h1 className="font-display text-2xl">Create your account</h1>
-      </div>
-      <Card>
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
+      <button
+        type="button"
+        aria-label="Close registration"
+        className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/65 to-black/80 backdrop-blur-sm"
+        onClick={() => navigate('/')}
+      />
+      <div className="sheet-slide-up relative max-h-[90vh] w-full max-w-sm overflow-y-auto rounded-t-2xl border border-border bg-surface p-4 sm:rounded-2xl">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="brand-flag" aria-hidden="true">
+              <i></i>
+              <i></i>
+              <i></i>
+            </span>
+            <h1 className="font-display text-xl">Create your account</h1>
+          </div>
+          <button
+            type="button"
+            aria-label="Close registration"
+            className="text-text-muted hover:text-text-primary"
+            onClick={() => navigate('/')}
+          >
+            ✕
+          </button>
+        </div>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label htmlFor="email" className="block text-sm text-text-secondary">
@@ -107,13 +122,13 @@ export default function RegisterPage() {
             {isSubmitting ? 'Creating account…' : !brandId ? 'Loading…' : 'Register'}
           </button>
         </form>
-      </Card>
-      <p className="mt-3 text-sm text-text-secondary">
-        Already have an account?{' '}
-        <Link to="/login" className="text-highlight hover:underline">
-          Log in
-        </Link>
-      </p>
+        <p className="mt-3 text-center text-sm text-text-secondary">
+          Already have an account?{' '}
+          <Link to="/login" className="text-highlight hover:underline">
+            Log in
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

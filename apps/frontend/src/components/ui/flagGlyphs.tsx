@@ -110,17 +110,6 @@ function USA() {
   );
 }
 
-function Globe() {
-  return (
-    <>
-      <circle cx="16" cy="16" r="16" fill="#2b3140" />
-      <ellipse cx="16" cy="16" rx="16" ry="7" fill="none" stroke="#8b93a3" strokeWidth="1" />
-      <line x1="0" y1="16" x2="32" y2="16" stroke="#8b93a3" strokeWidth="1" />
-      <ellipse cx="16" cy="16" rx="7" ry="16" fill="none" stroke="#8b93a3" strokeWidth="1" />
-    </>
-  );
-}
-
 const FLAG_GLYPH: Record<string, () => ReactElement> = {
   England,
   Spain,
@@ -132,7 +121,12 @@ const FLAG_GLYPH: Record<string, () => ReactElement> = {
   USA,
 };
 
+/** True for every country with real drawn flag artwork - CountryFlag.tsx renders the 🌍 globe emoji instead when this is false (World/International/anything unmapped). */
+export function hasFlagGlyph(country: string): boolean {
+  return country in FLAG_GLYPH;
+}
+
 export function FlagGlyph({ country }: { country: string }) {
-  const Glyph = FLAG_GLYPH[country] ?? Globe;
-  return <Glyph />;
+  const Glyph = FLAG_GLYPH[country];
+  return Glyph ? <Glyph /> : null;
 }
