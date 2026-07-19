@@ -21,15 +21,22 @@ export interface BreadcrumbSegment {
 const PANEL_WIDTH = 224; // w-56
 
 /**
- * The trigger lives inside the breadcrumb's horizontally-scrolling row, so
- * the dropdown panel can't be positioned relative to it (an `overflow-x`
- * ancestor clips `absolute` children on the cross axis too, and near the
- * right edge on a narrow phone it would run off-screen anyway). Instead the
- * panel is `position: fixed`, placed from the trigger's own bounding rect at
- * open time and clamped to stay within the viewport - that escapes the
- * scroll container's clipping entirely and never overflows the screen edge.
+ * The trigger can live inside a horizontally-scrolling row, so the dropdown
+ * panel can't be positioned relative to it (an `overflow-x` ancestor clips
+ * `absolute` children on the cross axis too, and near the right edge on a
+ * narrow phone it would run off-screen anyway). Instead the panel is
+ * `position: fixed`, placed from the trigger's own bounding rect at open
+ * time and clamped to stay within the viewport.
  */
-function BreadcrumbDropdown({ label, options }: { label: string; options: BreadcrumbOption[] }) {
+function BreadcrumbDropdown({
+  label,
+  options,
+  variant = 'inline',
+}: {
+  label: string;
+  options: BreadcrumbOption[];
+  variant?: 'inline' | 'pill';
+}) {
   const [panelPosition, setPanelPosition] = useState<{ top: number; left: number } | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLUListElement>(null);
@@ -71,9 +78,12 @@ function BreadcrumbDropdown({ label, options }: { label: string; options: Breadc
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         onClick={() => (isOpen ? setPanelPosition(null) : openPanel())}
-        className="flex items-center gap-1 font-semibold text-text-primary hover:text-highlight"
+        className={cn(
+          'flex items-center gap-1 font-semibold text-text-primary hover:text-highlight',
+          variant === 'pill' && 'w-full justify-between gap-1.5 rounded-lg bg-surface-2 px-3 py-2 text-sm',
+        )}
       >
-        <span className="whitespace-nowrap">{label}</span>
+        <span className="min-w-0 truncate whitespace-nowrap">{label}</span>
         <ChevronIcon className={cn('h-3.5 w-3.5 shrink-0 transition-transform', isOpen && 'rotate-180')} />
       </button>
 
@@ -112,12 +122,16 @@ function BreadcrumbDropdown({ label, options }: { label: string; options: Breadc
  * sibling directly instead of navigating back first. See CLAUDE.md: only
  * ever built from real match data, never a fabricated hierarchy.
  *
- * On narrow screens the full trail (Home / Sport / Country / Competition /
- * Match) rarely fits - squeezing every segment to fit the width just made
- * each one an unreadable sliver. Instead each segment keeps its natural
- * size and the row scrolls horizontally, auto-scrolled to the end on
- * mount/segment-change so the current (rightmost, most actionable) crumb
- * is what's visible by default; older ancestors are a swipe away.
+ * Two layouts, swapped by breakpoint (not JS media queries, matching this
+ * codebase's existing sm: convention):
+ *
+ * - Desktop (sm+): one scrolling row, every actionable segment its own
+ *   inline dropdown - unchanged from before.
+ * - Mobile: cramming Home / Sport / Country / Competition / Match onto one
+ *   line made every segment an unreadable sliver. Instead the ancestors
+ *   (everything but the last segment) sit on their own plain, non-dropdown
+ *   trail line, and only the final segment - the one thing worth switching
+ *   on a phone - gets its own full-width pill-shaped dropdown button below.
  */
 export function Breadcrumb({ segments }: { segments: BreadcrumbSegment[] }) {
   const scrollRef = useRef<HTMLElement>(null);
@@ -129,31 +143,78 @@ export function Breadcrumb({ segments }: { segments: BreadcrumbSegment[] }) {
     el.scrollLeft = el.scrollWidth;
   }, [lastKey]);
 
+  const trailSegments = segments.slice(0, -1);
+  const activeSegment = segments[segments.length - 1];
+  const scrollableRowClassName =
+    'flex min-w-0 items-center gap-1.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
+
   return (
-    <nav
-      ref={scrollRef}
-      aria-label="Breadcrumb"
-      className="flex min-w-0 items-center gap-1.5 overflow-x-auto text-xs [-ms-overflow-style:none] [scrollbar-width:none] sm:text-sm [&::-webkit-scrollbar]:hidden"
-    >
-      {segments.map((segment, index) => (
-        <span key={segment.key} className="flex shrink-0 items-center gap-1.5">
-          {index > 0 && (
-            <ChevronIcon
-              aria-hidden="true"
-              className="h-3 w-3 shrink-0 -rotate-90 text-text-muted"
-            />
-          )}
-          {segment.options && segment.options.length > 1 ? (
-            <BreadcrumbDropdown label={segment.label} options={segment.options} />
-          ) : segment.href ? (
-            <Link to={segment.href} className="whitespace-nowrap text-text-muted hover:text-text-primary">
-              {segment.label}
-            </Link>
-          ) : (
-            <span className="whitespace-nowrap font-semibold text-text-primary">{segment.label}</span>
-          )}
-        </span>
-      ))}
-    </nav>
+    <div className="min-w-0">
+      <div data-testid="breadcrumb-mobile" className="sm:hidden">
+        {trailSegments.length > 0 && (
+          <nav
+            aria-label="Breadcrumb trail"
+            className={cn(scrollableRowClassName, 'text-xs text-text-muted')}
+          >
+            {trailSegments.map((segment, index) => (
+              <span key={segment.key} className="flex shrink-0 items-center gap-1.5">
+                {index > 0 && (
+                  <ChevronIcon aria-hidden="true" className="h-3 w-3 shrink-0 -rotate-90 text-text-muted" />
+                )}
+                {segment.href ? (
+                  <Link to={segment.href} className="whitespace-nowrap hover:text-text-primary">
+                    {segment.label}
+                  </Link>
+                ) : (
+                  <span className="whitespace-nowrap">{segment.label}</span>
+                )}
+              </span>
+            ))}
+          </nav>
+        )}
+        {activeSegment && (
+          <div className="mt-1.5">
+            {activeSegment.options && activeSegment.options.length > 1 ? (
+              <BreadcrumbDropdown label={activeSegment.label} options={activeSegment.options} variant="pill" />
+            ) : activeSegment.href ? (
+              <Link
+                to={activeSegment.href}
+                className="block truncate rounded-lg bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary"
+              >
+                {activeSegment.label}
+              </Link>
+            ) : (
+              <span className="block truncate rounded-lg bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary">
+                {activeSegment.label}
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <nav
+        ref={scrollRef}
+        data-testid="breadcrumb-desktop"
+        aria-label="Breadcrumb"
+        className={cn('hidden text-sm sm:flex', scrollableRowClassName)}
+      >
+        {segments.map((segment, index) => (
+          <span key={segment.key} className="flex shrink-0 items-center gap-1.5">
+            {index > 0 && (
+              <ChevronIcon aria-hidden="true" className="h-3 w-3 shrink-0 -rotate-90 text-text-muted" />
+            )}
+            {segment.options && segment.options.length > 1 ? (
+              <BreadcrumbDropdown label={segment.label} options={segment.options} />
+            ) : segment.href ? (
+              <Link to={segment.href} className="whitespace-nowrap text-text-muted hover:text-text-primary">
+                {segment.label}
+              </Link>
+            ) : (
+              <span className="whitespace-nowrap font-semibold text-text-primary">{segment.label}</span>
+            )}
+          </span>
+        ))}
+      </nav>
+    </div>
   );
 }

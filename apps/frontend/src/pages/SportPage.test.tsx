@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -209,20 +209,25 @@ describe('SportPage', () => {
 
     renderAt('/sports/Football?competition=Premier%20League');
     await screen.findByRole('link', { name: 'Arsenal vs Chelsea' });
+    // jsdom doesn't evaluate CSS breakpoints, so the mobile and desktop
+    // breadcrumb layouts both exist in the DOM - scope to the desktop one
+    // (unambiguous for Country here, but Competition is the final segment,
+    // duplicated as a pill on the mobile layout too).
+    const desktopBreadcrumb = within(screen.getByTestId('breadcrumb-desktop'));
 
     // Switch country from England to Spain via the breadcrumb.
-    await userEvent.click(screen.getByRole('button', { name: 'England' }));
+    await userEvent.click(desktopBreadcrumb.getByRole('button', { name: 'England' }));
     await userEvent.click(screen.getByRole('option', { name: 'Spain' }));
 
     expect(await screen.findByRole('link', { name: 'Real Madrid vs Barcelona' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Championship' })).not.toBeInTheDocument();
 
     // Back in England, switch league from Premier League to Championship.
-    await userEvent.click(screen.getByRole('button', { name: 'Spain' }));
+    await userEvent.click(desktopBreadcrumb.getByRole('button', { name: 'Spain' }));
     await userEvent.click(screen.getByRole('option', { name: 'England' }));
-    await screen.findByRole('button', { name: 'All leagues' });
+    await within(screen.getByTestId('breadcrumb-desktop')).findByRole('button', { name: 'All leagues' });
 
-    await userEvent.click(screen.getByRole('button', { name: 'All leagues' }));
+    await userEvent.click(desktopBreadcrumb.getByRole('button', { name: 'All leagues' }));
     await userEvent.click(screen.getByRole('option', { name: 'Championship' }));
 
     expect(await screen.findByRole('link', { name: 'Leeds vs Norwich' })).toBeInTheDocument();

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -37,7 +37,10 @@ describe('MatchDetailPage', () => {
     expect(screen.getByRole('status', { name: 'Loading match' })).toBeInTheDocument();
 
     expect(await screen.findByRole('heading', { name: 'Arsenal vs Chelsea' })).toBeInTheDocument();
-    expect(screen.getByText('Premier League')).toBeInTheDocument();
+    // "Premier League" appears in both the mobile and desktop breadcrumb
+    // layouts (jsdom doesn't evaluate CSS breakpoints, so both exist in the
+    // DOM at once) - just check it's present at least once.
+    expect(screen.getAllByText('Premier League').length).toBeGreaterThan(0);
     expect(screen.getByText('2.10')).toBeInTheDocument();
   });
 
@@ -100,7 +103,11 @@ describe('MatchDetailPage', () => {
     renderAt('match-1');
     await screen.findByRole('heading', { name: 'Arsenal vs Chelsea' });
 
-    await userEvent.click(screen.getByRole('button', { name: 'Arsenal vs Chelsea' }));
+    // jsdom doesn't evaluate CSS breakpoints, so the mobile and desktop
+    // breadcrumb layouts both exist in the DOM - Match is the final segment,
+    // duplicated as a pill on the mobile layout too, so scope to desktop.
+    const desktopBreadcrumb = within(screen.getByTestId('breadcrumb-desktop'));
+    await userEvent.click(desktopBreadcrumb.getByRole('button', { name: 'Arsenal vs Chelsea' }));
     await userEvent.click(screen.getByRole('option', { name: 'Liverpool vs Manchester City' }));
 
     expect(await screen.findByRole('heading', { name: 'Liverpool vs Manchester City' })).toBeInTheDocument();

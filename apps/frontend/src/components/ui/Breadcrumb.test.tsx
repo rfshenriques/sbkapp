@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
@@ -12,18 +12,31 @@ function renderBreadcrumb(segments: BreadcrumbSegment[]) {
   );
 }
 
-describe('Breadcrumb', () => {
+/**
+ * jsdom doesn't evaluate CSS breakpoints, so the mobile and desktop layouts
+ * both exist in the DOM at once (only one is actually visible in a real
+ * browser). Scope queries to one layout at a time via its data-testid to
+ * avoid ambiguous matches between them.
+ */
+function desktop() {
+  return within(screen.getByTestId('breadcrumb-desktop'));
+}
+function mobile() {
+  return within(screen.getByTestId('breadcrumb-mobile'));
+}
+
+describe('Breadcrumb (desktop layout)', () => {
   it('renders a plain link segment', () => {
     renderBreadcrumb([{ key: 'home', label: 'Home', href: '/' }]);
 
-    expect(screen.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(desktop().getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
   });
 
   it('renders a segment with no href or options as plain, non-interactive text', () => {
     renderBreadcrumb([{ key: 'match', label: 'Real Madrid vs Barcelona' }]);
 
-    expect(screen.getByText('Real Madrid vs Barcelona')).toBeInTheDocument();
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(desktop().getByText('Real Madrid vs Barcelona')).toBeInTheDocument();
+    expect(desktop().queryByRole('button')).not.toBeInTheDocument();
   });
 
   it('a single option does not turn the segment into a dropdown', () => {
@@ -31,8 +44,8 @@ describe('Breadcrumb', () => {
       { key: 'competition', label: 'La Liga', href: '/x', options: [{ key: 'a', label: 'La Liga', href: '/x' }] },
     ]);
 
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'La Liga' })).toBeInTheDocument();
+    expect(desktop().queryByRole('button')).not.toBeInTheDocument();
+    expect(desktop().getByRole('link', { name: 'La Liga' })).toBeInTheDocument();
   });
 
   it('opens a dropdown listing sibling options and navigating to the chosen one', async () => {
@@ -47,7 +60,7 @@ describe('Breadcrumb', () => {
       },
     ]);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Real Madrid vs Barcelona' }));
+    await userEvent.click(desktop().getByRole('button', { name: 'Real Madrid vs Barcelona' }));
 
     expect(screen.getByRole('option', { name: 'Atletico vs Sevilla' })).toHaveAttribute(
       'href',
@@ -67,10 +80,61 @@ describe('Breadcrumb', () => {
       },
     ]);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Spain' }));
+    await userEvent.click(desktop().getByRole('button', { name: 'Spain' }));
     expect(screen.getByRole('listbox')).toBeInTheDocument();
 
     await userEvent.keyboard('{Escape}');
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+  });
+});
+
+describe('Breadcrumb (mobile layout)', () => {
+  const segments: BreadcrumbSegment[] = [
+    { key: 'home', label: 'Home', href: '/' },
+    { key: 'sport', label: 'Football', href: '/sports/Football' },
+    {
+      key: 'competition',
+      label: 'UEFA Champions League Qualification',
+      href: '/sports/Football?competition=UEFA%20Champions%20League%20Qualification',
+    },
+    {
+      key: 'match',
+      label: 'Mjallby AIF vs Lincoln Red Imps FC',
+      options: [
+        { key: 'm1', label: 'Mjallby AIF vs Lincoln Red Imps FC', href: '/matches/1' },
+        { key: 'm2', label: 'Another Match', href: '/matches/2' },
+      ],
+    },
+  ];
+
+  it('puts every ancestor except the last segment on a plain, non-dropdown trail line', () => {
+    renderBreadcrumb(segments);
+
+    const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb trail' }));
+    expect(trail.getByRole('link', { name: 'Home' })).toHaveAttribute('href', '/');
+    expect(trail.getByRole('link', { name: 'Football' })).toBeInTheDocument();
+    expect(trail.getByText('UEFA Champions League Qualification')).toBeInTheDocument();
+    // The last segment (Match) belongs to the pill below, not the trail.
+    expect(trail.queryByText('Mjallby AIF vs Lincoln Red Imps FC')).not.toBeInTheDocument();
+  });
+
+  it('renders only the final segment as a dropdown pill', async () => {
+    renderBreadcrumb(segments);
+
+    const pillButton = mobile().getByRole('button', { name: 'Mjallby AIF vs Lincoln Red Imps FC' });
+    await userEvent.click(pillButton);
+
+    expect(screen.getByRole('option', { name: 'Another Match' })).toHaveAttribute('href', '/matches/2');
+  });
+
+  it('renders the final segment as a plain pill (not a dropdown) when it has no siblings', () => {
+    renderBreadcrumb([
+      { key: 'home', label: 'Home', href: '/' },
+      { key: 'sport', label: 'Football', href: '/sports/Football' },
+      { key: 'match', label: 'Solo Match' },
+    ]);
+
+    expect(mobile().getByText('Solo Match')).toBeInTheDocument();
+    expect(mobile().queryByRole('button')).not.toBeInTheDocument();
   });
 });
