@@ -12,7 +12,8 @@ const RELEVANT_STATUSES = new Set(['pending', 'live']);
  * A global football feed is dominated by small regional matches kicking off
  * today, which buries the competitions our two bookmakers actually tend to
  * cover (majors, internationals). This is a heuristic guess, not confirmed
- * bookmaker coverage - it just biases sort order, it doesn't filter anything out.
+ * bookmaker coverage - it just biases sort order among matches already
+ * accepted by isRelevantLeague below.
  */
 const PRIORITY_COMPETITION_KEYWORDS = [
   'world cup',
@@ -30,6 +31,47 @@ function competitionPriority(competition: string): number {
   const lower = competition.toLowerCase();
   const index = PRIORITY_COMPETITION_KEYWORDS.findIndex((keyword) => lower.includes(keyword));
   return index === -1 ? PRIORITY_COMPETITION_KEYWORDS.length : index;
+}
+
+/**
+ * Testing-phase board filter: restrict to European domestic leagues plus
+ * major continental/international competitions (including qualifiers, e.g.
+ * "UEFA Champions League Qualifying" matches via the substring below) -
+ * matches our free-tier bookmakers (Betclic PT, Betano PT) are actually
+ * likely to price, instead of burning odds-api.io's requests-per-hour
+ * budget on fixtures they don't cover at all. "International" is meant to
+ * catch national-team friendlies/qualifiers, not club preseason
+ * friendlies, hence the explicit exclusion below. league.name format is
+ * "Country - Competition" or "International - Competition" (e.g.
+ * "Bundesliga", "International - FIFA World Cup") - exact keyword list is
+ * expected to need tuning once we see more real league names in
+ * production logs.
+ */
+const RELEVANT_LEAGUE_KEYWORDS = [
+  'champions league',
+  'europa league',
+  'conference league',
+  'nations league',
+  'world cup',
+  'euro qualif',
+  'premier league',
+  'la liga',
+  'bundesliga',
+  'serie a',
+  'ligue 1',
+  'eredivisie',
+  'primeira liga', // Portugal - closest overlap with our PT bookmakers.
+  'international',
+];
+
+const EXCLUDED_LEAGUE_KEYWORDS = ['club friendly'];
+
+function isRelevantLeague(leagueName: string): boolean {
+  const lower = leagueName.toLowerCase();
+  if (EXCLUDED_LEAGUE_KEYWORDS.some((keyword) => lower.includes(keyword))) {
+    return false;
+  }
+  return RELEVANT_LEAGUE_KEYWORDS.some((keyword) => lower.includes(keyword));
 }
 
 interface CacheEntry<T> {
@@ -84,6 +126,7 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
     const events = await client.getEvents({ sport, limit: eventsLimit });
     const matches: Match[] = events
       .filter((event) => RELEVANT_STATUSES.has(event.status))
+      .filter((event) => isRelevantLeague(event.league.name))
       .map((event) => ({
         id: String(event.id),
         competition: event.league.name,

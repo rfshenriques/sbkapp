@@ -72,7 +72,7 @@ describe('createEventsService', () => {
       buildEvent({
         id: 1,
         date: '2026-07-17T02:00:00Z',
-        league: { name: 'New Zealand - Southern League', slug: 'nz-southern-league' },
+        league: { name: 'Ligue 1', slug: 'ligue-1' },
       }),
       buildEvent({
         id: 2,
@@ -86,6 +86,48 @@ describe('createEventsService', () => {
     const matches = await service.listMatches();
 
     expect(matches.map((match) => match.id)).toEqual(['2', '1']);
+  });
+
+  it('excludes leagues our bookmakers are unlikely to cover', async () => {
+    const getEvents = vi.fn().mockResolvedValue([
+      buildEvent({
+        id: 1,
+        league: { name: 'New Zealand - Southern League', slug: 'nz-southern-league' },
+      }),
+      buildEvent({
+        id: 2,
+        league: { name: 'Australia - Tasmania NPL', slug: 'australia-tasmania-npl' },
+      }),
+      buildEvent({
+        id: 3,
+        league: { name: 'Bundesliga', slug: 'bundesliga' },
+      }),
+    ]);
+    const client: OddsApiIoClient = { getEvents, getOdds: vi.fn() };
+    const service = createEventsService({ client });
+
+    const matches = await service.listMatches();
+
+    expect(matches.map((match) => match.id)).toEqual(['3']);
+  });
+
+  it('excludes club friendlies while keeping national-team internationals', async () => {
+    const getEvents = vi.fn().mockResolvedValue([
+      buildEvent({
+        id: 1,
+        league: { name: 'International Clubs - Club Friendly Games', slug: 'club-friendlies' },
+      }),
+      buildEvent({
+        id: 2,
+        league: { name: 'International - Friendlies', slug: 'international-friendlies' },
+      }),
+    ]);
+    const client: OddsApiIoClient = { getEvents, getOdds: vi.fn() };
+    const service = createEventsService({ client });
+
+    const matches = await service.listMatches();
+
+    expect(matches.map((match) => match.id)).toEqual(['2']);
   });
 
   it('caches the events list and only calls the client once within the TTL', async () => {
