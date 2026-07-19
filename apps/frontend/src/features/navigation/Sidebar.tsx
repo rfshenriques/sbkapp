@@ -27,9 +27,11 @@ const MAX_QUICKLINKS = 6;
 export interface SidebarProps {
   /** Called when a competition link is clicked - the mobile drawer instance uses this to close itself on navigation. */
   onNavigate?: () => void;
+  /** Background behind the sticky search bar has to match whichever scroll container it's pinned inside - the desktop column and the mobile full-screen drawer use different surface shades. */
+  stickyBgClassName?: string;
 }
 
-export function Sidebar({ onNavigate }: SidebarProps = {}) {
+export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: SidebarProps = {}) {
   const { data: matches } = useMatches();
   const { data: rankings } = useCompetitionRankings();
   const [query, setQuery] = useState('');
@@ -73,20 +75,25 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
 
   return (
     <nav aria-label="Sports navigation" className="space-y-5">
-      <div className="relative">
-        <SearchIcon
-          width={15}
-          height={15}
-          className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-text-muted"
-        />
-        <input
-          type="search"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search teams, competitions..."
-          aria-label="Search sports and competitions"
-          className="w-full rounded-md border border-border bg-surface-2 py-2 pr-3 pl-8 text-sm text-text-primary placeholder:text-text-muted focus:ring-1 focus:ring-brand focus:outline-none"
-        />
+      {/* Pinned to the top of whichever scroll container this sits in
+          (desktop column or mobile full-screen drawer) so it stays reachable
+          however far the sport/country/competition tree below is scrolled. */}
+      <div className={cn('sticky top-0 z-10 -mx-4 -mt-4 rounded-t-lg px-4 pt-4 pb-3', stickyBgClassName)}>
+        <div className="relative">
+          <SearchIcon
+            width={15}
+            height={15}
+            className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-text-muted"
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search teams, competitions..."
+            aria-label="Search sports and competitions"
+            className="w-full rounded-md border border-border bg-surface-2 py-2 pr-3 pl-8 text-sm text-text-primary placeholder:text-text-muted focus:ring-1 focus:ring-brand focus:outline-none"
+          />
+        </div>
       </div>
 
       {hasNoResults && (

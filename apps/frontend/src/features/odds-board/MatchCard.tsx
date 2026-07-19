@@ -63,14 +63,14 @@ export function MatchCard({ match }: MatchCardProps) {
             // it bubbles to the card).
             onClick={(event) => event.stopPropagation()}
           >
-            <span className="flex min-w-0 flex-1 items-center justify-start gap-1.5 sm:justify-center">
+            <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
               <TeamColorAccent colorHex={teamColors.get(match.homeTeam)} />
               <span className="min-w-0 truncate font-semibold group-hover:underline">{homeTeamLabel}</span>
             </span>
             <span className="shrink-0 text-xs font-bold text-text-muted tabular-nums">
               {centerLabel}
             </span>
-            <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:justify-center">
+            <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
               <span className="min-w-0 truncate font-semibold group-hover:underline">{awayTeamLabel}</span>
               <TeamColorAccent colorHex={teamColors.get(match.awayTeam)} />
             </span>

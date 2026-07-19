@@ -211,7 +211,7 @@ export function AppShell() {
               ✕
             </button>
           </div>
-          <Sidebar onNavigate={() => setIsNavOpen(false)} />
+          <Sidebar onNavigate={() => setIsNavOpen(false)} stickyBgClassName="bg-background" />
         </div>
       )}
     </div>

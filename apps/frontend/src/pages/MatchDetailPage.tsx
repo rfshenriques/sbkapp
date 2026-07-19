@@ -9,6 +9,13 @@ import { LiveMatchTracker } from '../features/match-detail/LiveMatchTracker';
 import { useLiveMatch } from '../features/match-detail/useLiveMatch';
 import { useMatch } from '../features/match-detail/useMatch';
 import { useMatches } from '../features/odds-board/useMatches';
+import { formatKickoff } from '../lib/formatKickoff';
+import type { Match } from '@sportsbook/shared';
+
+/** Same rule MatchCard uses: no kickoff shown for a match already live. */
+function kickoffMeta(candidate: Match) {
+  return candidate.isLive ? undefined : formatKickoff(new Date(candidate.kickoff));
+}
 
 export default function MatchDetailPage() {
   const { matchId } = useParams();
@@ -65,10 +72,12 @@ export default function MatchDetailPage() {
     {
       key: 'match',
       label: matchLabel,
+      meta: kickoffMeta(match),
       options: siblingMatches.map((sibling) => ({
         key: sibling.id,
         label: `${displayName('TEAM', sibling.homeTeam)} vs ${displayName('TEAM', sibling.awayTeam)}`,
         href: `/matches/${sibling.id}`,
+        meta: kickoffMeta(sibling),
       })),
     },
   ];

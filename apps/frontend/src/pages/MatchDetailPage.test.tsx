@@ -107,8 +107,8 @@ describe('MatchDetailPage', () => {
     // breadcrumb layouts both exist in the DOM - Match is the final segment,
     // duplicated as a pill on the mobile layout too, so scope to desktop.
     const desktopBreadcrumb = within(screen.getByTestId('breadcrumb-desktop'));
-    await userEvent.click(desktopBreadcrumb.getByRole('button', { name: 'Arsenal vs Chelsea' }));
-    await userEvent.click(screen.getByRole('option', { name: 'Liverpool vs Manchester City' }));
+    await userEvent.click(desktopBreadcrumb.getByRole('button', { name: /Arsenal vs Chelsea/ }));
+    await userEvent.click(screen.getByRole('option', { name: /Liverpool vs Manchester City/ }));
 
     expect(await screen.findByRole('heading', { name: 'Liverpool vs Manchester City' })).toBeInTheDocument();
   });
