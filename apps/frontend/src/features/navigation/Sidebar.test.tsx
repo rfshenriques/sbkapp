@@ -144,16 +144,20 @@ describe('Sidebar', () => {
     );
   });
 
-  it('filters the sport tree and quicklinks by a search query, and auto-expands matching branches', async () => {
+  it('shows matching matches directly when searching, hiding the tree and quicklinks (most searches want to bet, not browse leagues)', async () => {
     stubFetch(
       [
-        buildMatch({ id: 'm1', sport: 'Football', country: 'England', competition: 'Premier League' }),
+        buildMatch({
+          id: 'm1',
+          sport: 'Football',
+          country: 'Spain',
+          competition: 'La Liga',
+          homeTeam: 'Real Madrid',
+          awayTeam: 'Barcelona',
+        }),
         buildMatch({ id: 'm2', sport: 'Ice Hockey', country: 'USA', competition: 'NHL' }),
       ],
-      [
-        { competition: 'Premier League', rank: 0 },
-        { competition: 'NHL', rank: 1 },
-      ],
+      [{ competition: 'La Liga', rank: 0 }],
     );
 
     renderSidebar();
@@ -161,14 +165,36 @@ describe('Sidebar', () => {
 
     await userEvent.type(
       screen.getByRole('searchbox', { name: 'Search sports and competitions' }),
-      'Premier',
+      'Spain',
     );
 
-    // The matching sport/country branch is auto-expanded by the search, no click needed.
-    // Two links can legitimately match: the quicklink and the drill-down link.
-    expect(screen.getAllByRole('link', { name: /Premier League/ }).length).toBeGreaterThan(0);
+    expect(await screen.findByRole('heading', { name: 'Matches' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /Real Madrid vs Barcelona/ }),
+    ).toHaveAttribute('href', '/matches/m1');
+    // The tree/quicklinks are hidden while direct match results are shown.
+    expect(screen.queryByRole('heading', { name: 'Sports' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Top Competitions' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Ice Hockey/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /^NHL/ })).not.toBeInTheDocument();
+  });
+
+  it('falls back to Top Competitions when the search matches a configured league by name but no live match', async () => {
+    stubFetch(
+      [buildMatch({ id: 'm1', sport: 'Football', country: 'England', competition: 'Premier League' })],
+      [{ competition: 'Bundesliga', rank: 0 }],
+    );
+
+    renderSidebar();
+    await screen.findByRole('button', { name: /Football/ });
+
+    await userEvent.type(
+      screen.getByRole('searchbox', { name: 'Search sports and competitions' }),
+      'Bundesliga',
+    );
+
+    expect(await screen.findByRole('heading', { name: 'Top Competitions' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Bundesliga/ })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Matches' })).not.toBeInTheDocument();
   });
 
   it('shows a "no matches found" message when the search query matches nothing', async () => {

@@ -191,31 +191,24 @@ export function AppShell() {
         </div>
       )}
 
-      {/* Mobile-only drawer for sports navigation, mirrored on the left -
-          sm:hidden keeps it from ever coexisting with the persistent
-          desktop aside above. */}
+      {/* Mobile-only: sports navigation takes over the full screen like its
+          own page rather than a partial drawer with the rest of the app
+          visible behind it - sm:hidden keeps it from ever coexisting with
+          the persistent desktop aside above. */}
       {isNavOpen && (
-        <div className="sm:hidden">
-          <button
-            type="button"
-            aria-label="Close sports navigation"
-            className="fixed inset-0 z-40 bg-black/50"
-            onClick={() => setIsNavOpen(false)}
-          />
-          <aside className="fixed inset-y-0 left-0 z-50 w-full max-w-xs overflow-y-auto border-r border-border bg-background p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-display text-lg">Sports</h2>
-              <button
-                type="button"
-                aria-label="Close sports navigation"
-                className="text-text-muted hover:text-text-primary"
-                onClick={() => setIsNavOpen(false)}
-              >
-                ✕
-              </button>
-            </div>
-            <Sidebar onNavigate={() => setIsNavOpen(false)} />
-          </aside>
+        <div className="fixed inset-0 z-50 flex flex-col overflow-y-auto bg-background p-4 sm:hidden">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="font-display text-lg">Sports</h2>
+            <button
+              type="button"
+              aria-label="Close sports navigation"
+              className="text-text-muted hover:text-text-primary"
+              onClick={() => setIsNavOpen(false)}
+            >
+              ✕
+            </button>
+          </div>
+          <Sidebar onNavigate={() => setIsNavOpen(false)} />
         </div>
       )}
     </div>

@@ -10,13 +10,15 @@ describe('CountryFlag', () => {
     expect(svg?.getAttribute('viewBox')).toBe('0 0 32 32');
   });
 
-  it('falls back to the 🌍 globe emoji for a non-country grouping like World', () => {
+  it('falls back to the globe image for a non-country grouping like World', () => {
     render(<CountryFlag country="World" />);
-    expect(screen.getByRole('img', { name: 'World' })).toHaveTextContent('🌍');
+    const badge = screen.getByRole('img', { name: 'World' });
+    expect(badge.querySelector('img')).toBeInTheDocument();
   });
 
-  it('falls back to the globe emoji for an unmapped country without crashing', () => {
+  it('falls back to the globe image for an unmapped country without crashing', () => {
     render(<CountryFlag country="Atlantis" />);
-    expect(screen.getByRole('img', { name: 'Atlantis' })).toHaveTextContent('🌍');
+    const badge = screen.getByRole('img', { name: 'Atlantis' });
+    expect(badge.querySelector('img')).toBeInTheDocument();
   });
 });

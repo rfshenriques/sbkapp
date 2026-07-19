@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { CountryFlag } from '../../components/ui/CountryFlag';
 import { SearchIcon } from '../../components/ui/NavIcons';
+import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
 import { SportIcon } from '../../components/ui/SportIcon';
 import { cn } from '../../lib/cn';
 import { useMatches } from '../odds-board/useMatches';
@@ -33,32 +34,42 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
   const { data: rankings } = useCompetitionRankings();
   const [query, setQuery] = useState('');
   const trimmedQuery = query.trim().toLowerCase();
+  const isSearching = trimmedQuery.length > 0;
 
   const competitionCountries = useMemo(() => competitionCountryMap(matches ?? []), [matches]);
-  const filteredMatches = useMemo(() => {
-    if (!trimmedQuery) return matches ?? [];
+
+  // Most searches (a team, a country) are looking for matches to bet on -
+  // show those directly rather than making the player drill into a league
+  // first. The sport/country/competition tree only comes back into play as
+  // a fallback when the search matches no actual match.
+  const matchingMatches = useMemo(() => {
+    if (!isSearching) return [];
     return (matches ?? []).filter((match) =>
       [match.sport, match.country, match.competition, match.homeTeam, match.awayTeam].some((field) =>
         field.toLowerCase().includes(trimmedQuery),
       ),
     );
-  }, [matches, trimmedQuery]);
-  const tree = useMemo(() => buildSportTree(filteredMatches), [filteredMatches]);
+  }, [matches, trimmedQuery, isSearching]);
+  const hasMatchResults = isSearching && matchingMatches.length > 0;
+
+  // Leagues/quicklinks render whenever not searching, or as the fallback
+  // when a search finds no matches to show directly.
+  const showLeagues = !isSearching || !hasMatchResults;
+  const treeSourceMatches = showLeagues ? (isSearching ? matchingMatches : (matches ?? [])) : [];
+  const tree = useMemo(() => buildSportTree(treeSourceMatches), [treeSourceMatches]);
   const topCompetitions = useMemo(() => {
+    if (!showLeagues) return [];
     const ranked = [...(rankings ?? [])].sort((a, b) => a.rank - b.rank);
-    const filtered = trimmedQuery
+    const filtered = isSearching
       ? ranked.filter((ranking) => ranking.competition.toLowerCase().includes(trimmedQuery))
       : ranked;
     return filtered.slice(0, MAX_QUICKLINKS);
-  }, [rankings, trimmedQuery]);
+  }, [rankings, trimmedQuery, isSearching, showLeagues]);
 
   const [expandedSport, setExpandedSport] = useState<string | null>(null);
   const [expandedCountry, setExpandedCountry] = useState<string | null>(null);
-  // While searching, expand every matching branch so results are visible
-  // without also having to click through the accordion.
-  const isSearching = trimmedQuery.length > 0;
 
-  const hasNoResults = isSearching && topCompetitions.length === 0 && tree.length === 0;
+  const hasNoResults = isSearching && !hasMatchResults && topCompetitions.length === 0 && tree.length === 0;
 
   return (
     <nav aria-label="Sports navigation" className="space-y-5">
@@ -82,7 +93,34 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
         <p className="text-sm text-text-secondary">No matches found for "{query.trim()}".</p>
       )}
 
-      {topCompetitions.length > 0 && (
+      {hasMatchResults && (
+        <div>
+          <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-text-muted">Matches</h2>
+          <div className="overflow-hidden rounded-lg border border-border">
+            <ul className="divide-y divide-border">
+              {matchingMatches.map((match) => (
+                <li key={match.id}>
+                  <Link
+                    to={`/matches/${match.id}`}
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary"
+                    onClick={onNavigate}
+                  >
+                    <SportCountryBadge sport={match.sport} country={match.country} size={22} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-semibold text-text-primary">
+                        {match.homeTeam} vs {match.awayTeam}
+                      </span>
+                      <span className="block truncate text-xs text-text-muted">{match.competition}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {showLeagues && topCompetitions.length > 0 && (
         <div>
           <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-text-muted">
             Top Competitions
@@ -113,7 +151,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
         </div>
       )}
 
-      {tree.length > 0 && (
+      {showLeagues && tree.length > 0 && (
         <div>
           <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-text-muted">Sports</h2>
           <div className="overflow-hidden rounded-lg border border-border">

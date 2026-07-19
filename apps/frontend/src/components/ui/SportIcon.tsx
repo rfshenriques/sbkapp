@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { cn } from '../../lib/cn';
-import { ROUND_SPORT_EMOJI, SportGlyph } from './sportGlyphs';
+import { SportGlyph } from './sportGlyphs';
+import { SPORT_ICON_IMAGE } from './sportIconImages';
 
 interface SportIconProps {
   sport: string;
@@ -10,7 +11,7 @@ interface SportIconProps {
 }
 
 export function SportIcon({ sport, size = 18, className, style }: SportIconProps) {
-  const emoji = ROUND_SPORT_EMOJI[sport];
+  const image = SPORT_ICON_IMAGE[sport];
 
   return (
     <span
@@ -22,8 +23,8 @@ export function SportIcon({ sport, size = 18, className, style }: SportIconProps
       )}
       style={{ width: size, height: size, ...style }}
     >
-      {emoji ? (
-        <span style={{ fontSize: size * 0.72 }}>{emoji}</span>
+      {image ? (
+        <img src={image} alt="" className="h-full w-full object-cover" />
       ) : (
         <svg viewBox="0 0 32 32" width="100%" height="100%">
           <SportGlyph sport={sport} />
