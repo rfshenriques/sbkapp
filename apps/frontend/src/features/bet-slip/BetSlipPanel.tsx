@@ -342,12 +342,12 @@ export function BetSlipPanel({
   return (
     <div className={emptyStateVariant === 'promotional' ? 'flex flex-1 flex-col' : undefined}>
       {showHistoryTab && (
-        <div className="mb-3 flex gap-2" role="tablist" aria-label="Bet slip panel view">
+        <div className="tab-pill mb-3" role="tablist" aria-label="Bet slip panel view">
           <button
             type="button"
             role="tab"
             aria-selected={panelView === 'slip'}
-            className={`tab${panelView === 'slip' ? ' active' : ''}`}
+            className={`tab-pill-btn${panelView === 'slip' ? ' active' : ''}`}
             onClick={() => setPanelView('slip')}
           >
             Bet Slip
@@ -356,7 +356,7 @@ export function BetSlipPanel({
             type="button"
             role="tab"
             aria-selected={panelView === 'history'}
-            className={`tab${panelView === 'history' ? ' active' : ''}`}
+            className={`tab-pill-btn${panelView === 'history' ? ' active' : ''}`}
             onClick={() => setPanelView('history')}
           >
             History

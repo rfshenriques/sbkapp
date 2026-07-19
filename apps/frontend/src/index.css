@@ -217,6 +217,45 @@ body {
   color: #000;
 }
 
+/* Two-way segmented toggle (e.g. Bet Slip / History) - unlike .tab, the
+   rounded shape belongs to the whole pill, not to each half: the container
+   clips its full-width flex children to its own border-radius, so there's
+   never a rounded corner on the seam between them, only at the two outer
+   ends. */
+.tab-pill {
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+  border-radius: 999px;
+  background-color: var(--color-surface-2);
+}
+.tab-pill-btn {
+  flex: 1;
+  padding: 8px 0;
+  text-align: center;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  font-size: 12.5px;
+  color: var(--color-text-secondary);
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+.tab-pill-btn:hover {
+  color: var(--color-text-primary);
+}
+.tab-pill-btn.active {
+  background: linear-gradient(
+    135deg,
+    var(--color-filter),
+    color-mix(in srgb, var(--color-filter) 78%, black)
+  );
+  color: #000;
+}
+
 .brand-flag {
   display: flex;
   flex-direction: column;
