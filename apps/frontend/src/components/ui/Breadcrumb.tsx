@@ -20,12 +20,9 @@ export interface BreadcrumbSegment {
   options?: BreadcrumbOption[];
 }
 
-// Mobile's pill dropdown is full-width and needs the extra room to avoid
-// wrapping every match name; desktop sits inline in a row with other
-// segments, so it stays close to its original, narrower width.
-const PANEL_WIDTH_MOBILE = 340;
+// Desktop's dropdown sits inline in a row with other segments, so its panel
+// stays a fixed, narrower width rather than matching the trigger.
 const PANEL_WIDTH_DESKTOP = 288;
-const DESKTOP_BREAKPOINT = 640; // matches Tailwind's `sm`
 
 /**
  * The trigger can live inside a horizontally-scrolling row, so the dropdown
@@ -52,7 +49,10 @@ function BreadcrumbDropdown({
   function openPanel() {
     const rect = buttonRef.current?.getBoundingClientRect();
     if (!rect) return;
-    const width = window.innerWidth < DESKTOP_BREAKPOINT ? PANEL_WIDTH_MOBILE : PANEL_WIDTH_DESKTOP;
+    // The mobile pill is already full-width in its container, so match the
+    // panel to it exactly rather than a fixed guess - that's what keeps
+    // every row's date/time flush to the same right edge as the trigger's.
+    const width = variant === 'pill' ? rect.width : PANEL_WIDTH_DESKTOP;
     const left = Math.min(Math.max(8, rect.left), window.innerWidth - width - 8);
     setPanel({ top: rect.bottom + 6, left, width });
   }
