@@ -1,16 +1,19 @@
 import { useParams } from 'react-router-dom';
 import { BackButton } from '../components/ui/BackButton';
+import { Breadcrumb, type BreadcrumbSegment } from '../components/ui/Breadcrumb';
 import { Skeleton } from '../components/ui/Skeleton';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { LiveMatchTracker } from '../features/match-detail/LiveMatchTracker';
 import { useLiveMatch } from '../features/match-detail/useLiveMatch';
 import { useMatch } from '../features/match-detail/useMatch';
+import { useMatches } from '../features/odds-board/useMatches';
 
 export default function MatchDetailPage() {
   const { matchId } = useParams();
   const { data: match, isPending, isError } = useMatch(matchId);
   const { data: liveState } = useLiveMatch(matchId, match?.isLive ?? false);
+  const { data: allMatches } = useMatches();
 
   if (isPending) {
     return (
@@ -29,14 +32,45 @@ export default function MatchDetailPage() {
   const matchLabel = `${match.homeTeam} vs ${match.awayTeam}`;
   const kickoff = new Date(match.kickoff);
 
+  const competitionsInCountry = [
+    ...new Set(
+      (allMatches ?? [])
+        .filter((candidate) => candidate.sport === match.sport && candidate.country === match.country)
+        .map((candidate) => candidate.competition),
+    ),
+  ];
+  const siblingMatches = (allMatches ?? []).filter((candidate) => candidate.competition === match.competition);
+
+  const breadcrumbSegments: BreadcrumbSegment[] = [
+    { key: 'home', label: 'Home', href: '/' },
+    { key: 'sport', label: match.sport, href: `/sports/${encodeURIComponent(match.sport)}` },
+    {
+      key: 'competition',
+      label: match.competition,
+      href: `/sports/${encodeURIComponent(match.sport)}?competition=${encodeURIComponent(match.competition)}`,
+      options: competitionsInCountry.map((competition) => ({
+        key: competition,
+        label: competition,
+        href: `/sports/${encodeURIComponent(match.sport)}?competition=${encodeURIComponent(competition)}`,
+      })),
+    },
+    {
+      key: 'match',
+      label: matchLabel,
+      options: siblingMatches.map((sibling) => ({
+        key: sibling.id,
+        label: `${sibling.homeTeam} vs ${sibling.awayTeam}`,
+        href: `/matches/${sibling.id}`,
+      })),
+    },
+  ];
+
   return (
     <div>
-      <div className="flex items-center gap-2">
-        <BackButton className="-ml-1.5" />
-        <p className="flex items-center gap-2 text-xs font-semibold text-text-muted">
-          <SportCountryBadge sport={match.sport} country={match.country} />
-          <span>{match.competition}</span>
-        </p>
+      <div className="flex min-w-0 items-center gap-2">
+        <BackButton className="-ml-1.5 shrink-0" />
+        <SportCountryBadge sport={match.sport} country={match.country} size={20} />
+        <Breadcrumb segments={breadcrumbSegments} />
       </div>
 
       <section className="relative mt-2 overflow-hidden rounded-2xl border border-border bg-surface p-6">

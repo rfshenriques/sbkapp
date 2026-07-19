@@ -5,7 +5,9 @@ import { MatchListSkeleton } from '../features/odds-board/MatchListSkeleton';
 import { useMatches } from '../features/odds-board/useMatches';
 import { useCompetitionRankings } from '../features/odds-board/useCompetitionRankings';
 import { rankMapFromRankings, sortMatches, type MatchSortMode } from '../features/odds-board/sortMatches';
+import { buildSportTree } from '../features/navigation/buildSportTree';
 import { BackButton } from '../components/ui/BackButton';
+import { Breadcrumb, type BreadcrumbSegment } from '../components/ui/Breadcrumb';
 import { Card } from '../components/ui/Card';
 
 /** "all" shows every sport unfiltered - used by the homepage's "Live now" load-more, which isn't scoped to one sport. */
@@ -17,6 +19,7 @@ export default function SportPage() {
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const competitionFilter = searchParams.get('competition');
+  const countryFilter = searchParams.get('country');
   const liveOnly = location.pathname === '/live' || searchParams.get('live') === 'true';
   const [sortMode, setSortMode] = useState<MatchSortMode>('time');
 
@@ -27,6 +30,7 @@ export default function SportPage() {
   const filtered = matches?.filter(
     (match) =>
       (decodedSport === ALL_SPORTS || match.sport === decodedSport) &&
+      (!countryFilter || match.country === countryFilter) &&
       (!competitionFilter || match.competition === competitionFilter) &&
       (!liveOnly || match.isLive),
   );
@@ -34,8 +38,60 @@ export default function SportPage() {
   const heading =
     competitionFilter ?? (liveOnly ? 'Live' : decodedSport === ALL_SPORTS ? 'All matches' : decodedSport);
 
+  // Only a real sport (not the "all"/"live" umbrella views) has a
+  // country/competition hierarchy worth letting the player jump around in.
+  const showHierarchyBreadcrumb = decodedSport !== ALL_SPORTS && !liveOnly;
+  const sportNode = useMemo(() => buildSportTree(matches ?? []), [matches]).find(
+    (node) => node.sport === decodedSport,
+  );
+  const explicitCountry =
+    countryFilter ??
+    (competitionFilter ? matches?.find((match) => match.competition === competitionFilter)?.country : undefined);
+  // A sport with only one country has nothing to switch between, so treat it as implicitly selected without needing a country param in the URL.
+  const activeCountry =
+    explicitCountry ?? (sportNode?.countries.length === 1 ? sportNode.countries[0]?.country : undefined);
+  const activeCountryNode = sportNode?.countries.find((node) => node.country === activeCountry);
+
+  const breadcrumbSegments: BreadcrumbSegment[] = [
+    { key: 'home', label: 'Home', href: '/' },
+    { key: 'sport', label: decodedSport, href: `/sports/${encodeURIComponent(decodedSport)}` },
+  ];
+  if (showHierarchyBreadcrumb && sportNode && sportNode.countries.length > 1) {
+    breadcrumbSegments.push({
+      key: 'country',
+      label: activeCountry ?? 'All countries',
+      href: activeCountry
+        ? `/sports/${encodeURIComponent(decodedSport)}?country=${encodeURIComponent(activeCountry)}`
+        : undefined,
+      options: sportNode.countries.map((countryNode) => ({
+        key: countryNode.country,
+        label: countryNode.country,
+        href: `/sports/${encodeURIComponent(decodedSport)}?country=${encodeURIComponent(countryNode.country)}`,
+      })),
+    });
+  }
+  if (showHierarchyBreadcrumb && activeCountryNode && activeCountryNode.competitions.length > 1) {
+    breadcrumbSegments.push({
+      key: 'competition',
+      label: competitionFilter ?? 'All leagues',
+      href: competitionFilter
+        ? `/sports/${encodeURIComponent(decodedSport)}?competition=${encodeURIComponent(competitionFilter)}`
+        : undefined,
+      options: activeCountryNode.competitions.map((competitionNode) => ({
+        key: competitionNode.competition,
+        label: competitionNode.competition,
+        href: `/sports/${encodeURIComponent(decodedSport)}?competition=${encodeURIComponent(competitionNode.competition)}`,
+      })),
+    });
+  }
+
   return (
     <div>
+      {breadcrumbSegments.length > 2 && (
+        <div className="mb-2">
+          <Breadcrumb segments={breadcrumbSegments} />
+        </div>
+      )}
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <BackButton className="-ml-1.5" />

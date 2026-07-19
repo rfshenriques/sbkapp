@@ -178,6 +178,67 @@ describe('SportPage', () => {
     expect(screen.getByRole('heading', { name: 'Live' })).toBeInTheDocument();
   });
 
+  it('breadcrumb lets you switch country, then a league within that country', async () => {
+    stubOddsEngineFetch([
+      buildMatch({
+        id: 'm1',
+        sport: 'Football',
+        country: 'England',
+        competition: 'Premier League',
+        homeTeam: 'Arsenal',
+        awayTeam: 'Chelsea',
+      }),
+      buildMatch({
+        id: 'm2',
+        sport: 'Football',
+        country: 'England',
+        competition: 'Championship',
+        homeTeam: 'Leeds',
+        awayTeam: 'Norwich',
+      }),
+      buildMatch({
+        id: 'm3',
+        sport: 'Football',
+        country: 'Spain',
+        competition: 'La Liga',
+        homeTeam: 'Real Madrid',
+        awayTeam: 'Barcelona',
+      }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/sports/Football?competition=Premier%20League');
+    await screen.findByRole('link', { name: 'Arsenal vs Chelsea' });
+
+    // Switch country from England to Spain via the breadcrumb.
+    await userEvent.click(screen.getByRole('button', { name: 'England' }));
+    await userEvent.click(screen.getByRole('option', { name: 'Spain' }));
+
+    expect(await screen.findByRole('link', { name: 'Real Madrid vs Barcelona' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Championship' })).not.toBeInTheDocument();
+
+    // Back in England, switch league from Premier League to Championship.
+    await userEvent.click(screen.getByRole('button', { name: 'Spain' }));
+    await userEvent.click(screen.getByRole('option', { name: 'England' }));
+    await screen.findByRole('button', { name: 'All leagues' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'All leagues' }));
+    await userEvent.click(screen.getByRole('option', { name: 'Championship' }));
+
+    expect(await screen.findByRole('link', { name: 'Leeds vs Norwich' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Arsenal vs Chelsea' })).not.toBeInTheDocument();
+  });
+
+  it('does not render a breadcrumb country/competition dropdown for a sport with only one country and one competition', async () => {
+    stubOddsEngineFetch([buildMatch({ sport: 'Football', country: 'England', competition: 'EPL' })]);
+    stubRankingsFetch();
+
+    renderAt('/sports/Football');
+    await screen.findByRole('link', { name: 'Arsenal vs Chelsea' });
+
+    expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
+  });
+
   it('shows an empty state when there are no matches for the sport', async () => {
     stubOddsEngineFetch([buildMatch({ sport: 'Football' })]);
     stubRankingsFetch();

@@ -96,6 +96,16 @@ describe('MatchDetailPage', () => {
     expect(screen.getByText('Corner Kicks')).toBeInTheDocument();
   });
 
+  it('breadcrumb match dropdown navigates to a sibling match in the same competition', async () => {
+    renderAt('match-1');
+    await screen.findByRole('heading', { name: 'Arsenal vs Chelsea' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Arsenal vs Chelsea' }));
+    await userEvent.click(screen.getByRole('option', { name: 'Liverpool vs Manchester City' }));
+
+    expect(await screen.findByRole('heading', { name: 'Liverpool vs Manchester City' })).toBeInTheDocument();
+  });
+
   it('lets you add a selection to the bet slip from the match detail page', async () => {
     renderAt('match-1');
 
