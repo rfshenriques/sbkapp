@@ -6,6 +6,7 @@ import { useMatches } from '../features/odds-board/useMatches';
 import { useCompetitionRankings } from '../features/odds-board/useCompetitionRankings';
 import { rankMapFromRankings, sortMatches, type MatchSortMode } from '../features/odds-board/sortMatches';
 import { buildSportTree } from '../features/navigation/buildSportTree';
+import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { BackButton } from '../components/ui/BackButton';
 import { Breadcrumb, type BreadcrumbSegment } from '../components/ui/Breadcrumb';
 import { Card } from '../components/ui/Card';
@@ -26,6 +27,7 @@ export default function SportPage() {
   const { data: matches, isPending, isError } = useMatches();
   const { data: rankings } = useCompetitionRankings();
   const rankByCompetition = useMemo(() => rankMapFromRankings(rankings ?? []), [rankings]);
+  const displayName = useDisplayNames();
 
   const filtered = matches?.filter(
     (match) =>
@@ -35,8 +37,13 @@ export default function SportPage() {
       (!liveOnly || match.isLive),
   );
   const sorted = filtered ? sortMatches(filtered, sortMode, rankByCompetition) : undefined;
-  const heading =
-    competitionFilter ?? (liveOnly ? 'Live' : decodedSport === ALL_SPORTS ? 'All matches' : decodedSport);
+  const heading = competitionFilter
+    ? displayName('COMPETITION', competitionFilter)
+    : liveOnly
+      ? 'Live'
+      : decodedSport === ALL_SPORTS
+        ? 'All matches'
+        : displayName('SPORT', decodedSport);
 
   // Only a real sport (not the "all"/"live" umbrella views) has a
   // country/competition hierarchy worth letting the player jump around in.
@@ -54,18 +61,22 @@ export default function SportPage() {
 
   const breadcrumbSegments: BreadcrumbSegment[] = [
     { key: 'home', label: 'Home', href: '/' },
-    { key: 'sport', label: decodedSport, href: `/sports/${encodeURIComponent(decodedSport)}` },
+    {
+      key: 'sport',
+      label: displayName('SPORT', decodedSport),
+      href: `/sports/${encodeURIComponent(decodedSport)}`,
+    },
   ];
   if (showHierarchyBreadcrumb && sportNode && sportNode.countries.length > 1) {
     breadcrumbSegments.push({
       key: 'country',
-      label: activeCountry ?? 'All countries',
+      label: activeCountry ? displayName('COUNTRY', activeCountry) : 'All countries',
       href: activeCountry
         ? `/sports/${encodeURIComponent(decodedSport)}?country=${encodeURIComponent(activeCountry)}`
         : undefined,
       options: sportNode.countries.map((countryNode) => ({
         key: countryNode.country,
-        label: countryNode.country,
+        label: displayName('COUNTRY', countryNode.country),
         href: `/sports/${encodeURIComponent(decodedSport)}?country=${encodeURIComponent(countryNode.country)}`,
       })),
     });
@@ -73,13 +84,13 @@ export default function SportPage() {
   if (showHierarchyBreadcrumb && activeCountryNode && activeCountryNode.competitions.length > 1) {
     breadcrumbSegments.push({
       key: 'competition',
-      label: competitionFilter ?? 'All leagues',
+      label: competitionFilter ? displayName('COMPETITION', competitionFilter) : 'All leagues',
       href: competitionFilter
         ? `/sports/${encodeURIComponent(decodedSport)}?competition=${encodeURIComponent(competitionFilter)}`
         : undefined,
       options: activeCountryNode.competitions.map((competitionNode) => ({
         key: competitionNode.competition,
-        label: competitionNode.competition,
+        label: displayName('COMPETITION', competitionNode.competition),
         href: `/sports/${encodeURIComponent(decodedSport)}?competition=${encodeURIComponent(competitionNode.competition)}`,
       })),
     });

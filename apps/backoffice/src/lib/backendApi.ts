@@ -312,3 +312,42 @@ export async function setTeamColor(id: string, colorHex: string | null): Promise
   });
   return parseJsonOrThrow(response, `Failed to set team color: ${response.status}`);
 }
+
+export type DisplayNameEntityType = 'SPORT' | 'COUNTRY' | 'COMPETITION' | 'TEAM';
+
+export interface DisplayNameOverride {
+  id: string;
+  entityType: DisplayNameEntityType;
+  rawName: string;
+  displayName: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listDisplayNames(entityType: DisplayNameEntityType): Promise<DisplayNameOverride[]> {
+  const response = await authenticatedFetch(`/admin/display-names?entityType=${entityType}`);
+  return parseJsonOrThrow(response, `Failed to load display names: ${response.status}`);
+}
+
+/** Existing raw names are left untouched - only genuinely new ones for that entity type get created, with their override left unset. */
+export async function syncDisplayNames(
+  entityType: DisplayNameEntityType,
+  names: string[],
+): Promise<DisplayNameOverride[]> {
+  const response = await authenticatedFetch('/admin/display-names/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ entityType, names }),
+  });
+  return parseJsonOrThrow(response, `Failed to sync display names: ${response.status}`);
+}
+
+/** Pass null to clear a previously-set override, reverting to the raw feed name. */
+export async function setDisplayName(id: string, displayName: string | null): Promise<DisplayNameOverride> {
+  const response = await authenticatedFetch(`/admin/display-names/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ displayName }),
+  });
+  return parseJsonOrThrow(response, `Failed to set display name: ${response.status}`);
+}

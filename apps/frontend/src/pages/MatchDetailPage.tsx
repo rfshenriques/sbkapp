@@ -4,6 +4,7 @@ import { Breadcrumb, type BreadcrumbSegment } from '../components/ui/Breadcrumb'
 import { Skeleton } from '../components/ui/Skeleton';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
+import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { LiveMatchTracker } from '../features/match-detail/LiveMatchTracker';
 import { useLiveMatch } from '../features/match-detail/useLiveMatch';
 import { useMatch } from '../features/match-detail/useMatch';
@@ -14,6 +15,7 @@ export default function MatchDetailPage() {
   const { data: match, isPending, isError } = useMatch(matchId);
   const { data: liveState } = useLiveMatch(matchId, match?.isLive ?? false);
   const { data: allMatches } = useMatches();
+  const displayName = useDisplayNames();
 
   if (isPending) {
     return (
@@ -29,7 +31,9 @@ export default function MatchDetailPage() {
   }
 
   const matchResult = match.markets.find((market) => market.id === 'match-result');
-  const matchLabel = `${match.homeTeam} vs ${match.awayTeam}`;
+  const homeTeamLabel = displayName('TEAM', match.homeTeam);
+  const awayTeamLabel = displayName('TEAM', match.awayTeam);
+  const matchLabel = `${homeTeamLabel} vs ${awayTeamLabel}`;
   const kickoff = new Date(match.kickoff);
 
   const competitionsInCountry = [
@@ -43,14 +47,18 @@ export default function MatchDetailPage() {
 
   const breadcrumbSegments: BreadcrumbSegment[] = [
     { key: 'home', label: 'Home', href: '/' },
-    { key: 'sport', label: match.sport, href: `/sports/${encodeURIComponent(match.sport)}` },
+    {
+      key: 'sport',
+      label: displayName('SPORT', match.sport),
+      href: `/sports/${encodeURIComponent(match.sport)}`,
+    },
     {
       key: 'competition',
-      label: match.competition,
+      label: displayName('COMPETITION', match.competition),
       href: `/sports/${encodeURIComponent(match.sport)}?competition=${encodeURIComponent(match.competition)}`,
       options: competitionsInCountry.map((competition) => ({
         key: competition,
-        label: competition,
+        label: displayName('COMPETITION', competition),
         href: `/sports/${encodeURIComponent(match.sport)}?competition=${encodeURIComponent(competition)}`,
       })),
     },
@@ -59,7 +67,7 @@ export default function MatchDetailPage() {
       label: matchLabel,
       options: siblingMatches.map((sibling) => ({
         key: sibling.id,
-        label: `${sibling.homeTeam} vs ${sibling.awayTeam}`,
+        label: `${displayName('TEAM', sibling.homeTeam)} vs ${displayName('TEAM', sibling.awayTeam)}`,
         href: `/matches/${sibling.id}`,
       })),
     },
@@ -97,7 +105,7 @@ export default function MatchDetailPage() {
 
       {match.isLive && liveState && (
         <div className="mt-6">
-          <LiveMatchTracker state={liveState} homeTeam={match.homeTeam} awayTeam={match.awayTeam} />
+          <LiveMatchTracker state={liveState} homeTeam={homeTeamLabel} awayTeam={awayTeamLabel} />
         </div>
       )}
 

@@ -10,6 +10,7 @@ import { Card } from '../components/ui/Card';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { SportIcon } from '../components/ui/SportIcon';
 import { TeamColorAccent } from '../components/ui/TeamColorAccent';
+import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { useTeamColors } from '../features/odds-board/useTeamColors';
 import { formatKickoff } from '../lib/formatKickoff';
 import { sortSportsByPriority } from '../lib/sportPriority';
@@ -22,6 +23,7 @@ export default function OddsBoardPage() {
   const navigate = useNavigate();
   const prefetchMatchDetail = usePrefetchMatchDetail();
   const teamColors = useTeamColors();
+  const displayName = useDisplayNames();
   const [selectedSport, setSelectedSport] = useState<string | undefined>(undefined);
 
   const sorted = matches ? sortMatches(matches, 'time') : undefined;
@@ -29,6 +31,8 @@ export default function OddsBoardPage() {
   const rest = sorted?.slice(1) ?? [];
   const featuredMatchResult = featured?.markets.find((market) => market.id === 'match-result');
   const featuredHref = featured ? `/matches/${featured.id}` : undefined;
+  const featuredHomeTeamLabel = featured ? displayName('TEAM', featured.homeTeam) : '';
+  const featuredAwayTeamLabel = featured ? displayName('TEAM', featured.awayTeam) : '';
 
   const liveMatches = rest.filter((match) => match.isLive);
   const upcomingAll = rest.filter((match) => !match.isLive);
@@ -71,7 +75,7 @@ export default function OddsBoardPage() {
 
             <p className="flex items-center gap-2 text-xs font-semibold text-white/70">
               <SportCountryBadge sport={featured.sport} country={featured.country} />
-              <span>{featured.competition}</span>
+              <span>{displayName('COMPETITION', featured.competition)}</span>
               {featured.isLive ? (
                 <span className="slash ml-auto bg-price-down px-2 py-0.5 text-[10px] font-extrabold text-white">
                   LIVE
@@ -85,7 +89,7 @@ export default function OddsBoardPage() {
                 section's onClick above is a mouse/touch convenience that
                 enlarges the clickable area to the whole card. */}
             <h1
-              aria-label={`${featured.homeTeam} vs ${featured.awayTeam}`}
+              aria-label={`${featuredHomeTeamLabel} vs ${featuredAwayTeamLabel}`}
               className="mt-3 flex items-center justify-center gap-3 sm:gap-5"
             >
               <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
@@ -95,7 +99,7 @@ export default function OddsBoardPage() {
                   className="min-w-0 truncate text-right font-display text-xl leading-tight hover:underline sm:text-3xl"
                   onClick={(event) => event.stopPropagation()}
                 >
-                  {featured.homeTeam}
+                  {featuredHomeTeamLabel}
                 </Link>
               </span>
               <span className="shrink-0 font-display text-sm text-white/50 sm:text-base">vs</span>
@@ -105,7 +109,7 @@ export default function OddsBoardPage() {
                   className="min-w-0 truncate text-left font-display text-xl leading-tight hover:underline sm:text-3xl"
                   onClick={(event) => event.stopPropagation()}
                 >
-                  {featured.awayTeam}
+                  {featuredAwayTeamLabel}
                 </Link>
                 <TeamColorAccent colorHex={teamColors.get(featured.awayTeam)} className="h-4 sm:h-6" />
               </span>
@@ -114,7 +118,7 @@ export default function OddsBoardPage() {
             <div className="mt-5 max-w-md">
               <MarketSelections
                 matchId={featured.id}
-                matchLabel={`${featured.homeTeam} vs ${featured.awayTeam}`}
+                matchLabel={`${featuredHomeTeamLabel} vs ${featuredAwayTeamLabel}`}
                 market={featuredMatchResult}
               />
             </div>
@@ -175,7 +179,7 @@ export default function OddsBoardPage() {
                 onClick={() => setSelectedSport(sport)}
               >
                 <SportIcon sport={sport} size={16} />
-                {sport}
+                {displayName('SPORT', sport)}
               </button>
             ))}
           </div>
@@ -196,7 +200,7 @@ export default function OddsBoardPage() {
             to={`/sports/${encodeURIComponent(effectiveSport)}`}
             className="btn-ghost slash mt-3 inline-flex items-center justify-center"
           >
-            Load more {effectiveSport} matches →
+            Load more {displayName('SPORT', effectiveSport)} matches →
           </Link>
         )}
       </section>

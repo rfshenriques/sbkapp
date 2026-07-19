@@ -35,6 +35,20 @@ function stubRankingsFetch(rankings: { competition: string; rank: number }[] = [
   vi.stubGlobal('fetch', fetchMock);
 }
 
+function stubDisplayNameOverrides(
+  overrides: { entityType: string; rawName: string; displayName: string }[],
+) {
+  const existingFetch = globalThis.fetch;
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url === '/backend/public/display-names') {
+      return new Response(JSON.stringify(overrides), { status: 200 });
+    }
+    return existingFetch(input as never, init);
+  });
+  vi.stubGlobal('fetch', fetchMock);
+}
+
 function renderAt(path: string) {
   const queryClient = new QueryClient();
   return render(
@@ -251,5 +265,27 @@ describe('SportPage', () => {
     renderAt('/sports/Basketball');
 
     expect(await screen.findByText('No matches available right now.')).toBeInTheDocument();
+  });
+
+  it('shows a backoffice-assigned display name instead of the raw competition name, in both the heading and the breadcrumb', async () => {
+    stubOddsEngineFetch([
+      buildMatch({ competition: 'UEFA Champions League Qualification' }),
+      buildMatch({ id: 'm2', competition: 'Championship', homeTeam: 'Leeds', awayTeam: 'Norwich' }),
+    ]);
+    stubRankingsFetch();
+    stubDisplayNameOverrides([
+      {
+        entityType: 'COMPETITION',
+        rawName: 'UEFA Champions League Qualification',
+        displayName: 'UEFA Champions League (Q)',
+      },
+    ]);
+
+    renderAt('/sports/Football?competition=UEFA%20Champions%20League%20Qualification');
+
+    expect(await screen.findByRole('heading', { name: 'UEFA Champions League (Q)' })).toBeInTheDocument();
+    expect(
+      within(screen.getByTestId('breadcrumb-desktop')).getByRole('button', { name: 'UEFA Champions League (Q)' }),
+    ).toBeInTheDocument();
   });
 });

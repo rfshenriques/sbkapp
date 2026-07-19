@@ -110,6 +110,7 @@ enum AuditAction {
   COMPETITION_RANKING_SET
   COMPETITION_RANKING_REMOVED
   TEAM_COLOR_SET
+  DISPLAY_NAME_OVERRIDE_SET
 }
 
 /**
@@ -151,6 +152,34 @@ model TeamColor {
   updatedAt DateTime @updatedAt
 
   @@map("team_colors")
+}
+
+enum DisplayNameEntityType {
+  SPORT
+  COUNTRY
+  COMPETITION
+  TEAM
+}
+
+/**
+ * A nicer label for a raw feed name - e.g. the-odds-api.com's verbose
+ * "UEFA Champions League Qualification" shown to players as "UEFA
+ * Champions League (Q)" instead. Not brand-scoped or locale-specific (one
+ * override, same for every brand and every player) - see the backoffice
+ * conversation that asked for this: a single rename, not multi-language
+ * i18n. Rows get created the same two ways as TeamColor above: synced from
+ * the feed with displayName left null, or set directly by an admin.
+ */
+model DisplayNameOverride {
+  id          String                @id @default(uuid())
+  entityType  DisplayNameEntityType
+  rawName     String
+  displayName String?
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@unique([entityType, rawName])
+  @@map("display_name_overrides")
 }
 
 /**

@@ -152,6 +152,23 @@ export async function getTeamColors(): Promise<PublicTeamColor[]> {
   return (await response.json()) as PublicTeamColor[];
 }
 
+export type DisplayNameEntityType = 'SPORT' | 'COUNTRY' | 'COMPETITION' | 'TEAM';
+
+export interface PublicDisplayNameOverride {
+  entityType: DisplayNameEntityType;
+  rawName: string;
+  displayName: string;
+}
+
+/** Backoffice-assigned nicer labels for raw feed names - see apps/backend's DisplayNamesModule. Only entities an admin has actually set an override for are returned. */
+export async function getDisplayNameOverrides(): Promise<PublicDisplayNameOverride[]> {
+  const response = await fetch(`${BASE_URL}/public/display-names`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch display name overrides: ${response.status}`);
+  }
+  return (await response.json()) as PublicDisplayNameOverride[];
+}
+
 export async function register(payload: RegisterPayload): Promise<AuthTokenResponse> {
   const response = await fetch(`${BASE_URL}/auth/register`, {
     method: 'POST',

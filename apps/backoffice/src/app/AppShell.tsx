@@ -22,12 +22,20 @@ export function AppShell() {
                 </Link>
               )}
               {(user?.role === 'ADMIN' || user?.role === 'CMS') && (
-                <Link
-                  to="/team-colors"
-                  className="text-sm text-text-secondary hover:text-text-primary"
-                >
-                  Team colors
-                </Link>
+                <>
+                  <Link
+                    to="/team-colors"
+                    className="text-sm text-text-secondary hover:text-text-primary"
+                  >
+                    Team colors
+                  </Link>
+                  <Link
+                    to="/display-names"
+                    className="text-sm text-text-secondary hover:text-text-primary"
+                  >
+                    Display names
+                  </Link>
+                </>
               )}
               {user?.role === 'ADMIN' && (
                 <>

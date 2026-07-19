@@ -3,6 +3,7 @@ import { Card } from '../../components/ui/Card';
 import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
 import { TeamColorAccent } from '../../components/ui/TeamColorAccent';
 import { MarketSelections } from '../bet-slip/MarketSelections';
+import { useDisplayNames } from '../display-names/useDisplayNames';
 import { usePrefetchMatchDetail } from './usePrefetchMatchDetail';
 import { useLiveMatch } from '../match-detail/useLiveMatch';
 import { useTeamColors } from './useTeamColors';
@@ -17,7 +18,10 @@ export function MatchCard({ match }: MatchCardProps) {
   const matchResult = match.markets.find((market) => market.id === 'match-result');
   const prefetchMatchDetail = usePrefetchMatchDetail();
   const navigate = useNavigate();
-  const matchLabel = `${match.homeTeam} vs ${match.awayTeam}`;
+  const displayName = useDisplayNames();
+  const homeTeamLabel = displayName('TEAM', match.homeTeam);
+  const awayTeamLabel = displayName('TEAM', match.awayTeam);
+  const matchLabel = `${homeTeamLabel} vs ${awayTeamLabel}`;
   const kickoff = new Date(match.kickoff);
   const matchHref = `/matches/${match.id}`;
   const { data: liveState } = useLiveMatch(match.id, match.isLive);
@@ -40,7 +44,7 @@ export function MatchCard({ match }: MatchCardProps) {
         <div className="min-w-0 flex-1">
           <p className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
             <SportCountryBadge sport={match.sport} country={match.country} />
-            <span>{match.competition}</span>
+            <span>{displayName('COMPETITION', match.competition)}</span>
             {!match.isLive && (
               <span className="ml-auto text-highlight">{formatKickoff(kickoff)}</span>
             )}
@@ -61,13 +65,13 @@ export function MatchCard({ match }: MatchCardProps) {
           >
             <span className="flex min-w-0 flex-1 items-center justify-start gap-1.5 sm:justify-center">
               <TeamColorAccent colorHex={teamColors.get(match.homeTeam)} />
-              <span className="min-w-0 truncate font-semibold group-hover:underline">{match.homeTeam}</span>
+              <span className="min-w-0 truncate font-semibold group-hover:underline">{homeTeamLabel}</span>
             </span>
             <span className="shrink-0 text-xs font-bold text-text-muted tabular-nums">
               {centerLabel}
             </span>
             <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:justify-center">
-              <span className="min-w-0 truncate font-semibold group-hover:underline">{match.awayTeam}</span>
+              <span className="min-w-0 truncate font-semibold group-hover:underline">{awayTeamLabel}</span>
               <TeamColorAccent colorHex={teamColors.get(match.awayTeam)} />
             </span>
           </Link>

@@ -127,8 +127,11 @@ function BreadcrumbDropdown({
  * Two layouts, swapped by breakpoint (not JS media queries, matching this
  * codebase's existing sm: convention):
  *
- * - Desktop (sm+): one scrolling row, every actionable segment its own
- *   inline dropdown - unchanged from before.
+ * - Desktop (sm+): one row, every actionable segment its own inline
+ *   dropdown, read left-to-right starting at Home like a normal breadcrumb.
+ *   `overflow-x-auto` is only a safety net for a viewport too narrow to fit
+ *   it all - it stays scrolled to the start (Home first) rather than
+ *   jumping anywhere, since desktop usually has the room to show everything.
  * - Mobile: cramming Home / Sport / Country / Competition / Match onto one
  *   line made every segment an unreadable sliver. Instead the ancestors
  *   (everything but the last segment) sit on their own plain, non-dropdown
@@ -139,15 +142,6 @@ function BreadcrumbDropdown({
  *   or match name isn't useful to a player picking between them.
  */
 export function Breadcrumb({ segments, icon }: { segments: BreadcrumbSegment[]; icon?: ReactNode }) {
-  const scrollRef = useRef<HTMLElement>(null);
-  const lastKey = segments[segments.length - 1]?.key;
-
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    el.scrollLeft = el.scrollWidth;
-  }, [lastKey]);
-
   const trailSegments = segments.slice(0, -1);
   const activeSegment = segments[segments.length - 1];
   const scrollableRowClassName =
@@ -199,7 +193,6 @@ export function Breadcrumb({ segments, icon }: { segments: BreadcrumbSegment[]; 
       </div>
 
       <nav
-        ref={scrollRef}
         data-testid="breadcrumb-desktop"
         aria-label="Breadcrumb"
         className={cn('hidden text-sm sm:flex', scrollableRowClassName)}
