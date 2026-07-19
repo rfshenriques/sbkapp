@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/cn';
 import { ChevronIcon } from './ChevronIcon';
@@ -18,7 +18,7 @@ export interface BreadcrumbSegment {
   options?: BreadcrumbOption[];
 }
 
-const PANEL_WIDTH = 224; // w-56
+const PANEL_WIDTH = 288; // wide enough that most team/match names need at most one wrap, never an ellipsis
 
 /**
  * The trigger can live inside a horizontally-scrolling row, so the dropdown
@@ -79,11 +79,13 @@ function BreadcrumbDropdown({
         aria-haspopup="listbox"
         onClick={() => (isOpen ? setPanelPosition(null) : openPanel())}
         className={cn(
-          'flex items-center gap-1 font-semibold text-text-primary hover:text-highlight',
-          variant === 'pill' && 'w-full justify-between gap-1.5 rounded-lg bg-surface-2 px-3 py-2 text-sm',
+          'flex items-center gap-1.5 font-semibold text-text-primary hover:text-highlight',
+          variant === 'pill'
+            ? 'w-full justify-between rounded-lg bg-surface-2 px-3 py-2 text-left text-sm'
+            : 'whitespace-nowrap',
         )}
       >
-        <span className="min-w-0 truncate whitespace-nowrap">{label}</span>
+        <span className={variant === 'pill' ? 'min-w-0' : 'min-w-0 whitespace-nowrap'}>{label}</span>
         <ChevronIcon className={cn('h-3.5 w-3.5 shrink-0 transition-transform', isOpen && 'rotate-180')} />
       </button>
 
@@ -102,7 +104,7 @@ function BreadcrumbDropdown({
                 aria-selected={option.label === label}
                 onClick={() => setPanelPosition(null)}
                 className={cn(
-                  'block truncate px-3 py-2 text-sm transition-colors hover:bg-white/5',
+                  'block px-3 py-2 text-sm transition-colors hover:bg-white/5',
                   option.label === label ? 'text-highlight' : 'text-text-secondary hover:text-text-primary',
                 )}
               >
@@ -131,9 +133,12 @@ function BreadcrumbDropdown({
  *   line made every segment an unreadable sliver. Instead the ancestors
  *   (everything but the last segment) sit on their own plain, non-dropdown
  *   trail line, and only the final segment - the one thing worth switching
- *   on a phone - gets its own full-width pill-shaped dropdown button below.
+ *   on a phone - gets its own full-width pill-shaped dropdown button below,
+ *   with its full label (and every option's full label) always shown in
+ *   full - wrapping instead of ellipsis-truncating, since a half-cut team
+ *   or match name isn't useful to a player picking between them.
  */
-export function Breadcrumb({ segments }: { segments: BreadcrumbSegment[] }) {
+export function Breadcrumb({ segments, icon }: { segments: BreadcrumbSegment[]; icon?: ReactNode }) {
   const scrollRef = useRef<HTMLElement>(null);
   const lastKey = segments[segments.length - 1]?.key;
 
@@ -156,6 +161,7 @@ export function Breadcrumb({ segments }: { segments: BreadcrumbSegment[] }) {
             aria-label="Breadcrumb trail"
             className={cn(scrollableRowClassName, 'text-xs text-text-muted')}
           >
+            {icon && <span className="flex shrink-0 items-center">{icon}</span>}
             {trailSegments.map((segment, index) => (
               <span key={segment.key} className="flex shrink-0 items-center gap-1.5">
                 {index > 0 && (
@@ -179,12 +185,12 @@ export function Breadcrumb({ segments }: { segments: BreadcrumbSegment[] }) {
             ) : activeSegment.href ? (
               <Link
                 to={activeSegment.href}
-                className="block truncate rounded-lg bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary"
+                className="block rounded-lg bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary"
               >
                 {activeSegment.label}
               </Link>
             ) : (
-              <span className="block truncate rounded-lg bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary">
+              <span className="block rounded-lg bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary">
                 {activeSegment.label}
               </span>
             )}
@@ -198,6 +204,7 @@ export function Breadcrumb({ segments }: { segments: BreadcrumbSegment[] }) {
         aria-label="Breadcrumb"
         className={cn('hidden text-sm sm:flex', scrollableRowClassName)}
       >
+        {icon && <span className="flex shrink-0 items-center">{icon}</span>}
         {segments.map((segment, index) => (
           <span key={segment.key} className="flex shrink-0 items-center gap-1.5">
             {index > 0 && (

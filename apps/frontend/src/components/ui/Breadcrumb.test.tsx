@@ -1,13 +1,14 @@
+import type { ReactNode } from 'react';
 import { render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import { Breadcrumb, type BreadcrumbSegment } from './Breadcrumb';
 
-function renderBreadcrumb(segments: BreadcrumbSegment[]) {
+function renderBreadcrumb(segments: BreadcrumbSegment[], icon?: ReactNode) {
   return render(
     <MemoryRouter>
-      <Breadcrumb segments={segments} />
+      <Breadcrumb segments={segments} icon={icon} />
     </MemoryRouter>,
   );
 }
@@ -136,5 +137,23 @@ describe('Breadcrumb (mobile layout)', () => {
 
     expect(mobile().getByText('Solo Match')).toBeInTheDocument();
     expect(mobile().queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('puts a passed icon on the trail line, before Home', () => {
+    renderBreadcrumb(segments, <span data-testid="my-icon">icon</span>);
+
+    const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb trail' }));
+    expect(trail.getByTestId('my-icon')).toBeInTheDocument();
+  });
+
+  it('never truncates the pill label or its dropdown options - full team/match names always show', async () => {
+    renderBreadcrumb(segments);
+
+    const pillButton = mobile().getByRole('button', { name: 'Mjallby AIF vs Lincoln Red Imps FC' });
+    expect(pillButton.querySelector('.truncate')).toBeNull();
+
+    await userEvent.click(pillButton);
+    const option = screen.getByRole('option', { name: 'Another Match' });
+    expect(option.className).not.toContain('truncate');
   });
 });
