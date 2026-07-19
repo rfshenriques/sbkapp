@@ -5,6 +5,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { KycModule } from './modules/kyc/kyc.module';
 import { PamModule } from './modules/pam/pam.module';
+import { CompetitionRankingModule } from './modules/competition-ranking/competition-ranking.module';
 import { WalletPaymentsModule } from './modules/wallet-payments/wallet-payments.module';
 import { PromotionsBonusModule } from './modules/promotions-bonus/promotions-bonus.module';
 import { RiskModule } from './modules/risk/risk.module';
@@ -26,6 +27,7 @@ import { MasterModule } from './modules/master/master.module';
     AuthModule,
     KycModule,
     PamModule,
+    CompetitionRankingModule,
     WalletPaymentsModule,
     PromotionsBonusModule,
     RiskModule,

@@ -107,6 +107,30 @@ enum AuditAction {
   SELECTION_SETTLED
   MARKET_SUSPENDED
   MARKET_UNSUSPENDED
+  COMPETITION_RANKING_SET
+  COMPETITION_RANKING_REMOVED
+}
+
+/**
+ * Staff-configurable "how important is this competition" ranking, used to
+ * sort the sport page's "most important first" view - see
+ * apps/odds-engine's competition field on Match (matches
+ * the-odds-api.com's sport_title verbatim, e.g. "EPL", "La Liga - Spain").
+ * Lower rank = shown first. A competition with no row here sorts after
+ * every ranked one (see CompetitionRankingService.rankFor).
+ */
+model CompetitionRanking {
+  id          String   @id @default(uuid())
+  brandId     String
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  competition String
+  rank        Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([brandId, competition])
+  @@index([brandId])
+  @@map("competition_rankings")
 }
 
 /**
@@ -282,12 +306,13 @@ model Brand {
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
-  productFlags      BrandProductFlag[]
-  users             User[]
-  staffUsers        StaffUser[]
-  bets              Bet[]
-  auditLogEntries   AuditLogEntry[]
-  marketSuspensions MarketSuspension[]
+  productFlags        BrandProductFlag[]
+  users               User[]
+  staffUsers          StaffUser[]
+  bets                Bet[]
+  auditLogEntries     AuditLogEntry[]
+  marketSuspensions   MarketSuspension[]
+  competitionRankings CompetitionRanking[]
 
   @@map("brands")
 }
