@@ -62,9 +62,9 @@ describe('BetSlipPanel', () => {
     expect(screen.getByText('Match Result: Home')).toBeInTheDocument();
     expect(screen.getByText('Liverpool vs Manchester City')).toBeInTheDocument();
 
-    // combined odds = 2.1 * 2.5 = 5.25 - shown twice by design: once in
-    // "Combined odds", once in the always-visible stake field's odds badge.
-    expect(screen.getAllByText('5.25')).toHaveLength(2);
+    // combined odds = 2.1 * 2.5 = 5.25, shown once in the always-visible
+    // stake field's odds badge - no separate "Combined odds" line.
+    expect(screen.getByText('5.25')).toBeInTheDocument();
   });
 
   it('removes a selection when its remove button is clicked', async () => {
@@ -146,9 +146,9 @@ describe('BetSlipPanel', () => {
 
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     expect(screen.queryByText('Combined odds')).not.toBeInTheDocument();
-    // The selection's own odds shown twice by design: once in the row
-    // header, once in its always-visible stake calculator badge.
-    expect(screen.getAllByText('2.10')).toHaveLength(2);
+    // Just the row header's own odds - the stake field hides its own odds
+    // badge for singles, since it would only repeat this same figure.
+    expect(screen.getByText('2.10')).toBeInTheDocument();
   });
 
   it('defaults to the Accumulator tab once there are 2+ selections', () => {
@@ -160,7 +160,7 @@ describe('BetSlipPanel', () => {
       'true',
     );
     expect(screen.getByRole('tab', { name: 'Singles' })).toHaveAttribute('aria-selected', 'false');
-    expect(screen.getByText('Combined odds')).toBeInTheDocument();
+    expect(screen.getByText('Potential payout')).toBeInTheDocument();
   });
 
   it('switches to Accumulator when a second selection is added while already mounted (desktop persistent panel)', async () => {

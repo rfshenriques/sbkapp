@@ -44,44 +44,46 @@ interface StakeFieldProps {
   stake: string;
   onStakeChange: (value: string) => void;
   odds: number;
-  oddsLabel?: string;
-  potentialPayout: string;
+  /**
+   * A single-bet row already shows its own odds up in the header, right
+   * next to the remove button - repeating it again next to the stake input
+   * read as "the odds, twice" for no reason. The accumulator has no
+   * equivalent header, so its one combined odds figure belongs here.
+   */
+  hideOdds?: boolean;
 }
 
 /**
- * Stake input paired with the relevant odds (a single selection's own odds,
- * or the accumulator's combined odds) side by side, then potential payout -
- * always visible and editable regardless of login state, so a player can
- * see what they stand to win before ever signing in (that's the point: it
- * should nudge them toward logging in, not sit blank until they do).
+ * Just the stake input, optionally paired with its odds - always visible
+ * and editable regardless of login state, so a player can see what they'd
+ * win before ever signing in. Potential payout is deliberately not part of
+ * this component: the accumulator shows one payout for its one stake, but
+ * singles share a single payout total in the footer instead of repeating a
+ * payout line under every row - see the two `footer` branches below.
  */
-function StakeField({ stakeId, stake, onStakeChange, odds, oddsLabel = 'Odds', potentialPayout }: StakeFieldProps) {
+function StakeField({ stakeId, stake, onStakeChange, odds, hideOdds }: StakeFieldProps) {
   return (
-    <div className="space-y-2">
-      <div className="flex items-end gap-2">
-        <div className="min-w-0 flex-1">
-          <label htmlFor={stakeId} className="block text-xs text-text-secondary">
-            Stake
-          </label>
-          <input
-            id={stakeId}
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={stake}
-            onChange={(event) => onStakeChange(event.target.value)}
-            className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-          />
-        </div>
+    <div className="flex items-end gap-2">
+      <div className="min-w-0 flex-1">
+        <label htmlFor={stakeId} className="block text-xs text-text-secondary">
+          Stake
+        </label>
+        <input
+          id={stakeId}
+          type="number"
+          min="0.01"
+          step="0.01"
+          value={stake}
+          onChange={(event) => onStakeChange(event.target.value)}
+          className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+        />
+      </div>
+      {!hideOdds && (
         <span className="odd-btn shrink-0">
-          <span className="odd-label">{oddsLabel}</span>
+          <span className="odd-label">Odds</span>
           <span className="odd-value">{odds.toFixed(2)}</span>
         </span>
-      </div>
-      <div className="flex items-center justify-between text-xs text-text-secondary">
-        <span>Potential payout</span>
-        <span className="font-semibold text-text-primary">{potentialPayout}</span>
-      </div>
+      )}
     </div>
   );
 }
@@ -102,9 +104,6 @@ interface SingleBetRowProps {
 function SingleBetRow({ selection, stake, onStakeChange }: SingleBetRowProps) {
   const removeSelection = useBetSlipStore((state) => state.removeSelection);
   const stakeId = useId();
-  const stakeCents = Math.round(Number(stake) * 100);
-  const isStakeValid = Number.isFinite(stakeCents) && stakeCents > 0;
-  const potentialPayout = isStakeValid ? ((stakeCents * selection.odds) / 100).toFixed(2) : '—';
 
   return (
     <Card className="space-y-2 border-border bg-surface-2">
@@ -133,7 +132,7 @@ function SingleBetRow({ selection, stake, onStakeChange }: SingleBetRowProps) {
         stake={stake}
         onStakeChange={onStakeChange}
         odds={selection.odds}
-        potentialPayout={potentialPayout}
+        hideOdds
       />
     </Card>
   );
@@ -257,6 +256,17 @@ export function BetSlipPanel({
       const cents = Math.round(Number(getSingleStake(selection)) * 100);
       return Number.isFinite(cents) && cents > 0;
     });
+  // One payout total for all singles together, shown once in the footer -
+  // each row already shows its own stake and odds, so repeating a payout
+  // line under every row as well would just be more noise.
+  const totalSinglesPayout = allSinglesValid
+    ? (
+        selections.reduce((total, selection) => {
+          const stakeCents = Math.round(Number(getSingleStake(selection)) * 100);
+          return total + stakeCents * selection.odds;
+        }, 0) / 100
+      ).toFixed(2)
+    : '—';
 
   let mainContent: ReactNode;
   // Stake/payout/CTA lives outside the scrollable region (see the `footer`
@@ -376,21 +386,14 @@ export function BetSlipPanel({
     footer = (
       <div className="mt-3 shrink-0 space-y-2 border-t border-border pt-3">
         {tab === 'accumulator' && (
-          <>
-            <div className="flex items-center justify-between text-sm text-text-secondary">
-              <span>Combined odds</span>
-              <span className="font-semibold text-text-primary">{combinedOdds.toFixed(2)}</span>
-            </div>
-            <StakeField
-              stakeId={stakeId}
-              stake={stake}
-              onStakeChange={setStake}
-              odds={combinedOdds}
-              oddsLabel="Total"
-              potentialPayout={potentialPayout}
-            />
-          </>
+          <StakeField stakeId={stakeId} stake={stake} onStakeChange={setStake} odds={combinedOdds} />
         )}
+        <div className="flex items-center justify-between text-sm text-text-secondary">
+          <span>Potential payout</span>
+          <span className="font-semibold text-text-primary">
+            {tab === 'accumulator' ? potentialPayout : totalSinglesPayout}
+          </span>
+        </div>
         {error && <p className="text-xs text-danger">{error}</p>}
         {isAuthenticated ? (
           <Button

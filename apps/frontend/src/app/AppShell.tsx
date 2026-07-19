@@ -1,5 +1,6 @@
 import { Suspense, useState } from 'react';
 import { Link, NavLink, Outlet } from 'react-router-dom';
+import { BottomSheet } from '../components/ui/BottomSheet';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { BetSlipPanel } from '../features/bet-slip/BetSlipPanel';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
@@ -178,47 +179,33 @@ export function AppShell() {
         </NavLink>
       </nav>
 
-      {/* Mobile-only: a bottom-sheet modal (same presentation as the
-          register modal - see RegisterPage), not a full-height side drawer -
-          sm:hidden keeps it from ever coexisting with the persistent desktop
-          aside above. Taller than the register sheet since there's more to
-          show (the selection list, stake fields, and the fixed footer). */}
+      {/* Mobile-only: the same bottom-sheet presentation as login/register
+          (see BottomSheet) rather than a full-height side drawer - sm:hidden
+          keeps it from ever coexisting with the persistent desktop aside
+          above. bodyClassName is overridden to plain padding (no scroll of
+          its own) since BetSlipPanel already manages its own scrollable
+          region and fixed footer internally. */}
       {isSlipOpen && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center sm:hidden">
-          <button
-            type="button"
-            aria-label="Close bet slip"
-            className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/65 to-black/80 backdrop-blur-sm"
-            onClick={() => setIsSlipOpen(false)}
-          />
-          <div className="sheet-slide-up relative flex max-h-[90vh] w-full max-w-sm flex-col overflow-hidden rounded-t-2xl border border-border bg-background">
-            <div className="shrink-0 border-b border-border p-4 pb-3">
-              <div className="flex items-center justify-between gap-2">
-                <h2 className="font-display text-lg">Bet Slip</h2>
-                <button
-                  type="button"
-                  aria-label="Close bet slip"
-                  className="text-text-muted hover:text-text-primary"
-                  onClick={() => setIsSlipOpen(false)}
-                >
-                  ✕
-                </button>
-              </div>
-              {/* Header's own balance display is sm:inline-only (hidden on
-                  mobile), so this is the only place a mobile player can see
-                  it - they need it right here to know how much they can
-                  stake. */}
-              {isAuthenticated && wallet && (
+        <div className="sm:hidden">
+          <BottomSheet
+            title="Bet Slip"
+            onClose={() => setIsSlipOpen(false)}
+            closeLabel="Close bet slip"
+            bodyClassName="min-h-0 flex-1 p-4"
+            headerExtra={
+              // Header's own balance display is sm:inline-only (hidden on
+              // mobile), so this is the only place a mobile player can see
+              // it - they need it right here to know how much they can stake.
+              isAuthenticated && wallet ? (
                 <p className="mt-1 text-sm text-text-secondary">
-                  Balance: <span className="font-semibold text-text-primary">€{formatCents(wallet.balanceCents)}</span>{' '}
-                  (paper)
+                  Balance:{' '}
+                  <span className="font-semibold text-text-primary">€{formatCents(wallet.balanceCents)}</span> (paper)
                 </p>
-              )}
-            </div>
-            <div className="min-h-0 flex-1 p-4 pt-3">
-              <BetSlipPanel />
-            </div>
-          </div>
+              ) : undefined
+            }
+          >
+            <BetSlipPanel />
+          </BottomSheet>
         </div>
       )}
 
