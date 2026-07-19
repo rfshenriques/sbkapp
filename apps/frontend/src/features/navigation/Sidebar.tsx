@@ -78,7 +78,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
       {/* Pinned to the top of whichever scroll container this sits in
           (desktop column or mobile full-screen drawer) so it stays reachable
           however far the sport/country/competition tree below is scrolled. */}
-      <div className={cn('sticky top-0 z-10 -mx-4 -mt-4 rounded-t-lg px-4 pt-4 pb-3', stickyBgClassName)}>
+      <div className={cn('sticky -top-4 z-10 -mx-4 -mt-4 rounded-t-lg px-4 pt-4 pb-3', stickyBgClassName)}>
         <div className="relative">
           <SearchIcon
             width={15}
