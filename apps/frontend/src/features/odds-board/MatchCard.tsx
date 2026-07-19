@@ -56,13 +56,13 @@ export function MatchCard({ match }: MatchCardProps) {
             // it bubbles to the card).
             onClick={(event) => event.stopPropagation()}
           >
-            <span className="min-w-0 flex-1 truncate text-left font-semibold group-hover:underline">
+            <span className="min-w-0 flex-1 truncate text-left font-semibold group-hover:underline sm:text-center">
               {match.homeTeam}
             </span>
             <span className="shrink-0 text-xs font-bold text-text-muted tabular-nums">
               {centerLabel}
             </span>
-            <span className="min-w-0 flex-1 truncate text-right font-semibold group-hover:underline">
+            <span className="min-w-0 flex-1 truncate text-right font-semibold group-hover:underline sm:text-center">
               {match.awayTeam}
             </span>
           </Link>

@@ -96,13 +96,13 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
       {hasMatchResults && (
         <div>
           <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-text-muted">Matches</h2>
-          <div className="overflow-hidden rounded-lg border border-border">
-            <ul className="divide-y divide-border">
+          <div className="overflow-hidden rounded-lg bg-surface-2">
+            <ul className="divide-y divide-border/60">
               {matchingMatches.map((match) => (
                 <li key={match.id}>
                   <Link
                     to={`/matches/${match.id}`}
-                    className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary"
+                    className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
                     onClick={onNavigate}
                   >
                     <SportCountryBadge sport={match.sport} country={match.country} size={22} />
@@ -125,15 +125,15 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
           <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-text-muted">
             Top Competitions
           </h2>
-          <div className="overflow-hidden rounded-lg border border-border">
-            <ul className="divide-y divide-border">
+          <div className="overflow-hidden rounded-lg bg-surface-2">
+            <ul className="divide-y divide-border/60">
               {topCompetitions.map((ranking) => {
                 const country = competitionCountries.get(ranking.competition);
                 return (
                   <li key={ranking.competition}>
                     <Link
                       to={`/sports/all?competition=${encodeURIComponent(ranking.competition)}`}
-                      className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary"
+                      className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
                       onClick={onNavigate}
                     >
                       {country ? (
@@ -154,8 +154,8 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
       {showLeagues && tree.length > 0 && (
         <div>
           <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-text-muted">Sports</h2>
-          <div className="overflow-hidden rounded-lg border border-border">
-            <ul className="divide-y divide-border">
+          <div className="overflow-hidden rounded-lg bg-surface-2">
+            <ul className="divide-y divide-border/60">
               {tree.map((sportNode) => {
                 const isSportOpen = isSearching || expandedSport === sportNode.sport;
                 return (
@@ -163,7 +163,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
                     <button
                       type="button"
                       aria-expanded={isSportOpen}
-                      className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-surface-2"
+                      className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-white/5"
                       onClick={() => {
                         setExpandedSport(isSportOpen ? null : sportNode.sport);
                         setExpandedCountry(null);
@@ -181,8 +181,10 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
                       />
                     </button>
 
+                    {/* Nested levels read as "deeper" via a lighter block
+                        background rather than border lines. */}
                     {isSportOpen && (
-                      <ul className="divide-y divide-border border-t border-border">
+                      <ul className="divide-y divide-border/60 bg-black/10">
                         {sportNode.countries.map((countryNode) => {
                           const isCountryOpen = isSearching || expandedCountry === countryNode.country;
                           return (
@@ -190,7 +192,7 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
                               <button
                                 type="button"
                                 aria-expanded={isCountryOpen}
-                                className="flex w-full items-center gap-3 py-2.5 pr-3 pl-8 text-left transition-colors hover:bg-surface-2"
+                                className="flex w-full items-center gap-3 py-2.5 pr-3 pl-8 text-left transition-colors hover:bg-white/5"
                                 onClick={() =>
                                   setExpandedCountry(isCountryOpen ? null : countryNode.country)
                                 }
@@ -208,12 +210,12 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
                               </button>
 
                               {isCountryOpen && (
-                                <ul className="divide-y divide-border border-t border-border">
+                                <ul className="divide-y divide-border/60 bg-black/10">
                                   {countryNode.competitions.map((competitionNode) => (
                                     <li key={competitionNode.competition}>
                                       <Link
                                         to={`/sports/${encodeURIComponent(sportNode.sport)}?competition=${encodeURIComponent(competitionNode.competition)}`}
-                                        className="flex items-center justify-between py-2.5 pr-3 pl-14 text-sm text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary"
+                                        className="flex items-center justify-between py-2.5 pr-3 pl-14 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
                                         onClick={onNavigate}
                                       >
                                         <span>

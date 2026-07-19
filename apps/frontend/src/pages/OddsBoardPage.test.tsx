@@ -94,7 +94,7 @@ describe('OddsBoardPage', () => {
     renderPageWithRouting();
 
     // mockMatches' only live fixture (Real Madrid vs Barcelona) sorts first.
-    await screen.findByText('Real Madrid vs Barcelona');
+    await screen.findByRole('heading', { name: 'Real Madrid vs Barcelona' });
     // "Match of the day" only appears once, in the featured card's own badge.
     await userEvent.click(screen.getByText('Match of the day'));
 
@@ -104,7 +104,7 @@ describe('OddsBoardPage', () => {
   it('does not navigate when picking an odd on the featured card', async () => {
     renderPageWithRouting();
 
-    await screen.findByText('Real Madrid vs Barcelona');
+    await screen.findByRole('heading', { name: 'Real Madrid vs Barcelona' });
     const oddsButtons = screen.getAllByRole('button', { name: /Home/ });
     await userEvent.click(oddsButtons[0] as HTMLElement);
 

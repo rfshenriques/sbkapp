@@ -5,6 +5,7 @@ import { MatchListSkeleton } from '../features/odds-board/MatchListSkeleton';
 import { useMatches } from '../features/odds-board/useMatches';
 import { useCompetitionRankings } from '../features/odds-board/useCompetitionRankings';
 import { rankMapFromRankings, sortMatches, type MatchSortMode } from '../features/odds-board/sortMatches';
+import { BackButton } from '../components/ui/BackButton';
 import { Card } from '../components/ui/Card';
 
 /** "all" shows every sport unfiltered - used by the homepage's "Live now" load-more, which isn't scoped to one sport. */
@@ -37,6 +38,7 @@ export default function SportPage() {
     <div>
       <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
+          <BackButton className="-ml-1.5" />
           <span className="brand-flag" aria-hidden="true">
             <i></i>
             <i></i>

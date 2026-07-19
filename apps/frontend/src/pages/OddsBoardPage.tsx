@@ -45,40 +45,74 @@ export default function OddsBoardPage() {
     <div>
       {featured && featuredMatchResult && featuredHref && (
         <section
-          className="relative mb-8 cursor-pointer overflow-hidden rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-text-muted"
+          className="relative mb-8 cursor-pointer overflow-hidden rounded-2xl p-6 pb-5 text-white transition-transform hover:scale-[1.005]"
+          style={{
+            background:
+              'linear-gradient(155deg, color-mix(in srgb, var(--color-brand) 85%, black) 0%, color-mix(in srgb, var(--color-brand) 30%, black) 48%, #0a0a10 100%)',
+          }}
           onClick={() => navigate(featuredHref)}
           onMouseEnter={() => prefetchMatchDetail(featured.id)}
           onTouchStart={() => prefetchMatchDetail(featured.id)}
         >
-          <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-highlight">
-            <span className="h-[3px] w-6 -skew-x-[24deg] bg-brand" aria-hidden="true" />
-            Match of the day
-          </span>
-          {/* Real link kept for keyboard/screen-reader navigation - the
-              section's onClick above is a mouse/touch convenience that
-              enlarges the clickable area to the whole card. */}
-          <h1 className="font-display text-3xl leading-none sm:text-4xl">
-            <Link
-              to={featuredHref}
-              className="hover:underline"
-              onClick={(event) => event.stopPropagation()}
+          {/* Oversized sport-icon watermark - purely decorative, no real
+              match photo exists in our data model so this stands in for it. */}
+          <div className="pointer-events-none absolute -right-8 -bottom-10 opacity-15" aria-hidden="true">
+            <SportIcon sport={featured.sport} size={200} />
+          </div>
+
+          <div className="relative">
+            <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-black/30 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-highlight backdrop-blur-sm">
+              <span className="h-[3px] w-4 -skew-x-[24deg] bg-highlight" aria-hidden="true" />
+              Match of the day
+            </span>
+
+            <p className="flex items-center gap-2 text-xs font-semibold text-white/70">
+              <SportCountryBadge sport={featured.sport} country={featured.country} />
+              <span>{featured.competition}</span>
+              {featured.isLive ? (
+                <span className="slash ml-auto bg-price-down px-2 py-0.5 text-[10px] font-extrabold text-white">
+                  LIVE
+                </span>
+              ) : (
+                <span className="ml-auto text-highlight">{formatKickoff(new Date(featured.kickoff))}</span>
+              )}
+            </p>
+
+            {/* Real link kept for keyboard/screen-reader navigation - the
+                section's onClick above is a mouse/touch convenience that
+                enlarges the clickable area to the whole card. */}
+            <h1
+              aria-label={`${featured.homeTeam} vs ${featured.awayTeam}`}
+              className="mt-3 flex items-center justify-center gap-3 sm:gap-5"
             >
-              {featured.homeTeam} vs {featured.awayTeam}
-            </Link>
-          </h1>
-          <p className="mt-2 flex items-center gap-2 text-sm text-text-secondary">
-            <SportCountryBadge sport={featured.sport} country={featured.country} />
-            <span>{featured.competition}</span>
-            {!featured.isLive && (
-              <span className="ml-auto">{formatKickoff(new Date(featured.kickoff))}</span>
-            )}
-          </p>
-          <div className="mt-4 max-w-md">
-            <MarketSelections
-              matchId={featured.id}
-              matchLabel={`${featured.homeTeam} vs ${featured.awayTeam}`}
-              market={featuredMatchResult}
-            />
+              <span className="flex flex-1 justify-end">
+                <Link
+                  to={featuredHref}
+                  className="min-w-0 truncate text-right font-display text-xl leading-tight hover:underline sm:text-3xl"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {featured.homeTeam}
+                </Link>
+              </span>
+              <span className="shrink-0 font-display text-sm text-white/50 sm:text-base">vs</span>
+              <span className="flex flex-1 justify-start">
+                <Link
+                  to={featuredHref}
+                  className="min-w-0 truncate text-left font-display text-xl leading-tight hover:underline sm:text-3xl"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {featured.awayTeam}
+                </Link>
+              </span>
+            </h1>
+
+            <div className="mt-5 max-w-md">
+              <MarketSelections
+                matchId={featured.id}
+                matchLabel={`${featured.homeTeam} vs ${featured.awayTeam}`}
+                market={featuredMatchResult}
+              />
+            </div>
           </div>
         </section>
       )}

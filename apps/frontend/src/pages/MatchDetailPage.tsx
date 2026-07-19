@@ -1,4 +1,5 @@
 import { useParams } from 'react-router-dom';
+import { BackButton } from '../components/ui/BackButton';
 import { Skeleton } from '../components/ui/Skeleton';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
@@ -30,10 +31,13 @@ export default function MatchDetailPage() {
 
   return (
     <div>
-      <p className="flex items-center gap-2 text-xs font-semibold text-text-muted">
-        <SportCountryBadge sport={match.sport} country={match.country} />
-        <span>{match.competition}</span>
-      </p>
+      <div className="flex items-center gap-2">
+        <BackButton className="-ml-1.5" />
+        <p className="flex items-center gap-2 text-xs font-semibold text-text-muted">
+          <SportCountryBadge sport={match.sport} country={match.country} />
+          <span>{match.competition}</span>
+        </p>
+      </div>
 
       <section className="relative mt-2 overflow-hidden rounded-2xl border border-border bg-surface p-6">
         <span
