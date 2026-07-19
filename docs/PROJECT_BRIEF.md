@@ -485,12 +485,13 @@ trying to avoid.
     rejects a suspended match/market) was verified via real HTTP calls
     against the real backend; the live-match-browsing half of that
     screen could only be verified against its unit tests (mocked fetch)
-    in this dev sandbox, because outbound access to `api.odds-api.io` is
-    blocked by the sandbox's own egress policy (confirmed via the proxy
-    status endpoint - a policy denial, not a data-source problem) -
-    worth a real check next time this runs somewhere with that host
-    allowed. Other backoffice functions (player/user admin, KYC/fraud
-    review, etc.) aren't built yet.
+    in this dev sandbox, because outbound access to third-party hosts
+    (originally `api.odds-api.io`, now `api.the-odds-api.com` since the
+    provider swap below) is blocked by the sandbox's own egress policy
+    (confirmed via the proxy status endpoint - a policy denial, not a
+    data-source problem) - worth a real check next time this runs
+    somewhere with that host allowed. Other backoffice functions
+    (player/user admin, KYC/fraud review, etc.) aren't built yet.
   - **Roles are coarse** - one enum value per staff member, no
     fine-grained permissions within a role (e.g. TRADING can settle any
     bet, no per-market/per-sport scoping).
@@ -784,25 +785,62 @@ trying to avoid.
     revisit if that changes.
   - **Per-brand-unique player/staff identifiers** - see above; deferred
     alongside domain-based tenant resolution, not forgotten.
-- ~~Odds feed ingestion/normalization layer~~ **Done**: built in
-  `apps/odds-engine/src/providers/odds-api-io/` against a free-tier
-  odds-api.io key (2 bookmakers, 100 req/hour, fetch-on-open only - no
-  prices on the board list itself). Provider-specific code is isolated
-  under that `providers/odds-api-io/` folder specifically so swapping in a
-  licensed provider later doesn't touch the rest of the system - but the
-  free tier's real limitations (partial bookmaker coverage, no sport/
-  country/league browsing, no real-time push) mean a decent amount of this
-  will need revisiting once a real provider is in place:
-  - Real-time push: the odds-engine's WebSocket (`/odds`) still only
-    sends a stub tick - actual market updates are HTTP-polled via
-    `GET /events` / `GET /events/:id`, not pushed.
-  - No hard rate-limit guard - only soft TTL caching (5min board list,
-    2min per-match odds). Fine for one dev poking at it, not for real
+- ~~Odds feed ingestion/normalization layer~~ **Done, provider swapped
+  mid-build**: originally built against odds-api.io, then moved to
+  **the-odds-api.com** (`apps/odds-engine/src/providers/the-odds-api/`)
+  after odds-api.io's `/odds` endpoint started returning 403 on every
+  request in production (root cause never confirmed - see the events/odds
+  split below) and per explicit owner direction to switch providers.
+  Provider-specific code stays isolated under `providers/the-odds-api/`
+  for the same reason the old folder was isolated - swapping providers
+  again shouldn't touch the rest of the system, and this swap proved that
+  isolation actually works (only `server.ts`'s two import lines + env var
+  name changed). Key differences from odds-api.io that shaped the new
+  provider:
+  - **No single "all football" endpoint** - the-odds-api.com has one
+    "sport key" per competition (e.g. `soccer_epl`, `soccer_uefa_champs_league`).
+    `RELEVANT_SPORT_KEYS` in `events-service.ts` is the curated list of
+    leagues actually queried, replacing the old post-hoc
+    `isRelevantLeague` keyword filter entirely - we now only ever request
+    the competitions we want instead of filtering a broad feed after the
+    fact.
+  - **Exact sport-key strings unverified** - written from general
+    knowledge of the-odds-api.com's public docs, not a fresh read of them
+    (this sandbox's egress policy blocks the docs site same as every
+    other third-party host). `verifySportKeys()` calls the real
+    `GET /v4/sports` once at startup and logs any configured key that's
+    missing/inactive, so a wrong key is a log line instead of a silently
+    empty board - still needs a real deploy + log check to confirm the
+    list is accurate.
+  - **Odds endpoint needs a sport key in the path**
+    (`/v4/sports/{sportKey}/events/{eventId}/odds`), unlike odds-api.io's
+    flat `/odds?eventId=`. `events-service.ts` keeps an in-memory
+    `eventId -> sportKey` map populated by `listMatches`, so `getMatchOdds`
+    knows which path to call - an event fetched via `getMatchOdds` after
+    its listing has aged out of cache (or that was never listed at all)
+    returns `undefined` since there's no sport key on record for it.
+  - **No live/pending/settled status field on the plain events list** -
+    `isLive` is approximated from `commence_time` (kicked off within the
+    last ~3 hours) rather than a real status enum; real live state
+    (score, clock, events) still comes from the separate api-sports.io
+    tracker, unaffected by this swap.
+  - **Bookmaker selection**: prefers Betclic, then Betano, then whichever
+    bookmaker the response actually includes (`pickBookmaker` in
+    `normalize.ts`) - more forgiving than odds-api.io's fixed
+    `DEFAULT_BOOKMAKER`, so a fixture neither PT bookmaker prices still
+    shows *some* odds instead of none.
+  - **Quota is a request-cost model, not a flat rate limit** - billed by
+    markets × regions per request, reported via `x-requests-remaining`/
+    `x-requests-used`/`x-requests-last` response headers, logged on every
+    call (`logQuota` in `client.ts`) rather than tracked with a counter,
+    since the real cost-per-call needs confirming against production
     traffic.
-  - No sport/country/league grouping on the board - flat list, sorted by
-    a hand-picked "which competitions are probably covered" heuristic
-    (see `PRIORITY_COMPETITION_KEYWORDS` in `events-service.ts`), not
-    actual confirmed coverage data.
+  - Real-time push is still unbuilt: the odds-engine's WebSocket
+    (`/odds`) only sends a stub tick - actual market updates are
+    HTTP-polled via `GET /events` / `GET /events/:id`, not pushed.
+  - Still no hard rate-limit guard - only soft TTL caching (5min board
+    list, 2min per-match odds). Fine for one dev poking at it, not real
+    traffic.
 - **Player auth**: built (`apps/backend/src/modules/auth/`) - register/
   login/refresh/logout + JWT (access token in the response body, refresh
   token as an httpOnly/sameSite=lax cookie, rotated on every use), scoped

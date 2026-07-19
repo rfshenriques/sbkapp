@@ -3,7 +3,7 @@ import WebSocket from 'ws';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { LiveMatchState, Match } from '@sportsbook/shared';
 import type { LiveTrackerService } from './providers/api-sports/live-tracker-service';
-import type { EventsService } from './providers/odds-api-io/events-service';
+import type { EventsService } from './providers/the-odds-api/events-service';
 import { createOddsEngine, type OddsEngine } from './server';
 
 const stubMatch: Match = {

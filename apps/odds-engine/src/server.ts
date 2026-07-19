@@ -7,8 +7,13 @@ import {
   createLiveTrackerService,
   type LiveTrackerService,
 } from './providers/api-sports/live-tracker-service';
-import { createOddsApiIoClient } from './providers/odds-api-io/client';
-import { createEventsService, type EventsService } from './providers/odds-api-io/events-service';
+import { createTheOddsApiClient } from './providers/the-odds-api/client';
+import {
+  createEventsService,
+  verifySportKeys,
+  RELEVANT_SPORT_KEYS,
+  type EventsService,
+} from './providers/the-odds-api/events-service';
 
 export interface OddsEngineOptions {
   /** How often to push a stub odds tick to connected clients. */
@@ -33,7 +38,7 @@ export interface OddsEngine {
 
 /**
  * Standalone real-time odds/trading service (see docs/PROJECT_BRIEF.md,
- * Section 4). HTTP: GET /events, GET /events/:id (odds-api.io), and
+ * Section 4). HTTP: GET /events, GET /events/:id (the-odds-api.com), and
  * GET /events/:id/live (api-sports, for currently-live matches only).
  * WebSocket /odds: stub odds ticks (Phase 3 placeholder) plus real
  * `live.match_update` pushes whenever the live tracker polls.
@@ -185,14 +190,16 @@ if (require.main === module) {
   config();
 
   const port = process.env.PORT ? Number(process.env.PORT) : 4001;
-  const apiKey = process.env.ODDS_API_IO_KEY;
+  const apiKey = process.env.THE_ODDS_API_KEY;
   const apiSportsKey = process.env.API_SPORTS_KEY;
 
   let eventsService: EventsService | undefined;
   if (apiKey) {
-    eventsService = createEventsService({ client: createOddsApiIoClient({ apiKey }) });
+    const theOddsApiClient = createTheOddsApiClient({ apiKey });
+    eventsService = createEventsService({ client: theOddsApiClient });
+    void verifySportKeys(theOddsApiClient, RELEVANT_SPORT_KEYS);
   } else {
-    console.warn('ODDS_API_IO_KEY not set - /events endpoints will 404.');
+    console.warn('THE_ODDS_API_KEY not set - /events endpoints will 404.');
   }
 
   let createLiveTrackerServiceOption: OddsEngineOptions['createLiveTrackerService'];
