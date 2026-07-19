@@ -22,6 +22,26 @@ function renderShell() {
   );
 }
 
+const homeSelection = {
+  matchId: 'match-1',
+  marketId: 'match-result',
+  selectionId: 'home',
+  matchLabel: 'Arsenal vs Chelsea',
+  marketName: 'Match Result',
+  selectionName: 'Home',
+  odds: 2.1,
+};
+
+const awaySelection = {
+  matchId: 'match-2',
+  marketId: 'match-result',
+  selectionId: 'away',
+  matchLabel: 'Liverpool vs Manchester City',
+  marketName: 'Match Result',
+  selectionName: 'Away',
+  odds: 2.5,
+};
+
 beforeEach(() => {
   useBetSlipStore.setState({ selections: [] });
   useAuthStore.setState({ accessToken: null, user: null, isInitialized: false });
@@ -34,41 +54,52 @@ afterEach(() => {
 });
 
 describe('AppShell', () => {
-  it('shows the Bet Slip button with no count when empty', () => {
+  it('always renders the bet slip panel (desktop persistent panel), even when empty', () => {
     renderShell();
 
-    expect(screen.getByRole('button', { name: 'Bet Slip' })).toBeInTheDocument();
-  });
-
-  it('shows the selection count once there are selections', () => {
-    useBetSlipStore.setState({
-      selections: [
-        {
-          matchId: 'match-1',
-          marketId: 'match-result',
-          selectionId: 'home',
-          matchLabel: 'Arsenal vs Chelsea',
-          marketName: 'Match Result',
-          selectionName: 'Home',
-          odds: 2.1,
-        },
-      ],
-    });
-    renderShell();
-
-    expect(screen.getByRole('button', { name: 'Bet Slip (1)' })).toBeInTheDocument();
-  });
-
-  it('toggles the bet slip panel open and closed', async () => {
-    renderShell();
-
-    expect(screen.queryByText('Your bet slip is empty.')).not.toBeInTheDocument();
-
-    const toggle = screen.getByRole('button', { name: 'Bet Slip' });
-    await userEvent.click(toggle);
     expect(screen.getByText('Your bet slip is empty.')).toBeInTheDocument();
+  });
 
-    await userEvent.click(toggle);
-    expect(screen.queryByText('Your bet slip is empty.')).not.toBeInTheDocument();
+  it('does not show the mobile floating bar when the slip is empty', () => {
+    renderShell();
+
+    expect(screen.queryByText(/Single ·|Accumulator ·/)).not.toBeInTheDocument();
+  });
+
+  it('the mobile floating bar reads "Single" with that one odd for exactly one selection', () => {
+    useBetSlipStore.setState({ selections: [homeSelection] });
+    renderShell();
+
+    expect(screen.getByText('Single · 2.10')).toBeInTheDocument();
+  });
+
+  it('the mobile floating bar reads "Accumulator" with the combined odds for 2+ selections', () => {
+    useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+    renderShell();
+
+    // 2.1 * 2.5 = 5.25
+    expect(screen.getByText('Accumulator · 5.25')).toBeInTheDocument();
+  });
+
+  it('clicking the mobile floating bar opens the drawer', async () => {
+    useBetSlipStore.setState({ selections: [homeSelection] });
+    renderShell();
+
+    await userEvent.click(screen.getByText('Single · 2.10'));
+
+    // Two elements share this label: the backdrop and the drawer's own ✕ button.
+    expect(screen.getAllByRole('button', { name: 'Close bet slip' }).length).toBeGreaterThan(0);
+  });
+
+  it('clicking the bottom-nav Bet slip button opens the drawer and shows the selection count badge', async () => {
+    useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+    renderShell();
+
+    const navButton = screen.getByRole('button', { name: 'Bet slip2' });
+    expect(navButton).toHaveTextContent('2');
+
+    await userEvent.click(navButton);
+
+    expect(screen.getAllByRole('button', { name: 'Close bet slip' }).length).toBeGreaterThan(0);
   });
 });

@@ -12,6 +12,19 @@ import { formatKickoff } from '../lib/formatKickoff';
 /** Homepage sections stay short; "Load more" hands off to the full sport page. */
 const MAX_HOMEPAGE_ITEMS = 10;
 
+/** These three, in this order, always lead the sport filter chips when present; everything else follows in the order it was first seen. */
+const PRIORITY_SPORT_ORDER = ['Football', 'Tennis', 'Basketball'];
+
+function sortSportsByPriority(sports: string[]): string[] {
+  return [...sports].sort((a, b) => {
+    const rankA = PRIORITY_SPORT_ORDER.indexOf(a);
+    const rankB = PRIORITY_SPORT_ORDER.indexOf(b);
+    const normalizedA = rankA === -1 ? PRIORITY_SPORT_ORDER.length : rankA;
+    const normalizedB = rankB === -1 ? PRIORITY_SPORT_ORDER.length : rankB;
+    return normalizedA - normalizedB;
+  });
+}
+
 export default function OddsBoardPage() {
   const { data: matches, isPending, isError } = useMatches();
   const navigate = useNavigate();
@@ -26,7 +39,9 @@ export default function OddsBoardPage() {
 
   const liveMatches = rest.filter((match) => match.isLive);
   const upcomingAll = rest.filter((match) => !match.isLive);
-  const sportsPresent = Array.from(new Set(upcomingAll.map((match) => match.sport)));
+  const sportsPresent = sortSportsByPriority(
+    Array.from(new Set(upcomingAll.map((match) => match.sport))),
+  );
   const effectiveSport =
     selectedSport && sportsPresent.includes(selectedSport) ? selectedSport : sportsPresent[0];
   const upcomingForSport = effectiveSport
@@ -47,7 +62,7 @@ export default function OddsBoardPage() {
         >
           <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-highlight">
             <span className="h-[3px] w-6 -skew-x-[24deg] bg-brand" aria-hidden="true" />
-            {featured.isLive ? 'Live now' : 'Featured'}
+            Match of the day
           </span>
           {/* Real link kept for keyboard/screen-reader navigation - the
               section's onClick above is a mouse/touch convenience that
@@ -90,9 +105,11 @@ export default function OddsBoardPage() {
             </span>
             <h2 className="font-display text-xl">Live now</h2>
           </div>
-          <div className="space-y-3">
+          <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2">
             {liveCapped.map((match) => (
-              <MatchCard key={match.id} match={match} />
+              <div key={match.id} className="w-72 shrink-0 snap-start">
+                <MatchCard match={match} />
+              </div>
             ))}
           </div>
           {liveMatches.length > MAX_HOMEPAGE_ITEMS && (
@@ -114,12 +131,16 @@ export default function OddsBoardPage() {
         </div>
 
         {sportsPresent.length > 1 && (
-          <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Filter by sport">
+          <div
+            className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
+            role="group"
+            aria-label="Filter by sport"
+          >
             {sportsPresent.map((sport) => (
               <button
                 key={sport}
                 type="button"
-                className={`slash tab${sport === effectiveSport ? ' active' : ''}`}
+                className={`slash tab shrink-0${sport === effectiveSport ? ' active' : ''}`}
                 aria-pressed={sport === effectiveSport}
                 onClick={() => setSelectedSport(sport)}
               >

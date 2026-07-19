@@ -94,8 +94,8 @@ describe('OddsBoardPage', () => {
 
     // mockMatches' only live fixture (Real Madrid vs Barcelona) sorts first.
     await screen.findByText('Real Madrid vs Barcelona');
-    // "Live now" only appears once, in the featured card's own badge.
-    await userEvent.click(screen.getByText('Live now'));
+    // "Match of the day" only appears once, in the featured card's own badge.
+    await userEvent.click(screen.getByText('Match of the day'));
 
     expect(await screen.findByText('Match detail page')).toBeInTheDocument();
   });
@@ -121,6 +121,32 @@ describe('OddsBoardPage', () => {
 
     const loadMore = screen.getByRole('link', { name: 'Load more Football matches →' });
     expect(loadMore).toHaveAttribute('href', '/sports/Football');
+  });
+
+  it('always leads chips with Football, Tennis, Basketball in that order when present', async () => {
+    // Deliberately seeded out of priority order and out of kickoff order,
+    // so the assertion can't pass by accident of either. An extra earliest
+    // match (duplicate sport) is taken as "Featured" without emptying any
+    // of the five sports out of the Upcoming list.
+    stubOddsEngineFetch([
+      buildMatch({ id: 'm0', sport: 'Football', kickoff: '2026-07-19T08:00:00Z' }),
+      buildMatch({ id: 'm1', sport: 'Boxing', kickoff: '2026-07-19T09:00:00Z' }),
+      buildMatch({ id: 'm2', sport: 'Basketball', kickoff: '2026-07-19T10:00:00Z' }),
+      buildMatch({ id: 'm3', sport: 'Ice Hockey', kickoff: '2026-07-19T11:00:00Z' }),
+      buildMatch({ id: 'm4', sport: 'Tennis', kickoff: '2026-07-19T12:00:00Z' }),
+      buildMatch({ id: 'm5', sport: 'Football', kickoff: '2026-07-19T13:00:00Z' }),
+    ]);
+    renderPage();
+
+    await screen.findByRole('group', { name: 'Filter by sport' });
+    const chipLabels = screen
+      .getAllByRole('button')
+      .map((button) => button.textContent)
+      .filter((text): text is string =>
+        ['Boxing', 'Basketball', 'Ice Hockey', 'Tennis', 'Football'].includes(text ?? ''),
+      );
+
+    expect(chipLabels).toEqual(['Football', 'Tennis', 'Basketball', 'Boxing', 'Ice Hockey']);
   });
 
   it('filters the Upcoming list by sport via the chip row', async () => {

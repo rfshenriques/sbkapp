@@ -17,7 +17,10 @@ export function MarketSelections({ matchId, matchLabel, market }: MarketSelectio
   );
 
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div
+      className="grid gap-2"
+      style={{ gridTemplateColumns: `repeat(${market.selections.length}, minmax(0, 1fr))` }}
+    >
       {market.selections.map((selection) => (
         <button
           key={selection.id}

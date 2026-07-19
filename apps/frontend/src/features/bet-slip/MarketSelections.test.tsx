@@ -72,4 +72,39 @@ describe('MarketSelections', () => {
 
     expect(useBetSlipStore.getState().selections).toEqual([]);
   });
+
+  it('splits the row evenly across however many selections a market has (3-way)', () => {
+    const { container } = renderMarketSelections();
+    const grid = container.firstElementChild as HTMLElement;
+    expect(grid.style.gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))');
+  });
+
+  it('splits the row 50/50 for a 2-way market', () => {
+    const twoWay: Market = {
+      id: 'match-result',
+      name: 'Match Result',
+      selections: [
+        { id: 'home', name: 'Home', odds: 2.0 },
+        { id: 'away', name: 'Away', odds: 1.8 },
+      ],
+    };
+    const { container } = render(
+      <MarketSelections matchId="match-1" matchLabel="Arsenal vs Chelsea" market={twoWay} />,
+    );
+    const grid = container.firstElementChild as HTMLElement;
+    expect(grid.style.gridTemplateColumns).toBe('repeat(2, minmax(0, 1fr))');
+  });
+
+  it('fills the whole row for a single-outcome market', () => {
+    const oneWay: Market = {
+      id: 'winner',
+      name: 'Outright Winner',
+      selections: [{ id: 'team-a', name: 'Team A', odds: 1.5 }],
+    };
+    const { container } = render(
+      <MarketSelections matchId="match-1" matchLabel="Arsenal vs Chelsea" market={oneWay} />,
+    );
+    const grid = container.firstElementChild as HTMLElement;
+    expect(grid.style.gridTemplateColumns).toBe('repeat(1, minmax(0, 1fr))');
+  });
 });

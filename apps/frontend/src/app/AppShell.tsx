@@ -17,6 +17,7 @@ export function AppShell() {
   const { data: wallet } = useWallet();
 
   const brandName = brandQuery.data?.name ?? 'Sportsbook';
+  const combinedOdds = selections.reduce((total, selection) => total * selection.odds, 1);
 
   return (
     <div className="min-h-screen pb-20 sm:pb-0">
@@ -58,34 +59,41 @@ export function AppShell() {
                 </>
               )
             )}
-            <button
-              type="button"
-              onClick={() => setIsSlipOpen((open) => !open)}
-              className="hidden items-center gap-2 rounded-md border border-border bg-surface px-3 py-2 text-sm font-medium hover:bg-surface-hover sm:flex"
-            >
-              Bet Slip{selections.length > 0 && ` (${selections.length})`}
-            </button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl p-4">
-        <Suspense fallback={<PageSkeleton />}>
-          <Outlet />
-        </Suspense>
-      </main>
+      <div className="mx-auto flex max-w-6xl gap-4 p-4">
+        <main className="min-w-0 flex-1">
+          <Suspense fallback={<PageSkeleton />}>
+            <Outlet />
+          </Suspense>
+        </main>
+
+        {/* Desktop: the bet slip is always visible on the right, not a
+            click-to-open drawer - the mobile drawer below is sm:hidden so
+            the two never coexist. */}
+        <aside className="hidden sm:block sm:w-80 sm:shrink-0">
+          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-lg border border-border bg-surface p-4">
+            <h2 className="mb-3 font-display text-xl">Bet Slip</h2>
+            <BetSlipPanel />
+          </div>
+        </aside>
+      </div>
 
       {selections.length > 0 && (
         <button
           type="button"
           onClick={() => setIsSlipOpen(true)}
-          className="btn-primary fixed inset-x-3 bottom-20 z-30 flex items-center gap-3 rounded-xl px-4 py-3 text-left shadow-lg sm:hidden"
+          className="btn-primary fixed inset-x-3 bottom-14 z-30 flex items-center gap-3 rounded-xl px-[22px] py-[15px] text-left shadow-lg sm:hidden"
         >
           <span className="flex h-6 min-w-6 items-center justify-center rounded-md bg-black/20 font-display text-sm">
             {selections.length}
           </span>
           <span className="font-display text-base">
-            {selections.length === 1 ? 'selection' : 'selections'} · Open bet slip →
+            {selections.length === 1
+              ? `Single · ${selections[0]?.odds.toFixed(2)}`
+              : `Accumulator · ${combinedOdds.toFixed(2)}`}
           </span>
         </button>
       )}
@@ -118,15 +126,17 @@ export function AppShell() {
         </button>
       </nav>
 
+      {/* Mobile-only drawer - sm:hidden wrapper keeps this from ever
+          coexisting with the persistent desktop aside above. */}
       {isSlipOpen && (
-        <>
+        <div className="sm:hidden">
           <button
             type="button"
             aria-label="Close bet slip"
             className="fixed inset-0 z-40 bg-black/50"
             onClick={() => setIsSlipOpen(false)}
           />
-          <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-sm overflow-y-auto border-l border-border bg-background p-4 sm:w-80">
+          <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-sm overflow-y-auto border-l border-border bg-background p-4">
             <div className="mb-3 flex items-center justify-between">
               <h2 className="font-display text-xl">Bet Slip</h2>
               <button
@@ -140,7 +150,7 @@ export function AppShell() {
             </div>
             <BetSlipPanel />
           </aside>
-        </>
+        </div>
       )}
     </div>
   );

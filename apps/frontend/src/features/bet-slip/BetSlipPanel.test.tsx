@@ -135,4 +135,68 @@ describe('BetSlipPanel', () => {
       stakeCents: 1000,
     });
   });
+
+  it('shows no tabs and no combined odds for a single selection', () => {
+    useBetSlipStore.setState({ selections: [homeSelection] });
+    renderPanel();
+
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+    expect(screen.queryByText('Combined odds')).not.toBeInTheDocument();
+    // Just the one selection's own odds, shown once.
+    expect(screen.getByText('2.10')).toBeInTheDocument();
+  });
+
+  it('defaults to the Accumulator tab once there are 2+ selections', () => {
+    useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+    renderPanel();
+
+    expect(screen.getByRole('tab', { name: 'Accumulator' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Singles' })).toHaveAttribute('aria-selected', 'false');
+    expect(screen.getByText('Combined odds')).toBeInTheDocument();
+  });
+
+  it('switching to Singles shows each selection with its own stake and Place Bet button', async () => {
+    useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+    useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+    renderPanel();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Singles' }));
+
+    expect(screen.queryByText('Combined odds')).not.toBeInTheDocument();
+    const stakeInputs = screen.getAllByLabelText('Stake');
+    expect(stakeInputs).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Place Bet' })).toHaveLength(2);
+  });
+
+  it('placing one single bet only removes that selection, not the whole slip', async () => {
+    useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+    useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: 'bet-1',
+          stakeCents: 1000,
+          combinedOdds: '2.10',
+          potentialPayoutCents: 2100,
+          status: 'PENDING',
+          createdAt: '2026-07-17T00:00:00Z',
+        }),
+        { status: 201 },
+      ),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderPanel();
+    await userEvent.click(screen.getByRole('tab', { name: 'Singles' }));
+
+    const [placeBetButtons] = [screen.getAllByRole('button', { name: 'Place Bet' })];
+    await userEvent.click(placeBetButtons[0] as HTMLElement);
+
+    await screen.findByText(/Bet placed!/);
+    expect(useBetSlipStore.getState().selections).toEqual([awaySelection]);
+
+    const [url, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('/backend/bets');
+    expect(JSON.parse(requestInit.body as string).selections).toEqual([homeSelection]);
+  });
 });
