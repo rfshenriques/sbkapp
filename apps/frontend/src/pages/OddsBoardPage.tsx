@@ -1,29 +1,40 @@
+import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { MatchCard } from '../features/odds-board/MatchCard';
 import { MatchListSkeleton } from '../features/odds-board/MatchListSkeleton';
 import { useMatches } from '../features/odds-board/useMatches';
 import { usePrefetchMatchDetail } from '../features/odds-board/usePrefetchMatchDetail';
+import { sortMatches } from '../features/odds-board/sortMatches';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { Card } from '../components/ui/Card';
 import { formatKickoff } from '../lib/formatKickoff';
-import type { Match } from '@sportsbook/shared';
 
-function sortByKickoff(matches: Match[]): Match[] {
-  return [...matches].sort((a, b) => {
-    if (a.isLive !== b.isLive) return a.isLive ? -1 : 1;
-    return new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime();
-  });
-}
+/** Homepage sections stay short; "Load more" hands off to the full sport page. */
+const MAX_HOMEPAGE_ITEMS = 10;
 
 export default function OddsBoardPage() {
   const { data: matches, isPending, isError } = useMatches();
   const navigate = useNavigate();
   const prefetchMatchDetail = usePrefetchMatchDetail();
-  const sorted = matches ? sortByKickoff(matches) : undefined;
+  const [selectedSport, setSelectedSport] = useState<string | undefined>(undefined);
+
+  const sorted = matches ? sortMatches(matches, 'time') : undefined;
   const featured = sorted?.[0];
-  const rest = sorted?.slice(1);
+  const rest = sorted?.slice(1) ?? [];
   const featuredMatchResult = featured?.markets.find((market) => market.id === 'match-result');
   const featuredHref = featured ? `/matches/${featured.id}` : undefined;
+
+  const liveMatches = rest.filter((match) => match.isLive);
+  const upcomingAll = rest.filter((match) => !match.isLive);
+  const sportsPresent = Array.from(new Set(upcomingAll.map((match) => match.sport)));
+  const effectiveSport =
+    selectedSport && sportsPresent.includes(selectedSport) ? selectedSport : sportsPresent[0];
+  const upcomingForSport = effectiveSport
+    ? upcomingAll.filter((match) => match.sport === effectiveSport)
+    : upcomingAll;
+
+  const liveCapped = liveMatches.slice(0, MAX_HOMEPAGE_ITEMS);
+  const upcomingCapped = upcomingForSport.slice(0, MAX_HOMEPAGE_ITEMS);
 
   return (
     <div>
@@ -66,27 +77,77 @@ export default function OddsBoardPage() {
         </section>
       )}
 
-      <div className="mb-3 flex items-center gap-2">
-        <span className="brand-flag" aria-hidden="true">
-          <i></i>
-          <i></i>
-          <i></i>
-        </span>
-        <h2 className="font-display text-xl">Upcoming</h2>
-      </div>
-
       {isPending && <MatchListSkeleton />}
       {isError && <Card className="text-danger">Failed to load matches.</Card>}
-      {rest && rest.length === 0 && !featured && (
-        <Card className="text-text-secondary">No matches available right now.</Card>
+
+      {liveMatches.length > 0 && (
+        <section className="mb-8">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="brand-flag" aria-hidden="true">
+              <i></i>
+              <i></i>
+              <i></i>
+            </span>
+            <h2 className="font-display text-xl">Live now</h2>
+          </div>
+          <div className="space-y-3">
+            {liveCapped.map((match) => (
+              <MatchCard key={match.id} match={match} />
+            ))}
+          </div>
+          {liveMatches.length > MAX_HOMEPAGE_ITEMS && (
+            <Link to="/sports/all" className="mt-3 inline-block text-sm font-semibold text-highlight hover:underline">
+              Load more live matches →
+            </Link>
+          )}
+        </section>
       )}
-      {rest && rest.length > 0 && (
-        <div className="space-y-3">
-          {rest.map((match) => (
-            <MatchCard key={match.id} match={match} />
-          ))}
+
+      <section>
+        <div className="mb-3 flex items-center gap-2">
+          <span className="brand-flag" aria-hidden="true">
+            <i></i>
+            <i></i>
+            <i></i>
+          </span>
+          <h2 className="font-display text-xl">Upcoming</h2>
         </div>
-      )}
+
+        {sportsPresent.length > 1 && (
+          <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Filter by sport">
+            {sportsPresent.map((sport) => (
+              <button
+                key={sport}
+                type="button"
+                className={`slash tab${sport === effectiveSport ? ' active' : ''}`}
+                aria-pressed={sport === effectiveSport}
+                onClick={() => setSelectedSport(sport)}
+              >
+                {sport}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {sorted && rest.length === 0 && !featured && (
+          <Card className="text-text-secondary">No matches available right now.</Card>
+        )}
+        {upcomingCapped.length > 0 && (
+          <div className="space-y-3">
+            {upcomingCapped.map((match) => (
+              <MatchCard key={match.id} match={match} />
+            ))}
+          </div>
+        )}
+        {upcomingForSport.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
+          <Link
+            to={`/sports/${encodeURIComponent(effectiveSport)}`}
+            className="mt-3 inline-block text-sm font-semibold text-highlight hover:underline"
+          >
+            Load more {effectiveSport} matches →
+          </Link>
+        )}
+      </section>
     </div>
   );
 }

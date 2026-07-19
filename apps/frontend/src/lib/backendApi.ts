@@ -106,6 +106,20 @@ export async function getPublicBrand(): Promise<PublicBrand | undefined> {
   return (await byIdResponse.json()) as PublicBrand;
 }
 
+export interface CompetitionRanking {
+  competition: string;
+  rank: number;
+}
+
+/** Staff-configured "how important is this competition" order for the sport page's importance sort - see apps/backend's CompetitionRankingModule. */
+export async function getCompetitionRankings(brandId: string): Promise<CompetitionRanking[]> {
+  const response = await fetch(`${BASE_URL}/public/competition-rankings/${encodeURIComponent(brandId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch competition rankings: ${response.status}`);
+  }
+  return (await response.json()) as CompetitionRanking[];
+}
+
 export async function register(payload: RegisterPayload): Promise<AuthTokenResponse> {
   const response = await fetch(`${BASE_URL}/auth/register`, {
     method: 'POST',

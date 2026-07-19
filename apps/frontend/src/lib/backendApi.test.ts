@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getPublicBrand, type PublicBrand } from './backendApi';
+import { getCompetitionRankings, getPublicBrand, type PublicBrand } from './backendApi';
 
 const publicBrand: PublicBrand = {
   id: 'brand-1',
@@ -60,5 +60,30 @@ describe('getPublicBrand', () => {
     const result = await getPublicBrand();
 
     expect(result).toBeUndefined();
+  });
+});
+
+describe('getCompetitionRankings', () => {
+  it('fetches the ranking list for the given brand', async () => {
+    const rankings = [
+      { competition: 'EPL', rank: 0 },
+      { competition: 'La Liga - Spain', rank: 1 },
+    ];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/backend/public/competition-rankings/brand-1') {
+        return new Response(JSON.stringify(rankings), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    expect(await getCompetitionRankings('brand-1')).toEqual(rankings);
+  });
+
+  it('throws when the request fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 500 })));
+
+    await expect(getCompetitionRankings('brand-1')).rejects.toThrow();
   });
 });

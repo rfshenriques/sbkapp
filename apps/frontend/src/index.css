@@ -158,6 +158,37 @@ body {
   border-color: var(--color-text-muted);
 }
 
+/* Sport/league filter chips - pair with .slash in markup for the angular cut, matching odd-btn/badge treatment elsewhere. */
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  padding: 8px 16px;
+  background-color: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-size: 14px;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+.tab:hover {
+  color: var(--color-text-primary);
+}
+.tab.active {
+  background: linear-gradient(
+    135deg,
+    var(--color-brand),
+    color-mix(in srgb, var(--color-brand) 78%, black)
+  );
+  color: #fff;
+}
+
 .brand-flag {
   display: flex;
   flex-direction: column;

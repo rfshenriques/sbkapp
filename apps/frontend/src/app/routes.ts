@@ -5,6 +5,7 @@ import { AppShell } from './AppShell';
 const OddsBoardPage = lazy(() => import('../pages/OddsBoardPage'));
 export const loadMatchDetailPage = () => import('../pages/MatchDetailPage');
 const MatchDetailPage = lazy(loadMatchDetailPage);
+const SportPage = lazy(() => import('../pages/SportPage'));
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const RegisterPage = lazy(() => import('../pages/RegisterPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
@@ -16,6 +17,7 @@ export const routes: RouteObject[] = [
     children: [
       { index: true, Component: OddsBoardPage },
       { path: 'matches/:matchId', Component: MatchDetailPage },
+      { path: 'sports/:sport', Component: SportPage },
       { path: 'login', Component: LoginPage },
       { path: 'register', Component: RegisterPage },
       { path: '*', Component: NotFoundPage },

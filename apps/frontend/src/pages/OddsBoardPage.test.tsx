@@ -3,9 +3,47 @@ import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Match } from '@sportsbook/shared';
 import { stubOddsEngineFetch } from '../test/mockOddsEngine';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import OddsBoardPage from './OddsBoardPage';
+
+function buildMatch(overrides: Partial<Match> = {}): Match {
+  return {
+    id: 'm1',
+    sport: 'Football',
+    competition: 'EPL',
+    homeTeam: 'Home',
+    awayTeam: 'Away',
+    kickoff: '2026-07-19T18:00:00Z',
+    isLive: false,
+    markets: [],
+    ...overrides,
+  };
+}
+
+/** 13 Football matches (earliest overall, so one becomes "Featured") + 2 Ice Hockey. */
+function buildManySportsMatches(): Match[] {
+  const football = Array.from({ length: 13 }, (_, index) =>
+    buildMatch({
+      id: `football-${index}`,
+      sport: 'Football',
+      homeTeam: `Football Home ${index}`,
+      awayTeam: `Football Away ${index}`,
+      kickoff: new Date(2026, 6, 19, 10 + index).toISOString(),
+    }),
+  );
+  const hockey = Array.from({ length: 2 }, (_, index) =>
+    buildMatch({
+      id: `hockey-${index}`,
+      sport: 'Ice Hockey',
+      homeTeam: `Hockey Home ${index}`,
+      awayTeam: `Hockey Away ${index}`,
+      kickoff: new Date(2026, 6, 20, 10 + index).toISOString(),
+    }),
+  );
+  return [...football, ...hockey];
+}
 
 function renderPage() {
   const queryClient = new QueryClient();
@@ -71,5 +109,30 @@ describe('OddsBoardPage', () => {
 
     expect(screen.queryByText('Match detail page')).not.toBeInTheDocument();
     expect(useBetSlipStore.getState().selections).toHaveLength(1);
+  });
+
+  it('caps the Upcoming list at 10 and shows a Load more link to the sport page', async () => {
+    stubOddsEngineFetch(buildManySportsMatches());
+    renderPage();
+
+    await screen.findByText('Football Home 1 vs Football Away 1');
+    // 13 football matches, minus 1 taken as "Featured", leaves 12 - capped to 10 visible here.
+    expect(screen.getAllByText(/Football Home \d+ vs Football Away \d+/)).toHaveLength(10);
+
+    const loadMore = screen.getByRole('link', { name: 'Load more Football matches →' });
+    expect(loadMore).toHaveAttribute('href', '/sports/Football');
+  });
+
+  it('filters the Upcoming list by sport via the chip row', async () => {
+    stubOddsEngineFetch(buildManySportsMatches());
+    renderPage();
+
+    await screen.findByText('Football Home 1 vs Football Away 1');
+    expect(screen.queryByText('Hockey Home 0 vs Hockey Away 0')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Ice Hockey' }));
+
+    expect(await screen.findByText('Hockey Home 0 vs Hockey Away 0')).toBeInTheDocument();
+    expect(screen.queryByText(/Football Home/)).not.toBeInTheDocument();
   });
 });
