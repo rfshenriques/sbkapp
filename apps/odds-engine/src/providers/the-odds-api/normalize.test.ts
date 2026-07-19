@@ -70,6 +70,7 @@ describe('normalizeTheOddsApiEventOdds', () => {
     expect(match).toMatchObject({
       id: 'e912304de2b4f88b43d1c294a3e6bfe4',
       sport: 'Football',
+      country: 'England',
       competition: 'EPL',
       homeTeam: 'Arsenal',
       awayTeam: 'Chelsea',
@@ -170,6 +171,18 @@ describe('normalizeTheOddsApiEventOdds', () => {
 
     const match = normalizeTheOddsApiEventOdds(nhlEvent, now);
     expect(match.sport).toBe('Ice Hockey');
+  });
+
+  it('falls back to "International" for a sport key with no configured country', () => {
+    const now = () => new Date('2026-07-19T10:00:00Z').getTime();
+    const unmappedEvent: TheOddsApiEventOdds = {
+      ...pendingEventOdds,
+      sport_key: 'cricket_test_match',
+      sport_title: 'Test Match',
+    };
+
+    const match = normalizeTheOddsApiEventOdds(unmappedEvent, now);
+    expect(match.country).toBe('International');
   });
 
   it('returns an empty markets list when no bookmaker offers h2h', () => {

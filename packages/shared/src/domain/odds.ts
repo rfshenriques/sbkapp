@@ -15,6 +15,8 @@ export interface Match {
   id: string;
   /** Human-readable sport grouping, e.g. "Football", "Ice Hockey" - powers per-sport filtering on the board. */
   sport: string;
+  /** Human-readable country/region the competition belongs to, e.g. "England", "International" - powers the sidebar's sport > country > competition drill-down. */
+  country: string;
   competition: string;
   homeTeam: string;
   awayTeam: string;

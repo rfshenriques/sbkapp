@@ -25,6 +25,33 @@ function sportLabelForKey(sportKey: string): string {
 }
 
 /**
+ * Same reasoning as SPORT_LABEL_BY_KEY_PREFIX above, but exact-key rather
+ * than prefix-matched since country doesn't follow a shared prefix pattern
+ * the way sport does - one entry per key in RELEVANT_SPORT_KEYS
+ * (events-service.ts). Add an entry here whenever a new sport key is added
+ * there, or new matches from it will fall through to sportLabelForKey's
+ * raw key rather than a real country.
+ */
+const COUNTRY_BY_SPORT_KEY: Record<string, string> = {
+  soccer_epl: 'England',
+  soccer_spain_la_liga: 'Spain',
+  soccer_germany_bundesliga: 'Germany',
+  soccer_italy_serie_a: 'Italy',
+  soccer_france_ligue_one: 'France',
+  soccer_netherlands_eredivisie: 'Netherlands',
+  soccer_uefa_champs_league_qualification: 'Europe',
+  soccer_fifa_world_cup: 'World',
+  icehockey_nhl: 'USA',
+  americanfootball_nfl: 'USA',
+  mma_mixed_martial_arts: 'International',
+  boxing_boxing: 'International',
+};
+
+function countryForKey(sportKey: string): string {
+  return COUNTRY_BY_SPORT_KEY[sportKey] ?? 'International';
+}
+
+/**
  * Single preferred pricing source - Paddy Power, expected to offer deeper
  * market coverage once on a paid the-odds-api.com plan. Matched as a
  * substring, not an exact title match, since a real response we checked
@@ -98,6 +125,7 @@ export function normalizeTheOddsApiEventOdds(raw: TheOddsApiEventOdds, now?: () 
   return {
     id: raw.id,
     sport: sportLabelForKey(raw.sport_key),
+    country: countryForKey(raw.sport_key),
     competition: raw.sport_title,
     homeTeam: raw.home_team,
     awayTeam: raw.away_team,

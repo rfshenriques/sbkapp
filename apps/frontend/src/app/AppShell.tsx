@@ -7,11 +7,13 @@ import { useBrandTheme } from '../features/brand/useBrandTheme';
 import { useAuth } from '../features/auth/useAuth';
 import { useBootstrapAuth } from '../features/auth/useBootstrapAuth';
 import { formatCents, useWallet } from '../features/wallet/useWallet';
+import { Sidebar } from '../features/navigation/Sidebar';
 
 export function AppShell() {
   useBootstrapAuth();
   const brandQuery = useBrandTheme();
   const [isSlipOpen, setIsSlipOpen] = useState(false);
+  const [isNavOpen, setIsNavOpen] = useState(false);
   const selections = useBetSlipStore((state) => state.selections);
   const { isAuthenticated, isInitialized, user, logout } = useAuth();
   const { data: wallet } = useWallet();
@@ -23,6 +25,15 @@ export function AppShell() {
     <div className="min-h-screen pb-20 sm:pb-0">
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
+          <button
+            type="button"
+            aria-label="Open sports navigation"
+            className="shrink-0 rounded-md border border-border p-2 text-lg leading-none text-text-primary sm:hidden"
+            onClick={() => setIsNavOpen(true)}
+          >
+            ☰
+          </button>
+
           <NavLink to="/" className="flex shrink-0 items-center gap-2">
             <span className="font-display text-2xl">{brandName}</span>
             <span className="brand-flag" aria-hidden="true">
@@ -64,6 +75,15 @@ export function AppShell() {
       </header>
 
       <div className="mx-auto flex max-w-6xl gap-4 p-4">
+        {/* Desktop: sports navigation is a persistent left column, same
+            convention as the bet slip's persistent right column - the
+            mobile drawer below is sm:hidden so the two never coexist. */}
+        <aside className="hidden sm:block sm:w-56 sm:shrink-0">
+          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-lg border border-border bg-surface p-4">
+            <Sidebar />
+          </div>
+        </aside>
+
         <main className="min-w-0 flex-1">
           <Suspense fallback={<PageSkeleton />}>
             <Outlet />
@@ -158,6 +178,34 @@ export function AppShell() {
               </button>
             </div>
             <BetSlipPanel />
+          </aside>
+        </div>
+      )}
+
+      {/* Mobile-only drawer for sports navigation, mirrored on the left -
+          sm:hidden keeps it from ever coexisting with the persistent
+          desktop aside above. */}
+      {isNavOpen && (
+        <div className="sm:hidden">
+          <button
+            type="button"
+            aria-label="Close sports navigation"
+            className="fixed inset-0 z-40 bg-black/50"
+            onClick={() => setIsNavOpen(false)}
+          />
+          <aside className="fixed inset-y-0 left-0 z-50 w-full max-w-xs overflow-y-auto border-r border-border bg-background p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-display text-xl">Sports</h2>
+              <button
+                type="button"
+                aria-label="Close sports navigation"
+                className="text-text-muted hover:text-text-primary"
+                onClick={() => setIsNavOpen(false)}
+              >
+                ✕
+              </button>
+            </div>
+            <Sidebar onNavigate={() => setIsNavOpen(false)} />
           </aside>
         </div>
       )}

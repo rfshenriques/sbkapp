@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { MatchCard } from '../features/odds-board/MatchCard';
 import { MatchListSkeleton } from '../features/odds-board/MatchListSkeleton';
 import { useMatches } from '../features/odds-board/useMatches';
@@ -13,17 +13,21 @@ const ALL_SPORTS = 'all';
 export default function SportPage() {
   const { sport } = useParams<{ sport: string }>();
   const decodedSport = sport ? decodeURIComponent(sport) : ALL_SPORTS;
+  const [searchParams] = useSearchParams();
+  const competitionFilter = searchParams.get('competition');
   const [sortMode, setSortMode] = useState<MatchSortMode>('time');
 
   const { data: matches, isPending, isError } = useMatches();
   const { data: rankings } = useCompetitionRankings();
   const rankByCompetition = useMemo(() => rankMapFromRankings(rankings ?? []), [rankings]);
 
-  const filtered =
-    matches && decodedSport !== ALL_SPORTS
-      ? matches.filter((match) => match.sport === decodedSport)
-      : matches;
+  const filtered = matches?.filter(
+    (match) =>
+      (decodedSport === ALL_SPORTS || match.sport === decodedSport) &&
+      (!competitionFilter || match.competition === competitionFilter),
+  );
   const sorted = filtered ? sortMatches(filtered, sortMode, rankByCompetition) : undefined;
+  const heading = competitionFilter ?? (decodedSport === ALL_SPORTS ? 'All matches' : decodedSport);
 
   return (
     <div>
@@ -34,9 +38,7 @@ export default function SportPage() {
             <i></i>
             <i></i>
           </span>
-          <h1 className="font-display text-xl">
-            {decodedSport === ALL_SPORTS ? 'All matches' : decodedSport}
-          </h1>
+          <h1 className="font-display text-xl">{heading}</h1>
         </div>
         <div className="flex gap-2" role="group" aria-label="Sort matches">
           <button

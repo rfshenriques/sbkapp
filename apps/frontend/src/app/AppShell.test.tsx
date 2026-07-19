@@ -106,6 +106,20 @@ describe('AppShell', () => {
     expect(screen.getAllByRole('button', { name: 'Close bet slip' }).length).toBeGreaterThan(0);
   });
 
+  it('the desktop sports navigation column is always rendered', async () => {
+    renderShell();
+
+    expect(await screen.findByRole('navigation', { name: 'Sports navigation' })).toBeInTheDocument();
+  });
+
+  it('clicking the mobile hamburger button opens the sports navigation drawer', async () => {
+    renderShell();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Open sports navigation' }));
+
+    expect(screen.getAllByRole('button', { name: 'Close sports navigation' }).length).toBeGreaterThan(0);
+  });
+
   it('clicking the bottom-nav Bet slip button opens the drawer and shows the selection count badge', async () => {
     useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
     renderShell();

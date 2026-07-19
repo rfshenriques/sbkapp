@@ -8,22 +8,10 @@ import { sortMatches } from '../features/odds-board/sortMatches';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { Card } from '../components/ui/Card';
 import { formatKickoff } from '../lib/formatKickoff';
+import { sortSportsByPriority } from '../lib/sportPriority';
 
 /** Homepage sections stay short; "Load more" hands off to the full sport page. */
 const MAX_HOMEPAGE_ITEMS = 10;
-
-/** These three, in this order, always lead the sport filter chips when present; everything else follows in the order it was first seen. */
-const PRIORITY_SPORT_ORDER = ['Football', 'Tennis', 'Basketball'];
-
-function sortSportsByPriority(sports: string[]): string[] {
-  return [...sports].sort((a, b) => {
-    const rankA = PRIORITY_SPORT_ORDER.indexOf(a);
-    const rankB = PRIORITY_SPORT_ORDER.indexOf(b);
-    const normalizedA = rankA === -1 ? PRIORITY_SPORT_ORDER.length : rankA;
-    const normalizedB = rankB === -1 ? PRIORITY_SPORT_ORDER.length : rankB;
-    return normalizedA - normalizedB;
-  });
-}
 
 export default function OddsBoardPage() {
   const { data: matches, isPending, isError } = useMatches();

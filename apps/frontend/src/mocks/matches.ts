@@ -18,6 +18,7 @@ export const mockMatches: Match[] = [
   {
     id: 'match-1',
     sport: 'Football',
+    country: 'England',
     competition: 'Premier League',
     homeTeam: 'Arsenal',
     awayTeam: 'Chelsea',
@@ -28,6 +29,7 @@ export const mockMatches: Match[] = [
   {
     id: 'match-2',
     sport: 'Football',
+    country: 'England',
     competition: 'Premier League',
     homeTeam: 'Liverpool',
     awayTeam: 'Manchester City',
@@ -38,6 +40,7 @@ export const mockMatches: Match[] = [
   {
     id: 'match-3',
     sport: 'Football',
+    country: 'Spain',
     competition: 'La Liga',
     homeTeam: 'Real Madrid',
     awayTeam: 'Barcelona',
@@ -48,6 +51,7 @@ export const mockMatches: Match[] = [
   {
     id: 'match-4',
     sport: 'Football',
+    country: 'Spain',
     competition: 'La Liga',
     homeTeam: 'Atletico Madrid',
     awayTeam: 'Sevilla',
@@ -58,6 +62,7 @@ export const mockMatches: Match[] = [
   {
     id: 'match-5',
     sport: 'Football',
+    country: 'Italy',
     competition: 'Serie A',
     homeTeam: 'Inter Milan',
     awayTeam: 'AC Milan',
@@ -68,6 +73,7 @@ export const mockMatches: Match[] = [
   {
     id: 'match-6',
     sport: 'Ice Hockey',
+    country: 'USA',
     competition: 'NHL',
     homeTeam: 'Toronto Maple Leafs',
     awayTeam: 'Boston Bruins',

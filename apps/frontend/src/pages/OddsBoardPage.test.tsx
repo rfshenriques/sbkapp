@@ -12,6 +12,7 @@ function buildMatch(overrides: Partial<Match> = {}): Match {
   return {
     id: 'm1',
     sport: 'Football',
+    country: 'England',
     competition: 'EPL',
     homeTeam: 'Home',
     awayTeam: 'Away',

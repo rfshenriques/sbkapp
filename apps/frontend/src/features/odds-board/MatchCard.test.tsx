@@ -12,6 +12,7 @@ import { MatchCard } from './MatchCard';
 const baseMatch: Match = {
   id: 'match-1',
   sport: 'Football',
+  country: 'England',
   competition: 'Premier League',
   homeTeam: 'Arsenal',
   awayTeam: 'Chelsea',

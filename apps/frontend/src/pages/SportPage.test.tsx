@@ -12,6 +12,7 @@ function buildMatch(overrides: Partial<Match> = {}): Match {
   return {
     id: 'm1',
     sport: 'Football',
+    country: 'England',
     competition: 'EPL',
     homeTeam: 'Arsenal',
     awayTeam: 'Chelsea',
@@ -116,6 +117,32 @@ describe('SportPage', () => {
 
     headings = await screen.findAllByText(/vs/).then((els) => els.map((el) => el.textContent));
     expect(headings).toEqual(['Big Club vs Huge Club', 'Small Club vs Tiny Club']);
+  });
+
+  it('filters further to a single competition when the URL carries a competition param, and uses it as the heading', async () => {
+    stubOddsEngineFetch([
+      buildMatch({
+        id: 'm1',
+        sport: 'Football',
+        competition: 'Premier League',
+        homeTeam: 'Arsenal',
+        awayTeam: 'Chelsea',
+      }),
+      buildMatch({
+        id: 'm2',
+        sport: 'Football',
+        competition: 'Championship',
+        homeTeam: 'Leeds',
+        awayTeam: 'Norwich',
+      }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/sports/Football?competition=Premier%20League');
+
+    expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
+    expect(screen.queryByText('Leeds vs Norwich')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Premier League' })).toBeInTheDocument();
   });
 
   it('shows an empty state when there are no matches for the sport', async () => {

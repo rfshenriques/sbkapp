@@ -52,6 +52,7 @@ describe('MatchDetailPage', () => {
       {
         id: 'match-6',
         sport: 'Football',
+        country: 'England',
         competition: 'Some Small League',
         homeTeam: 'Home Team',
         awayTeam: 'Away Team',
