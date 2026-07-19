@@ -21,6 +21,14 @@ export function AppShell() {
                   Markets
                 </Link>
               )}
+              {(user?.role === 'ADMIN' || user?.role === 'CMS') && (
+                <Link
+                  to="/team-colors"
+                  className="text-sm text-text-secondary hover:text-text-primary"
+                >
+                  Team colors
+                </Link>
+              )}
               {user?.role === 'ADMIN' && (
                 <>
                   <Link

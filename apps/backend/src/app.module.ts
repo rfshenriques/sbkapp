@@ -18,6 +18,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { AdminModule } from './modules/admin/admin.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { MasterModule } from './modules/master/master.module';
+import { TeamColorsModule } from './modules/team-colors/team-colors.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { MasterModule } from './modules/master/master.module';
     AdminModule,
     ReportsModule,
     MasterModule,
+    TeamColorsModule,
   ],
 })
 export class AppModule {}

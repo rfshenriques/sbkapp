@@ -48,6 +48,14 @@ export interface MarketSuspension {
   createdAt: string;
 }
 
+export interface TeamColor {
+  id: string;
+  name: string;
+  colorHex: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface StatusBreakdownEntry {
   status: string;
   count: number;
@@ -278,4 +286,29 @@ export async function getReportSummary(range: ReportRange): Promise<ReportSummar
 export async function getStaffActivity(range: ReportRange): Promise<StaffActivityEntry[]> {
   const response = await authenticatedFetch(`/admin/reports/staff-activity${rangeQuery(range)}`);
   return parseJsonOrThrow(response, `Failed to load staff activity: ${response.status}`);
+}
+
+export async function listTeamColors(): Promise<TeamColor[]> {
+  const response = await authenticatedFetch('/admin/team-colors');
+  return parseJsonOrThrow(response, `Failed to load team colors: ${response.status}`);
+}
+
+/** Existing names are left untouched - only genuinely new team names get created, with their color left unset. */
+export async function syncTeamNames(names: string[]): Promise<TeamColor[]> {
+  const response = await authenticatedFetch('/admin/team-colors/sync', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ names }),
+  });
+  return parseJsonOrThrow(response, `Failed to sync team names: ${response.status}`);
+}
+
+/** Pass null to clear a previously-set color. */
+export async function setTeamColor(id: string, colorHex: string | null): Promise<TeamColor> {
+  const response = await authenticatedFetch(`/admin/team-colors/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ colorHex }),
+  });
+  return parseJsonOrThrow(response, `Failed to set team color: ${response.status}`);
 }

@@ -109,6 +109,7 @@ enum AuditAction {
   MARKET_UNSUSPENDED
   COMPETITION_RANKING_SET
   COMPETITION_RANKING_REMOVED
+  TEAM_COLOR_SET
 }
 
 /**
@@ -131,6 +132,25 @@ model CompetitionRanking {
   @@unique([brandId, competition])
   @@index([brandId])
   @@map("competition_rankings")
+}
+
+/**
+ * A real sports team's own brand color - not brand-scoped like
+ * CompetitionRanking above, since a team's color doesn't change per
+ * operator (Arsenal is the same red everywhere). Rows get created two
+ * ways: (1) any staff backoffice can "sync" team names it sees in the odds
+ * feed, which inserts new names with colorHex left null, or (2) an admin
+ * sets/edits colorHex directly. colorHex is only ever null until a human
+ * (or the startup seed of well-known teams) sets it - never guessed.
+ */
+model TeamColor {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  colorHex  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("team_colors")
 }
 
 /**

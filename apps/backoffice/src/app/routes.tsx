@@ -6,6 +6,7 @@ import ReportsPage from '../pages/ReportsPage';
 import SettlementPage from '../pages/SettlementPage';
 import StaffLoginPage from '../pages/StaffLoginPage';
 import StaffUsersPage from '../pages/StaffUsersPage';
+import TeamColorsPage from '../pages/TeamColorsPage';
 import { AppShell } from './AppShell';
 import { RequireRoles } from './RequireRoles';
 import { RequireStaffAuth } from './RequireStaffAuth';
@@ -59,6 +60,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN']}>
               <ReportsPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'team-colors',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'CMS']}>
+              <TeamColorsPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),
