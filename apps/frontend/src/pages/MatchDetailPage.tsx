@@ -72,7 +72,6 @@ export default function MatchDetailPage() {
     {
       key: 'match',
       label: matchLabel,
-      meta: kickoffMeta(match),
       options: siblingMatches.map((sibling) => ({
         key: sibling.id,
         label: `${displayName('TEAM', sibling.homeTeam)} vs ${displayName('TEAM', sibling.awayTeam)}`,

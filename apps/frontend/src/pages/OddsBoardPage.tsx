@@ -102,7 +102,7 @@ export default function OddsBoardPage() {
                   {featuredHomeTeamLabel}
                 </Link>
               </span>
-              <span className="shrink-0 font-display text-sm text-white/50 sm:text-base">vs</span>
+              <span className="shrink-0 font-display text-sm text-text-muted sm:text-base">vs</span>
               <span className="flex min-w-0 flex-1 items-center justify-start gap-2">
                 <Link
                   to={featuredHref}

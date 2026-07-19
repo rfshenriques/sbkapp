@@ -18,8 +18,6 @@ export interface BreadcrumbSegment {
   href?: string;
   /** When there's more than one, the segment becomes a dropdown letting the player jump straight to a sibling (another match in this competition, another league in this country, another country in this sport) instead of going back first. */
   options?: BreadcrumbOption[];
-  /** Kickoff date/time (or nothing, for a live match) - same rule as MatchCard, right-aligned opposite the label. */
-  meta?: ReactNode;
 }
 
 // Mobile's pill dropdown is full-width and needs the extra room to avoid
@@ -39,12 +37,10 @@ const DESKTOP_BREAKPOINT = 640; // matches Tailwind's `sm`
  */
 function BreadcrumbDropdown({
   label,
-  meta,
   options,
   variant = 'inline',
 }: {
   label: string;
-  meta?: ReactNode;
   options: BreadcrumbOption[];
   variant?: 'inline' | 'pill';
 }) {
@@ -97,11 +93,8 @@ function BreadcrumbDropdown({
             : 'whitespace-nowrap',
         )}
       >
-        <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-          <span className={cn('min-w-0', variant === 'pill' ? 'whitespace-normal break-words' : 'whitespace-nowrap')}>
-            {label}
-          </span>
-          {meta && <span className="shrink-0 text-xs font-bold text-highlight">{meta}</span>}
+        <span className={cn('min-w-0 flex-1', variant === 'pill' ? 'whitespace-normal break-words' : 'whitespace-nowrap')}>
+          {label}
         </span>
         <ChevronIcon className={cn('h-3.5 w-3.5 shrink-0 transition-transform', isOpen && 'rotate-180')} />
       </button>
@@ -126,7 +119,7 @@ function BreadcrumbDropdown({
                 )}
               >
                 <span className="!whitespace-normal break-words">{option.label}</span>
-                {option.meta && <span className="shrink-0 text-xs font-bold text-highlight">{option.meta}</span>}
+                {option.meta && <span className="shrink-0 text-xs font-bold text-text-muted">{option.meta}</span>}
               </Link>
             </li>
           ))}
@@ -195,28 +188,17 @@ export function Breadcrumb({ segments, icon }: { segments: BreadcrumbSegment[]; 
         {activeSegment && (
           <div className="mt-1.5">
             {activeSegment.options && activeSegment.options.length > 1 ? (
-              <BreadcrumbDropdown
-                label={activeSegment.label}
-                meta={activeSegment.meta}
-                options={activeSegment.options}
-                variant="pill"
-              />
+              <BreadcrumbDropdown label={activeSegment.label} options={activeSegment.options} variant="pill" />
             ) : activeSegment.href ? (
               <Link
                 to={activeSegment.href}
-                className="flex items-center justify-between gap-2 rounded-lg bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary"
+                className="block rounded-lg bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary"
               >
-                <span className="min-w-0 whitespace-normal break-words">{activeSegment.label}</span>
-                {activeSegment.meta && (
-                  <span className="shrink-0 text-xs font-bold text-highlight">{activeSegment.meta}</span>
-                )}
+                {activeSegment.label}
               </Link>
             ) : (
-              <span className="flex items-center justify-between gap-2 rounded-lg bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary">
-                <span className="min-w-0 whitespace-normal break-words">{activeSegment.label}</span>
-                {activeSegment.meta && (
-                  <span className="shrink-0 text-xs font-bold text-highlight">{activeSegment.meta}</span>
-                )}
+              <span className="block rounded-lg bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary">
+                {activeSegment.label}
               </span>
             )}
           </div>
@@ -235,17 +217,13 @@ export function Breadcrumb({ segments, icon }: { segments: BreadcrumbSegment[]; 
               <ChevronIcon aria-hidden="true" className="h-3 w-3 shrink-0 -rotate-90 text-text-muted" />
             )}
             {segment.options && segment.options.length > 1 ? (
-              <BreadcrumbDropdown label={segment.label} meta={segment.meta} options={segment.options} />
+              <BreadcrumbDropdown label={segment.label} options={segment.options} />
             ) : segment.href ? (
-              <Link to={segment.href} className="flex items-center gap-2 whitespace-nowrap text-text-muted hover:text-text-primary">
-                <span>{segment.label}</span>
-                {segment.meta && <span className="text-xs font-bold text-highlight">{segment.meta}</span>}
+              <Link to={segment.href} className="whitespace-nowrap text-text-muted hover:text-text-primary">
+                {segment.label}
               </Link>
             ) : (
-              <span className="flex items-center gap-2 whitespace-nowrap font-semibold text-text-primary">
-                <span>{segment.label}</span>
-                {segment.meta && <span className="text-xs font-bold text-highlight">{segment.meta}</span>}
-              </span>
+              <span className="whitespace-nowrap font-semibold text-text-primary">{segment.label}</span>
             )}
           </span>
         ))}
