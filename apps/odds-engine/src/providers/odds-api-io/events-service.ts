@@ -124,9 +124,25 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
     }
 
     const events = await client.getEvents({ sport, limit: eventsLimit });
-    const matches: Match[] = events
-      .filter((event) => RELEVANT_STATUSES.has(event.status))
-      .filter((event) => isRelevantLeague(event.league.name))
+    const relevantStatusEvents = events.filter((event) => RELEVANT_STATUSES.has(event.status));
+    const leagueFilteredEvents = relevantStatusEvents.filter((event) =>
+      isRelevantLeague(event.league.name),
+    );
+
+    // Testing-phase visibility: isRelevantLeague's keyword list is a guess,
+    // not confirmed against real feed data - log the funnel so a "no matches"
+    // report can be root-caused from real league names instead of guessing.
+    console.log(
+      `listMatches: ${events.length} events -> ${relevantStatusEvents.length} pending/live -> ${leagueFilteredEvents.length} pass league filter`,
+    );
+    if (leagueFilteredEvents.length === 0 && relevantStatusEvents.length > 0) {
+      const leagues = Array.from(
+        new Set(relevantStatusEvents.map((event) => event.league.name)),
+      ).sort();
+      console.log(`listMatches: leagues seen but excluded by filter: ${leagues.join(', ')}`);
+    }
+
+    const matches: Match[] = leagueFilteredEvents
       .map((event) => ({
         id: String(event.id),
         competition: event.league.name,
