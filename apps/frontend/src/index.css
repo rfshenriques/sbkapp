@@ -59,6 +59,16 @@ body {
   overflow-x: hidden;
 }
 
+/* Stays scrollable, just never shows a scrollbar track/thumb - so an
+   overflowing block never has to reserve or lose width to one. */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
 /* ---------- Shared brand-styled primitives ---------- */
 /* Ported from the BETGER design prototype: an angular "slash" cut used on
    primary CTAs, chips, and badges throughout. Kept generic (no brand name)

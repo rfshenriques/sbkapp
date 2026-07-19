@@ -63,7 +63,7 @@ export default function RegisterPage() {
         <form
           id={REGISTER_FORM_ID}
           onSubmit={handleSubmit}
-          className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3"
+          className="scrollbar-hide min-h-0 flex-1 space-y-3 overflow-y-auto px-4 pb-3"
         >
           <div>
             <label htmlFor="email" className="block text-sm text-text-secondary">

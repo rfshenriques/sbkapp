@@ -139,7 +139,7 @@ export default function OddsBoardPage() {
             </span>
             <h2 className="font-display text-lg">Live now</h2>
           </div>
-          <div className="-mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2">
+          <div className="scrollbar-hide -mx-1 flex snap-x snap-mandatory gap-3 overflow-x-auto px-1 pb-2">
             {liveCapped.map((match) => (
               <div key={match.id} className="w-72 shrink-0 snap-start">
                 <MatchCard match={match} />
@@ -166,7 +166,7 @@ export default function OddsBoardPage() {
 
         {sportsPresent.length > 1 && (
           <div
-            className="-mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
+            className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
             role="group"
             aria-label="Filter by sport"
           >

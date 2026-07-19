@@ -94,7 +94,7 @@ function BreadcrumbDropdown({
           ref={panelRef}
           role="listbox"
           style={{ top: panelPosition.top, left: panelPosition.left, width: PANEL_WIDTH }}
-          className="fixed z-30 max-h-72 overflow-y-auto rounded-lg border border-border bg-surface py-1 shadow-lg [scrollbar-gutter:stable]"
+          className="scrollbar-hide fixed z-30 max-h-72 overflow-y-auto rounded-lg border border-border bg-surface py-1 shadow-lg"
         >
           {options.map((option) => (
             <li key={option.key}>
@@ -147,8 +147,7 @@ export function Breadcrumb({ segments, icon }: { segments: BreadcrumbSegment[]; 
   const trailSegments = segments.slice(0, -1);
   const mobileTrailSegments = trailSegments.filter((segment) => segment.key !== 'home');
   const activeSegment = segments[segments.length - 1];
-  const scrollableRowClassName =
-    'flex min-w-0 items-center gap-1.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
+  const scrollableRowClassName = 'scrollbar-hide flex min-w-0 items-center gap-1.5 overflow-x-auto';
 
   return (
     <div className="min-w-0">
