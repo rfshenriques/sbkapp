@@ -140,12 +140,13 @@ describe('OddsBoardPage', () => {
     renderPage();
 
     await screen.findByRole('group', { name: 'Filter by sport' });
+    const knownSports = ['Boxing', 'Basketball', 'Ice Hockey', 'Tennis', 'Football'];
+    // Each chip's textContent is now "<icon emoji><sport name>" - match on
+    // suffix rather than exact equality so the icon doesn't break this.
     const chipLabels = screen
       .getAllByRole('button')
-      .map((button) => button.textContent)
-      .filter((text): text is string =>
-        ['Boxing', 'Basketball', 'Ice Hockey', 'Tennis', 'Football'].includes(text ?? ''),
-      );
+      .map((button) => knownSports.find((sport) => (button.textContent ?? '').endsWith(sport)))
+      .filter((sport): sport is string => sport !== undefined);
 
     expect(chipLabels).toEqual(['Football', 'Tennis', 'Basketball', 'Boxing', 'Ice Hockey']);
   });
@@ -157,7 +158,7 @@ describe('OddsBoardPage', () => {
     await screen.findByText('Football Home 1 vs Football Away 1');
     expect(screen.queryByText('Hockey Home 0 vs Hockey Away 0')).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Ice Hockey' }));
+    await userEvent.click(screen.getByRole('button', { name: /Ice Hockey/ }));
 
     expect(await screen.findByText('Hockey Home 0 vs Hockey Away 0')).toBeInTheDocument();
     expect(screen.queryByText(/Football Home/)).not.toBeInTheDocument();

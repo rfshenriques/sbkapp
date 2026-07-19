@@ -43,10 +43,20 @@
   --color-text-muted: #8890a0;
 }
 
+/* Prevents the page itself from ever scrolling horizontally on mobile
+   (e.g. a flex row's negative-margin edge-to-edge scroller nudging the
+   document a few px wider than the viewport). Elements with their own
+   overflow-x: auto (the live-matches slider, sport filter chips, the sport
+   filter row) keep scrolling internally - this only clips the outer page. */
+html {
+  overflow-x: hidden;
+}
+
 body {
   background-color: var(--color-background);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
+  overflow-x: hidden;
 }
 
 /* ---------- Shared brand-styled primitives ---------- */

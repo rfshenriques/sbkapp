@@ -8,6 +8,7 @@ import { useAuth } from '../features/auth/useAuth';
 import { useBootstrapAuth } from '../features/auth/useBootstrapAuth';
 import { formatCents, useWallet } from '../features/wallet/useWallet';
 import { Sidebar } from '../features/navigation/Sidebar';
+import { HomeIcon, LiveIcon, MyBetsIcon, PromotionsIcon, SearchIcon } from '../components/ui/NavIcons';
 
 export function AppShell() {
   useBootstrapAuth();
@@ -24,16 +25,7 @@ export function AppShell() {
   return (
     <div className="min-h-screen pb-20 sm:pb-0">
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center gap-4 px-4 py-3">
-          <button
-            type="button"
-            aria-label="Open sports navigation"
-            className="shrink-0 rounded-md border border-border p-2 text-lg leading-none text-text-primary sm:hidden"
-            onClick={() => setIsNavOpen(true)}
-          >
-            ☰
-          </button>
-
+        <div className="mx-auto flex max-w-[1440px] items-center gap-4 px-4 py-3">
           <NavLink to="/" className="flex shrink-0 items-center gap-2">
             <span className="font-display text-2xl">{brandName}</span>
             <span className="brand-flag" aria-hidden="true">
@@ -74,7 +66,7 @@ export function AppShell() {
         </div>
       </header>
 
-      <div className="mx-auto flex max-w-6xl gap-4 p-4">
+      <div className="mx-auto flex max-w-[1440px] gap-4 p-4">
         {/* Desktop: sports navigation is a persistent left column, same
             convention as the bet slip's persistent right column - the
             mobile drawer below is sm:hidden so the two never coexist. */}
@@ -120,38 +112,55 @@ export function AppShell() {
       )}
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-border bg-background/95 px-1 py-1.5 backdrop-blur sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border bg-background/95 px-1 py-1.5 backdrop-blur sm:hidden"
         style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
         aria-label="App navigation"
       >
+        <button
+          type="button"
+          aria-pressed={isNavOpen}
+          onClick={() => setIsNavOpen(true)}
+          className={`flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isNavOpen ? 'text-highlight' : 'text-text-secondary'}`}
+        >
+          <SearchIcon width={19} height={19} />
+          Search
+        </button>
         <NavLink
           to="/"
           end
           className={({ isActive }) =>
-            `flex flex-col items-center gap-0.5 py-1.5 text-[10.5px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
+            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
           }
         >
+          <HomeIcon width={19} height={19} />
           Home
         </NavLink>
-        <button
-          type="button"
-          onClick={() => setIsSlipOpen(true)}
-          className="relative flex flex-col items-center gap-0.5 py-1.5 text-[10.5px] font-bold text-text-secondary"
+        <NavLink
+          to="/live"
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
+          }
         >
-          Bet slip
-          {selections.length > 0 && (
-            <span className="absolute -top-1 right-[38%] grid h-[15px] min-w-[15px] place-items-center rounded-lg bg-price-down px-1 text-[9px] font-extrabold text-white">
-              {selections.length}
-            </span>
-          )}
-        </button>
+          <LiveIcon width={19} height={19} />
+          Live
+        </NavLink>
         <NavLink
           to="/my-bets"
           className={({ isActive }) =>
-            `flex flex-col items-center gap-0.5 py-1.5 text-[10.5px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
+            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
           }
         >
+          <MyBetsIcon width={19} height={19} />
           My Bets
+        </NavLink>
+        <NavLink
+          to="/promotions"
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
+          }
+        >
+          <PromotionsIcon width={19} height={19} />
+          Promotions
         </NavLink>
       </nav>
 

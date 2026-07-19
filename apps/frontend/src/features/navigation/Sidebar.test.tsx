@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -67,9 +67,13 @@ describe('Sidebar', () => {
     renderSidebar();
 
     const links = await screen.findAllByRole('link');
-    const quicklinkLabels = links.map((link) => link.textContent);
-    expect(quicklinkLabels.indexOf('Premier League')).toBeLessThan(quicklinkLabels.indexOf('La Liga'));
-    expect(screen.getByRole('link', { name: 'Premier League' })).toHaveAttribute(
+    // Each link's textContent may be prefixed with a flag icon, so match on
+    // suffix rather than exact equality.
+    const quicklinkLabels = links.map((link) => link.textContent ?? '');
+    expect(quicklinkLabels.findIndex((text) => text.endsWith('Premier League'))).toBeLessThan(
+      quicklinkLabels.findIndex((text) => text.endsWith('La Liga')),
+    );
+    expect(screen.getByRole('link', { name: /Premier League/ })).toHaveAttribute(
       'href',
       '/sports/all?competition=Premier%20League',
     );
@@ -82,6 +86,31 @@ describe('Sidebar', () => {
 
     await screen.findByText('Sports');
     expect(screen.queryByText('Top Competitions')).not.toBeInTheDocument();
+  });
+
+  it('shows a flag icon next to a quicklink when its country can be resolved from real match data', async () => {
+    stubFetch(
+      [buildMatch({ sport: 'Football', country: 'England', competition: 'Premier League' })],
+      [{ competition: 'Premier League', rank: 0 }],
+    );
+
+    renderSidebar();
+
+    const link = await screen.findByRole('link', { name: /Premier League/ });
+    expect(within(link).getByRole('img', { name: 'England' })).toBeInTheDocument();
+  });
+
+  it('shows a sport icon on each sport row and a flag icon on each expanded country row', async () => {
+    stubFetch([
+      buildMatch({ id: 'm1', sport: 'Football', country: 'England', competition: 'Premier League' }),
+    ]);
+
+    renderSidebar();
+
+    expect(await screen.findByRole('img', { name: 'Football' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Football/ }));
+    expect(await screen.findByRole('img', { name: 'England' })).toBeInTheDocument();
   });
 
   it('lists sports from real match data, collapsed by default', async () => {
@@ -113,6 +142,45 @@ describe('Sidebar', () => {
       'href',
       '/sports/Football?competition=Premier%20League',
     );
+  });
+
+  it('filters the sport tree and quicklinks by a search query, and auto-expands matching branches', async () => {
+    stubFetch(
+      [
+        buildMatch({ id: 'm1', sport: 'Football', country: 'England', competition: 'Premier League' }),
+        buildMatch({ id: 'm2', sport: 'Ice Hockey', country: 'USA', competition: 'NHL' }),
+      ],
+      [
+        { competition: 'Premier League', rank: 0 },
+        { competition: 'NHL', rank: 1 },
+      ],
+    );
+
+    renderSidebar();
+    await screen.findByRole('button', { name: /Ice Hockey/ });
+
+    await userEvent.type(
+      screen.getByRole('searchbox', { name: 'Search sports and competitions' }),
+      'Premier',
+    );
+
+    // The matching sport/country branch is auto-expanded by the search, no click needed.
+    // Two links can legitimately match: the quicklink and the drill-down link.
+    expect(screen.getAllByRole('link', { name: /Premier League/ }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /Ice Hockey/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /^NHL/ })).not.toBeInTheDocument();
+  });
+
+  it('shows a "no matches found" message when the search query matches nothing', async () => {
+    stubFetch([buildMatch({ sport: 'Football', country: 'England', competition: 'Premier League' })]);
+
+    renderSidebar();
+    await userEvent.type(
+      await screen.findByRole('searchbox', { name: 'Search sports and competitions' }),
+      'nonexistent sport',
+    );
+
+    expect(await screen.findByText(/No matches found for/)).toBeInTheDocument();
   });
 
   it('collapses the previously expanded sport when a different one is opened', async () => {

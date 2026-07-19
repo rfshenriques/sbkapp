@@ -7,6 +7,8 @@ import { usePrefetchMatchDetail } from '../features/odds-board/usePrefetchMatchD
 import { sortMatches } from '../features/odds-board/sortMatches';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { Card } from '../components/ui/Card';
+import { SportCountryBadge } from '../components/ui/SportCountryBadge';
+import { SportIcon } from '../components/ui/SportIcon';
 import { formatKickoff } from '../lib/formatKickoff';
 import { sortSportsByPriority } from '../lib/sportPriority';
 
@@ -65,6 +67,7 @@ export default function OddsBoardPage() {
             </Link>
           </h1>
           <p className="mt-2 flex items-center gap-2 text-sm text-text-secondary">
+            <SportCountryBadge sport={featured.sport} country={featured.country} />
             <span>{featured.competition}</span>
             {!featured.isLive && (
               <span className="ml-auto">{formatKickoff(new Date(featured.kickoff))}</span>
@@ -132,6 +135,7 @@ export default function OddsBoardPage() {
                 aria-pressed={sport === effectiveSport}
                 onClick={() => setSelectedSport(sport)}
               >
+                <SportIcon sport={sport} size={16} />
                 {sport}
               </button>
             ))}

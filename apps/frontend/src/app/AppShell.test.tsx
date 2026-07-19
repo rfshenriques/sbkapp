@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -69,10 +69,18 @@ describe('AppShell', () => {
     expect(screen.getByRole('tab', { name: 'History' })).toBeInTheDocument();
   });
 
-  it('has a My Bets link in the mobile bottom nav', () => {
+  it('has Home, Live, My Bets, and Promotions links plus a Search button in the mobile bottom nav', () => {
     renderShell();
 
-    expect(screen.getByRole('link', { name: 'My Bets' })).toHaveAttribute('href', '/my-bets');
+    const nav = screen.getByRole('navigation', { name: 'App navigation' });
+    expect(within(nav).getByRole('link', { name: /Home/ })).toHaveAttribute('href', '/');
+    expect(within(nav).getByRole('link', { name: /Live/ })).toHaveAttribute('href', '/live');
+    expect(within(nav).getByRole('link', { name: /My Bets/ })).toHaveAttribute('href', '/my-bets');
+    expect(within(nav).getByRole('link', { name: /Promotions/ })).toHaveAttribute(
+      'href',
+      '/promotions',
+    );
+    expect(within(nav).getByRole('button', { name: /Search/ })).toBeInTheDocument();
   });
 
   it('does not show the mobile floating bar when the slip is empty', () => {
@@ -112,23 +120,18 @@ describe('AppShell', () => {
     expect(await screen.findByRole('navigation', { name: 'Sports navigation' })).toBeInTheDocument();
   });
 
-  it('clicking the mobile hamburger button opens the sports navigation drawer', async () => {
+  it('clicking the mobile bottom-nav Search button opens the sports navigation drawer', async () => {
     renderShell();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Open sports navigation' }));
+    const nav = screen.getByRole('navigation', { name: 'App navigation' });
+    await userEvent.click(within(nav).getByRole('button', { name: /Search/ }));
 
     expect(screen.getAllByRole('button', { name: 'Close sports navigation' }).length).toBeGreaterThan(0);
   });
 
-  it('clicking the bottom-nav Bet slip button opens the drawer and shows the selection count badge', async () => {
-    useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+  it('does not show a hamburger button in the header - only the logo', () => {
     renderShell();
 
-    const navButton = screen.getByRole('button', { name: 'Bet slip2' });
-    expect(navButton).toHaveTextContent('2');
-
-    await userEvent.click(navButton);
-
-    expect(screen.getAllByRole('button', { name: 'Close bet slip' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Open sports navigation' })).not.toBeInTheDocument();
   });
 });

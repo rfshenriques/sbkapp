@@ -61,3 +61,19 @@ export function buildSportTree(matches: Match[]): SportNode[] {
     (sport) => sports.find((node) => node.sport === sport) as SportNode,
   );
 }
+
+/**
+ * competition -> country, resolved from real match data. Used to give the
+ * Top Competitions quicklinks a flag even though CompetitionRanking itself
+ * only stores a competition name and rank - no country to fabricate one
+ * from, so a competition with no live matches just gets no flag.
+ */
+export function competitionCountryMap(matches: Match[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const match of matches) {
+    if (!map.has(match.competition)) {
+      map.set(match.competition, match.country);
+    }
+  }
+  return map;
+}

@@ -1,5 +1,6 @@
 import { useParams } from 'react-router-dom';
 import { Skeleton } from '../components/ui/Skeleton';
+import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { LiveMatchTracker } from '../features/match-detail/LiveMatchTracker';
 import { useLiveMatch } from '../features/match-detail/useLiveMatch';
@@ -29,7 +30,8 @@ export default function MatchDetailPage() {
 
   return (
     <div>
-      <p className="text-xs font-semibold text-text-muted">
+      <p className="flex items-center gap-2 text-xs font-semibold text-text-muted">
+        <SportCountryBadge sport={match.sport} country={match.country} />
         <span>{match.competition}</span>
       </p>
 

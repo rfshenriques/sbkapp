@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Match } from '@sportsbook/shared';
-import { buildSportTree } from './buildSportTree';
+import { buildSportTree, competitionCountryMap } from './buildSportTree';
 
 function buildMatch(overrides: Partial<Match> = {}): Match {
   return {
@@ -84,5 +84,18 @@ describe('buildSportTree', () => {
 
   it('returns an empty array for no matches', () => {
     expect(buildSportTree([])).toEqual([]);
+  });
+});
+
+describe('competitionCountryMap', () => {
+  it('maps each competition to the country of its (first) match', () => {
+    const map = competitionCountryMap([
+      buildMatch({ id: 'm1', competition: 'Premier League', country: 'England' }),
+      buildMatch({ id: 'm2', competition: 'La Liga', country: 'Spain' }),
+    ]);
+
+    expect(map.get('Premier League')).toBe('England');
+    expect(map.get('La Liga')).toBe('Spain');
+    expect(map.get('Unranked Cup')).toBeUndefined();
   });
 });

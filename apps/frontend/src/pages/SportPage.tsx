@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { MatchCard } from '../features/odds-board/MatchCard';
 import { MatchListSkeleton } from '../features/odds-board/MatchListSkeleton';
 import { useMatches } from '../features/odds-board/useMatches';
@@ -14,7 +14,9 @@ export default function SportPage() {
   const { sport } = useParams<{ sport: string }>();
   const decodedSport = sport ? decodeURIComponent(sport) : ALL_SPORTS;
   const [searchParams] = useSearchParams();
+  const location = useLocation();
   const competitionFilter = searchParams.get('competition');
+  const liveOnly = location.pathname === '/live' || searchParams.get('live') === 'true';
   const [sortMode, setSortMode] = useState<MatchSortMode>('time');
 
   const { data: matches, isPending, isError } = useMatches();
@@ -24,10 +26,12 @@ export default function SportPage() {
   const filtered = matches?.filter(
     (match) =>
       (decodedSport === ALL_SPORTS || match.sport === decodedSport) &&
-      (!competitionFilter || match.competition === competitionFilter),
+      (!competitionFilter || match.competition === competitionFilter) &&
+      (!liveOnly || match.isLive),
   );
   const sorted = filtered ? sortMatches(filtered, sortMode, rankByCompetition) : undefined;
-  const heading = competitionFilter ?? (decodedSport === ALL_SPORTS ? 'All matches' : decodedSport);
+  const heading =
+    competitionFilter ?? (liveOnly ? 'Live' : decodedSport === ALL_SPORTS ? 'All matches' : decodedSport);
 
   return (
     <div>

@@ -42,6 +42,7 @@ function renderAt(path: string) {
       <MemoryRouter initialEntries={[path]}>
         <Routes>
           <Route path="/sports/:sport" element={<SportPage />} />
+          <Route path="/live" element={<SportPage />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -143,6 +144,34 @@ describe('SportPage', () => {
     expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
     expect(screen.queryByText('Leeds vs Norwich')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Premier League' })).toBeInTheDocument();
+  });
+
+  it('filters to only live matches when the URL carries live=true, and uses "Live" as the heading', async () => {
+    stubOddsEngineFetch([
+      buildMatch({ id: 'm1', isLive: true, homeTeam: 'Arsenal', awayTeam: 'Chelsea' }),
+      buildMatch({ id: 'm2', isLive: false, homeTeam: 'Leeds', awayTeam: 'Norwich' }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/sports/all?live=true');
+
+    expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
+    expect(screen.queryByText('Leeds vs Norwich')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Live' })).toBeInTheDocument();
+  });
+
+  it('filters to only live matches when mounted at /live directly (bottom-nav Live link)', async () => {
+    stubOddsEngineFetch([
+      buildMatch({ id: 'm1', isLive: true, homeTeam: 'Arsenal', awayTeam: 'Chelsea' }),
+      buildMatch({ id: 'm2', isLive: false, homeTeam: 'Leeds', awayTeam: 'Norwich' }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/live');
+
+    expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
+    expect(screen.queryByText('Leeds vs Norwich')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Live' })).toBeInTheDocument();
   });
 
   it('shows an empty state when there are no matches for the sport', async () => {

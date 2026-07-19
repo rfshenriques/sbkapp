@@ -1,5 +1,6 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
+import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
 import { MarketSelections } from '../bet-slip/MarketSelections';
 import { usePrefetchMatchDetail } from './usePrefetchMatchDetail';
 import { formatKickoff } from '../../lib/formatKickoff';
@@ -27,6 +28,7 @@ export function MatchCard({ match }: MatchCardProps) {
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
           <p className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+            <SportCountryBadge sport={match.sport} country={match.country} />
             <span>{match.competition}</span>
             {!match.isLive && (
               <span className="ml-auto text-highlight">{formatKickoff(kickoff)}</span>
