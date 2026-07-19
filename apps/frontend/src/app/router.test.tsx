@@ -3,12 +3,22 @@ import { render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { stubOddsEngineFetch } from '../test/mockOddsEngine';
+import { useAuthStore } from '../features/auth/authStore';
 import ErrorPage from '../pages/ErrorPage';
 import { AppShell } from './AppShell';
 import { routes } from './routes';
 
 beforeEach(() => {
   stubOddsEngineFetch();
+  // These tests check that a given path renders the right page, not the
+  // separate forced-login-on-load behavior (covered in AppShell.test.tsx) -
+  // pre-authenticate so an unauthenticated redirect to /login never fires
+  // and steps on the page-specific assertions below.
+  useAuthStore.setState({
+    accessToken: 'header.payload.signature',
+    user: null,
+    isInitialized: true,
+  });
 });
 
 afterEach(() => {

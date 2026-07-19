@@ -1,5 +1,5 @@
-import { Suspense, useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Suspense, useEffect, useRef, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { BetSlipPanel } from '../features/bet-slip/BetSlipPanel';
@@ -19,9 +19,27 @@ export function AppShell() {
   const selections = useBetSlipStore((state) => state.selections);
   const { isAuthenticated, isInitialized, user, logout } = useAuth();
   const { data: wallet } = useWallet();
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const brandName = brandQuery.data?.name ?? 'Sportsbook';
   const combinedOdds = selections.reduce((total, selection) => total * selection.odds, 1);
+
+  // Force the login sheet on the first load of a fresh session so promos
+  // shown after login stay meaningful - only once per app open, and only
+  // if the player hasn't already navigated straight to login/register.
+  // Dismissible like any other bottom sheet: anonymous browsing is still
+  // fully supported once closed.
+  const hasForcedLoginRef = useRef(false);
+  useEffect(() => {
+    if (!isInitialized || hasForcedLoginRef.current) {
+      return;
+    }
+    hasForcedLoginRef.current = true;
+    if (!isAuthenticated && location.pathname !== '/login' && location.pathname !== '/register') {
+      navigate('/login');
+    }
+  }, [isInitialized, isAuthenticated, location.pathname, navigate]);
 
   return (
     <div className="min-h-screen pb-20 sm:pb-0">
