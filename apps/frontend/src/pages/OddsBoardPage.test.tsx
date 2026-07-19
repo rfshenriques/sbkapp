@@ -150,7 +150,7 @@ describe('OddsBoardPage', () => {
       10,
     );
 
-    const loadMore = screen.getByRole('link', { name: 'Load more Football matches →' });
+    const loadMore = screen.getByRole('link', { name: 'Load more' });
     expect(loadMore).toHaveAttribute('href', '/sports/Football');
   });
 

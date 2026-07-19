@@ -89,7 +89,7 @@ function BreadcrumbDropdown({
         className={cn(
           'flex items-center gap-1.5 font-semibold text-text-primary hover:text-highlight',
           variant === 'pill'
-            ? 'w-full justify-between rounded-lg bg-surface-2 px-3 py-2 text-left text-sm'
+            ? 'w-full justify-between rounded-xl bg-surface-2 px-3 py-2 text-left text-sm'
             : 'whitespace-nowrap',
         )}
       >
@@ -104,7 +104,7 @@ function BreadcrumbDropdown({
           ref={panelRef}
           role="listbox"
           style={{ top: panel.top, left: panel.left, width: panel.width }}
-          className="scrollbar-hide fixed z-30 max-h-72 overflow-y-auto rounded-lg border border-border bg-surface py-1 shadow-lg"
+          className="scrollbar-hide fixed z-30 max-h-72 overflow-y-auto rounded-2xl border border-border bg-surface py-1 shadow-lg"
         >
           {options.map((option) => (
             <li key={option.key}>
@@ -192,12 +192,12 @@ export function Breadcrumb({ segments, icon }: { segments: BreadcrumbSegment[]; 
             ) : activeSegment.href ? (
               <Link
                 to={activeSegment.href}
-                className="block rounded-lg bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary"
+                className="block rounded-xl bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary"
               >
                 {activeSegment.label}
               </Link>
             ) : (
-              <span className="block rounded-lg bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary">
+              <span className="block rounded-xl bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary">
                 {activeSegment.label}
               </span>
             )}

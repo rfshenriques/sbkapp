@@ -35,7 +35,10 @@ export function MatchCard({ match }: MatchCardProps) {
 
   return (
     <Card
-      className="cursor-pointer transition-colors hover:border-text-muted"
+      // bg-surface reads almost identically to the page's own bg-background
+      // behind it (both near-black) - bg-surface-2 gives the card real
+      // separation instead of nearly vanishing into the page.
+      className="cursor-pointer bg-surface-2 transition-colors hover:border-text-muted"
       onClick={() => navigate(matchHref)}
       onMouseEnter={() => prefetchMatchDetail(match.id)}
       onTouchStart={() => prefetchMatchDetail(match.id)}

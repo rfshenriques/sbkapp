@@ -31,10 +31,14 @@ style. This is a standing instruction, not a one-time task.
   `.btn-ghost`), filter/sort tabs (`.tab`, `.active`), the display font
   (`.font-display`, Saira Condensed), and the tri-bar section marker
   (`.brand-flag`). Extend these rather than inventing parallel ones. Shape
-  language is consistently rounded corners throughout (buttons/tabs/cards
-  ~10px, small status pills like LIVE/PRE-MATCH/bet-status fully rounded) -
-  there's no angular "slash" cut anymore, it read as a rendering glitch on
-  small badges rather than a deliberate cut.
+  language is consistently rounded corners throughout, deliberately bigger
+  and softer than a typical web app - an iOS-inspired scale rather than the
+  earlier ~10px pass: buttons/tabs/pills ~12-14px (`.odd-btn`, `.btn-primary`,
+  `.btn-ghost`, `.tab`, `.tab-pill`), cards ~16px (`Card`, sidebar panels,
+  dropdown panels), the largest feature surfaces (hero card, match detail
+  header, bottom-sheet top corners) ~24px, small status pills like
+  LIVE/PRE-MATCH/bet-status fully rounded. There's no angular "slash" cut -
+  it read as a rendering glitch on small badges rather than a deliberate cut.
 - Hover/deep color variants are derived with `color-mix()` from each of the
   three brand colors individually - don't ask for or store a 4th color.
 

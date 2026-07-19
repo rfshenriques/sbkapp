@@ -75,7 +75,7 @@ function StakeField({ stakeId, stake, onStakeChange, odds, hideOdds }: StakeFiel
           step="0.01"
           value={stake}
           onChange={(event) => onStakeChange(event.target.value)}
-          className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
         />
       </div>
       {!hideOdds && (
@@ -322,7 +322,7 @@ export function BetSlipPanel({
             <button
               type="button"
               aria-label="Clear bet slip"
-              className="mb-2 shrink-0 rounded-lg p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-danger"
+              className="mb-2 shrink-0 rounded-xl p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-danger"
               onClick={clear}
             >
               <TrashIcon className="h-4 w-4" />

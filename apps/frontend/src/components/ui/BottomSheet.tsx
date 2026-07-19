@@ -40,7 +40,12 @@ export function BottomSheet({
         className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/65 to-black/80 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="sheet-slide-up relative flex h-[80vh] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-surface">
+      {/* dvh, not vh: on real mobile browsers vh is pinned to the largest
+          (address-bar-collapsed) viewport, so with the address bar visible
+          - the common case right after opening - an 80vh sheet reads as
+          taller than the actual visible area and gets clipped. dvh tracks
+          the browser chrome's current state instead. */}
+      <div className="sheet-slide-up relative flex h-[80dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-border bg-surface">
         <div className="shrink-0 border-b border-border p-4 pb-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">

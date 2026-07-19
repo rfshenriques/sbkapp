@@ -67,7 +67,7 @@ export default function LoginPage() {
             id="identifier"
             value={identifier}
             onChange={(event) => setIdentifier(event.target.value)}
-            className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
             autoComplete="username"
             required
           />
@@ -81,7 +81,7 @@ export default function LoginPage() {
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
             autoComplete="current-password"
             required
           />

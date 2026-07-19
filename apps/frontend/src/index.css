@@ -93,7 +93,7 @@ body {
   gap: 1px;
   min-width: 64px;
   padding: 6px 10px;
-  border-radius: 9px;
+  border-radius: 12px;
   background-color: var(--color-surface-2);
   border: 1px solid var(--color-border);
   transition:
@@ -146,7 +146,7 @@ body {
   letter-spacing: 0.8px;
   font-size: 13.5px;
   padding: 9px 20px;
-  border-radius: 10px;
+  border-radius: 14px;
   white-space: nowrap;
   background: linear-gradient(
     135deg,
@@ -173,7 +173,7 @@ body {
   letter-spacing: 0.8px;
   font-size: 13.5px;
   padding: 8px 16px;
-  border-radius: 10px;
+  border-radius: 14px;
   border: 1px solid var(--color-border);
   color: var(--color-text-primary);
   white-space: nowrap;
@@ -192,7 +192,7 @@ body {
   gap: 6px;
   white-space: nowrap;
   padding: 7px 14px;
-  border-radius: 10px;
+  border-radius: 14px;
   background-color: var(--color-surface-2);
   color: var(--color-text-secondary);
   font-family: var(--font-display);
@@ -221,12 +221,12 @@ body {
    rounded shape belongs to the whole pill, not to each half: the container
    clips its full-width flex children to its own border-radius, so there's
    never a rounded corner on the seam between them, only at the two outer
-   ends. Same 10px radius as buttons/tabs elsewhere - rounded, not a full
+   ends. Same 14px radius as buttons/tabs elsewhere - rounded, not a full
    pill, to match the rest of the app's rectangular chrome. */
 .tab-pill {
   display: flex;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: 14px;
   background-color: var(--color-surface-2);
 }
 .tab-pill-btn {

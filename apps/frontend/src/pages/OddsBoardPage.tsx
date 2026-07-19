@@ -52,7 +52,7 @@ export default function OddsBoardPage() {
     <div>
       {featured && featuredMatchResult && featuredHref && (
         <section
-          className="relative mb-8 cursor-pointer overflow-hidden rounded-2xl p-6 pb-5 text-white transition-transform hover:scale-[1.005]"
+          className="relative mb-8 cursor-pointer overflow-hidden rounded-3xl p-6 pb-5 text-white transition-transform hover:scale-[1.005]"
           style={{
             background:
               'linear-gradient(155deg, color-mix(in srgb, var(--color-brand) 85%, black) 0%, color-mix(in srgb, var(--color-brand) 30%, black) 48%, #0a0a10 100%)',
@@ -147,8 +147,11 @@ export default function OddsBoardPage() {
             ))}
           </div>
           {liveMatches.length > MAX_HOMEPAGE_ITEMS && (
-            <Link to="/sports/all" className="btn-ghost mt-3 inline-flex items-center justify-center">
-              Load more live matches →
+            <Link
+              to="/sports/all"
+              className="btn-ghost mt-3 flex w-full items-center justify-center sm:inline-flex sm:w-auto"
+            >
+              Load more
             </Link>
           )}
         </section>
@@ -198,9 +201,9 @@ export default function OddsBoardPage() {
         {upcomingForSport.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
           <Link
             to={`/sports/${encodeURIComponent(effectiveSport)}`}
-            className="btn-ghost mt-3 inline-flex items-center justify-center"
+            className="btn-ghost mt-3 flex w-full items-center justify-center sm:inline-flex sm:w-auto"
           >
-            Load more {displayName('SPORT', effectiveSport)} matches →
+            Load more
           </Link>
         )}
       </section>

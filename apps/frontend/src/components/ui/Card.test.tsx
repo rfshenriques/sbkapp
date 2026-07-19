@@ -14,6 +14,6 @@ describe('Card', () => {
 
     const card = screen.getByText('content');
     expect(card.className).toContain('custom-class');
-    expect(card.className).toContain('rounded-lg');
+    expect(card.className).toContain('rounded-2xl');
   });
 });

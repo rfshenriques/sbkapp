@@ -93,7 +93,7 @@ export function AppShell() {
             the sport/country/competition tree and Top Competitions list
             need more room to stay readable than the compact bet slip does. */}
         <aside className="hidden sm:block sm:w-96 sm:shrink-0">
-          <div className="scrollbar-hide sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-lg border border-border bg-surface p-4">
+          <div className="scrollbar-hide sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-2xl border border-border bg-surface p-4">
             <Sidebar />
           </div>
         </aside>
@@ -113,7 +113,7 @@ export function AppShell() {
             payout calculator fixed at the bottom - this wrapper just gives
             it a bounded height to work within, no overflow of its own. */}
         <aside className="hidden sm:block sm:w-80 sm:shrink-0">
-          <div className="sticky top-20 flex h-[calc(100vh-6rem)] flex-col rounded-lg border border-border bg-surface p-4">
+          <div className="sticky top-20 flex h-[calc(100vh-6rem)] flex-col rounded-2xl border border-border bg-surface p-4">
             <BetSlipPanel showHistoryTab emptyStateVariant="promotional" />
           </div>
         </aside>
@@ -128,10 +128,10 @@ export function AppShell() {
           // sat right on top of (and got visually cut off by) the nav on
           // devices with a home-indicator safe area.
           style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
-          className="btn-primary fixed inset-x-3 z-30 flex items-center justify-between gap-3 rounded-xl px-[22px] py-[15px] text-left shadow-lg sm:hidden"
+          className="btn-primary fixed inset-x-3 z-30 flex items-center justify-between gap-3 rounded-2xl px-[22px] py-[15px] text-left shadow-lg sm:hidden"
         >
           <span className="flex items-center gap-3">
-            <span className="flex h-6 min-w-6 items-center justify-center rounded-md bg-black/20 font-display text-sm">
+            <span className="flex h-6 min-w-6 items-center justify-center rounded-lg bg-black/20 font-display text-sm">
               {selections.length}
             </span>
             <span className="font-display text-base">

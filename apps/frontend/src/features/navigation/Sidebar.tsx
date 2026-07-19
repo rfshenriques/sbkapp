@@ -78,7 +78,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
       {/* Pinned to the top of whichever scroll container this sits in
           (desktop column or mobile full-screen drawer) so it stays reachable
           however far the sport/country/competition tree below is scrolled. */}
-      <div className={cn('sticky -top-4 z-10 -mx-4 -mt-4 rounded-t-lg px-4 pt-4 pb-3', stickyBgClassName)}>
+      <div className={cn('sticky -top-4 z-10 -mx-4 -mt-4 rounded-t-2xl px-4 pt-4 pb-3', stickyBgClassName)}>
         <div className="relative">
           <SearchIcon
             width={15}
@@ -91,7 +91,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search teams, competitions..."
             aria-label="Search sports and competitions"
-            className="w-full rounded-md border border-border bg-surface-2 py-2 pr-3 pl-8 text-sm text-text-primary placeholder:text-text-muted focus:ring-1 focus:ring-brand focus:outline-none"
+            className="w-full rounded-xl border border-border bg-surface-2 py-2 pr-3 pl-8 text-sm text-text-primary placeholder:text-text-muted focus:ring-1 focus:ring-brand focus:outline-none"
           />
         </div>
       </div>
@@ -103,7 +103,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
       {hasMatchResults && (
         <div>
           <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-text-muted">Matches</h2>
-          <div className="overflow-hidden rounded-lg bg-surface-2">
+          <div className="overflow-hidden rounded-2xl bg-surface-2">
             <ul className="divide-y divide-border/60">
               {matchingMatches.map((match) => (
                 <li key={match.id}>
@@ -132,7 +132,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
           <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-text-muted">
             Top Competitions
           </h2>
-          <div className="overflow-hidden rounded-lg bg-surface-2">
+          <div className="overflow-hidden rounded-2xl bg-surface-2">
             <ul className="divide-y divide-border/60">
               {topCompetitions.map((ranking) => {
                 const country = competitionCountries.get(ranking.competition);
@@ -161,7 +161,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
       {showLeagues && tree.length > 0 && (
         <div>
           <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-text-muted">Sports</h2>
-          <div className="overflow-hidden rounded-lg bg-surface-2">
+          <div className="overflow-hidden rounded-2xl bg-surface-2">
             <ul className="divide-y divide-border/60">
               {tree.map((sportNode) => {
                 const isSportOpen = isSearching || expandedSport === sportNode.sport;

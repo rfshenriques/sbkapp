@@ -93,7 +93,7 @@ export default function MatchDetailPage() {
         }
       />
 
-      <section className="relative mt-2 overflow-hidden rounded-2xl border border-border bg-surface p-6">
+      <section className="relative mt-2 overflow-hidden rounded-3xl border border-border bg-surface p-6">
         <div className="flex items-center gap-2.5">
           <span
             className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest ${
