@@ -13,6 +13,8 @@ export interface Market {
 
 export interface Match {
   id: string;
+  /** Human-readable sport grouping, e.g. "Football", "Ice Hockey" - powers per-sport filtering on the board. */
+  sport: string;
   competition: string;
   homeTeam: string;
   awayTeam: string;

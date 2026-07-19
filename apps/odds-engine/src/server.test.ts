@@ -8,6 +8,7 @@ import { createOddsEngine, type OddsEngine } from './server';
 
 const stubMatch: Match = {
   id: '1',
+  sport: 'Football',
   competition: 'International - FIFA World Cup',
   homeTeam: 'Spain',
   awayTeam: 'Argentina',

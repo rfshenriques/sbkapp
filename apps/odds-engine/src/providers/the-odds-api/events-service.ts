@@ -23,8 +23,9 @@ const EVENTS_CACHE_TTL_MS = 24 * 60 * 60_000;
  * confirmed active/real are soccer_epl, soccer_spain_la_liga,
  * soccer_germany_bundesliga, soccer_italy_serie_a, soccer_france_ligue_one,
  * soccer_netherlands_eredivisie, soccer_uefa_champs_league_qualification,
- * soccer_fifa_world_cup. Dropped: soccer_portugal_primeira_liga (doesn't
- * exist under that or any similar key in the real list) and
+ * soccer_fifa_world_cup, icehockey_nhl, americanfootball_nfl,
+ * mma_mixed_martial_arts, boxing_boxing. Dropped: soccer_portugal_primeira_liga
+ * (doesn't exist under that or any similar key in the real list) and
  * soccer_uefa_champs_league / soccer_uefa_europa_league /
  * soccer_uefa_europa_conference_league / soccer_uefa_nations_league (none
  * appeared in the "in season" list - the group stages/Nations League
@@ -32,13 +33,21 @@ const EVENTS_CACHE_TTL_MS = 24 * 60 * 60_000;
  * in-season sports by default, so these may reappear once their windows
  * open rather than being permanently wrong keys).
  *
- * Other confirmed-real European leagues not included here, to keep the
- * per-refresh request count down given the tight monthly quota - add if
- * broader coverage is wanted: soccer_efl_champ (England Championship),
- * soccer_austria_bundesliga, soccer_belgium_first_div,
- * soccer_denmark_superliga, soccer_norway_eliteserien,
- * soccer_poland_ekstraklasa, soccer_spl (Scotland), soccer_sweden_allsvenskan,
- * soccer_switzerland_superleague.
+ * Deliberately excluded from the real list even though confirmed active:
+ * any *_winner / *_championship_winner key (outright/futures markets, not
+ * per-game h2h - incompatible with the markets=h2h fetch this provider
+ * uses) and the more regional sports (CFL, NCAAF, AFL, KBO/MiLB/NPB
+ * baseball, cricket formats, lacrosse, NRL) to keep per-refresh request
+ * count down given the tight monthly quota - see the cache-TTL comment
+ * above. At 12 keys x 1 request/24h this is ~360 requests/month, leaving
+ * headroom under the 500/month cap.
+ *
+ * Other confirmed-real European leagues not included here for the same
+ * quota reason - add if broader coverage is wanted: soccer_efl_champ
+ * (England Championship), soccer_austria_bundesliga,
+ * soccer_belgium_first_div, soccer_denmark_superliga,
+ * soccer_norway_eliteserien, soccer_poland_ekstraklasa, soccer_spl
+ * (Scotland), soccer_sweden_allsvenskan, soccer_switzerland_superleague.
  */
 export const RELEVANT_SPORT_KEYS = [
   'soccer_epl',
@@ -49,6 +58,10 @@ export const RELEVANT_SPORT_KEYS = [
   'soccer_netherlands_eredivisie',
   'soccer_uefa_champs_league_qualification',
   'soccer_fifa_world_cup',
+  'icehockey_nhl',
+  'americanfootball_nfl',
+  'mma_mixed_martial_arts',
+  'boxing_boxing',
 ];
 
 interface CacheEntry<T> {

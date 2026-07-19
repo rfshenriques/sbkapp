@@ -9,6 +9,7 @@ import MarketsPage from './MarketsPage';
 
 const liveMatch: Match = {
   id: 'match-1',
+  sport: 'Football',
   competition: 'Premier League',
   homeTeam: 'Arsenal',
   awayTeam: 'Chelsea',

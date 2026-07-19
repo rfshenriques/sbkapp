@@ -51,6 +51,7 @@ describe('MatchDetailPage', () => {
     stubOddsEngineFetch([
       {
         id: 'match-6',
+        sport: 'Football',
         competition: 'Some Small League',
         homeTeam: 'Home Team',
         awayTeam: 'Away Team',

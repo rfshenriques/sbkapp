@@ -17,6 +17,7 @@ function matchResultMarket(home: number, draw: number, away: number): Match['mar
 export const mockMatches: Match[] = [
   {
     id: 'match-1',
+    sport: 'Football',
     competition: 'Premier League',
     homeTeam: 'Arsenal',
     awayTeam: 'Chelsea',
@@ -26,6 +27,7 @@ export const mockMatches: Match[] = [
   },
   {
     id: 'match-2',
+    sport: 'Football',
     competition: 'Premier League',
     homeTeam: 'Liverpool',
     awayTeam: 'Manchester City',
@@ -35,6 +37,7 @@ export const mockMatches: Match[] = [
   },
   {
     id: 'match-3',
+    sport: 'Football',
     competition: 'La Liga',
     homeTeam: 'Real Madrid',
     awayTeam: 'Barcelona',
@@ -44,6 +47,7 @@ export const mockMatches: Match[] = [
   },
   {
     id: 'match-4',
+    sport: 'Football',
     competition: 'La Liga',
     homeTeam: 'Atletico Madrid',
     awayTeam: 'Sevilla',
@@ -53,11 +57,22 @@ export const mockMatches: Match[] = [
   },
   {
     id: 'match-5',
+    sport: 'Football',
     competition: 'Serie A',
     homeTeam: 'Inter Milan',
     awayTeam: 'AC Milan',
     kickoff: '2026-07-19T21:45:00Z',
     isLive: false,
     markets: matchResultMarket(2.3, 3.3, 3.0),
+  },
+  {
+    id: 'match-6',
+    sport: 'Ice Hockey',
+    competition: 'NHL',
+    homeTeam: 'Toronto Maple Leafs',
+    awayTeam: 'Boston Bruins',
+    kickoff: '2026-07-20T00:00:00Z',
+    isLive: false,
+    markets: matchResultMarket(2.0, 4.2, 2.05),
   },
 ];

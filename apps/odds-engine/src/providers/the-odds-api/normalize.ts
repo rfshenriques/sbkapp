@@ -2,6 +2,29 @@ import type { Market, Match, Selection } from '@sportsbook/shared';
 import type { TheOddsApiBookmaker, TheOddsApiEventOdds, TheOddsApiOutcome } from './types';
 
 /**
+ * the-odds-api.com's event objects carry sport_key/sport_title but no
+ * human-readable "group" (that only appears on GET /v4/sports, a separate
+ * call we don't want to spend quota making per event). Since
+ * RELEVANT_SPORT_KEYS in events-service.ts is a small, fixed, curated list,
+ * a static prefix map is simpler and free - add an entry here whenever a
+ * new sport key is added there.
+ */
+const SPORT_LABEL_BY_KEY_PREFIX: Record<string, string> = {
+  soccer_: 'Football',
+  icehockey_: 'Ice Hockey',
+  americanfootball_: 'American Football',
+  mma_: 'MMA',
+  boxing_: 'Boxing',
+};
+
+function sportLabelForKey(sportKey: string): string {
+  const prefix = Object.keys(SPORT_LABEL_BY_KEY_PREFIX).find((candidate) =>
+    sportKey.startsWith(candidate),
+  );
+  return prefix ? (SPORT_LABEL_BY_KEY_PREFIX[prefix] as string) : sportKey;
+}
+
+/**
  * Single preferred pricing source - Paddy Power, expected to offer deeper
  * market coverage once on a paid the-odds-api.com plan. Matched as a
  * substring, not an exact title match, since a real response we checked
@@ -74,6 +97,7 @@ export function normalizeTheOddsApiEventOdds(raw: TheOddsApiEventOdds, now?: () 
 
   return {
     id: raw.id,
+    sport: sportLabelForKey(raw.sport_key),
     competition: raw.sport_title,
     homeTeam: raw.home_team,
     awayTeam: raw.away_team,

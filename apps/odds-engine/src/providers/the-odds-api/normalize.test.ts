@@ -69,6 +69,7 @@ describe('normalizeTheOddsApiEventOdds', () => {
 
     expect(match).toMatchObject({
       id: 'e912304de2b4f88b43d1c294a3e6bfe4',
+      sport: 'Football',
       competition: 'EPL',
       homeTeam: 'Arsenal',
       awayTeam: 'Chelsea',
@@ -157,6 +158,18 @@ describe('normalizeTheOddsApiEventOdds', () => {
       { id: 'draw', name: 'Draw', odds: 3.4 },
       { id: 'away', name: 'Away', odds: 3.8 },
     ]);
+  });
+
+  it('maps a non-soccer sport key to its human-readable label', () => {
+    const now = () => new Date('2026-07-19T10:00:00Z').getTime();
+    const nhlEvent: TheOddsApiEventOdds = {
+      ...pendingEventOdds,
+      sport_key: 'icehockey_nhl',
+      sport_title: 'NHL',
+    };
+
+    const match = normalizeTheOddsApiEventOdds(nhlEvent, now);
+    expect(match.sport).toBe('Ice Hockey');
   });
 
   it('returns an empty markets list when no bookmaker offers h2h', () => {
