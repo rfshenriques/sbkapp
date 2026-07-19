@@ -153,7 +153,13 @@ export async function getTeamColors(): Promise<PublicTeamColor[]> {
   return (await response.json()) as PublicTeamColor[];
 }
 
-export type DisplayNameEntityType = 'SPORT' | 'COUNTRY' | 'COMPETITION' | 'TEAM';
+export type DisplayNameEntityType =
+  | 'SPORT'
+  | 'COUNTRY'
+  | 'COMPETITION'
+  | 'TEAM'
+  | 'MARKET'
+  | 'SELECTION';
 
 export interface PublicDisplayNameOverride {
   entityType: DisplayNameEntityType;

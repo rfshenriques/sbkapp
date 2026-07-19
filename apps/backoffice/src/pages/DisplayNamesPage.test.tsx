@@ -16,7 +16,17 @@ const liveMatch: Match = {
   awayTeam: 'Lincoln Red Imps FC',
   kickoff: '2026-07-18T15:00:00Z',
   isLive: false,
-  markets: [],
+  markets: [
+    {
+      id: 'match-result',
+      name: 'Match Result',
+      selections: [
+        { id: 'home', name: 'Home', odds: 2.1 },
+        { id: 'draw', name: 'Draw', odds: 3.4 },
+        { id: 'away', name: 'Away', odds: 3.2 },
+      ],
+    },
+  ],
 };
 
 const competitionOverride: DisplayNameOverride = {
@@ -50,7 +60,7 @@ afterEach(() => {
 });
 
 describe('DisplayNamesPage', () => {
-  it('syncs all four entity types from the live feed on load, then lists the Competitions tab by default', async () => {
+  it('syncs all six entity types from the live feed on load, then lists the Competitions tab by default', async () => {
     const synced: Record<string, string[]> = {};
     let competitions: DisplayNameOverride[] = [];
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -86,6 +96,8 @@ describe('DisplayNamesPage', () => {
       COUNTRY: ['Europe'],
       COMPETITION: ['UEFA Champions League Qualification'],
       TEAM: ['Mjallby AIF', 'Lincoln Red Imps FC'],
+      MARKET: ['Match Result'],
+      SELECTION: ['Home', 'Draw', 'Away'],
     });
   });
 
@@ -158,5 +170,40 @@ describe('DisplayNamesPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Teams' }));
 
     expect(await screen.findByText('Arsenal')).toBeInTheDocument();
+  });
+
+  it('has a Markets and a Selections tab, syncing raw market/selection names from every match', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/api/events') {
+        return new Response(JSON.stringify([liveMatch]), { status: 200 });
+      }
+      if (method === 'POST' && url === '/backend/admin/display-names/sync') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/display-names?entityType=MARKET') {
+        return new Response(
+          JSON.stringify([
+            { id: 'dn-3', entityType: 'MARKET', rawName: 'Match Result', displayName: null, createdAt: '', updatedAt: '' },
+          ]),
+          { status: 200 },
+        );
+      }
+      if (method === 'GET' && url.startsWith('/backend/admin/display-names?entityType=')) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderPage();
+    await screen.findByRole('button', { name: 'Markets' });
+    expect(screen.getByRole('button', { name: 'Selections' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Markets' }));
+
+    expect(await screen.findByText('Match Result')).toBeInTheDocument();
   });
 });

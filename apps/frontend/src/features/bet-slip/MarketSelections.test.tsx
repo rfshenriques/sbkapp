@@ -1,6 +1,8 @@
+import type { ReactElement } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Market } from '@sportsbook/shared';
 import { MarketSelections } from './MarketSelections';
 import { useBetSlipStore } from './betSlipStore';
@@ -17,10 +19,22 @@ const matchResult: Market = {
 
 beforeEach(() => {
   useBetSlipStore.setState({ selections: [] });
+  // MarketSelections now resolves display-name overrides - no override set
+  // in these tests, so this just needs to resolve without throwing.
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([]), { status: 200 })));
 });
 
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+function renderWithQueryClient(ui: ReactElement) {
+  const queryClient = new QueryClient();
+  return render(<QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>);
+}
+
 function renderMarketSelections() {
-  return render(
+  return renderWithQueryClient(
     <MarketSelections matchId="match-1" matchLabel="Arsenal vs Chelsea" market={matchResult} />,
   );
 }
@@ -49,6 +63,30 @@ describe('MarketSelections', () => {
         selectionName: 'Home',
         odds: 2.1,
       },
+    ]);
+  });
+
+  it('applies MARKET/SELECTION display-name overrides to the label and the captured bet slip selection', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify([
+            { entityType: 'MARKET', rawName: 'Match Result', displayName: '1X2' },
+            { entityType: 'SELECTION', rawName: 'Home', displayName: '1' },
+          ]),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    renderMarketSelections();
+
+    const homeButton = await screen.findByRole('button', { name: '12.10' });
+    await userEvent.click(homeButton);
+
+    expect(useBetSlipStore.getState().selections).toEqual([
+      expect.objectContaining({ marketName: '1X2', selectionName: '1' }),
     ]);
   });
 
@@ -88,7 +126,7 @@ describe('MarketSelections', () => {
         { id: 'away', name: 'Away', odds: 1.8 },
       ],
     };
-    const { container } = render(
+    const { container } = renderWithQueryClient(
       <MarketSelections matchId="match-1" matchLabel="Arsenal vs Chelsea" market={twoWay} />,
     );
     const grid = container.firstElementChild as HTMLElement;
@@ -101,7 +139,7 @@ describe('MarketSelections', () => {
       name: 'Outright Winner',
       selections: [{ id: 'team-a', name: 'Team A', odds: 1.5 }],
     };
-    const { container } = render(
+    const { container } = renderWithQueryClient(
       <MarketSelections matchId="match-1" matchLabel="Arsenal vs Chelsea" market={oneWay} />,
     );
     const grid = container.firstElementChild as HTMLElement;

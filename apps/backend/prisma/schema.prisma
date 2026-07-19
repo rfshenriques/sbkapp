@@ -159,6 +159,8 @@ enum DisplayNameEntityType {
   COUNTRY
   COMPETITION
   TEAM
+  MARKET
+  SELECTION
 }
 
 /**
@@ -169,6 +171,8 @@ enum DisplayNameEntityType {
  * conversation that asked for this: a single rename, not multi-language
  * i18n. Rows get created the same two ways as TeamColor above: synced from
  * the feed with displayName left null, or set directly by an admin.
+ * MARKET/SELECTION cover market names (e.g. "Match Result") and outcome
+ * names (e.g. "Home"/"Draw"/"Away") the same way.
  */
 model DisplayNameOverride {
   id          String                @id @default(uuid())

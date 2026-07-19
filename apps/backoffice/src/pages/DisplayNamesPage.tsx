@@ -13,6 +13,8 @@ const ENTITY_TYPES: { value: backendApi.DisplayNameEntityType; label: string }[]
   { value: 'COUNTRY', label: 'Countries' },
   { value: 'COMPETITION', label: 'Competitions' },
   { value: 'TEAM', label: 'Teams' },
+  { value: 'MARKET', label: 'Markets' },
+  { value: 'SELECTION', label: 'Selections' },
 ];
 
 function DisplayNameRow({ override }: { override: backendApi.DisplayNameOverride }) {
@@ -75,11 +77,12 @@ export default function DisplayNamesPage() {
   });
 
   // Every entity type is sourced from the same live match feed, so sync all
-  // four in one pass rather than re-syncing on every tab switch.
+  // six in one pass rather than re-syncing on every tab switch.
   useEffect(() => {
     if (!matches || matches.length === 0 || hasSynced) {
       return;
     }
+    const allMarkets = matches.flatMap((match) => match.markets);
     syncMutation.mutate({ entityType: 'SPORT', names: [...new Set(matches.map((match) => match.sport))] });
     syncMutation.mutate({ entityType: 'COUNTRY', names: [...new Set(matches.map((match) => match.country))] });
     syncMutation.mutate({
@@ -90,6 +93,14 @@ export default function DisplayNamesPage() {
       entityType: 'TEAM',
       names: [...new Set(matches.flatMap((match) => [match.homeTeam, match.awayTeam]))],
     });
+    syncMutation.mutate({
+      entityType: 'MARKET',
+      names: [...new Set(allMarkets.map((market) => market.name))],
+    });
+    syncMutation.mutate({
+      entityType: 'SELECTION',
+      names: [...new Set(allMarkets.flatMap((market) => market.selections.map((selection) => selection.name)))],
+    });
     setHasSynced(true);
   }, [matches, hasSynced]);
 
@@ -97,9 +108,9 @@ export default function DisplayNamesPage() {
     <div>
       <h1 className="text-2xl font-semibold">Display names</h1>
       <p className="mt-1 text-sm text-text-secondary">
-        Sports, countries, competitions, and teams seen in the live odds feed are listed here
-        automatically. Set a nicer display name for any raw feed name - e.g. "UEFA Champions League
-        Qualification" shown as "UEFA Champions League (Q)".
+        Sports, countries, competitions, teams, markets, and selections seen in the live odds feed
+        are listed here automatically. Set a nicer display name for any raw feed name - e.g. "UEFA
+        Champions League Qualification" shown as "Champions League (Q)".
       </p>
 
       <div className="mt-4 flex gap-2" role="group" aria-label="Entity type">

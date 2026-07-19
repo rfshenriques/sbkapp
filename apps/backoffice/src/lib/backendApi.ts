@@ -313,7 +313,13 @@ export async function setTeamColor(id: string, colorHex: string | null): Promise
   return parseJsonOrThrow(response, `Failed to set team color: ${response.status}`);
 }
 
-export type DisplayNameEntityType = 'SPORT' | 'COUNTRY' | 'COMPETITION' | 'TEAM';
+export type DisplayNameEntityType =
+  | 'SPORT'
+  | 'COUNTRY'
+  | 'COMPETITION'
+  | 'TEAM'
+  | 'MARKET'
+  | 'SELECTION';
 
 export interface DisplayNameOverride {
   id: string;

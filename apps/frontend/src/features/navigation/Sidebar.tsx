@@ -6,6 +6,7 @@ import { SearchIcon } from '../../components/ui/NavIcons';
 import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
 import { SportIcon } from '../../components/ui/SportIcon';
 import { cn } from '../../lib/cn';
+import { useDisplayNames } from '../display-names/useDisplayNames';
 import { useMatches } from '../odds-board/useMatches';
 import { useCompetitionRankings } from '../odds-board/useCompetitionRankings';
 import { buildSportTree, competitionCountryMap } from './buildSportTree';
@@ -34,6 +35,7 @@ export interface SidebarProps {
 export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: SidebarProps = {}) {
   const { data: matches } = useMatches();
   const { data: rankings } = useCompetitionRankings();
+  const displayName = useDisplayNames();
   const [query, setQuery] = useState('');
   const trimmedQuery = query.trim().toLowerCase();
   const isSearching = trimmedQuery.length > 0;
@@ -115,9 +117,11 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                     <SportCountryBadge sport={match.sport} country={match.country} size={22} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate font-semibold text-text-primary">
-                        {match.homeTeam} vs {match.awayTeam}
+                        {displayName('TEAM', match.homeTeam)} vs {displayName('TEAM', match.awayTeam)}
                       </span>
-                      <span className="block truncate text-xs text-text-muted">{match.competition}</span>
+                      <span className="block truncate text-xs text-text-muted">
+                        {displayName('COMPETITION', match.competition)}
+                      </span>
                     </span>
                   </Link>
                 </li>
@@ -148,7 +152,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                       ) : (
                         <span className="inline-block h-[22px] w-[22px] shrink-0" />
                       )}
-                      <span>{ranking.competition}</span>
+                      <span>{displayName('COMPETITION', ranking.competition)}</span>
                     </Link>
                   </li>
                 );
@@ -178,7 +182,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                     >
                       <SportIcon sport={sportNode.sport} size={28} />
                       <span className="flex-1 text-sm font-semibold text-text-primary">
-                        {sportNode.sport}
+                        {displayName('SPORT', sportNode.sport)}
                       </span>
                       <ChevronIcon
                         className={cn(
@@ -206,7 +210,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                               >
                                 <CountryFlag country={countryNode.country} size={24} />
                                 <span className="flex-1 text-sm text-text-secondary">
-                                  {countryNode.country}
+                                  {displayName('COUNTRY', countryNode.country)}
                                 </span>
                                 <ChevronIcon
                                   className={cn(
@@ -226,7 +230,8 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                                         onClick={onNavigate}
                                       >
                                         <span>
-                                          {countryNode.country} - {competitionNode.competition}
+                                          {displayName('COUNTRY', countryNode.country)} -{' '}
+                                          {displayName('COMPETITION', competitionNode.competition)}
                                         </span>
                                         <span className="text-xs text-text-muted">
                                           {competitionNode.matchCount}
