@@ -45,11 +45,13 @@ export function MatchCard({ match }: MatchCardProps) {
     >
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
-          <p className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+          <p className="mb-1 flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
             <SportCountryBadge sport={match.sport} country={match.country} />
-            <span>{displayName('COMPETITION', match.competition)}</span>
+            <span className="min-w-0 flex-1 truncate">
+              {displayName('COMPETITION', match.competition)}
+            </span>
             {!match.isLive && (
-              <span className="ml-auto text-highlight">{formatKickoff(kickoff)}</span>
+              <span className="ml-auto shrink-0 text-highlight">{formatKickoff(kickoff)}</span>
             )}
           </p>
           {/* Real link kept for keyboard/screen-reader navigation and a

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { cn } from '../../lib/cn';
 
 export interface BottomSheetProps {
   title: string;
@@ -12,15 +13,28 @@ export interface BottomSheetProps {
   /** Fixed at the bottom, outside the scrollable body - a submit button is never scrolled out of reach. */
   footer?: ReactNode;
   children: ReactNode;
-  /** Override the body wrapper's own scroll/padding when the child already manages that itself (BetSlipPanel does). */
+  /** Override the body wrapper's own scroll/padding when the child already manages that itself (BetSlipPanel does, and Register's image+fields split does). */
   bodyClassName?: string;
+  /**
+   * Desktop (sm+) only - mobile is always a full-width bottom sheet
+   * regardless. 'default' is a small, page-centered dialog (Login).
+   * 'wide' gives Register's promo-image + fields split enough room to sit
+   * side by side instead of stacking the way mobile does.
+   */
+  desktopSize?: 'default' | 'wide';
 }
 
+const desktopMaxWidth: Record<NonNullable<BottomSheetProps['desktopSize']>, string> = {
+  default: 'sm:max-w-md',
+  wide: 'sm:max-w-3xl',
+};
+
 /**
- * Shared bottom-to-top sheet for every modal-as-a-route in the app (login,
- * register, the mobile bet slip) - full viewport width and 80% height at
- * every breakpoint, sliding up from the bottom, with its primary action
- * fixed in a footer rather than scrolling away with the body content.
+ * Shared modal presentation for every route-as-a-modal in the app (login,
+ * register, the mobile bet slip). Mobile is always a bottom-to-top sheet -
+ * full viewport width and 80% height. Desktop (sm+) is a smaller,
+ * page-centered dialog instead: a full-bleed sheet reads as oversized once
+ * there's room for it to just be a normal modal.
  */
 export function BottomSheet({
   title,
@@ -31,9 +45,10 @@ export function BottomSheet({
   footer,
   children,
   bodyClassName,
+  desktopSize = 'default',
 }: BottomSheetProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center">
+    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <button
         type="button"
         aria-label={closeLabel}
@@ -44,8 +59,15 @@ export function BottomSheet({
           (address-bar-collapsed) viewport, so with the address bar visible
           - the common case right after opening - an 80vh sheet reads as
           taller than the actual visible area and gets clipped. dvh tracks
-          the browser chrome's current state instead. */}
-      <div className="sheet-slide-up relative flex h-[80dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-border bg-surface">
+          the browser chrome's current state instead. Desktop drops the fixed
+          height for an auto one capped by max-h, since a small centered
+          dialog should size to its content, not always fill 80% of screen. */}
+      <div
+        className={cn(
+          'sheet-slide-up relative flex h-[80dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-border bg-surface sm:h-auto sm:max-h-[85vh] sm:rounded-3xl',
+          desktopMaxWidth[desktopSize],
+        )}
+      >
         <div className="shrink-0 border-b border-border p-4 pb-3">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
@@ -63,7 +85,9 @@ export function BottomSheet({
           </div>
           {headerExtra}
         </div>
-        <div className={bodyClassName ?? 'scrollbar-hide min-h-0 flex-1 overflow-y-auto p-4'}>{children}</div>
+        <div className={bodyClassName ?? 'scrollbar-hide min-h-0 flex-1 overflow-y-auto p-4'}>
+          {children}
+        </div>
         {footer && <div className="shrink-0 border-t border-border p-4 pt-3">{footer}</div>}
       </div>
     </div>

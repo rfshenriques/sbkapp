@@ -94,7 +94,10 @@ body {
   min-width: 64px;
   padding: 6px 10px;
   border-radius: 12px;
-  background-color: var(--color-surface-2);
+  /* One shade lighter than the surface-2 cards these buttons usually sit
+     on (see MatchCard, the bet slip's selection cards) - matching fills
+     would make the button vanish into its own card. */
+  background-color: var(--color-surface-hover);
   border: 1px solid var(--color-border);
   transition:
     border-color 0.15s,
@@ -120,18 +123,23 @@ body {
   font-size: 14.5px;
   font-variant-numeric: tabular-nums;
 }
+/* Same solid diagonal-gradient-plus-black-text formula as .tab.active /
+   .tab-pill-btn.active - a selected odd is functionally the same kind of
+   "active" state, so it reuses that formula instead of its own one-off
+   translucent gold wash. */
 .odd-btn.selected {
-  background:
-    linear-gradient(
-      135deg,
-      color-mix(in srgb, var(--color-highlight) 22%, transparent),
-      color-mix(in srgb, var(--color-brand) 18%, transparent)
-    ),
-    var(--color-surface-2);
+  background: linear-gradient(
+    135deg,
+    var(--color-highlight),
+    color-mix(in srgb, var(--color-highlight) 78%, black)
+  );
   border-color: var(--color-highlight);
 }
+.odd-btn.selected .odd-label {
+  color: color-mix(in srgb, black 45%, transparent);
+}
 .odd-btn.selected .odd-value {
-  color: var(--color-highlight);
+  color: #000;
 }
 
 /* CTAs only (Register, Place Bet, Browse matches, ...) - the one place

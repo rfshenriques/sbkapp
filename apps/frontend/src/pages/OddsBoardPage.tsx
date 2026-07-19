@@ -51,79 +51,117 @@ export default function OddsBoardPage() {
   return (
     <div>
       {featured && featuredMatchResult && featuredHref && (
-        <section
-          className="relative mb-8 cursor-pointer overflow-hidden rounded-3xl p-6 pb-5 text-white transition-transform hover:scale-[1.005]"
-          style={{
-            background:
-              'linear-gradient(155deg, color-mix(in srgb, var(--color-brand) 85%, black) 0%, color-mix(in srgb, var(--color-brand) 30%, black) 48%, #0a0a10 100%)',
-          }}
-          onClick={() => navigate(featuredHref)}
-          onMouseEnter={() => prefetchMatchDetail(featured.id)}
-          onTouchStart={() => prefetchMatchDetail(featured.id)}
-        >
-          {/* Oversized sport-icon watermark - purely decorative, no real
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-stretch">
+          <section
+            className="relative cursor-pointer overflow-hidden rounded-3xl p-6 pb-5 text-white transition-transform hover:scale-[1.005] sm:flex-1"
+            style={{
+              background:
+                'linear-gradient(155deg, color-mix(in srgb, var(--color-brand) 85%, black) 0%, color-mix(in srgb, var(--color-brand) 30%, black) 48%, #0a0a10 100%)',
+            }}
+            onClick={() => navigate(featuredHref)}
+            onMouseEnter={() => prefetchMatchDetail(featured.id)}
+            onTouchStart={() => prefetchMatchDetail(featured.id)}
+          >
+            {/* Oversized sport-icon watermark - purely decorative, no real
               match photo exists in our data model so this stands in for it. */}
-          <div className="pointer-events-none absolute -right-8 -bottom-10 opacity-15" aria-hidden="true">
-            <SportIcon sport={featured.sport} size={200} />
-          </div>
+            <div
+              className="pointer-events-none absolute -right-8 -bottom-10 opacity-15"
+              aria-hidden="true"
+            >
+              <SportIcon sport={featured.sport} size={200} />
+            </div>
 
-          <div className="relative">
-            <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-black/30 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-highlight backdrop-blur-sm">
-              <span className="h-[3px] w-4 -skew-x-[24deg] bg-highlight" aria-hidden="true" />
-              Match of the day
-            </span>
+            <div className="relative">
+              <span className="mb-3 inline-flex items-center gap-2 rounded-full bg-black/30 px-3 py-1 text-[11px] font-bold uppercase tracking-widest text-highlight backdrop-blur-sm">
+                <span className="h-[3px] w-4 -skew-x-[24deg] bg-highlight" aria-hidden="true" />
+                Match of the day
+              </span>
 
-            <p className="flex items-center gap-2 text-xs font-semibold text-white/70">
-              <SportCountryBadge sport={featured.sport} country={featured.country} />
-              <span>{displayName('COMPETITION', featured.competition)}</span>
-              {featured.isLive ? (
-                <span className="ml-auto rounded-full bg-price-down px-2 py-0.5 text-[10px] font-extrabold text-white">
-                  LIVE
-                </span>
-              ) : (
-                <span className="ml-auto text-highlight">{formatKickoff(new Date(featured.kickoff))}</span>
-              )}
-            </p>
+              <p className="flex items-center gap-2 text-xs font-semibold text-white/70">
+                <SportCountryBadge sport={featured.sport} country={featured.country} />
+                <span>{displayName('COMPETITION', featured.competition)}</span>
+                {featured.isLive ? (
+                  <span className="ml-auto rounded-full bg-price-down px-2 py-0.5 text-[10px] font-extrabold text-white">
+                    LIVE
+                  </span>
+                ) : (
+                  <span className="ml-auto text-highlight">
+                    {formatKickoff(new Date(featured.kickoff))}
+                  </span>
+                )}
+              </p>
 
-            {/* Real link kept for keyboard/screen-reader navigation - the
+              {/* Real link kept for keyboard/screen-reader navigation - the
                 section's onClick above is a mouse/touch convenience that
                 enlarges the clickable area to the whole card. */}
-            <h1
-              aria-label={`${featuredHomeTeamLabel} vs ${featuredAwayTeamLabel}`}
-              className="mt-3 flex items-center justify-center gap-3 sm:gap-5"
-            >
-              <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
-                <TeamColorAccent colorHex={teamColors.get(featured.homeTeam)} className="h-4 sm:h-6" />
-                <Link
-                  to={featuredHref}
-                  className="min-w-0 truncate text-right font-display text-xl leading-tight hover:underline sm:text-3xl"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  {featuredHomeTeamLabel}
-                </Link>
-              </span>
-              <span className="shrink-0 font-display text-sm text-text-muted sm:text-base">vs</span>
-              <span className="flex min-w-0 flex-1 items-center justify-start gap-2">
-                <Link
-                  to={featuredHref}
-                  className="min-w-0 truncate text-left font-display text-xl leading-tight hover:underline sm:text-3xl"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  {featuredAwayTeamLabel}
-                </Link>
-                <TeamColorAccent colorHex={teamColors.get(featured.awayTeam)} className="h-4 sm:h-6" />
-              </span>
-            </h1>
+              <h1
+                aria-label={`${featuredHomeTeamLabel} vs ${featuredAwayTeamLabel}`}
+                className="mt-3 flex items-center justify-center gap-3 sm:gap-5"
+              >
+                <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                  <TeamColorAccent
+                    colorHex={teamColors.get(featured.homeTeam)}
+                    className="h-4 sm:h-6"
+                  />
+                  <Link
+                    to={featuredHref}
+                    className="min-w-0 truncate text-right font-display text-xl leading-tight hover:underline sm:text-2xl"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {featuredHomeTeamLabel}
+                  </Link>
+                </span>
+                <span className="shrink-0 font-display text-sm text-text-muted sm:text-base">
+                  vs
+                </span>
+                <span className="flex min-w-0 flex-1 items-center justify-start gap-2">
+                  <Link
+                    to={featuredHref}
+                    className="min-w-0 truncate text-left font-display text-xl leading-tight hover:underline sm:text-2xl"
+                    onClick={(event) => event.stopPropagation()}
+                  >
+                    {featuredAwayTeamLabel}
+                  </Link>
+                  <TeamColorAccent
+                    colorHex={teamColors.get(featured.awayTeam)}
+                    className="h-4 sm:h-6"
+                  />
+                </span>
+              </h1>
 
-            <div className="mt-5 max-w-md">
-              <MarketSelections
-                matchId={featured.id}
-                matchLabel={`${featuredHomeTeamLabel} vs ${featuredAwayTeamLabel}`}
-                market={featuredMatchResult}
-              />
+              <div className="mt-5 max-w-md">
+                <MarketSelections
+                  matchId={featured.id}
+                  matchLabel={`${featuredHomeTeamLabel} vs ${featuredAwayTeamLabel}`}
+                  market={featuredMatchResult}
+                />
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+
+          {/* Desktop only, next to the featured match - a placeholder for a
+            promo that will become brand-configurable in the backoffice
+            (image/copy/CTA per brand). Mocked here as a welcome-bonus card
+            since there's no PromotionModule yet to back it with real data. */}
+          <aside className="relative hidden shrink-0 overflow-hidden rounded-3xl sm:block sm:w-72">
+            <div
+              className="flex h-full flex-col justify-end gap-2 p-6 text-white"
+              style={{
+                background:
+                  'linear-gradient(155deg, color-mix(in srgb, var(--color-highlight) 80%, black) 0%, color-mix(in srgb, var(--color-highlight) 25%, black) 55%, #0a0a10 100%)',
+              }}
+            >
+              <span className="inline-flex w-fit items-center gap-2 rounded-full bg-black/30 px-3 py-1 text-[11px] font-bold uppercase tracking-widest backdrop-blur-sm">
+                Welcome Bonus
+              </span>
+              <p className="font-display text-2xl leading-tight">Get up to €50 in bonus bets</p>
+              <p className="text-sm text-white/80">Sign up and place your first bet on us.</p>
+              <Link to="/register" className="btn-primary mt-2 w-fit">
+                Claim now
+              </Link>
+            </div>
+          </aside>
+        </div>
       )}
 
       {isPending && <MatchListSkeleton />}
