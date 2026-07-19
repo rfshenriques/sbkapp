@@ -2,7 +2,17 @@ import type { Match } from '@sportsbook/shared';
 import type { TheOddsApiClient } from './client';
 import { normalizeTheOddsApiEvent, normalizeTheOddsApiEventOdds } from './normalize';
 
-const EVENTS_CACHE_TTL_MS = 5 * 60_000;
+/**
+ * The Odds API's free tier is 500 requests/MONTH total (confirmed via the
+ * x-requests-remaining header - see logQuota in client.ts), not the
+ * requests-per-hour budget odds-api.io had. listMatches costs one request
+ * per configured sport key (13 today), so a short TTL is dangerous: at the
+ * old 5-minute value this could exhaust the entire month's quota within
+ * hours of real traffic. 24h keeps listMatches to ~13 requests/day
+ * (~390/month), leaving headroom for getMatchOdds calls. Revisit once on a
+ * paid tier with real quota.
+ */
+const EVENTS_CACHE_TTL_MS = 24 * 60 * 60_000;
 const ODDS_CACHE_TTL_MS = 2 * 60_000;
 
 /**

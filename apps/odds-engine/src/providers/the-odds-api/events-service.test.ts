@@ -92,7 +92,7 @@ describe('createEventsService', () => {
     await service.listMatches();
     expect(getEvents).toHaveBeenCalledTimes(1);
 
-    currentTime = 5 * 60_000 + 1;
+    currentTime = 24 * 60 * 60_000 + 1;
     await service.listMatches();
     expect(getEvents).toHaveBeenCalledTimes(2);
   });
