@@ -69,8 +69,11 @@ export function AppShell() {
       <div className="mx-auto flex max-w-[1440px] gap-4 p-4">
         {/* Desktop: sports navigation is a persistent left column, same
             convention as the bet slip's persistent right column - the
-            mobile drawer below is sm:hidden so the two never coexist. */}
-        <aside className="hidden sm:block sm:w-56 sm:shrink-0">
+            mobile drawer below is sm:hidden so the two never coexist.
+            Deliberately wider than the bet slip column (sm:w-80 below):
+            the sport/country/competition tree and Top Competitions list
+            need more room to stay readable than the compact bet slip does. */}
+        <aside className="hidden sm:block sm:w-96 sm:shrink-0">
           <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-lg border border-border bg-surface p-4">
             <Sidebar />
           </div>
