@@ -1,8 +1,14 @@
 import type { Market, Match, Selection } from '@sportsbook/shared';
-import type { TheOddsApiBookmaker, TheOddsApiEvent, TheOddsApiEventOdds, TheOddsApiOutcome } from './types';
+import type { TheOddsApiBookmaker, TheOddsApiEventOdds, TheOddsApiOutcome } from './types';
 
-/** Preferred pricing source, in order - see README note on why these two. */
-const PREFERRED_BOOKMAKER_TITLES = ['Betclic', 'Betano'];
+/**
+ * Single preferred pricing source - Paddy Power, expected to offer deeper
+ * market coverage once on a paid the-odds-api.com plan. Matched as a
+ * substring, not an exact title match, since a real response we checked
+ * had bookmaker titles carrying a country suffix (e.g. "Betclic (FR)", key
+ * "betclic_fr") - an exact-equality check would never match those.
+ */
+const PREFERRED_BOOKMAKER_TITLES = ['Paddy Power'];
 
 /**
  * This endpoint has no explicit "still live" field (unlike odds-api.io's
@@ -20,7 +26,9 @@ export function isLikelyLive(commenceTime: string, now: () => number = Date.now)
 
 function pickBookmaker(bookmakers: TheOddsApiBookmaker[]): TheOddsApiBookmaker | undefined {
   for (const title of PREFERRED_BOOKMAKER_TITLES) {
-    const found = bookmakers.find((bookmaker) => bookmaker.title.toLowerCase() === title.toLowerCase());
+    const found = bookmakers.find((bookmaker) =>
+      bookmaker.title.toLowerCase().includes(title.toLowerCase()),
+    );
     if (found) {
       return found;
     }
@@ -44,24 +52,11 @@ function toMatchResultSelections(
   });
 }
 
-/** Fixture-only mapping, for the cheap events list (no odds/markets). */
-export function normalizeTheOddsApiEvent(raw: TheOddsApiEvent, now?: () => number): Match {
-  return {
-    id: raw.id,
-    competition: raw.sport_title,
-    homeTeam: raw.home_team,
-    awayTeam: raw.away_team,
-    kickoff: raw.commence_time,
-    isLive: isLikelyLive(raw.commence_time, now),
-    markets: [],
-  };
-}
-
 /**
- * Maps a raw per-event odds response to our internal Match/Market/Selection
- * shape, taking the h2h market from a single preferred bookmaker (mirrors
- * odds-api.io's DEFAULT_BOOKMAKER approach - see PROJECT_BRIEF.md odds
- * ingestion notes).
+ * Maps a raw per-league odds response entry (one event, its own odds
+ * embedded) to our internal Match/Market/Selection shape, taking the h2h
+ * market from a single preferred bookmaker (mirrors odds-api.io's
+ * DEFAULT_BOOKMAKER approach - see PROJECT_BRIEF.md odds ingestion notes).
  */
 export function normalizeTheOddsApiEventOdds(raw: TheOddsApiEventOdds, now?: () => number): Match {
   const bookmaker = raw.bookmakers.length > 0 ? pickBookmaker(raw.bookmakers) : undefined;

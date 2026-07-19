@@ -1,33 +1,44 @@
 import type { Match } from '@sportsbook/shared';
 import type { TheOddsApiClient } from './client';
-import { normalizeTheOddsApiEvent, normalizeTheOddsApiEventOdds } from './normalize';
+import { normalizeTheOddsApiEventOdds } from './normalize';
 
 /**
  * The Odds API's free tier is 500 requests/MONTH total (confirmed via the
  * x-requests-remaining header - see logQuota in client.ts), not the
  * requests-per-hour budget odds-api.io had. listMatches costs one request
- * per configured sport key (13 today), so a short TTL is dangerous: at the
+ * per configured sport key, so a short TTL is dangerous: at odds-api.io's
  * old 5-minute value this could exhaust the entire month's quota within
- * hours of real traffic. 24h keeps listMatches to ~13 requests/day
- * (~390/month), leaving headroom for getMatchOdds calls. Revisit once on a
- * paid tier with real quota.
+ * hours of real traffic. 24h keeps this to one request per sport key per
+ * day, leaving comfortable headroom. Revisit once on a paid tier.
  */
 const EVENTS_CACHE_TTL_MS = 24 * 60 * 60_000;
-const ODDS_CACHE_TTL_MS = 2 * 60_000;
 
 /**
- * The Odds API has no single "all football" endpoint the way odds-api.io
- * did - each competition is its own sport key, each requiring its own
- * request. This curated list replaces the old post-hoc league-name filter:
- * we only ever ask for the competitions we want, rather than requesting
- * everything and filtering client-side.
+ * Curated list of sport keys to query - the-odds-api.com has no single
+ * "all football" endpoint the way odds-api.io did, so this replaces the old
+ * post-hoc league-name filter: we only ever request the competitions we
+ * want, instead of requesting everything and filtering client-side.
  *
- * These keys are best-effort from The Odds API's public documentation, not
- * verified against a live GET /v4/sports call from this sandbox (no
- * outbound network access here). verifySportKeys below cross-checks them
- * against the real sports list on startup so a wrong/renamed key shows up
- * immediately in logs instead of silently returning zero events for that
- * competition.
+ * Cross-checked against a real GET /v4/sports response (2026-07-19):
+ * confirmed active/real are soccer_epl, soccer_spain_la_liga,
+ * soccer_germany_bundesliga, soccer_italy_serie_a, soccer_france_ligue_one,
+ * soccer_netherlands_eredivisie, soccer_uefa_champs_league_qualification,
+ * soccer_fifa_world_cup. Dropped: soccer_portugal_primeira_liga (doesn't
+ * exist under that or any similar key in the real list) and
+ * soccer_uefa_champs_league / soccer_uefa_europa_league /
+ * soccer_uefa_europa_conference_league / soccer_uefa_nations_league (none
+ * appeared in the "in season" list - the group stages/Nations League
+ * windows haven't started yet in mid-July, and the endpoint only lists
+ * in-season sports by default, so these may reappear once their windows
+ * open rather than being permanently wrong keys).
+ *
+ * Other confirmed-real European leagues not included here, to keep the
+ * per-refresh request count down given the tight monthly quota - add if
+ * broader coverage is wanted: soccer_efl_champ (England Championship),
+ * soccer_austria_bundesliga, soccer_belgium_first_div,
+ * soccer_denmark_superliga, soccer_norway_eliteserien,
+ * soccer_poland_ekstraklasa, soccer_spl (Scotland), soccer_sweden_allsvenskan,
+ * soccer_switzerland_superleague.
  */
 export const RELEVANT_SPORT_KEYS = [
   'soccer_epl',
@@ -35,13 +46,8 @@ export const RELEVANT_SPORT_KEYS = [
   'soccer_germany_bundesliga',
   'soccer_italy_serie_a',
   'soccer_france_ligue_one',
-  'soccer_portugal_primeira_liga',
   'soccer_netherlands_eredivisie',
-  'soccer_uefa_champs_league',
   'soccer_uefa_champs_league_qualification',
-  'soccer_uefa_europa_league',
-  'soccer_uefa_europa_conference_league',
-  'soccer_uefa_nations_league',
   'soccer_fifa_world_cup',
 ];
 
@@ -57,9 +63,9 @@ export interface EventsServiceOptions {
 }
 
 export interface EventsService {
-  /** Fixture list only (no markets) — cheap, cached, safe to call on every board load. */
+  /** All configured leagues' events, odds already embedded (see client.ts). */
   listMatches(): Promise<Match[]>;
-  /** Fetches markets for one event on demand, e.g. when a user opens a match. */
+  /** Looks up one event from the same cached list - no extra request. */
   getMatchOdds(eventId: string): Promise<Match | undefined>;
 }
 
@@ -92,10 +98,6 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
   const { client, sportKeys = RELEVANT_SPORT_KEYS, now = Date.now } = options;
 
   let eventsCache: CacheEntry<Match[]> | undefined;
-  // The odds endpoint is a path per sport key, so we need to remember which
-  // sport each event belongs to in order to fetch its odds on demand.
-  let sportKeyByEventId = new Map<string, string>();
-  const oddsCache = new Map<string, CacheEntry<Match>>();
 
   async function listMatches(): Promise<Match[]> {
     const currentTime = now();
@@ -104,10 +106,9 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
     }
 
     const results = await Promise.allSettled(
-      sportKeys.map(async (sportKey) => ({ sportKey, events: await client.getEvents(sportKey) })),
+      sportKeys.map((sportKey) => client.getOdds({ sportKey })),
     );
 
-    const nextSportKeyByEventId = new Map<string, string>();
     const matches: Match[] = [];
     let failedSportKeys = 0;
     for (const result of results) {
@@ -119,10 +120,8 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
         );
         continue;
       }
-      const { sportKey, events } = result.value;
-      for (const event of events) {
-        nextSportKeyByEventId.set(event.id, sportKey);
-        matches.push(normalizeTheOddsApiEvent(event, now));
+      for (const event of result.value) {
+        matches.push(normalizeTheOddsApiEventOdds(event, now));
       }
     }
 
@@ -132,46 +131,13 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
 
     matches.sort((a, b) => a.kickoff.localeCompare(b.kickoff));
 
-    sportKeyByEventId = nextSportKeyByEventId;
     eventsCache = { value: matches, expiresAt: currentTime + EVENTS_CACHE_TTL_MS };
     return matches;
   }
 
   async function getMatchOdds(eventId: string): Promise<Match | undefined> {
-    const currentTime = now();
-    const cached = oddsCache.get(eventId);
-    if (cached && cached.expiresAt > currentTime) {
-      return cached.value;
-    }
-
-    const sportKey = sportKeyByEventId.get(eventId);
-    if (!sportKey) {
-      // Not in the most recent listMatches result (expired cache, or an
-      // unknown/stale id) - no sport key to query odds with.
-      return undefined;
-    }
-
-    let match: Match | undefined;
-    try {
-      const raw = await client.getEventOdds({ sportKey, eventId });
-      match = normalizeTheOddsApiEventOdds(raw, now);
-    } catch (error) {
-      // The event itself is real (it came from a recent listMatches call)
-      // even when the provider can't price it - fall back to the odds-less
-      // event rather than surfacing "not found" for "no odds available".
-      const fallback = eventsCache?.value.find((cachedMatch) => cachedMatch.id === eventId);
-      if (!fallback) {
-        throw error;
-      }
-      console.error(
-        `getMatchOdds(${eventId}) failed, returning event without odds:`,
-        error instanceof Error ? error.message : error,
-      );
-      match = fallback;
-    }
-
-    oddsCache.set(eventId, { value: match, expiresAt: currentTime + ODDS_CACHE_TTL_MS });
-    return match;
+    const matches = await listMatches();
+    return matches.find((match) => match.id === eventId);
   }
 
   return { listMatches, getMatchOdds };

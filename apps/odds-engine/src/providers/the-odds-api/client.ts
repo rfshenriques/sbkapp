@@ -1,4 +1,4 @@
-import type { TheOddsApiEvent, TheOddsApiEventOdds, TheOddsApiSport } from './types';
+import type { TheOddsApiEventOdds, TheOddsApiSport } from './types';
 
 const BASE_URL = 'https://api.the-odds-api.com/v4';
 
@@ -7,10 +7,9 @@ export interface TheOddsApiClientOptions {
   fetchImpl?: typeof fetch;
 }
 
-export interface GetEventOddsParams {
+export interface GetOddsParams {
   sportKey: string;
-  eventId: string;
-  /** Comma-separated region codes (us/uk/eu/au). Betclic/Betano are both EU-region bookmakers. */
+  /** Comma-separated region codes (us/uk/eu/au). */
   regions?: string;
   /** Comma-separated market keys, e.g. "h2h". */
   markets?: string;
@@ -19,8 +18,12 @@ export interface GetEventOddsParams {
 
 export interface TheOddsApiClient {
   getSports(): Promise<TheOddsApiSport[]>;
-  getEvents(sportKey: string): Promise<TheOddsApiEvent[]>;
-  getEventOdds(params: GetEventOddsParams): Promise<TheOddsApiEventOdds>;
+  /**
+   * One request returns every event AND its odds for the whole sport key -
+   * confirmed against a real call (see events-service.ts's comment on why
+   * this replaced the separate events-then-per-event-odds design).
+   */
+  getOdds(params: GetOddsParams): Promise<TheOddsApiEventOdds[]>;
 }
 
 /**
@@ -59,23 +62,13 @@ export function createTheOddsApiClient(options: TheOddsApiClientOptions): TheOdd
     return (await response.json()) as TheOddsApiSport[];
   }
 
-  async function getEvents(sportKey: string): Promise<TheOddsApiEvent[]> {
-    const url = new URL(`${BASE_URL}/sports/${sportKey}/events`);
-    url.searchParams.set('apiKey', options.apiKey);
-    url.searchParams.set('dateFormat', 'iso');
-
-    const response = await fetchImpl(url.toString());
-    const label = `GET /sports/${sportKey}/events`;
-    logQuota(response, label);
-    if (!response.ok) {
-      throw await errorFromResponse(response, label);
-    }
-    return (await response.json()) as TheOddsApiEvent[];
-  }
-
-  async function getEventOdds(params: GetEventOddsParams): Promise<TheOddsApiEventOdds> {
-    const { sportKey, eventId, regions = 'eu', markets = 'h2h', oddsFormat = 'decimal' } = params;
-    const url = new URL(`${BASE_URL}/sports/${sportKey}/events/${eventId}/odds`);
+  async function getOdds(params: GetOddsParams): Promise<TheOddsApiEventOdds[]> {
+    // uk, not eu - our pricing source (Paddy Power, see normalize.ts) is a
+    // UK/Ireland bookmaker and wasn't present in a real eu-region response
+    // we checked. Also keeps request cost down (cost scales with region
+    // count) since we only need the one region.
+    const { sportKey, regions = 'uk', markets = 'h2h', oddsFormat = 'decimal' } = params;
+    const url = new URL(`${BASE_URL}/sports/${sportKey}/odds`);
     url.searchParams.set('apiKey', options.apiKey);
     url.searchParams.set('regions', regions);
     url.searchParams.set('markets', markets);
@@ -83,13 +76,13 @@ export function createTheOddsApiClient(options: TheOddsApiClientOptions): TheOdd
     url.searchParams.set('dateFormat', 'iso');
 
     const response = await fetchImpl(url.toString());
-    const label = `GET /sports/${sportKey}/events/${eventId}/odds`;
+    const label = `GET /sports/${sportKey}/odds`;
     logQuota(response, label);
     if (!response.ok) {
       throw await errorFromResponse(response, label);
     }
-    return (await response.json()) as TheOddsApiEventOdds;
+    return (await response.json()) as TheOddsApiEventOdds[];
   }
 
-  return { getSports, getEvents, getEventOdds };
+  return { getSports, getOdds };
 }
