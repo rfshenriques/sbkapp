@@ -69,7 +69,7 @@ export default function MatchDetailPage() {
     <div>
       <div className="flex min-w-0 items-center gap-2">
         <BackButton className="-ml-1.5 shrink-0" />
-        <SportCountryBadge sport={match.sport} country={match.country} size={20} />
+        <SportCountryBadge sport={match.sport} country={match.country} size={20} className="shrink-0" />
         <Breadcrumb segments={breadcrumbSegments} />
       </div>
 
