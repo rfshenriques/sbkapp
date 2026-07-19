@@ -23,7 +23,10 @@ export function MarketSelections({ matchId, matchLabel, market }: MarketSelectio
           key={selection.id}
           type="button"
           className={`odd-btn${selectedSelectionId === selection.id ? ' selected' : ''}`}
-          onClick={() =>
+          onClick={(event) => {
+            // MatchCard's whole card is clickable and navigates to the match
+            // - stop this from also triggering that when picking an odd.
+            event.stopPropagation();
             toggleSelection({
               matchId,
               marketId: market.id,
@@ -32,8 +35,8 @@ export function MarketSelections({ matchId, matchLabel, market }: MarketSelectio
               marketName: market.name,
               selectionName: selection.name,
               odds: selection.odds,
-            })
-          }
+            });
+          }}
         >
           <span className="odd-label">{selection.name}</span>
           <span className="odd-value">{selection.odds.toFixed(2)}</span>

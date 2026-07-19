@@ -1,8 +1,11 @@
+import { useNavigate, Link } from 'react-router-dom';
 import { MatchCard } from '../features/odds-board/MatchCard';
 import { MatchListSkeleton } from '../features/odds-board/MatchListSkeleton';
 import { useMatches } from '../features/odds-board/useMatches';
+import { usePrefetchMatchDetail } from '../features/odds-board/usePrefetchMatchDetail';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { Card } from '../components/ui/Card';
+import { formatKickoff } from '../lib/formatKickoff';
 import type { Match } from '@sportsbook/shared';
 
 function sortByKickoff(matches: Match[]): Match[] {
@@ -14,30 +17,44 @@ function sortByKickoff(matches: Match[]): Match[] {
 
 export default function OddsBoardPage() {
   const { data: matches, isPending, isError } = useMatches();
+  const navigate = useNavigate();
+  const prefetchMatchDetail = usePrefetchMatchDetail();
   const sorted = matches ? sortByKickoff(matches) : undefined;
   const featured = sorted?.[0];
   const rest = sorted?.slice(1);
   const featuredMatchResult = featured?.markets.find((market) => market.id === 'match-result');
+  const featuredHref = featured ? `/matches/${featured.id}` : undefined;
 
   return (
     <div>
-      {featured && featuredMatchResult && (
-        <section className="relative mb-8 overflow-hidden rounded-2xl border border-border bg-surface p-6">
+      {featured && featuredMatchResult && featuredHref && (
+        <section
+          className="relative mb-8 cursor-pointer overflow-hidden rounded-2xl border border-border bg-surface p-6 transition-colors hover:border-text-muted"
+          onClick={() => navigate(featuredHref)}
+          onMouseEnter={() => prefetchMatchDetail(featured.id)}
+          onTouchStart={() => prefetchMatchDetail(featured.id)}
+        >
           <span className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-highlight">
             <span className="h-[3px] w-6 -skew-x-[24deg] bg-brand" aria-hidden="true" />
             {featured.isLive ? 'Live now' : 'Featured'}
           </span>
+          {/* Real link kept for keyboard/screen-reader navigation - the
+              section's onClick above is a mouse/touch convenience that
+              enlarges the clickable area to the whole card. */}
           <h1 className="font-display text-4xl leading-none sm:text-5xl">
-            {featured.homeTeam} vs {featured.awayTeam}
+            <Link
+              to={featuredHref}
+              className="hover:underline"
+              onClick={(event) => event.stopPropagation()}
+            >
+              {featured.homeTeam} vs {featured.awayTeam}
+            </Link>
           </h1>
-          <p className="mt-2 text-sm text-text-secondary">
-            {featured.competition}
-            {!featured.isLive &&
-              ` · ${new Date(featured.kickoff).toLocaleString(undefined, {
-                weekday: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })}`}
+          <p className="mt-2 flex items-center gap-2 text-sm text-text-secondary">
+            <span>{featured.competition}</span>
+            {!featured.isLive && (
+              <span className="ml-auto">{formatKickoff(new Date(featured.kickoff))}</span>
+            )}
           </p>
           <div className="mt-4 max-w-md">
             <MarketSelections

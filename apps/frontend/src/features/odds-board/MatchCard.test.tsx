@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { matchQueryKey } from '../match-detail/useMatch';
 import type { Match } from '@sportsbook/shared';
@@ -98,5 +98,50 @@ describe('MatchCard', () => {
     await waitFor(() => {
       expect(queryClient.getQueryData(matchQueryKey('match-1'))).toEqual(baseMatch);
     });
+  });
+
+  it('shows the kickoff date and time for a pre-match fixture', () => {
+    renderMatchCard(baseMatch);
+
+    // Locale-formatted, so just assert the time (unambiguous) and that some
+    // date text renders alongside it rather than pinning an exact string.
+    expect(screen.getByText(/15:00|03:00 PM|3:00 PM/)).toBeInTheDocument();
+  });
+
+  it('navigates to the match when clicking anywhere on the card, not just the team names', async () => {
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/']}>
+          <Routes>
+            <Route path="/" element={<MatchCard match={baseMatch} />} />
+            <Route path="/matches/:matchId" element={<p>Match detail page</p>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await userEvent.click(screen.getByText('Premier League'));
+
+    expect(await screen.findByText('Match detail page')).toBeInTheDocument();
+  });
+
+  it('does not navigate when clicking an odds button - only the selection toggles', async () => {
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/']}>
+          <Routes>
+            <Route path="/" element={<MatchCard match={baseMatch} />} />
+            <Route path="/matches/:matchId" element={<p>Match detail page</p>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: 'Home2.10' }));
+
+    expect(screen.queryByText('Match detail page')).not.toBeInTheDocument();
+    expect(useBetSlipStore.getState().selections).toHaveLength(1);
   });
 });

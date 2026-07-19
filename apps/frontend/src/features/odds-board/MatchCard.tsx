@@ -1,7 +1,8 @@
-import { Link } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { MarketSelections } from '../bet-slip/MarketSelections';
 import { usePrefetchMatchDetail } from './usePrefetchMatchDetail';
+import { formatKickoff } from '../../lib/formatKickoff';
 import type { Match } from '@sportsbook/shared';
 
 interface MatchCardProps {
@@ -11,26 +12,37 @@ interface MatchCardProps {
 export function MatchCard({ match }: MatchCardProps) {
   const matchResult = match.markets.find((market) => market.id === 'match-result');
   const prefetchMatchDetail = usePrefetchMatchDetail();
+  const navigate = useNavigate();
   const matchLabel = `${match.homeTeam} vs ${match.awayTeam}`;
   const kickoff = new Date(match.kickoff);
+  const matchHref = `/matches/${match.id}`;
 
   return (
-    <Card className="transition-colors hover:border-text-muted">
+    <Card
+      className="cursor-pointer transition-colors hover:border-text-muted"
+      onClick={() => navigate(matchHref)}
+      onMouseEnter={() => prefetchMatchDetail(match.id)}
+      onTouchStart={() => prefetchMatchDetail(match.id)}
+    >
       <div className="flex items-center gap-2">
         <div className="min-w-0 flex-1">
           <p className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
             <span>{match.competition}</span>
             {!match.isLive && (
-              <span className="text-highlight">
-                {kickoff.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
-              </span>
+              <span className="ml-auto text-highlight">{formatKickoff(kickoff)}</span>
             )}
           </p>
+          {/* Real link kept for keyboard/screen-reader navigation and a
+              correct accessible name - the card's onClick above is a mouse/
+              touch convenience that enlarges the clickable area to the
+              whole card, not the primary access path. */}
           <Link
-            to={`/matches/${match.id}`}
+            to={matchHref}
             className="font-semibold hover:underline"
-            onMouseEnter={() => prefetchMatchDetail(match.id)}
-            onTouchStart={() => prefetchMatchDetail(match.id)}
+            // Avoid a duplicate history entry from the card's own onClick
+            // (React Router navigates internally on the link's click before
+            // it bubbles to the card).
+            onClick={(event) => event.stopPropagation()}
           >
             {matchLabel}
           </Link>
