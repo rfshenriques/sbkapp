@@ -113,7 +113,7 @@ export default function OddsBoardPage() {
             ))}
           </div>
           {liveMatches.length > MAX_HOMEPAGE_ITEMS && (
-            <Link to="/sports/all" className="mt-3 inline-block text-sm font-semibold text-highlight hover:underline">
+            <Link to="/sports/all" className="btn-ghost slash mt-3 inline-flex items-center justify-center">
               Load more live matches →
             </Link>
           )}
@@ -163,7 +163,7 @@ export default function OddsBoardPage() {
         {upcomingForSport.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
           <Link
             to={`/sports/${encodeURIComponent(effectiveSport)}`}
-            className="mt-3 inline-block text-sm font-semibold text-highlight hover:underline"
+            className="btn-ghost slash mt-3 inline-flex items-center justify-center"
           >
             Load more {effectiveSport} matches →
           </Link>

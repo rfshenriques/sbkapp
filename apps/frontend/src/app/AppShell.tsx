@@ -72,11 +72,12 @@ export function AppShell() {
 
         {/* Desktop: the bet slip is always visible on the right, not a
             click-to-open drawer - the mobile drawer below is sm:hidden so
-            the two never coexist. */}
+            the two never coexist. Full height (not just as tall as its
+            content) even when empty, so the promotional empty state has
+            room to center itself instead of sitting in a tiny box. */}
         <aside className="hidden sm:block sm:w-80 sm:shrink-0">
-          <div className="sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-lg border border-border bg-surface p-4">
-            <h2 className="mb-3 font-display text-xl">Bet Slip</h2>
-            <BetSlipPanel />
+          <div className="sticky top-20 flex h-[calc(100vh-6rem)] flex-col overflow-y-auto rounded-lg border border-border bg-surface p-4">
+            <BetSlipPanel showHistoryTab emptyStateVariant="promotional" />
           </div>
         </aside>
       </div>
@@ -99,7 +100,7 @@ export function AppShell() {
       )}
 
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-2 border-t border-border bg-background/95 px-1 py-1.5 backdrop-blur sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-3 border-t border-border bg-background/95 px-1 py-1.5 backdrop-blur sm:hidden"
         style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
         aria-label="App navigation"
       >
@@ -124,6 +125,14 @@ export function AppShell() {
             </span>
           )}
         </button>
+        <NavLink
+          to="/my-bets"
+          className={({ isActive }) =>
+            `flex flex-col items-center gap-0.5 py-1.5 text-[10.5px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
+          }
+        >
+          My Bets
+        </NavLink>
       </nav>
 
       {/* Mobile-only drawer - sm:hidden wrapper keeps this from ever

@@ -57,7 +57,22 @@ describe('AppShell', () => {
   it('always renders the bet slip panel (desktop persistent panel), even when empty', () => {
     renderShell();
 
-    expect(screen.getByText('Your bet slip is empty.')).toBeInTheDocument();
+    // Desktop's persistent panel uses the fuller, promotional empty state.
+    expect(screen.getByText('Add selections to your bet slip')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Browse matches' })).toBeInTheDocument();
+  });
+
+  it('the desktop panel shows a Bet Slip / History tab pair', () => {
+    renderShell();
+
+    expect(screen.getByRole('tab', { name: 'Bet Slip' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'History' })).toBeInTheDocument();
+  });
+
+  it('has a My Bets link in the mobile bottom nav', () => {
+    renderShell();
+
+    expect(screen.getByRole('link', { name: 'My Bets' })).toHaveAttribute('href', '/my-bets');
   });
 
   it('does not show the mobile floating bar when the slip is empty', () => {

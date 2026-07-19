@@ -38,13 +38,31 @@ export interface PlaceBetPayload {
   stakeCents: number;
 }
 
+export type BetStatus = 'PENDING' | 'WON' | 'LOST' | 'VOID';
+export type SelectionStatus = 'OPEN' | 'WON' | 'LOST' | 'VOID';
+
+export interface PlacedBetSelection {
+  id: string;
+  matchId: string;
+  marketId: string;
+  selectionId: string;
+  matchLabel: string;
+  marketName: string;
+  selectionName: string;
+  odds: string;
+  status: SelectionStatus;
+}
+
 export interface PlacedBet {
   id: string;
   stakeCents: number;
   combinedOdds: string;
   potentialPayoutCents: number;
-  status: string;
+  status: BetStatus;
+  settledPayoutCents: number | null;
+  settledAt: string | null;
   createdAt: string;
+  selections: PlacedBetSelection[];
 }
 
 function extractErrorMessage(body: unknown, fallback: string): string {
@@ -215,4 +233,9 @@ export async function placeBet(payload: PlaceBetPayload): Promise<PlacedBet> {
     body: JSON.stringify(payload),
   });
   return parseJsonOrThrow(response, `Failed to place bet: ${response.status}`);
+}
+
+export async function getBets(): Promise<PlacedBet[]> {
+  const response = await authenticatedFetch('/bets');
+  return parseJsonOrThrow(response, `Failed to load bets: ${response.status}`);
 }

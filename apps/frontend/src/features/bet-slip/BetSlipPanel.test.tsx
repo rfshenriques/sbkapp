@@ -4,15 +4,15 @@ import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../auth/authStore';
-import { BetSlipPanel } from './BetSlipPanel';
+import { BetSlipPanel, type BetSlipPanelProps } from './BetSlipPanel';
 import { useBetSlipStore } from './betSlipStore';
 
-function renderPanel() {
+function renderPanel(props: BetSlipPanelProps = {}) {
   const queryClient = new QueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <BetSlipPanel />
+        <BetSlipPanel {...props} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -155,6 +155,38 @@ describe('BetSlipPanel', () => {
     expect(screen.getByText('Combined odds')).toBeInTheDocument();
   });
 
+  it('switches to Accumulator when a second selection is added while already mounted (desktop persistent panel)', async () => {
+    // No remount involved here (unlike the mobile drawer, which remounts on
+    // every open) - this is the scenario a persistently-mounted desktop
+    // panel actually hits.
+    useBetSlipStore.setState({ selections: [homeSelection] });
+    renderPanel();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
+
+    useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+
+    expect(await screen.findByRole('tab', { name: 'Accumulator' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
+  it('does not force Accumulator back on if the user manually switched to Singles', async () => {
+    useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+    renderPanel();
+    await userEvent.click(screen.getByRole('tab', { name: 'Singles' }));
+
+    // Adding a third selection shouldn't yank the user back to Accumulator.
+    useBetSlipStore.setState({
+      selections: [homeSelection, awaySelection, { ...homeSelection, matchId: 'match-3' }],
+    });
+
+    expect(await screen.findByRole('tab', { name: 'Singles' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+  });
+
   it('switching to Singles shows each selection with its own stake and Place Bet button', async () => {
     useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
     useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
@@ -198,5 +230,35 @@ describe('BetSlipPanel', () => {
     const [url, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('/backend/bets');
     expect(JSON.parse(requestInit.body as string).selections).toEqual([homeSelection]);
+  });
+
+  it('does not show a History tab by default (mobile drawer)', () => {
+    renderPanel();
+
+    expect(screen.queryByRole('tab', { name: 'History' })).not.toBeInTheDocument();
+  });
+
+  it('shows a Bet Slip / History tab pair when showHistoryTab is set (desktop)', async () => {
+    useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([]), { status: 200 })));
+    renderPanel({ showHistoryTab: true });
+
+    expect(screen.getByRole('tab', { name: 'Bet Slip' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Your bet slip is empty.')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'History' }));
+
+    expect(screen.getByRole('tab', { name: 'History' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByText("You haven't placed any bets yet.")).toBeInTheDocument();
+  });
+
+  it('shows the compact empty state by default and the promotional one when requested', () => {
+    const { unmount } = renderPanel();
+    expect(screen.getByText('Your bet slip is empty.')).toBeInTheDocument();
+    unmount();
+
+    renderPanel({ emptyStateVariant: 'promotional' });
+    expect(screen.getByText('Add selections to your bet slip')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Browse matches' })).toHaveAttribute('href', '/');
   });
 });
