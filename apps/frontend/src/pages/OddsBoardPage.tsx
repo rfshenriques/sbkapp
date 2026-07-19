@@ -9,6 +9,8 @@ import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { Card } from '../components/ui/Card';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { SportIcon } from '../components/ui/SportIcon';
+import { TeamColorAccent } from '../components/ui/TeamColorAccent';
+import { useTeamColors } from '../features/odds-board/useTeamColors';
 import { formatKickoff } from '../lib/formatKickoff';
 import { sortSportsByPriority } from '../lib/sportPriority';
 
@@ -19,6 +21,7 @@ export default function OddsBoardPage() {
   const { data: matches, isPending, isError } = useMatches();
   const navigate = useNavigate();
   const prefetchMatchDetail = usePrefetchMatchDetail();
+  const teamColors = useTeamColors();
   const [selectedSport, setSelectedSport] = useState<string | undefined>(undefined);
 
   const sorted = matches ? sortMatches(matches, 'time') : undefined;
@@ -85,7 +88,8 @@ export default function OddsBoardPage() {
               aria-label={`${featured.homeTeam} vs ${featured.awayTeam}`}
               className="mt-3 flex items-center justify-center gap-3 sm:gap-5"
             >
-              <span className="flex flex-1 justify-end">
+              <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
+                <TeamColorAccent colorHex={teamColors.get(featured.homeTeam)} className="h-4 sm:h-6" />
                 <Link
                   to={featuredHref}
                   className="min-w-0 truncate text-right font-display text-xl leading-tight hover:underline sm:text-3xl"
@@ -95,7 +99,7 @@ export default function OddsBoardPage() {
                 </Link>
               </span>
               <span className="shrink-0 font-display text-sm text-white/50 sm:text-base">vs</span>
-              <span className="flex flex-1 justify-start">
+              <span className="flex min-w-0 flex-1 items-center justify-start gap-2">
                 <Link
                   to={featuredHref}
                   className="min-w-0 truncate text-left font-display text-xl leading-tight hover:underline sm:text-3xl"
@@ -103,6 +107,7 @@ export default function OddsBoardPage() {
                 >
                   {featured.awayTeam}
                 </Link>
+                <TeamColorAccent colorHex={teamColors.get(featured.awayTeam)} className="h-4 sm:h-6" />
               </span>
             </h1>
 

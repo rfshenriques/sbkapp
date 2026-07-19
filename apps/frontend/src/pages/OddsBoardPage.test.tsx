@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Match } from '@sportsbook/shared';
 import { stubOddsEngineFetch } from '../test/mockOddsEngine';
+import { mockMatches } from '../mocks/matches';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import OddsBoardPage from './OddsBoardPage';
 
@@ -110,6 +111,33 @@ describe('OddsBoardPage', () => {
 
     expect(screen.queryByText('Match detail page')).not.toBeInTheDocument();
     expect(useBetSlipStore.getState().selections).toHaveLength(1);
+  });
+
+  it('shows a colored edge marker on the featured card only for teams with a backoffice-assigned color', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/events') {
+        return new Response(JSON.stringify(mockMatches), { status: 200 });
+      }
+      if (url === '/backend/public/team-colors') {
+        return new Response(JSON.stringify([{ name: 'Real Madrid', colorHex: '#FEBE10' }]), {
+          status: 200,
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { container } = renderPage();
+
+    await screen.findByRole('heading', { name: 'Real Madrid vs Barcelona' });
+    const markers = await waitFor(() => {
+      const found = container.querySelectorAll('[aria-hidden="true"][style*="background-color"]');
+      expect(found.length).toBeGreaterThan(0);
+      return found;
+    });
+    expect(markers).toHaveLength(1);
+    expect(markers[0]).toHaveStyle({ backgroundColor: '#FEBE10' });
   });
 
   it('caps the Upcoming list at 10 and shows a Load more link to the sport page', async () => {

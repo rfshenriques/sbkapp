@@ -163,6 +163,30 @@ describe('MatchCard', () => {
     expect(await screen.findByText('Match detail page')).toBeInTheDocument();
   });
 
+  it('shows a colored edge marker only for teams with a backoffice-assigned color', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/events') {
+        return new Response(JSON.stringify([baseMatch]), { status: 200 });
+      }
+      if (url === '/backend/public/team-colors') {
+        return new Response(JSON.stringify([{ name: 'Arsenal', colorHex: '#EF0107' }]), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const { container } = renderMatchCard(baseMatch);
+
+    const markers = await waitFor(() => {
+      const found = container.querySelectorAll('[aria-hidden="true"][style*="background-color"]');
+      expect(found.length).toBeGreaterThan(0);
+      return found;
+    });
+    expect(markers).toHaveLength(1);
+    expect(markers[0]).toHaveStyle({ backgroundColor: '#EF0107' });
+  });
+
   it('does not navigate when clicking an odds button - only the selection toggles', async () => {
     const queryClient = new QueryClient();
     render(

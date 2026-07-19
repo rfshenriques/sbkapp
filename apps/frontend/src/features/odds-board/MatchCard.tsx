@@ -1,9 +1,11 @@
 import { useNavigate, Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
+import { TeamColorAccent } from '../../components/ui/TeamColorAccent';
 import { MarketSelections } from '../bet-slip/MarketSelections';
 import { usePrefetchMatchDetail } from './usePrefetchMatchDetail';
 import { useLiveMatch } from '../match-detail/useLiveMatch';
+import { useTeamColors } from './useTeamColors';
 import { formatKickoff } from '../../lib/formatKickoff';
 import type { Match } from '@sportsbook/shared';
 
@@ -19,6 +21,7 @@ export function MatchCard({ match }: MatchCardProps) {
   const kickoff = new Date(match.kickoff);
   const matchHref = `/matches/${match.id}`;
   const { data: liveState } = useLiveMatch(match.id, match.isLive);
+  const teamColors = useTeamColors();
 
   const centerLabel = match.isLive
     ? liveState
@@ -56,14 +59,16 @@ export function MatchCard({ match }: MatchCardProps) {
             // it bubbles to the card).
             onClick={(event) => event.stopPropagation()}
           >
-            <span className="min-w-0 flex-1 truncate text-left font-semibold group-hover:underline sm:text-center">
-              {match.homeTeam}
+            <span className="flex min-w-0 flex-1 items-center justify-start gap-1.5 sm:justify-center">
+              <TeamColorAccent colorHex={teamColors.get(match.homeTeam)} />
+              <span className="min-w-0 truncate font-semibold group-hover:underline">{match.homeTeam}</span>
             </span>
             <span className="shrink-0 text-xs font-bold text-text-muted tabular-nums">
               {centerLabel}
             </span>
-            <span className="min-w-0 flex-1 truncate text-right font-semibold group-hover:underline sm:text-center">
-              {match.awayTeam}
+            <span className="flex min-w-0 flex-1 items-center justify-end gap-1.5 sm:justify-center">
+              <span className="min-w-0 truncate font-semibold group-hover:underline">{match.awayTeam}</span>
+              <TeamColorAccent colorHex={teamColors.get(match.awayTeam)} />
             </span>
           </Link>
         </div>

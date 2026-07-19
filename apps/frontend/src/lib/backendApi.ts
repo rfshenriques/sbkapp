@@ -138,6 +138,20 @@ export async function getCompetitionRankings(brandId: string): Promise<Competiti
   return (await response.json()) as CompetitionRanking[];
 }
 
+export interface PublicTeamColor {
+  name: string;
+  colorHex: string;
+}
+
+/** Backoffice-assigned real team colors - see apps/backend's TeamColorsModule. Only teams an admin has actually assigned a color to are returned. */
+export async function getTeamColors(): Promise<PublicTeamColor[]> {
+  const response = await fetch(`${BASE_URL}/public/team-colors`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch team colors: ${response.status}`);
+  }
+  return (await response.json()) as PublicTeamColor[];
+}
+
 export async function register(payload: RegisterPayload): Promise<AuthTokenResponse> {
   const response = await fetch(`${BASE_URL}/auth/register`, {
     method: 'POST',
