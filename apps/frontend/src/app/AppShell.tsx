@@ -89,9 +89,12 @@ export function AppShell() {
             click-to-open drawer - the mobile drawer below is sm:hidden so
             the two never coexist. Full height (not just as tall as its
             content) even when empty, so the promotional empty state has
-            room to center itself instead of sitting in a tiny box. */}
+            room to center itself instead of sitting in a tiny box.
+            BetSlipPanel owns its own scroll region and keeps the stake/
+            payout calculator fixed at the bottom - this wrapper just gives
+            it a bounded height to work within, no overflow of its own. */}
         <aside className="hidden sm:block sm:w-80 sm:shrink-0">
-          <div className="scrollbar-hide sticky top-20 flex h-[calc(100vh-6rem)] flex-col overflow-y-auto rounded-lg border border-border bg-surface p-4">
+          <div className="sticky top-20 flex h-[calc(100vh-6rem)] flex-col rounded-lg border border-border bg-surface p-4">
             <BetSlipPanel showHistoryTab emptyStateVariant="promotional" />
           </div>
         </aside>
@@ -177,8 +180,8 @@ export function AppShell() {
             className="fixed inset-0 z-40 bg-black/50"
             onClick={() => setIsSlipOpen(false)}
           />
-          <aside className="scrollbar-hide fixed inset-y-0 right-0 z-50 w-full max-w-sm overflow-y-auto border-l border-border bg-background p-4">
-            <div className="mb-3 flex items-center justify-between">
+          <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-background p-4">
+            <div className="mb-3 flex shrink-0 items-center justify-between">
               <h2 className="font-display text-lg">Bet Slip</h2>
               <button
                 type="button"
@@ -189,7 +192,9 @@ export function AppShell() {
                 ✕
               </button>
             </div>
-            <BetSlipPanel />
+            <div className="min-h-0 flex-1">
+              <BetSlipPanel />
+            </div>
           </aside>
         </div>
       )}

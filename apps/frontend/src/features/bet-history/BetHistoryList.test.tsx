@@ -67,7 +67,8 @@ describe('BetHistoryList', () => {
 
     renderList();
 
-    expect(await screen.findByText("You haven't placed any bets yet.")).toBeInTheDocument();
+    expect(await screen.findByText('No bets placed yet')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Browse matches' })).toHaveAttribute('href', '/');
   });
 
   it('shows a bet with its selection and potential payout when pending', async () => {

@@ -38,6 +38,6 @@ describe('MyBetsPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText("You haven't placed any bets yet.")).toBeInTheDocument();
+    expect(await screen.findByText('No bets placed yet')).toBeInTheDocument();
   });
 });

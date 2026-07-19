@@ -81,17 +81,20 @@ describe('BetSlipPanel', () => {
     useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
     renderPanel();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Clear bet slip' }));
 
     expect(useBetSlipStore.getState().selections).toEqual([]);
   });
 
-  it('disables the Place Bet button when logged out', () => {
+  it('shows a Log in button instead of a disabled Place Bet button when logged out', () => {
     useBetSlipStore.setState({ selections: [homeSelection] });
     renderPanel();
 
-    expect(screen.getByRole('button', { name: 'Place Bet' })).toBeDisabled();
-    expect(screen.getByRole('link', { name: 'Log in' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Place Bet' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Log in to place a bet' })).toHaveAttribute(
+      'href',
+      '/login',
+    );
   });
 
   it('places a bet, shows a confirmation, and clears the slip when logged in', async () => {
@@ -150,7 +153,10 @@ describe('BetSlipPanel', () => {
     useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
     renderPanel();
 
-    expect(screen.getByRole('tab', { name: 'Accumulator' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Accumulator (2)' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
     expect(screen.getByRole('tab', { name: 'Singles' })).toHaveAttribute('aria-selected', 'false');
     expect(screen.getByText('Combined odds')).toBeInTheDocument();
   });
@@ -165,7 +171,7 @@ describe('BetSlipPanel', () => {
 
     useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
 
-    expect(await screen.findByRole('tab', { name: 'Accumulator' })).toHaveAttribute(
+    expect(await screen.findByRole('tab', { name: 'Accumulator (2)' })).toHaveAttribute(
       'aria-selected',
       'true',
     );
@@ -235,7 +241,7 @@ describe('BetSlipPanel', () => {
   it('does not show a History tab by default (mobile drawer)', () => {
     renderPanel();
 
-    expect(screen.queryByRole('tab', { name: 'History' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Bet History' })).not.toBeInTheDocument();
   });
 
   it('shows a Bet Slip / History tab pair when showHistoryTab is set (desktop)', async () => {
@@ -246,10 +252,10 @@ describe('BetSlipPanel', () => {
     expect(screen.getByRole('tab', { name: 'Bet Slip' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('Your bet slip is empty.')).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('tab', { name: 'History' }));
+    await userEvent.click(screen.getByRole('tab', { name: 'Bet History' }));
 
-    expect(screen.getByRole('tab', { name: 'History' })).toHaveAttribute('aria-selected', 'true');
-    expect(await screen.findByText("You haven't placed any bets yet.")).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Bet History' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByText('No bets placed yet')).toBeInTheDocument();
   });
 
   it('shows the compact empty state by default and the promotional one when requested', () => {

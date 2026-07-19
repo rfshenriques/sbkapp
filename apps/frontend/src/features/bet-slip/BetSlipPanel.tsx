@@ -1,8 +1,10 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode, type SVGProps } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { EmptyState } from '../../components/ui/EmptyState';
+import { cn } from '../../lib/cn';
 import { placeBet } from '../../lib/backendApi';
 import { useAuth } from '../auth/useAuth';
 import { walletQueryKey } from '../wallet/useWallet';
@@ -12,6 +14,106 @@ import { useBetSlipStore, type BetSlipSelection } from './betSlipStore';
 
 type BetSlipTab = 'singles' | 'accumulator';
 type PanelView = 'slip' | 'history';
+
+function TrashIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.6}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M4 6h12" />
+      <path d="M8 6V4.5A1.5 1.5 0 0 1 9.5 3h1A1.5 1.5 0 0 1 12 4.5V6" />
+      <path d="M5.5 6 6.2 16a1 1 0 0 0 1 .9h5.6a1 1 0 0 0 1-.9L14.5 6" />
+      <line x1="8.3" y1="9" x2="8.6" y2="14" />
+      <line x1="11.7" y1="9" x2="11.4" y2="14" />
+    </svg>
+  );
+}
+
+interface StakeCalculatorProps {
+  stakeId: string;
+  stake: string;
+  onStakeChange: (value: string) => void;
+  odds: number;
+  oddsLabel?: string;
+  potentialPayout: string;
+  isAuthenticated: boolean;
+  isPending: boolean;
+  isStakeValid: boolean;
+  onPlaceBet: () => void;
+  error?: string | null;
+}
+
+/**
+ * Stake input paired with the relevant odds (a single selection's own odds,
+ * or the accumulator's combined odds) side by side, then potential payout,
+ * then the CTA - reused by both SingleBetRow and the accumulator's fixed
+ * footer so the two read as the same calculator. Logged out swaps the
+ * disabled "Place Bet" button for a real, clickable "Log in" button rather
+ * than a dead control, and skips the stake/payout inputs entirely since
+ * there's nothing to calculate yet.
+ */
+function StakeCalculator({
+  stakeId,
+  stake,
+  onStakeChange,
+  odds,
+  oddsLabel = 'Odds',
+  potentialPayout,
+  isAuthenticated,
+  isPending,
+  isStakeValid,
+  onPlaceBet,
+  error,
+}: StakeCalculatorProps) {
+  return (
+    <div className="space-y-2">
+      {isAuthenticated && (
+        <>
+          <div className="flex items-end gap-2">
+            <div className="min-w-0 flex-1">
+              <label htmlFor={stakeId} className="block text-xs text-text-secondary">
+                Stake
+              </label>
+              <input
+                id={stakeId}
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={stake}
+                onChange={(event) => onStakeChange(event.target.value)}
+                className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <span className="odd-btn shrink-0">
+              <span className="odd-label">{oddsLabel}</span>
+              <span className="odd-value">{odds.toFixed(2)}</span>
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-xs text-text-secondary">
+            <span>Potential payout</span>
+            <span className="font-semibold text-text-primary">{potentialPayout}</span>
+          </div>
+          {error && <p className="text-xs text-danger">{error}</p>}
+        </>
+      )}
+      {isAuthenticated ? (
+        <Button variant="primary" className="w-full" disabled={!isStakeValid || isPending} onClick={onPlaceBet}>
+          {isPending ? 'Placing…' : 'Place Bet'}
+        </Button>
+      ) : (
+        <Link to="/login" className="btn-primary block w-full text-center">
+          Log in to place a bet
+        </Link>
+      )}
+    </div>
+  );
+}
 
 interface SingleBetRowProps {
   selection: BetSlipSelection;
@@ -69,50 +171,25 @@ function SingleBetRow({ selection, isAuthenticated, onPlaced }: SingleBetRowProp
         </div>
       </div>
 
-      {isAuthenticated ? (
-        <>
-          <div>
-            <label htmlFor={stakeId} className="block text-xs text-text-secondary">
-              Stake
-            </label>
-            <input
-              id={stakeId}
-              type="number"
-              min="0.01"
-              step="0.01"
-              value={stake}
-              onChange={(event) => setStake(event.target.value)}
-              className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            />
-          </div>
-          <div className="flex items-center justify-between text-xs text-text-secondary">
-            <span>Potential payout</span>
-            <span className="font-semibold text-text-primary">{potentialPayout}</span>
-          </div>
-          {placeBetMutation.isError && (
-            <p className="text-xs text-danger">
-              {placeBetMutation.error instanceof Error
-                ? placeBetMutation.error.message
-                : 'Failed to place bet'}
-            </p>
-          )}
-        </>
-      ) : (
-        <p className="text-sm text-text-secondary">
-          <Link to="/login" className="text-text-primary hover:underline">
-            Log in
-          </Link>{' '}
-          to place a bet.
-        </p>
-      )}
-      <Button
-        variant="primary"
-        className="w-full"
-        disabled={!isAuthenticated || !isStakeValid || placeBetMutation.isPending}
-        onClick={() => placeBetMutation.mutate({ selections: [selection], stakeCents })}
-      >
-        {placeBetMutation.isPending ? 'Placing…' : 'Place Bet'}
-      </Button>
+      <StakeCalculator
+        stakeId={stakeId}
+        stake={stake}
+        onStakeChange={setStake}
+        odds={selection.odds}
+        oddsLabel="Odds"
+        potentialPayout={potentialPayout}
+        isAuthenticated={isAuthenticated}
+        isPending={placeBetMutation.isPending}
+        isStakeValid={isStakeValid}
+        onPlaceBet={() => placeBetMutation.mutate({ selections: [selection], stakeCents })}
+        error={
+          placeBetMutation.isError
+            ? placeBetMutation.error instanceof Error
+              ? placeBetMutation.error.message
+              : 'Failed to place bet'
+            : null
+        }
+      />
     </Card>
   );
 }
@@ -129,16 +206,13 @@ function CompactEmptyState({ confirmation }: { confirmation: string | null }) {
 /** Desktop's persistent panel is never "just gone" - fills the available height and nudges toward browsing instead of sitting blank. */
 function PromotionalEmptyState({ confirmation }: { confirmation: string | null }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-3 py-12 text-center">
-      {confirmation && <p className="text-sm text-brand">{confirmation}</p>}
-      <p className="font-display text-lg">Add selections to your bet slip</p>
-      <p className="max-w-[220px] text-sm text-text-secondary">
-        Pick an odd on any match to start building a bet.
-      </p>
-      <Link to="/" className="btn-primary">
-        Browse matches
-      </Link>
-    </div>
+    <EmptyState
+      above={confirmation && <p className="text-sm text-brand">{confirmation}</p>}
+      title="Add selections to your bet slip"
+      description="Pick an odd on any match to start building a bet."
+      ctaLabel="Browse matches"
+      ctaHref="/"
+    />
   );
 }
 
@@ -205,37 +279,66 @@ export function BetSlipPanel({
     placeBetMutation.mutate({ selections, stakeCents });
   }
 
-  let slipContent: ReactNode;
-  if (selections.length === 0) {
-    slipContent =
+  // The accumulator's stake/payout/CTA is pulled out into its own `footer`
+  // (rendered outside the scrollable region, see the return below) so it
+  // stays visible while a long selection list scrolls underneath it -
+  // singles don't need this since each row is already a self-contained
+  // calculator right where it sits.
+  let mainContent: ReactNode;
+  let footer: ReactNode = null;
+
+  if (panelView === 'history') {
+    mainContent = <BetHistoryList />;
+  } else if (selections.length === 0) {
+    mainContent =
       emptyStateVariant === 'promotional' ? (
         <PromotionalEmptyState confirmation={confirmation} />
       ) : (
         <CompactEmptyState confirmation={confirmation} />
       );
   } else {
-    slipContent = (
+    mainContent = (
       <div className="space-y-3">
         {confirmation && <p className="text-sm text-brand">{confirmation}</p>}
         {showTabs && (
-          <div className="flex gap-2" role="tablist" aria-label="Bet slip mode">
+          <div className="flex items-center justify-between border-b border-border">
+            <div className="flex gap-4" role="tablist" aria-label="Bet slip mode">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'singles'}
+                className={cn(
+                  'border-b-2 pb-2 font-display text-sm font-bold tracking-wide italic',
+                  tab === 'singles'
+                    ? 'border-filter text-text-primary'
+                    : 'border-transparent text-text-secondary hover:text-text-primary',
+                )}
+                onClick={() => setActiveTab('singles')}
+              >
+                Singles
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'accumulator'}
+                className={cn(
+                  'border-b-2 pb-2 font-display text-sm font-bold tracking-wide italic',
+                  tab === 'accumulator'
+                    ? 'border-filter text-text-primary'
+                    : 'border-transparent text-text-secondary hover:text-text-primary',
+                )}
+                onClick={() => setActiveTab('accumulator')}
+              >
+                Accumulator ({selections.length})
+              </button>
+            </div>
             <button
               type="button"
-              role="tab"
-              aria-selected={tab === 'singles'}
-              className={`tab${tab === 'singles' ? ' active' : ''}`}
-              onClick={() => setActiveTab('singles')}
+              aria-label="Clear bet slip"
+              className="mb-2 shrink-0 rounded-lg p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-danger"
+              onClick={clear}
             >
-              Singles
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={tab === 'accumulator'}
-              className={`tab${tab === 'accumulator' ? ' active' : ''}`}
-              onClick={() => setActiveTab('accumulator')}
-            >
-              Accumulator
+              <TrashIcon className="h-4 w-4" />
             </button>
           </div>
         )}
@@ -279,70 +382,46 @@ export function BetSlipPanel({
                 </div>
               </Card>
             ))}
-            <div className="flex items-center justify-between border-t border-border pt-3">
-              <span className="text-sm text-text-secondary">Combined odds</span>
-              <span className="font-semibold">{combinedOdds.toFixed(2)}</span>
-            </div>
-
-            {isAuthenticated ? (
-              <>
-                <div>
-                  <label htmlFor={stakeId} className="block text-sm text-text-secondary">
-                    Stake
-                  </label>
-                  <input
-                    id={stakeId}
-                    type="number"
-                    min="0.01"
-                    step="0.01"
-                    value={stake}
-                    onChange={(event) => setStake(event.target.value)}
-                    className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                  />
-                </div>
-                <div className="flex items-center justify-between text-sm text-text-secondary">
-                  <span>Potential payout</span>
-                  <span className="font-semibold text-text-primary">{potentialPayout}</span>
-                </div>
-                {placeBetMutation.isError && (
-                  <p className="text-sm text-danger">
-                    {placeBetMutation.error instanceof Error
-                      ? placeBetMutation.error.message
-                      : 'Failed to place bet'}
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-text-secondary">
-                <Link to="/login" className="text-text-primary hover:underline">
-                  Log in
-                </Link>{' '}
-                to place a bet.
-              </p>
-            )}
-
-            <Button
-              variant="primary"
-              className="w-full"
-              disabled={!isAuthenticated || !isStakeValid || placeBetMutation.isPending}
-              onClick={handlePlaceAccumulator}
-            >
-              {placeBetMutation.isPending ? 'Placing…' : 'Place Bet'}
-            </Button>
           </div>
         )}
-
-        <Button variant="secondary" onClick={clear} className="w-full">
-          Clear
-        </Button>
       </div>
     );
+
+    if (tab === 'accumulator') {
+      footer = (
+        <div className="mt-3 shrink-0 space-y-2 border-t border-border pt-3">
+          <div className="flex items-center justify-between text-sm text-text-secondary">
+            <span>Combined odds</span>
+            <span className="font-semibold text-text-primary">{combinedOdds.toFixed(2)}</span>
+          </div>
+          <StakeCalculator
+            stakeId={stakeId}
+            stake={stake}
+            onStakeChange={setStake}
+            odds={combinedOdds}
+            oddsLabel="Total"
+            potentialPayout={potentialPayout}
+            isAuthenticated={isAuthenticated}
+            isPending={placeBetMutation.isPending}
+            isStakeValid={isStakeValid}
+            onPlaceBet={handlePlaceAccumulator}
+            error={
+              placeBetMutation.isError
+                ? placeBetMutation.error instanceof Error
+                  ? placeBetMutation.error.message
+                  : 'Failed to place bet'
+                : null
+            }
+          />
+        </div>
+      );
+    }
   }
 
   return (
-    <div className={emptyStateVariant === 'promotional' ? 'flex flex-1 flex-col' : undefined}>
+    <div className="flex h-full min-h-0 flex-col">
       {showHistoryTab && (
-        <div className="tab-pill mb-3" role="tablist" aria-label="Bet slip panel view">
+        <div className="tab-pill mb-3 w-full shrink-0" role="tablist" aria-label="Bet slip panel view">
           <button
             type="button"
             role="tab"
@@ -359,11 +438,12 @@ export function BetSlipPanel({
             className={`tab-pill-btn${panelView === 'history' ? ' active' : ''}`}
             onClick={() => setPanelView('history')}
           >
-            History
+            Bet History
           </button>
         </div>
       )}
-      {panelView === 'history' ? <BetHistoryList /> : slipContent}
+      <div className="scrollbar-hide flex min-h-0 flex-1 flex-col overflow-y-auto">{mainContent}</div>
+      {footer}
     </div>
   );
 }

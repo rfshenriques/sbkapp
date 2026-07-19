@@ -221,17 +221,17 @@ body {
    rounded shape belongs to the whole pill, not to each half: the container
    clips its full-width flex children to its own border-radius, so there's
    never a rounded corner on the seam between them, only at the two outer
-   ends. */
+   ends. Same 10px radius as buttons/tabs elsewhere - rounded, not a full
+   pill, to match the rest of the app's rectangular chrome. */
 .tab-pill {
   display: flex;
-  width: 100%;
   overflow: hidden;
-  border-radius: 999px;
+  border-radius: 10px;
   background-color: var(--color-surface-2);
 }
 .tab-pill-btn {
   flex: 1;
-  padding: 8px 0;
+  padding: 11px 0;
   text-align: center;
   font-family: var(--font-display);
   font-style: italic;

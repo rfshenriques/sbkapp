@@ -1,5 +1,5 @@
-import { Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import type { BetStatus, PlacedBet } from '../../lib/backendApi';
 import { useAuth } from '../auth/useAuth';
@@ -67,12 +67,12 @@ export function BetHistoryList() {
 
   if (isInitialized && !isAuthenticated) {
     return (
-      <p className="text-sm text-text-secondary">
-        <Link to="/login" className="text-text-primary hover:underline">
-          Log in
-        </Link>{' '}
-        to see your bet history.
-      </p>
+      <EmptyState
+        title="Log in to see your bets"
+        description="Your bet history shows up here once you're signed in."
+        ctaLabel="Log in"
+        ctaHref="/login"
+      />
     );
   }
 
@@ -91,7 +91,14 @@ export function BetHistoryList() {
   }
 
   if (!bets || bets.length === 0) {
-    return <Card className="text-text-secondary">You haven't placed any bets yet.</Card>;
+    return (
+      <EmptyState
+        title="No bets placed yet"
+        description="Pick an odd on any match to place your first bet."
+        ctaLabel="Browse matches"
+        ctaHref="/"
+      />
+    );
   }
 
   const sorted = sortBetsForHistory(bets);

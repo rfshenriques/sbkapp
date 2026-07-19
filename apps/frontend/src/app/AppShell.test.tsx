@@ -66,7 +66,7 @@ describe('AppShell', () => {
     renderShell();
 
     expect(screen.getByRole('tab', { name: 'Bet Slip' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'History' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'Bet History' })).toBeInTheDocument();
   });
 
   it('has Home, Live, My Bets, and Promotions links plus a Search button in the mobile bottom nav', () => {
