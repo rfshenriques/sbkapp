@@ -138,4 +138,24 @@ describe('createEventsService', () => {
     await service.getMatchOdds('1');
     expect(getOdds).toHaveBeenCalledTimes(2);
   });
+
+  it('falls back to the odds-less event when the provider rejects the odds request', async () => {
+    const getEvents = vi.fn().mockResolvedValue([buildEvent({ id: 1 })]);
+    const getOdds = vi.fn().mockRejectedValue(new Error('odds-api.io GET /odds failed: 403 Forbidden'));
+    const client: OddsApiIoClient = { getEvents, getOdds };
+    const service = createEventsService({ client });
+
+    await service.listMatches();
+    const match = await service.getMatchOdds('1');
+
+    expect(match).toEqual(expect.objectContaining({ id: '1', markets: [] }));
+  });
+
+  it('rethrows when the provider rejects odds for an event outside the cached list', async () => {
+    const getOdds = vi.fn().mockRejectedValue(new Error('odds-api.io GET /odds failed: 403 Forbidden'));
+    const client: OddsApiIoClient = { getEvents: vi.fn(), getOdds };
+    const service = createEventsService({ client });
+
+    await expect(service.getMatchOdds('unknown-id')).rejects.toThrow('403 Forbidden');
+  });
 });

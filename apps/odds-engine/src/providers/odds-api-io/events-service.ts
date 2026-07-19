@@ -111,8 +111,27 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
       return cached.value;
     }
 
-    const raw = await client.getOdds(Number(eventId));
-    const match = normalizeOddsApiIoResponse(raw, bookmaker);
+    let match: Match | undefined;
+    try {
+      const raw = await client.getOdds(Number(eventId));
+      match = normalizeOddsApiIoResponse(raw, bookmaker);
+    } catch (error) {
+      // The event itself is real (it came from a recent listMatches call) even
+      // when odds-api.io can't price it - a provider-side rejection (wrong
+      // bookmaker access, no coverage for this fixture, etc.) isn't the same
+      // as the match not existing, so fall back to the odds-less event rather
+      // than surfacing "not found" for what's actually "no odds available".
+      const fallback = eventsCache?.value.find((cachedMatch) => cachedMatch.id === eventId);
+      if (!fallback) {
+        throw error;
+      }
+      console.error(
+        `getMatchOdds(${eventId}) failed, returning event without odds:`,
+        error instanceof Error ? error.message : error,
+      );
+      match = fallback;
+    }
+
     oddsCache.set(eventId, { value: match, expiresAt: currentTime + ODDS_CACHE_TTL_MS });
     return match;
   }

@@ -46,7 +46,10 @@ export function createOddsApiIoClient(options: OddsApiIoClientOptions): OddsApiI
 
     const response = await fetchImpl(url.toString());
     if (!response.ok) {
-      throw new Error(`odds-api.io GET /odds failed: ${response.status} ${response.statusText}`);
+      const body = await response.text().catch(() => '');
+      throw new Error(
+        `odds-api.io GET /odds failed: ${response.status} ${response.statusText}${body ? ` - ${body}` : ''}`,
+      );
     }
     return (await response.json()) as OddsApiIoOddsResponse;
   }
