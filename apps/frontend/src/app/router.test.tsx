@@ -3,6 +3,8 @@ import { render, screen } from '@testing-library/react';
 import { createMemoryRouter, RouterProvider } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { stubOddsEngineFetch } from '../test/mockOddsEngine';
+import ErrorPage from '../pages/ErrorPage';
+import { AppShell } from './AppShell';
 import { routes } from './routes';
 
 beforeEach(() => {
@@ -45,5 +47,29 @@ describe('router', () => {
     renderAt('/nope');
 
     expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+  });
+
+  it('shows the friendly ErrorPage instead of the default crash screen when a page throws', async () => {
+    function Boom(): never {
+      throw new Error('boom');
+    }
+
+    const queryClient = new QueryClient();
+    const router = createMemoryRouter([
+      {
+        path: '/',
+        Component: AppShell,
+        ErrorBoundary: ErrorPage,
+        children: [{ index: true, Component: Boom }],
+      },
+    ]);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByRole('heading', { name: "Well, that didn't go to plan" })).toBeInTheDocument();
   });
 });

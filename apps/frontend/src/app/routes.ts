@@ -1,6 +1,9 @@
 import { lazy } from 'react';
 import type { RouteObject } from 'react-router-dom';
 import { AppShell } from './AppShell';
+// Not lazy-loaded: it's the fallback for render errors, including a failed
+// chunk load, so it must not depend on a chunk load succeeding itself.
+import ErrorPage from '../pages/ErrorPage';
 
 const OddsBoardPage = lazy(() => import('../pages/OddsBoardPage'));
 export const loadMatchDetailPage = () => import('../pages/MatchDetailPage');
@@ -16,6 +19,7 @@ export const routes: RouteObject[] = [
   {
     path: '/',
     Component: AppShell,
+    ErrorBoundary: ErrorPage,
     children: [
       { index: true, Component: OddsBoardPage },
       { path: 'matches/:matchId', Component: MatchDetailPage },

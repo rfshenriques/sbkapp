@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { CountryFlag } from '../../components/ui/CountryFlag';
 import { SearchIcon } from '../../components/ui/NavIcons';
 import { SportIcon } from '../../components/ui/SportIcon';
+import { cn } from '../../lib/cn';
 import { useMatches } from '../odds-board/useMatches';
 import { useCompetitionRankings } from '../odds-board/useCompetitionRankings';
 import { buildSportTree, competitionCountryMap } from './buildSportTree';
@@ -85,102 +87,118 @@ export function Sidebar({ onNavigate }: SidebarProps = {}) {
           <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-text-muted">
             Top Competitions
           </h2>
-          <ul className="space-y-1">
-            {topCompetitions.map((ranking) => {
-              const country = competitionCountries.get(ranking.competition);
-              return (
-                <li key={ranking.competition}>
-                  <Link
-                    to={`/sports/all?competition=${encodeURIComponent(ranking.competition)}`}
-                    className="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary"
-                    onClick={onNavigate}
-                  >
-                    {country && <CountryFlag country={country} size={16} />}
-                    <span>{ranking.competition}</span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          <div className="overflow-hidden rounded-lg border border-border">
+            <ul className="divide-y divide-border">
+              {topCompetitions.map((ranking) => {
+                const country = competitionCountries.get(ranking.competition);
+                return (
+                  <li key={ranking.competition}>
+                    <Link
+                      to={`/sports/all?competition=${encodeURIComponent(ranking.competition)}`}
+                      className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary"
+                      onClick={onNavigate}
+                    >
+                      {country ? (
+                        <CountryFlag country={country} size={22} />
+                      ) : (
+                        <span className="inline-block h-[22px] w-[22px] shrink-0" />
+                      )}
+                      <span>{ranking.competition}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
       )}
 
       {tree.length > 0 && (
         <div>
           <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-text-muted">Sports</h2>
-          <ul className="space-y-1">
-            {tree.map((sportNode) => {
-              const isSportOpen = isSearching || expandedSport === sportNode.sport;
-              return (
-                <li key={sportNode.sport}>
-                  <button
-                    type="button"
-                    aria-expanded={isSportOpen}
-                    className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-sm font-semibold text-text-primary transition-colors hover:bg-surface-2"
-                    onClick={() => {
-                      setExpandedSport(isSportOpen ? null : sportNode.sport);
-                      setExpandedCountry(null);
-                    }}
-                  >
-                    <span className="flex items-center gap-2">
-                      <SportIcon sport={sportNode.sport} size={16} />
-                      <span>{sportNode.sport}</span>
-                    </span>
-                    <span aria-hidden="true" className="text-text-muted">
-                      {isSportOpen ? '−' : '+'}
-                    </span>
-                  </button>
+          <div className="overflow-hidden rounded-lg border border-border">
+            <ul className="divide-y divide-border">
+              {tree.map((sportNode) => {
+                const isSportOpen = isSearching || expandedSport === sportNode.sport;
+                return (
+                  <li key={sportNode.sport}>
+                    <button
+                      type="button"
+                      aria-expanded={isSportOpen}
+                      className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-surface-2"
+                      onClick={() => {
+                        setExpandedSport(isSportOpen ? null : sportNode.sport);
+                        setExpandedCountry(null);
+                      }}
+                    >
+                      <SportIcon sport={sportNode.sport} size={28} />
+                      <span className="flex-1 text-sm font-semibold text-text-primary">
+                        {sportNode.sport}
+                      </span>
+                      <ChevronIcon
+                        className={cn(
+                          'h-4 w-4 shrink-0 text-text-muted transition-transform',
+                          isSportOpen && 'rotate-180',
+                        )}
+                      />
+                    </button>
 
-                  {isSportOpen && (
-                    <ul className="mt-1 ml-2 space-y-1 border-l border-border pl-2">
-                      {sportNode.countries.map((countryNode) => {
-                        const isCountryOpen = isSearching || expandedCountry === countryNode.country;
-                        return (
-                          <li key={countryNode.country}>
-                            <button
-                              type="button"
-                              aria-expanded={isCountryOpen}
-                              className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-sm text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary"
-                              onClick={() =>
-                                setExpandedCountry(isCountryOpen ? null : countryNode.country)
-                              }
-                            >
-                              <span className="flex items-center gap-2">
-                                <CountryFlag country={countryNode.country} size={16} />
-                                <span>{countryNode.country}</span>
-                              </span>
-                              <span aria-hidden="true" className="text-text-muted">
-                                {isCountryOpen ? '−' : '+'}
-                              </span>
-                            </button>
+                    {isSportOpen && (
+                      <ul className="divide-y divide-border border-t border-border">
+                        {sportNode.countries.map((countryNode) => {
+                          const isCountryOpen = isSearching || expandedCountry === countryNode.country;
+                          return (
+                            <li key={countryNode.country}>
+                              <button
+                                type="button"
+                                aria-expanded={isCountryOpen}
+                                className="flex w-full items-center gap-3 py-2.5 pr-3 pl-8 text-left transition-colors hover:bg-surface-2"
+                                onClick={() =>
+                                  setExpandedCountry(isCountryOpen ? null : countryNode.country)
+                                }
+                              >
+                                <CountryFlag country={countryNode.country} size={24} />
+                                <span className="flex-1 text-sm text-text-secondary">
+                                  {countryNode.country}
+                                </span>
+                                <ChevronIcon
+                                  className={cn(
+                                    'h-4 w-4 shrink-0 text-text-muted transition-transform',
+                                    isCountryOpen && 'rotate-180',
+                                  )}
+                                />
+                              </button>
 
-                            {isCountryOpen && (
-                              <ul className="mt-1 ml-2 space-y-1 border-l border-border pl-2">
-                                {countryNode.competitions.map((competitionNode) => (
-                                  <li key={competitionNode.competition}>
-                                    <Link
-                                      to={`/sports/${encodeURIComponent(sportNode.sport)}?competition=${encodeURIComponent(competitionNode.competition)}`}
-                                      className="flex items-center justify-between rounded-md px-2 py-1 text-sm text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary"
-                                      onClick={onNavigate}
-                                    >
-                                      <span>{competitionNode.competition}</span>
-                                      <span className="text-xs text-text-muted">
-                                        {competitionNode.matchCount}
-                                      </span>
-                                    </Link>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
+                              {isCountryOpen && (
+                                <ul className="divide-y divide-border border-t border-border">
+                                  {countryNode.competitions.map((competitionNode) => (
+                                    <li key={competitionNode.competition}>
+                                      <Link
+                                        to={`/sports/${encodeURIComponent(sportNode.sport)}?competition=${encodeURIComponent(competitionNode.competition)}`}
+                                        className="flex items-center justify-between py-2.5 pr-3 pl-14 text-sm text-text-secondary transition-colors hover:bg-surface-2 hover:text-text-primary"
+                                        onClick={onNavigate}
+                                      >
+                                        <span>
+                                          {countryNode.country} - {competitionNode.competition}
+                                        </span>
+                                        <span className="text-xs text-text-muted">
+                                          {competitionNode.matchCount}
+                                        </span>
+                                      </Link>
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
         </div>
       )}
     </nav>

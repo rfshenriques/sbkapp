@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import { cn } from '../../lib/cn';
-import { sportIcon } from '../../lib/sportIcons';
+import { SportGlyph } from './sportGlyphs';
 
 interface SportIconProps {
   sport: string;
@@ -15,12 +15,14 @@ export function SportIcon({ sport, size = 18, className, style }: SportIconProps
       role="img"
       aria-label={sport}
       className={cn(
-        'inline-flex shrink-0 items-center justify-center rounded-full bg-surface-2 leading-none',
+        'inline-block shrink-0 overflow-hidden rounded-full leading-none shadow-[0_0_0_1px_rgba(0,0,0,0.14)]',
         className,
       )}
-      style={{ width: size, height: size, fontSize: size * 0.6, ...style }}
+      style={{ width: size, height: size, ...style }}
     >
-      {sportIcon(sport)}
+      <svg viewBox="0 0 32 32" width="100%" height="100%">
+        <SportGlyph sport={sport} />
+      </svg>
     </span>
   );
 }
