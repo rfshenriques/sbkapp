@@ -86,14 +86,17 @@ describe('AppShell', () => {
   it('does not show the mobile floating bar when the slip is empty', () => {
     renderShell();
 
-    expect(screen.queryByText(/Single ·|Accumulator ·/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Single')).not.toBeInTheDocument();
+    expect(screen.queryByText('Accumulator')).not.toBeInTheDocument();
   });
 
-  it('the mobile floating bar reads "Single" with that one odd for exactly one selection', () => {
+  it('the mobile floating bar reads "Single" with that one odd aligned to the right for exactly one selection', () => {
     useBetSlipStore.setState({ selections: [homeSelection] });
     renderShell();
 
-    expect(screen.getByText('Single · 2.10')).toBeInTheDocument();
+    const floatingBar = screen.getByRole('button', { name: /Single/ });
+    expect(floatingBar).toHaveTextContent('Single');
+    expect(floatingBar).toHaveTextContent('2.10');
   });
 
   it('the mobile floating bar reads "Accumulator" with the combined odds for 2+ selections', () => {
@@ -101,16 +104,18 @@ describe('AppShell', () => {
     renderShell();
 
     // 2.1 * 2.5 = 5.25
-    expect(screen.getByText('Accumulator · 5.25')).toBeInTheDocument();
+    const floatingBar = screen.getByRole('button', { name: /Accumulator/ });
+    expect(floatingBar).toHaveTextContent('Accumulator');
+    expect(floatingBar).toHaveTextContent('5.25');
   });
 
-  it('clicking the mobile floating bar opens the drawer', async () => {
+  it('clicking the mobile floating bar opens the bet slip modal', async () => {
     useBetSlipStore.setState({ selections: [homeSelection] });
     renderShell();
 
-    await userEvent.click(screen.getByText('Single · 2.10'));
+    await userEvent.click(screen.getByRole('button', { name: /Single/ }));
 
-    // Two elements share this label: the backdrop and the drawer's own ✕ button.
+    // Two elements share this label: the backdrop and the modal's own ✕ button.
     expect(screen.getAllByRole('button', { name: 'Close bet slip' }).length).toBeGreaterThan(0);
   });
 

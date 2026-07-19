@@ -104,15 +104,23 @@ export function AppShell() {
         <button
           type="button"
           onClick={() => setIsSlipOpen(true)}
-          className="btn-primary fixed inset-x-3 bottom-14 z-30 flex items-center gap-3 rounded-xl px-[22px] py-[15px] text-left shadow-lg sm:hidden"
+          // Cleared with the same env(safe-area-inset-bottom) the bottom nav
+          // itself pads with, plus its own visible height - a plain bottom-14
+          // sat right on top of (and got visually cut off by) the nav on
+          // devices with a home-indicator safe area.
+          style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
+          className="btn-primary fixed inset-x-3 z-30 flex items-center justify-between gap-3 rounded-xl px-[22px] py-[15px] text-left shadow-lg sm:hidden"
         >
-          <span className="flex h-6 min-w-6 items-center justify-center rounded-md bg-black/20 font-display text-sm">
-            {selections.length}
+          <span className="flex items-center gap-3">
+            <span className="flex h-6 min-w-6 items-center justify-center rounded-md bg-black/20 font-display text-sm">
+              {selections.length}
+            </span>
+            <span className="font-display text-base">
+              {selections.length === 1 ? 'Single' : 'Accumulator'}
+            </span>
           </span>
           <span className="font-display text-base">
-            {selections.length === 1
-              ? `Single · ${selections[0]?.odds.toFixed(2)}`
-              : `Accumulator · ${combinedOdds.toFixed(2)}`}
+            {selections.length === 1 ? selections[0]?.odds.toFixed(2) : combinedOdds.toFixed(2)}
           </span>
         </button>
       )}
@@ -170,32 +178,47 @@ export function AppShell() {
         </NavLink>
       </nav>
 
-      {/* Mobile-only drawer - sm:hidden wrapper keeps this from ever
-          coexisting with the persistent desktop aside above. */}
+      {/* Mobile-only: a bottom-sheet modal (same presentation as the
+          register modal - see RegisterPage), not a full-height side drawer -
+          sm:hidden keeps it from ever coexisting with the persistent desktop
+          aside above. Taller than the register sheet since there's more to
+          show (the selection list, stake fields, and the fixed footer). */}
       {isSlipOpen && (
-        <div className="sm:hidden">
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:hidden">
           <button
             type="button"
             aria-label="Close bet slip"
-            className="fixed inset-0 z-40 bg-black/50"
+            className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/65 to-black/80 backdrop-blur-sm"
             onClick={() => setIsSlipOpen(false)}
           />
-          <aside className="fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-border bg-background p-4">
-            <div className="mb-3 flex shrink-0 items-center justify-between">
-              <h2 className="font-display text-lg">Bet Slip</h2>
-              <button
-                type="button"
-                aria-label="Close bet slip"
-                className="text-text-muted hover:text-text-primary"
-                onClick={() => setIsSlipOpen(false)}
-              >
-                ✕
-              </button>
+          <div className="sheet-slide-up relative flex max-h-[90vh] w-full max-w-sm flex-col overflow-hidden rounded-t-2xl border border-border bg-background">
+            <div className="shrink-0 border-b border-border p-4 pb-3">
+              <div className="flex items-center justify-between gap-2">
+                <h2 className="font-display text-lg">Bet Slip</h2>
+                <button
+                  type="button"
+                  aria-label="Close bet slip"
+                  className="text-text-muted hover:text-text-primary"
+                  onClick={() => setIsSlipOpen(false)}
+                >
+                  ✕
+                </button>
+              </div>
+              {/* Header's own balance display is sm:inline-only (hidden on
+                  mobile), so this is the only place a mobile player can see
+                  it - they need it right here to know how much they can
+                  stake. */}
+              {isAuthenticated && wallet && (
+                <p className="mt-1 text-sm text-text-secondary">
+                  Balance: <span className="font-semibold text-text-primary">€{formatCents(wallet.balanceCents)}</span>{' '}
+                  (paper)
+                </p>
+              )}
             </div>
-            <div className="min-h-0 flex-1">
+            <div className="min-h-0 flex-1 p-4 pt-3">
               <BetSlipPanel />
             </div>
-          </aside>
+          </div>
         </div>
       )}
 

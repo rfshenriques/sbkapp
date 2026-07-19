@@ -62,8 +62,9 @@ describe('BetSlipPanel', () => {
     expect(screen.getByText('Match Result: Home')).toBeInTheDocument();
     expect(screen.getByText('Liverpool vs Manchester City')).toBeInTheDocument();
 
-    // combined odds = 2.1 * 2.5 = 5.25
-    expect(screen.getByText('5.25')).toBeInTheDocument();
+    // combined odds = 2.1 * 2.5 = 5.25 - shown twice by design: once in
+    // "Combined odds", once in the always-visible stake field's odds badge.
+    expect(screen.getAllByText('5.25')).toHaveLength(2);
   });
 
   it('removes a selection when its remove button is clicked', async () => {
@@ -145,8 +146,9 @@ describe('BetSlipPanel', () => {
 
     expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
     expect(screen.queryByText('Combined odds')).not.toBeInTheDocument();
-    // Just the one selection's own odds, shown once.
-    expect(screen.getByText('2.10')).toBeInTheDocument();
+    // The selection's own odds shown twice by design: once in the row
+    // header, once in its always-visible stake calculator badge.
+    expect(screen.getAllByText('2.10')).toHaveLength(2);
   });
 
   it('defaults to the Accumulator tab once there are 2+ selections', () => {
@@ -193,7 +195,7 @@ describe('BetSlipPanel', () => {
     );
   });
 
-  it('switching to Singles shows each selection with its own stake and Place Bet button', async () => {
+  it('switching to Singles shows each selection with its own stake field but one shared Place Bet button', async () => {
     useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
     useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
     renderPanel();
@@ -203,39 +205,51 @@ describe('BetSlipPanel', () => {
     expect(screen.queryByText('Combined odds')).not.toBeInTheDocument();
     const stakeInputs = screen.getAllByLabelText('Stake');
     expect(stakeInputs).toHaveLength(2);
-    expect(screen.getAllByRole('button', { name: 'Place Bet' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Place Bet' })).toHaveLength(1);
   });
 
-  it('placing one single bet only removes that selection, not the whole slip', async () => {
+  it('placing singles from the one bottom button places every selection together, each with its own stake', async () => {
     useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
     useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          id: 'bet-1',
-          stakeCents: 1000,
-          combinedOdds: '2.10',
-          potentialPayoutCents: 2100,
-          status: 'PENDING',
-          createdAt: '2026-07-17T00:00:00Z',
-        }),
-        { status: 201 },
-      ),
+    // A fresh Response per call - both singles are placed concurrently via
+    // Promise.all, and a Response body can only be read once, so reusing a
+    // single mockResolvedValue instance across both calls would make the
+    // second .json() read fail as if the network had actually done that.
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            id: 'bet-1',
+            stakeCents: 1000,
+            combinedOdds: '2.10',
+            potentialPayoutCents: 2100,
+            status: 'PENDING',
+            createdAt: '2026-07-17T00:00:00Z',
+          }),
+          { status: 201 },
+        ),
     );
     vi.stubGlobal('fetch', fetchMock);
 
     renderPanel();
     await userEvent.click(screen.getByRole('tab', { name: 'Singles' }));
 
-    const [placeBetButtons] = [screen.getAllByRole('button', { name: 'Place Bet' })];
-    await userEvent.click(placeBetButtons[0] as HTMLElement);
+    await userEvent.click(screen.getByRole('button', { name: 'Place Bet' }));
 
     await screen.findByText(/Bet placed!/);
-    expect(useBetSlipStore.getState().selections).toEqual([awaySelection]);
+    expect(useBetSlipStore.getState().selections).toEqual([]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
 
-    const [url, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('/backend/bets');
-    expect(JSON.parse(requestInit.body as string).selections).toEqual([homeSelection]);
+    const bodies = fetchMock.mock.calls.map((call) => {
+      const [, init] = call as [string, RequestInit];
+      return JSON.parse(init.body as string);
+    });
+    expect(bodies).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ selections: [homeSelection] }),
+        expect.objectContaining({ selections: [awaySelection] }),
+      ]),
+    );
   });
 
   it('does not show a History tab by default (mobile drawer)', () => {
