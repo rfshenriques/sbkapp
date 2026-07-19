@@ -25,6 +25,10 @@ export default defineConfig({
     }),
   ],
   server: {
+    // Vite's dev server rejects unrecognized Host headers by default. This
+    // is served in dev mode even in production for now (see Dockerfile) so
+    // real inbound hostnames need to be allow-listed here.
+    allowedHosts: ['.up.railway.app', 'betsome.pt', 'www.betsome.pt'],
     proxy: {
       '/api': {
         target: oddsEngineTarget,
