@@ -98,7 +98,7 @@ export default function RegisterPage() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-base sm:text-sm"
               autoComplete="email"
               required
             />
@@ -111,7 +111,7 @@ export default function RegisterPage() {
               id="username"
               value={username}
               onChange={(event) => setUsername(event.target.value)}
-              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-base sm:text-sm"
               autoComplete="username"
               required
             />
@@ -126,7 +126,7 @@ export default function RegisterPage() {
               value={phone}
               onChange={(event) => setPhone(event.target.value)}
               placeholder="+15551234567"
-              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-base sm:text-sm"
               autoComplete="tel"
               required
             />
@@ -140,7 +140,7 @@ export default function RegisterPage() {
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-base sm:text-sm"
               autoComplete="new-password"
               minLength={8}
               required

@@ -93,7 +93,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search teams, competitions..."
             aria-label="Search sports and competitions"
-            className="w-full rounded-xl border border-border bg-surface-2 py-2 pr-3 pl-8 text-sm text-text-primary placeholder:text-text-muted focus:ring-1 focus:ring-brand focus:outline-none"
+            className="w-full rounded-xl border border-border bg-surface-2 py-2 pr-3 pl-8 text-base text-text-primary placeholder:text-text-muted focus:ring-1 focus:ring-brand focus:outline-none sm:text-sm"
           />
         </div>
       </div>
