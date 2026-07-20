@@ -35,13 +35,13 @@ interface FeaturedMatchCardProps {
  * this is the shape that already supports it, the caller just needs to
  * pass more of them into the HorizontalScroller around it.
  *
- * One card, not a frame: a gold header (--color-highlight, so it stays
- * brand-neutral) sits flush above the match content - no gap, both
- * clipped to the same outer rounded corners. Below it the match card is a
- * real photo (the staff-uploaded MATCH_OF_THE_DAY CMS image) with
- * black-to-transparent gradients top and bottom so the competition/
- * kickoff row and the odds buttons stay legible over it, falling back to
- * the old brand-color gradient when no image is set yet.
+ * The "featured" cue lives outside the card, as the same brand-flag +
+ * heading eyebrow used above "Live now"/"Upcoming" - no colored block
+ * competing with the photo underneath it. The card itself is a real photo
+ * (the staff-uploaded MATCH_OF_THE_DAY CMS image, falling back to the old
+ * brand-color gradient when none is set) with black-to-transparent
+ * gradients top and bottom for legibility, and a soft highlight-colored
+ * ring/glow so it still reads as special without a solid color fill.
  */
 function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardProps) {
   const navigate = useNavigate();
@@ -54,19 +54,25 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
   const awayTeamLabel = displayName('TEAM', match.awayTeam);
 
   return (
-    <div
-      className={cn('flex cursor-pointer flex-col transition-transform hover:scale-[1.005]', className)}
-      onClick={() => navigate(href)}
-      onMouseEnter={() => prefetchMatchDetail(match.id)}
-      onTouchStart={() => prefetchMatchDetail(match.id)}
-    >
-      <div className="shrink-0 rounded-t-3xl bg-highlight px-5 pt-3 pb-7 font-display text-lg font-black text-black sm:text-xl">
-        #MATCHOFTHEDAY
+    <div className={cn('flex flex-col', className)}>
+      <div className="mb-3 flex shrink-0 items-center gap-2">
+        <span className="brand-flag" aria-hidden="true">
+          <i></i>
+          <i></i>
+          <i></i>
+        </span>
+        <h2 className="font-display text-lg">Match of the day</h2>
       </div>
-      {/* Rounded on all four corners and pulled up by its own corner
-          radius so the top corners peek out from under the gold header
-          instead of sitting flush with it - matches the reference card. */}
-      <section className="relative -mt-6 flex-1 overflow-hidden rounded-3xl text-white">
+      <section
+        className="relative flex-1 cursor-pointer overflow-hidden rounded-3xl text-white ring-1 ring-highlight/40 transition-transform hover:scale-[1.005]"
+        style={{
+          boxShadow:
+            '0 24px 48px -28px color-mix(in srgb, var(--color-highlight) 55%, transparent)',
+        }}
+        onClick={() => navigate(href)}
+        onMouseEnter={() => prefetchMatchDetail(match.id)}
+        onTouchStart={() => prefetchMatchDetail(match.id)}
+      >
         <BrandPromoImage
           brandId={brandId}
           slot="MATCH_OF_THE_DAY"
