@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useRef, useState, type TouchEvent } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
@@ -11,6 +11,17 @@ import { formatCents, useWallet } from '../features/wallet/useWallet';
 import { Sidebar } from '../features/navigation/Sidebar';
 import { HomeIcon, LiveIcon, MyBetsIcon, PromotionsIcon, SearchIcon } from '../components/ui/NavIcons';
 
+/** The 5 bottom-nav destinations in on-screen order, for swipe navigation. */
+const NAV_STOPS: Array<{ kind: 'search' } | { kind: 'route'; path: string }> = [
+  { kind: 'search' },
+  { kind: 'route', path: '/' },
+  { kind: 'route', path: '/live' },
+  { kind: 'route', path: '/my-bets' },
+  { kind: 'route', path: '/promotions' },
+];
+
+const SWIPE_THRESHOLD_PX = 60;
+
 export function AppShell() {
   useBootstrapAuth();
   const brandQuery = useBrandTheme();
@@ -21,6 +32,7 @@ export function AppShell() {
   const { data: wallet } = useWallet();
   const navigate = useNavigate();
   const location = useLocation();
+  const touchStartRef = useRef<{ x: number; y: number; skip: boolean } | null>(null);
 
   const brandName = brandQuery.data?.name ?? 'Sportsbook';
   const combinedOdds = selections.reduce((total, selection) => total * selection.odds, 1);
@@ -41,8 +53,63 @@ export function AppShell() {
     }
   }, [isInitialized, isAuthenticated, location.pathname, navigate]);
 
+  // Swipe left/right between the 5 bottom-nav destinations, mobile only.
+  // Swipes that start inside a horizontally-scrolling block (carousels,
+  // the sport filter row, the breadcrumb trail) or inside a bottom-sheet
+  // modal (login/register/bet slip) are ignored, so they keep their own
+  // native/touch behavior instead of also paging the whole app.
+  function handleTouchStart(event: TouchEvent) {
+    if (window.innerWidth >= 640) {
+      touchStartRef.current = null;
+      return;
+    }
+    const touch = event.touches[0];
+    if (!touch) {
+      touchStartRef.current = null;
+      return;
+    }
+    const target = event.target as HTMLElement;
+    const skip = Boolean(target.closest('[data-horizontal-scroll], .sheet-slide-up'));
+    touchStartRef.current = { x: touch.clientX, y: touch.clientY, skip };
+  }
+
+  function handleTouchEnd(event: TouchEvent) {
+    const start = touchStartRef.current;
+    touchStartRef.current = null;
+    const touch = event.changedTouches[0];
+    if (!start || start.skip || !touch) {
+      return;
+    }
+    const deltaX = touch.clientX - start.x;
+    const deltaY = touch.clientY - start.y;
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD_PX || Math.abs(deltaX) < Math.abs(deltaY) * 1.5) {
+      return;
+    }
+    const currentIndex = isNavOpen
+      ? 0
+      : NAV_STOPS.findIndex((stop) => stop.kind === 'route' && stop.path === location.pathname);
+    if (currentIndex === -1) {
+      return;
+    }
+    const nextIndex = currentIndex + (deltaX < 0 ? 1 : -1);
+    const next = NAV_STOPS[nextIndex];
+    if (!next) {
+      return;
+    }
+    if (next.kind === 'search') {
+      setIsNavOpen(true);
+    } else {
+      setIsNavOpen(false);
+      navigate(next.path);
+    }
+  }
+
   return (
-    <div className="min-h-screen pb-20 sm:pb-0">
+    <div
+      className="min-h-screen pb-20 sm:pb-0"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-[1680px] items-center gap-4 px-4 py-3">
           <NavLink to="/" className="flex shrink-0 items-center gap-2">
@@ -152,7 +219,7 @@ export function AppShell() {
         <button
           type="button"
           aria-pressed={isNavOpen}
-          onClick={() => setIsNavOpen(true)}
+          onClick={() => setIsNavOpen((open) => !open)}
           className={`flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isNavOpen ? 'text-highlight' : 'text-text-secondary'}`}
         >
           <SearchIcon width={19} height={19} />
@@ -161,6 +228,7 @@ export function AppShell() {
         <NavLink
           to="/"
           end
+          onClick={() => setIsNavOpen(false)}
           className={({ isActive }) =>
             `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
           }
@@ -170,6 +238,7 @@ export function AppShell() {
         </NavLink>
         <NavLink
           to="/live"
+          onClick={() => setIsNavOpen(false)}
           className={({ isActive }) =>
             `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
           }
@@ -179,6 +248,7 @@ export function AppShell() {
         </NavLink>
         <NavLink
           to="/my-bets"
+          onClick={() => setIsNavOpen(false)}
           className={({ isActive }) =>
             `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
           }
@@ -188,6 +258,7 @@ export function AppShell() {
         </NavLink>
         <NavLink
           to="/promotions"
+          onClick={() => setIsNavOpen(false)}
           className={({ isActive }) =>
             `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
           }

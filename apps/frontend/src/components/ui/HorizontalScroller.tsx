@@ -67,6 +67,7 @@ export function HorizontalScroller({ children, itemCount, ariaLabel, className }
         ref={scrollRef}
         role="group"
         aria-label={ariaLabel}
+        data-horizontal-scroll="true"
         className="scrollbar-hide flex h-full snap-x snap-mandatory gap-3 overflow-x-auto"
       >
         {children}

@@ -166,6 +166,7 @@ export function Breadcrumb({ segments, icon }: { segments: BreadcrumbSegment[]; 
         {(icon || mobileTrailSegments.length > 0) && (
           <nav
             aria-label="Breadcrumb trail"
+            data-horizontal-scroll="true"
             className={cn(scrollableRowClassName, 'text-xs text-text-muted')}
           >
             {icon && <span className="flex shrink-0 items-center gap-1">{icon}</span>}

@@ -264,6 +264,7 @@ export default function OddsBoardPage() {
             className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
             role="group"
             aria-label="Filter by sport"
+            data-horizontal-scroll="true"
           >
             {sportsPresent.map((sport) => (
               <button
