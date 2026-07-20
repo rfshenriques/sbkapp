@@ -104,7 +104,7 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
               style={{ backgroundColor: 'var(--color-brand)' }}
             >
               <StarIcon className="h-3 w-3" />
-              MOTD
+              Match of the day
             </span>
             <span className="text-xs font-bold tracking-wide text-text-muted uppercase">
               {displayName('COMPETITION', match.competition)}
