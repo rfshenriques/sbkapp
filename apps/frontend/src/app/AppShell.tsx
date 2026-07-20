@@ -227,12 +227,19 @@ export function AppShell() {
         </div>
       )}
 
-      {/* Mobile-only: sports navigation takes over the full screen like its
-          own page rather than a partial drawer with the rest of the app
-          visible behind it - sm:hidden keeps it from ever coexisting with
-          the persistent desktop aside above. */}
+      {/* Mobile-only: sports navigation takes over the space between the
+          header and bottom nav like its own page, rather than a partial
+          drawer with the rest of the app visible behind it - sm:hidden
+          keeps it from ever coexisting with the persistent desktop aside
+          above. Bounded to top-16/bottom (not inset-0) so the header and
+          bottom nav stay visible and on top, the same as every other page -
+          a plain inset-0 used to cover both entirely, making this feel like
+          it had left the app rather than being part of it. */}
       {isNavOpen && (
-        <div className="scrollbar-hide fixed inset-0 z-50 flex flex-col overflow-y-auto bg-background p-4 sm:hidden">
+        <div
+          className="scrollbar-hide fixed inset-x-0 top-16 z-20 flex flex-col overflow-y-auto bg-background p-4 sm:hidden"
+          style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
+        >
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-display text-lg">Sports</h2>
             <button

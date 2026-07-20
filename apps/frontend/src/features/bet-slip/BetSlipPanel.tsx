@@ -92,6 +92,15 @@ interface SingleBetRowProps {
   selection: BetSlipSelection;
   stake: string;
   onStakeChange: (value: string) => void;
+  /**
+   * false when this is the only selection in the slip - its stake field
+   * moves to the shared fixed footer instead (see the footer branch below),
+   * matching the reference design where a lone selection's amount box sits
+   * above the Place Bet button, not attached to the selection card. With
+   * 2+ singles each row still needs its own inline stake, since "place all
+   * together" needs every row's amount at once.
+   */
+  showStake: boolean;
 }
 
 /**
@@ -101,7 +110,7 @@ interface SingleBetRowProps {
  * exactly one, fixed at the bottom of the panel, regardless of how many
  * rows there are.
  */
-function SingleBetRow({ selection, stake, onStakeChange }: SingleBetRowProps) {
+function SingleBetRow({ selection, stake, onStakeChange, showStake }: SingleBetRowProps) {
   const removeSelection = useBetSlipStore((state) => state.removeSelection);
   const stakeId = useId();
 
@@ -127,13 +136,15 @@ function SingleBetRow({ selection, stake, onStakeChange }: SingleBetRowProps) {
         </div>
       </div>
 
-      <StakeField
-        stakeId={stakeId}
-        stake={stake}
-        onStakeChange={onStakeChange}
-        odds={selection.odds}
-        hideOdds
-      />
+      {showStake && (
+        <StakeField
+          stakeId={stakeId}
+          stake={stake}
+          onStakeChange={onStakeChange}
+          odds={selection.odds}
+          hideOdds
+        />
+      )}
     </Card>
   );
 }
@@ -338,6 +349,7 @@ export function BetSlipPanel({
                 selection={selection}
                 stake={getSingleStake(selection)}
                 onStakeChange={(value) => setSingleStake(selection, value)}
+                showStake={selections.length > 1}
               />
             ))}
           </div>
@@ -382,11 +394,25 @@ export function BetSlipPanel({
         ? activeMutation.error.message
         : 'Failed to place bet'
       : null;
+    // A lone selection has nowhere else for its stake to live once it's not
+    // inline on the row (see SingleBetRow's showStake) - one selection means
+    // tab is always 'singles' already, so this and the accumulator's own
+    // stake field below are mutually exclusive.
+    const singleSelection = selections.length === 1 ? selections[0] : undefined;
 
     footer = (
       <div className="mt-3 shrink-0 space-y-2 border-t border-border pt-3">
         {tab === 'accumulator' && (
           <StakeField stakeId={stakeId} stake={stake} onStakeChange={setStake} odds={combinedOdds} />
+        )}
+        {singleSelection && (
+          <StakeField
+            stakeId={stakeId}
+            stake={getSingleStake(singleSelection)}
+            onStakeChange={(value) => setSingleStake(singleSelection, value)}
+            odds={singleSelection.odds}
+            hideOdds
+          />
         )}
         <div className="flex items-center justify-between text-sm text-text-secondary">
           <span>Potential payout</span>
