@@ -9,9 +9,7 @@ import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { BrandPromoImage } from '../components/ui/BrandPromoImage';
 import { Card } from '../components/ui/Card';
 import { HorizontalScroller } from '../components/ui/HorizontalScroller';
-import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { SportIcon } from '../components/ui/SportIcon';
-import { TeamColorAccent } from '../components/ui/TeamColorAccent';
 import { cn } from '../lib/cn';
 import { useBrandStore } from '../features/brand/brandStore';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
@@ -22,6 +20,37 @@ import type { Market, Match } from '@sportsbook/shared';
 
 /** Homepage sections stay short; "Load more" hands off to the full sport page. */
 const MAX_HOMEPAGE_ITEMS = 10;
+
+/** "Real Madrid" -> "RM", "Chelsea" -> "CH" - a badge initial when there's no team crest in the data model. */
+function initials(name: string): string {
+  const words = name.trim().split(/\s+/);
+  if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();
+  return (words[0]![0]! + words[1]![0]!).toUpperCase();
+}
+
+/** Circular initials badge - fills with the team's admin-assigned color (see Team Colors backoffice) when there is one, a neutral surface otherwise rather than guessing one. */
+function TeamBadge({ name, colorHex }: { name: string; colorHex: string | undefined }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white sm:h-9 sm:w-9 sm:text-xs',
+        !colorHex && 'bg-surface-2',
+      )}
+      style={colorHex ? { backgroundColor: colorHex } : undefined}
+    >
+      {initials(name)}
+    </span>
+  );
+}
+
+function StarIcon(props: { className?: string }) {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" className={props.className}>
+      <path d="M10 1.5l2.47 5.77 6.28.55-4.76 4.14 1.42 6.14L10 14.9l-5.41 3.2 1.42-6.14L1.25 7.82l6.28-.55L10 1.5z" />
+    </svg>
+  );
+}
 
 interface FeaturedMatchCardProps {
   match: Match;
@@ -35,109 +64,102 @@ interface FeaturedMatchCardProps {
  * this is the shape that already supports it, the caller just needs to
  * pass more of them into the HorizontalScroller around it.
  *
- * The "featured" cue lives outside the card, as the same brand-flag +
- * heading eyebrow used above "Live now"/"Upcoming", colored in
- * --color-highlight so it reads as a callout rather than a plain section
- * title. The card itself is a real photo (the staff-uploaded
- * MATCH_OF_THE_DAY CMS image, falling back to the old brand-color
- * gradient when none is set) with a crisp highlight-colored border - a
- * solid border, not a blurred shadow, so it renders cleanly instead of as
- * a soft grey smudge past the rounded corners.
+ * A gradient (--color-brand -> --color-highlight) frames the card as a
+ * thin border plus a thicker left "spine", with an MOTD badge and the two
+ * teams as initials-badge rows - stays brand-neutral by building the duo
+ * tone from the two colors every brand already configures, rather than a
+ * fixed red/gold. The full match-result market (not just one promoted
+ * odd) sits at the bottom so every price is still one tap away.
  */
 function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardProps) {
   const navigate = useNavigate();
   const prefetchMatchDetail = usePrefetchMatchDetail();
   const teamColors = useTeamColors();
   const displayName = useDisplayNames();
-  const brandId = useBrandStore((state) => state.brandId);
   const href = `/matches/${match.id}`;
   const homeTeamLabel = displayName('TEAM', match.homeTeam);
   const awayTeamLabel = displayName('TEAM', match.awayTeam);
 
   return (
-    <div className={cn('flex flex-col', className)}>
-      <div className="mb-3 flex shrink-0 items-center gap-2">
-        <span className="brand-flag" aria-hidden="true">
-          <i></i>
-          <i></i>
-          <i></i>
-        </span>
-        <h2 className="font-display text-lg text-highlight">Match of the day</h2>
-      </div>
-      <section
-        className="relative flex-1 cursor-pointer overflow-hidden rounded-3xl border-2 border-highlight text-white transition-transform hover:scale-[1.005]"
-        onClick={() => navigate(href)}
-        onMouseEnter={() => prefetchMatchDetail(match.id)}
-        onTouchStart={() => prefetchMatchDetail(match.id)}
-      >
-        <BrandPromoImage
-          brandId={brandId}
-          slot="MATCH_OF_THE_DAY"
-          className="absolute inset-0 h-full w-full object-cover"
-          fallback={
-            <div
-              className="absolute inset-0"
-              style={{
-                background:
-                  'linear-gradient(155deg, color-mix(in srgb, var(--color-brand) 85%, black) 0%, color-mix(in srgb, var(--color-brand) 30%, black) 48%, #0a0a10 100%)',
-              }}
-            />
-          }
+    <div
+      className={cn('flex cursor-pointer flex-col rounded-3xl p-[2px] transition-transform hover:scale-[1.005]', className)}
+      style={{ background: 'linear-gradient(160deg, var(--color-brand), var(--color-highlight))' }}
+      onClick={() => navigate(href)}
+      onMouseEnter={() => prefetchMatchDetail(match.id)}
+      onTouchStart={() => prefetchMatchDetail(match.id)}
+    >
+      <section className="relative flex flex-1 flex-col overflow-hidden rounded-[22px] bg-surface pl-3.5 text-text-primary">
+        {/* The thicker accent along the left edge, distinct from the thin
+            gradient border the outer wrapper's padding creates. */}
+        <span
+          aria-hidden="true"
+          className="absolute inset-y-0 left-0 w-1.5 rounded-l-[inherit]"
+          style={{ background: 'linear-gradient(180deg, var(--color-brand), var(--color-highlight))' }}
         />
-        {/* Gradients on both edges (not just the bottom, like a typical
-            hero scrim) - the competition/kickoff row up top needs the same
-            legibility guarantee over a photo as the odds buttons at the
-            bottom do. */}
-        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/90 via-black/40 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
-        <div className="relative flex h-full flex-col p-6 pb-5">
-          <p className="flex items-center gap-2 text-xs font-semibold text-white/70">
-            <SportCountryBadge sport={match.sport} country={match.country} />
-            <span>{displayName('COMPETITION', match.competition)}</span>
-            {match.isLive ? (
-              <span className="ml-auto rounded-full bg-price-down px-2 py-0.5 text-[10px] font-extrabold text-white">
-                LIVE
-              </span>
-            ) : (
-              <span className="ml-auto text-highlight">{formatKickoff(new Date(match.kickoff))}</span>
-            )}
-          </p>
+        <div className="relative flex flex-1 flex-col p-5">
+          <div className="flex items-center justify-between gap-2">
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-extrabold tracking-wide text-white uppercase"
+              style={{ backgroundColor: 'var(--color-brand)' }}
+            >
+              <StarIcon className="h-3 w-3" />
+              MOTD
+            </span>
+            <span className="text-xs font-bold tracking-wide text-text-muted uppercase">
+              {displayName('COMPETITION', match.competition)}
+            </span>
+          </div>
 
-          {/* Real link kept for keyboard/screen-reader navigation - the
-              section's onClick above is a mouse/touch convenience that
-              enlarges the clickable area to the whole card. */}
+          <div className="my-4 border-t border-border" />
+
           <h1
             aria-label={`${homeTeamLabel} vs ${awayTeamLabel}`}
-            className="mt-3 flex items-center justify-center gap-3 sm:gap-5"
+            className="flex items-center justify-between gap-3"
           >
-            <span className="flex min-w-0 flex-1 items-center justify-end gap-2">
-              <TeamColorAccent colorHex={teamColors.get(match.homeTeam)} className="h-4 sm:h-6" />
-              <Link
-                to={href}
-                className="min-w-0 truncate text-right font-display text-xl leading-tight hover:underline sm:text-2xl"
-                onClick={(event) => event.stopPropagation()}
-              >
-                {homeTeamLabel}
-              </Link>
+            <span className="flex flex-col gap-3">
+              <span className="flex items-center gap-3">
+                <TeamBadge name={homeTeamLabel} colorHex={teamColors.get(match.homeTeam)} />
+                <Link
+                  to={href}
+                  className="font-display text-base leading-tight font-bold hover:underline sm:text-lg"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {homeTeamLabel}
+                </Link>
+              </span>
+              <span className="flex items-center gap-3">
+                <TeamBadge name={awayTeamLabel} colorHex={teamColors.get(match.awayTeam)} />
+                <Link
+                  to={href}
+                  className="font-display text-base leading-tight font-bold hover:underline sm:text-lg"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  {awayTeamLabel}
+                </Link>
+              </span>
             </span>
-            <span className="shrink-0 font-display text-sm text-text-muted sm:text-base">vs</span>
-            <span className="flex min-w-0 flex-1 items-center justify-start gap-2">
-              <Link
-                to={href}
-                className="min-w-0 truncate text-left font-display text-xl leading-tight hover:underline sm:text-2xl"
-                onClick={(event) => event.stopPropagation()}
-              >
-                {awayTeamLabel}
-              </Link>
-              <TeamColorAccent colorHex={teamColors.get(match.awayTeam)} className="h-4 sm:h-6" />
+            <span className="flex shrink-0 flex-col items-end gap-1.5 text-right">
+              <span className="text-xs font-bold tracking-wide text-text-muted uppercase">vs</span>
+              {match.isLive ? (
+                <span className="rounded-full bg-price-down px-2 py-0.5 text-[10px] font-extrabold text-white">
+                  LIVE
+                </span>
+              ) : (
+                <span className="text-sm font-bold text-highlight">{formatKickoff(new Date(match.kickoff))}</span>
+              )}
             </span>
           </h1>
 
-          {/* Pinned to the card's bottom edge (not just after the team
-              names) so it lands at a consistent height regardless of how
-              much extra room the card has above it. */}
-          <div className="mt-auto max-w-md pt-5">
+          <div className="my-4 border-t border-border" />
+
+          {/* Pinned to the card's bottom edge so it lands at a consistent
+              height regardless of how much extra room the card has above
+              it. */}
+          <div className="mt-auto">
+            <p className="mb-2 text-xs font-bold tracking-wide text-text-muted uppercase">
+              {displayName('MARKET', matchResult.name)}
+            </p>
             <MarketSelections
               matchId={match.id}
               matchLabel={`${homeTeamLabel} vs ${awayTeamLabel}`}
