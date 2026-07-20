@@ -129,6 +129,22 @@ describe('Sidebar', () => {
     expect(screen.queryByText('England')).not.toBeInTheDocument();
   });
 
+  it('expanding a sport shows an "All matches" link above the country list, pointing at the unfiltered sport page', async () => {
+    stubFetch([
+      buildMatch({ id: 'm1', sport: 'Football', country: 'England', competition: 'Premier League' }),
+    ]);
+
+    renderSidebar();
+
+    await userEvent.click(await screen.findByRole('button', { name: /Football/ }));
+    const allMatchesLink = screen.getByRole('link', { name: 'All matches' });
+    expect(allMatchesLink).toHaveAttribute('href', '/sports/Football');
+
+    const englandButton = screen.getByRole('button', { name: /England/ });
+    // DOCUMENT_POSITION_FOLLOWING (4) means allMatchesLink comes first in the DOM.
+    expect(allMatchesLink.compareDocumentPosition(englandButton) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('expands a sport to reveal countries, then a country to reveal competitions with a link to the filtered match list', async () => {
     stubFetch([
       buildMatch({ id: 'm1', sport: 'Football', country: 'England', competition: 'Premier League' }),

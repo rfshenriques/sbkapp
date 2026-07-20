@@ -258,6 +258,31 @@ describe('SportPage', () => {
     expect(screen.queryByRole('navigation', { name: 'Breadcrumb' })).not.toBeInTheDocument();
   });
 
+  it('shows only the first page of matches, with a Load more button that reveals the rest', async () => {
+    const matches = Array.from({ length: 25 }, (_, index) =>
+      buildMatch({
+        id: `m${index}`,
+        homeTeam: `Home ${index}`,
+        awayTeam: `Away ${index}`,
+        kickoff: new Date(Date.UTC(2026, 6, 19, 10 + index)).toISOString(),
+      }),
+    );
+    stubOddsEngineFetch(matches);
+    stubRankingsFetch();
+
+    renderAt('/sports/Football');
+
+    await screen.findByRole('link', { name: 'Home 0 vs Away 0' });
+    expect(screen.getAllByRole('link', { name: /vs/ })).toHaveLength(20);
+    expect(screen.queryByRole('link', { name: 'Home 20 vs Away 20' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Load more' }));
+
+    expect(await screen.findByRole('link', { name: 'Home 20 vs Away 20' })).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: /vs/ })).toHaveLength(25);
+    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
+  });
+
   it('shows an empty state when there are no matches for the sport', async () => {
     stubOddsEngineFetch([buildMatch({ sport: 'Football' })]);
     stubRankingsFetch();

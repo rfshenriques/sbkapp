@@ -206,6 +206,15 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                         background rather than border lines. */}
                     {isSportOpen && (
                       <ul className="fade-in-down divide-y divide-border/60 bg-black/10">
+                        <li>
+                          <Link
+                            to={`/sports/${encodeURIComponent(sportNode.sport)}`}
+                            className="flex items-center py-2.5 pr-3 pl-8 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
+                            onClick={onNavigate}
+                          >
+                            All matches
+                          </Link>
+                        </li>
                         {sportNode.countries.map((countryNode) => {
                           const isCountryOpen = isSearching || expandedCountry === countryNode.country;
                           return (

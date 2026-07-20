@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { MatchCard } from '../features/odds-board/MatchCard';
 import { MatchListSkeleton } from '../features/odds-board/MatchListSkeleton';
@@ -14,6 +14,9 @@ import { Card } from '../components/ui/Card';
 /** "all" shows every sport unfiltered - used by the homepage's "Live now" load-more, which isn't scoped to one sport. */
 const ALL_SPORTS = 'all';
 
+/** Same load-more pattern as the homepage, just a bigger first page - this is the dedicated "see everything" view, not a short teaser section. */
+const PAGE_SIZE = 20;
+
 export default function SportPage() {
   const { sport } = useParams<{ sport: string }>();
   const decodedSport = sport ? decodeURIComponent(sport) : ALL_SPORTS;
@@ -23,6 +26,7 @@ export default function SportPage() {
   const countryFilter = searchParams.get('country');
   const liveOnly = location.pathname === '/live' || searchParams.get('live') === 'true';
   const [sortMode, setSortMode] = useState<MatchSortMode>('time');
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   const { data: matches, isPending, isError } = useMatches();
   const { data: rankings } = useCompetitionRankings();
@@ -37,6 +41,14 @@ export default function SportPage() {
       (!liveOnly || match.isLive),
   );
   const sorted = filtered ? sortMatches(filtered, sortMode, rankByCompetition) : undefined;
+  const visible = sorted?.slice(0, visibleCount);
+
+  // A different filter/sort is a different list - start each one back at
+  // the first page rather than carrying over however far the player had
+  // scrolled through the previous view.
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [decodedSport, competitionFilter, countryFilter, liveOnly, sortMode]);
   const heading = competitionFilter
     ? displayName('COMPETITION', competitionFilter)
     : liveOnly
@@ -138,12 +150,21 @@ export default function SportPage() {
       {sorted && sorted.length === 0 && (
         <Card className="text-text-secondary">No matches available right now.</Card>
       )}
-      {sorted && sorted.length > 0 && (
+      {visible && visible.length > 0 && (
         <div className="space-y-3">
-          {sorted.map((match) => (
+          {visible.map((match) => (
             <MatchCard key={match.id} match={match} />
           ))}
         </div>
+      )}
+      {sorted && sorted.length > visibleCount && (
+        <button
+          type="button"
+          onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+          className="btn-ghost mt-3 flex w-full items-center justify-center sm:inline-flex sm:w-auto"
+        >
+          Load more
+        </button>
       )}
     </div>
   );
