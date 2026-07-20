@@ -19,6 +19,35 @@ function kickoffMeta(candidate: Match) {
   return candidate.isLive ? undefined : formatKickoff(new Date(candidate.kickoff));
 }
 
+/**
+ * A stand-in accent color for the header's team badges when no admin has
+ * assigned that team a real one yet (see Team Colors backoffice) - without
+ * this, the two-color layout only ever appeared for the handful of teams
+ * someone had gotten around to coloring, and looked broken everywhere
+ * else. Deterministic per team name (same team always gets the same
+ * color), picked from a fixed brand-neutral palette rather than anything
+ * resembling a real club color.
+ */
+const FALLBACK_TEAM_COLORS = [
+  '#F87171',
+  '#FB923C',
+  '#FBBF24',
+  '#4ADE80',
+  '#2DD4BF',
+  '#38BDF8',
+  '#818CF8',
+  '#C084FC',
+  '#F472B6',
+];
+
+function fallbackTeamColor(name: string): string {
+  let hash = 0;
+  for (let index = 0; index < name.length; index += 1) {
+    hash = (hash * 31 + name.charCodeAt(index)) >>> 0;
+  }
+  return FALLBACK_TEAM_COLORS[hash % FALLBACK_TEAM_COLORS.length]!;
+}
+
 export default function MatchDetailPage() {
   const { matchId } = useParams();
   const { data: match, isPending, isError } = useMatch(matchId);
@@ -106,13 +135,19 @@ export default function MatchDetailPage() {
         )}
         <h1
           aria-label={matchLabel}
-          className="mt-3 flex items-center gap-2 font-display text-lg leading-tight sm:text-2xl"
+          className="mt-3 flex items-center justify-center gap-2 font-display text-lg leading-tight sm:text-2xl"
         >
-          <TeamColorAccent colorHex={teamColors.get(match.homeTeam)} className="h-4 shrink-0 sm:h-6" />
+          <TeamColorAccent
+            colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)}
+            className="h-4 shrink-0 sm:h-6"
+          />
           <span className="min-w-0 truncate">{homeTeamLabel}</span>
           <span className="shrink-0 text-sm font-normal text-text-muted normal-case sm:text-base">vs</span>
           <span className="min-w-0 truncate">{awayTeamLabel}</span>
-          <TeamColorAccent colorHex={teamColors.get(match.awayTeam)} className="h-4 shrink-0 sm:h-6" />
+          <TeamColorAccent
+            colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)}
+            className="h-4 shrink-0 sm:h-6"
+          />
         </h1>
       </section>
 
