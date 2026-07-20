@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 
 export interface BottomSheetProps {
@@ -47,6 +47,17 @@ export function BottomSheet({
   bodyClassName,
   desktopSize = 'default',
 }: BottomSheetProps) {
+  // A background page tall enough to scroll would otherwise keep scrolling
+  // underneath the sheet once the sheet's own content hits its scroll
+  // limit - lock it for as long as this sheet is mounted.
+  useEffect(() => {
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
+
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <button

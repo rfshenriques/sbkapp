@@ -123,7 +123,7 @@ export default function MatchDetailPage() {
               <i></i>
               <i></i>
             </span>
-            <h2 className="font-display text-lg">{matchResult.name}</h2>
+            <h2 className="font-display text-lg">{displayName('MARKET', matchResult.name)}</h2>
           </div>
           <MarketSelections matchId={match.id} matchLabel={matchLabel} market={matchResult} />
         </div>

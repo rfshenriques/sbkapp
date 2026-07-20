@@ -53,6 +53,21 @@ export function AppShell() {
     }
   }, [isInitialized, isAuthenticated, location.pathname, navigate]);
 
+  // Matches BottomSheet's own lock (see there) - this drawer isn't a
+  // BottomSheet, it's a bespoke overlay, so it needs the same treatment
+  // itself: without it, scrolling inside the drawer once it hits its own
+  // scroll limit falls through to the homepage underneath.
+  useEffect(() => {
+    if (!isNavOpen) {
+      return;
+    }
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isNavOpen]);
+
   // Swipe left/right between the 5 bottom-nav destinations, mobile only.
   // Swipes that start inside a horizontally-scrolling block (carousels,
   // the sport filter row, the breadcrumb trail) or inside a bottom-sheet
@@ -230,7 +245,7 @@ export function AppShell() {
           end
           onClick={() => setIsNavOpen(false)}
           className={({ isActive }) =>
-            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
+            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
           }
         >
           <HomeIcon width={19} height={19} />
@@ -240,7 +255,7 @@ export function AppShell() {
           to="/live"
           onClick={() => setIsNavOpen(false)}
           className={({ isActive }) =>
-            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
+            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
           }
         >
           <LiveIcon width={19} height={19} />
@@ -250,7 +265,7 @@ export function AppShell() {
           to="/my-bets"
           onClick={() => setIsNavOpen(false)}
           className={({ isActive }) =>
-            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
+            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
           }
         >
           <MyBetsIcon width={19} height={19} />
@@ -260,7 +275,7 @@ export function AppShell() {
           to="/promotions"
           onClick={() => setIsNavOpen(false)}
           className={({ isActive }) =>
-            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive ? 'text-highlight' : 'text-text-secondary'}`
+            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
           }
         >
           <PromotionsIcon width={19} height={19} />
@@ -305,23 +320,15 @@ export function AppShell() {
           above. Bounded to top-16/bottom (not inset-0) so the header and
           bottom nav stay visible and on top, the same as every other page -
           a plain inset-0 used to cover both entirely, making this feel like
-          it had left the app rather than being part of it. */}
+          it had left the app rather than being part of it. No explicit
+          close button - tapping Search again or any other bottom-nav tab
+          closes it, same as switching between any other pair of pages. */}
       {isNavOpen && (
         <div
           className="scrollbar-hide fixed inset-x-0 top-16 z-20 flex flex-col overflow-y-auto bg-background p-4 sm:hidden"
           style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
         >
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-display text-lg">Sports</h2>
-            <button
-              type="button"
-              aria-label="Close sports navigation"
-              className="text-text-muted hover:text-text-primary"
-              onClick={() => setIsNavOpen(false)}
-            >
-              ✕
-            </button>
-          </div>
+          <h2 className="mb-3 font-display text-lg">Sports</h2>
           <Sidebar onNavigate={() => setIsNavOpen(false)} stickyBgClassName="bg-background" />
         </div>
       )}

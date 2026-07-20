@@ -139,7 +139,31 @@ describe('AppShell', () => {
     const nav = screen.getByRole('navigation', { name: 'App navigation' });
     await userEvent.click(within(nav).getByRole('button', { name: /Search/ }));
 
-    expect(screen.getAllByRole('button', { name: 'Close sports navigation' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('heading', { name: 'Sports' }).length).toBeGreaterThan(0);
+  });
+
+  it('clicking the Search button again closes the drawer, with no separate close button', async () => {
+    renderShell();
+
+    const nav = screen.getByRole('navigation', { name: 'App navigation' });
+    const searchButton = within(nav).getByRole('button', { name: /Search/ });
+    await userEvent.click(searchButton);
+    expect(screen.getAllByRole('heading', { name: 'Sports' }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: /close sports/i })).not.toBeInTheDocument();
+
+    await userEvent.click(searchButton);
+    expect(screen.queryByRole('heading', { name: 'Sports' })).not.toBeInTheDocument();
+  });
+
+  it('clicking another bottom-nav tab while the drawer is open closes it and navigates', async () => {
+    renderShell();
+
+    const nav = screen.getByRole('navigation', { name: 'App navigation' });
+    await userEvent.click(within(nav).getByRole('button', { name: /Search/ }));
+    expect(screen.getAllByRole('heading', { name: 'Sports' }).length).toBeGreaterThan(0);
+
+    await userEvent.click(within(nav).getByRole('link', { name: /Live/ }));
+    expect(screen.queryByRole('heading', { name: 'Sports' })).not.toBeInTheDocument();
   });
 
   it('does not show a hamburger button in the header - only the logo', () => {

@@ -113,6 +113,34 @@ describe('MatchDetailPage', () => {
     expect(await screen.findByRole('heading', { name: 'Liverpool vs Manchester City' })).toBeInTheDocument();
   });
 
+  it('shows a MARKET display-name override on the market heading instead of the raw feed name', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/events') {
+        const { mockMatches } = await import('../mocks/matches');
+        return new Response(JSON.stringify(mockMatches), { status: 200 });
+      }
+      if (/\/events\/match-1$/.test(url)) {
+        const { mockMatches } = await import('../mocks/matches');
+        const match = mockMatches.find((candidate) => candidate.id === 'match-1');
+        return new Response(JSON.stringify(match), { status: 200 });
+      }
+      if (url === '/backend/public/display-names') {
+        return new Response(
+          JSON.stringify([{ entityType: 'MARKET', rawName: 'Match Result', displayName: 'Fulltime Result' }]),
+          { status: 200 },
+        );
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderAt('match-1');
+
+    expect(await screen.findByRole('heading', { name: 'Fulltime Result' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Match Result' })).not.toBeInTheDocument();
+  });
+
   it('lets you add a selection to the bet slip from the match detail page', async () => {
     renderAt('match-1');
 
