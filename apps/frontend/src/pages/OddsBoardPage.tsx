@@ -35,13 +35,13 @@ interface FeaturedMatchCardProps {
  * this is the shape that already supports it, the caller just needs to
  * pass more of them into the HorizontalScroller around it.
  *
- * Two nested cards, not one: the outer gold frame (--color-highlight, so it
- * stays brand-neutral) is purely a "this is the featured match" indicator -
- * all the actual content lives in the inner card, which is a real photo
- * (the staff-uploaded MATCH_OF_THE_DAY CMS image) with black-to-transparent
- * gradients top and bottom so the competition/kickoff row and the odds
- * buttons stay legible over it, falling back to the old brand-color
- * gradient when no image is set yet.
+ * A title bar stacked above the match card, not a frame around it: the
+ * gold bar (--color-highlight, so it stays brand-neutral) labels the
+ * section, and below it the match card is a real photo (the staff-uploaded
+ * MATCH_OF_THE_DAY CMS image) with black-to-transparent gradients top and
+ * bottom so the competition/kickoff row and the odds buttons stay legible
+ * over it, falling back to the old brand-color gradient when no image is
+ * set yet.
  */
 function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardProps) {
   const navigate = useNavigate();
@@ -54,9 +54,12 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
   const awayTeamLabel = displayName('TEAM', match.awayTeam);
 
   return (
-    <div className={cn('rounded-3xl bg-highlight p-2', className)}>
+    <div className={cn('flex flex-col gap-2', className)}>
+      <div className="rounded-2xl bg-highlight px-4 py-2 text-center font-display text-xs font-extrabold tracking-widest text-black uppercase">
+        Match of the day
+      </div>
       <section
-        className="relative h-full cursor-pointer overflow-hidden rounded-2xl text-white transition-transform hover:scale-[1.005]"
+        className="relative flex-1 cursor-pointer overflow-hidden rounded-2xl text-white transition-transform hover:scale-[1.005]"
         onClick={() => navigate(href)}
         onMouseEnter={() => prefetchMatchDetail(match.id)}
         onTouchStart={() => prefetchMatchDetail(match.id)}
@@ -82,7 +85,7 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
         <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/85 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/85 to-transparent" />
 
-        <div className="relative p-6 pb-5">
+        <div className="relative flex h-full flex-col p-6 pb-5">
           <p className="flex items-center gap-2 text-xs font-semibold text-white/70">
             <SportCountryBadge sport={match.sport} country={match.country} />
             <span>{displayName('COMPETITION', match.competition)}</span>
@@ -125,7 +128,10 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
             </span>
           </h1>
 
-          <div className="mt-5 max-w-md">
+          {/* Pinned to the card's bottom edge (not just after the team
+              names) so it lands at a consistent height regardless of how
+              much extra room the card has above it. */}
+          <div className="mt-auto max-w-md pt-5">
             <MarketSelections
               matchId={match.id}
               matchLabel={`${homeTeamLabel} vs ${awayTeamLabel}`}
