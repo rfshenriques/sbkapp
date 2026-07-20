@@ -1,0 +1,129 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render, screen } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useStaffAuthStore } from '../features/auth/staffAuthStore';
+import type { BrandImage } from '../lib/backendApi';
+import CmsImagesPage from './CmsImagesPage';
+
+const homepageOfferImage: BrandImage = {
+  id: 'image-1',
+  brandId: 'brand-1',
+  slot: 'HOMEPAGE_OFFER',
+  mimeType: 'image/png',
+  createdAt: '2026-07-20T00:00:00Z',
+  updatedAt: '2026-07-20T00:00:00Z',
+};
+
+function renderPage() {
+  const queryClient = new QueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <CmsImagesPage />
+    </QueryClientProvider>,
+  );
+}
+
+beforeEach(() => {
+  useStaffAuthStore.setState({
+    accessToken: 'header.payload.signature',
+    user: { sub: 'staff-1', username: 'cms_alice', role: 'CMS' },
+    isInitialized: true,
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('CmsImagesPage', () => {
+  it('lists all three slots, each with its recommended resolution, and a preview only where an image is set', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/backend/admin/brand-images') {
+        return new Response(JSON.stringify([homepageOfferImage]), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderPage();
+
+    expect(await screen.findByText('Register - desktop')).toBeInTheDocument();
+    expect(screen.getByText('Register - mobile')).toBeInTheDocument();
+    expect(screen.getByText('Homepage offer')).toBeInTheDocument();
+    expect(screen.getByText('Recommended: 800 × 1000px (4:5, portrait)')).toBeInTheDocument();
+
+    // Only the slot with an image gets a preview + "Replace"/"Remove"; the other two show "Upload".
+    expect(screen.getByRole('img', { name: 'Homepage offer preview' })).toHaveAttribute(
+      'src',
+      '/backend/public/brand-images/brand-1/HOMEPAGE_OFFER?v=2026-07-20T00%3A00%3A00Z',
+    );
+    expect(screen.getAllByRole('button', { name: 'Upload' })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Replace' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument();
+  });
+
+  it('uploading a file for an empty slot posts it as multipart form data', async () => {
+    let uploaded: BrandImage | null = null;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/backend/admin/brand-images') {
+        return new Response(JSON.stringify(uploaded ? [uploaded] : []), { status: 200 });
+      }
+      if (method === 'POST' && url === '/backend/admin/brand-images/REGISTER_DESKTOP') {
+        expect(init!.body).toBeInstanceOf(FormData);
+        const file = (init!.body as FormData).get('file') as File;
+        expect(file.name).toBe('promo.png');
+        uploaded = {
+          id: 'image-2',
+          brandId: 'brand-1',
+          slot: 'REGISTER_DESKTOP',
+          mimeType: 'image/png',
+          createdAt: '2026-07-20T00:00:00Z',
+          updatedAt: '2026-07-20T00:00:00Z',
+        };
+        return new Response(JSON.stringify(uploaded), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderPage();
+    await screen.findByText('Register - desktop');
+
+    const file = new File(['fake-bytes'], 'promo.png', { type: 'image/png' });
+    const input = screen.getByLabelText('Upload Register - desktop image');
+    await userEvent.upload(input, file);
+
+    expect(await screen.findByRole('img', { name: 'Register - desktop preview' })).toBeInTheDocument();
+  });
+
+  it('removing an image sends a delete for its slot', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/backend/admin/brand-images') {
+        return new Response(JSON.stringify([homepageOfferImage]), { status: 200 });
+      }
+      if (method === 'DELETE' && url === '/backend/admin/brand-images/HOMEPAGE_OFFER') {
+        return new Response(JSON.stringify(homepageOfferImage), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderPage();
+    await screen.findByText('Homepage offer');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/brand-images/HOMEPAGE_OFFER',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+});

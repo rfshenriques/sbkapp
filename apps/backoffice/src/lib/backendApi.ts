@@ -390,3 +390,39 @@ export async function removeCompetitionRanking(id: string): Promise<void> {
     throw new Error(`Failed to remove competition ranking: ${response.status}`);
   }
 }
+
+export type BrandImageSlot = 'REGISTER_DESKTOP' | 'REGISTER_MOBILE' | 'HOMEPAGE_OFFER';
+
+export interface BrandImage {
+  id: string;
+  brandId: string;
+  slot: BrandImageSlot;
+  mimeType: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listBrandImages(): Promise<BrandImage[]> {
+  const response = await authenticatedFetch('/admin/brand-images');
+  return parseJsonOrThrow(response, `Failed to load brand images: ${response.status}`);
+}
+
+/** Idempotent - uploading to an already-set slot replaces it. No Content-Type header set - fetch derives the multipart boundary itself from the FormData body. */
+export async function uploadBrandImage(slot: BrandImageSlot, file: File): Promise<BrandImage> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await authenticatedFetch(`/admin/brand-images/${slot}`, {
+    method: 'POST',
+    body: formData,
+  });
+  return parseJsonOrThrow(response, `Failed to upload image: ${response.status}`);
+}
+
+export async function removeBrandImage(slot: BrandImageSlot): Promise<void> {
+  const response = await authenticatedFetch(`/admin/brand-images/${slot}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to remove brand image: ${response.status}`);
+  }
+}

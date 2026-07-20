@@ -41,6 +41,12 @@ export function AppShell() {
                   >
                     Competition ranking
                   </Link>
+                  <Link
+                    to="/cms-images"
+                    className="text-sm text-text-secondary hover:text-text-primary"
+                  >
+                    CMS images
+                  </Link>
                 </>
               )}
               {user?.role === 'ADMIN' && (
