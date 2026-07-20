@@ -35,13 +35,13 @@ interface FeaturedMatchCardProps {
  * this is the shape that already supports it, the caller just needs to
  * pass more of them into the HorizontalScroller around it.
  *
- * A title bar stacked above the match card, not a frame around it: the
- * gold bar (--color-highlight, so it stays brand-neutral) labels the
- * section, and below it the match card is a real photo (the staff-uploaded
- * MATCH_OF_THE_DAY CMS image) with black-to-transparent gradients top and
- * bottom so the competition/kickoff row and the odds buttons stay legible
- * over it, falling back to the old brand-color gradient when no image is
- * set yet.
+ * One card, not a frame: a gold header (--color-highlight, so it stays
+ * brand-neutral) sits flush above the match content - no gap, both
+ * clipped to the same outer rounded corners. Below it the match card is a
+ * real photo (the staff-uploaded MATCH_OF_THE_DAY CMS image) with
+ * black-to-transparent gradients top and bottom so the competition/
+ * kickoff row and the odds buttons stay legible over it, falling back to
+ * the old brand-color gradient when no image is set yet.
  */
 function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardProps) {
   const navigate = useNavigate();
@@ -54,16 +54,19 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
   const awayTeamLabel = displayName('TEAM', match.awayTeam);
 
   return (
-    <div className={cn('flex flex-col gap-2', className)}>
-      <div className="rounded-2xl bg-highlight px-4 py-2 text-center font-display text-xs font-extrabold tracking-widest text-black uppercase">
-        Match of the day
+    <div
+      className={cn(
+        'flex cursor-pointer flex-col overflow-hidden rounded-3xl transition-transform hover:scale-[1.005]',
+        className,
+      )}
+      onClick={() => navigate(href)}
+      onMouseEnter={() => prefetchMatchDetail(match.id)}
+      onTouchStart={() => prefetchMatchDetail(match.id)}
+    >
+      <div className="shrink-0 bg-highlight px-5 py-3 font-display text-lg font-black text-black sm:text-xl">
+        #MATCHOFTHEDAY
       </div>
-      <section
-        className="relative flex-1 cursor-pointer overflow-hidden rounded-2xl text-white transition-transform hover:scale-[1.005]"
-        onClick={() => navigate(href)}
-        onMouseEnter={() => prefetchMatchDetail(match.id)}
-        onTouchStart={() => prefetchMatchDetail(match.id)}
-      >
+      <section className="relative flex-1 text-white">
         <BrandPromoImage
           brandId={brandId}
           slot="MATCH_OF_THE_DAY"
