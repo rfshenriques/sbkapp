@@ -357,3 +357,36 @@ export async function setDisplayName(id: string, displayName: string | null): Pr
   });
   return parseJsonOrThrow(response, `Failed to set display name: ${response.status}`);
 }
+
+export interface CompetitionRanking {
+  id: string;
+  brandId: string;
+  competition: string;
+  rank: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listCompetitionRankings(): Promise<CompetitionRanking[]> {
+  const response = await authenticatedFetch('/admin/competition-rankings');
+  return parseJsonOrThrow(response, `Failed to load competition rankings: ${response.status}`);
+}
+
+/** Idempotent - setting a rank for an already-ranked competition just updates it. */
+export async function setCompetitionRanking(competition: string, rank: number): Promise<CompetitionRanking> {
+  const response = await authenticatedFetch('/admin/competition-rankings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ competition, rank }),
+  });
+  return parseJsonOrThrow(response, `Failed to set competition ranking: ${response.status}`);
+}
+
+export async function removeCompetitionRanking(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/competition-rankings/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to remove competition ranking: ${response.status}`);
+  }
+}

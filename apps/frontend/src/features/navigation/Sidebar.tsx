@@ -61,14 +61,24 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
   const showLeagues = !isSearching || !hasMatchResults;
   const treeSourceMatches = showLeagues ? (isSearching ? matchingMatches : (matches ?? [])) : [];
   const tree = useMemo(() => buildSportTree(treeSourceMatches), [treeSourceMatches]);
+  const competitionsWithMatches = useMemo(
+    () => new Set((matches ?? []).map((match) => match.competition)),
+    [matches],
+  );
   const topCompetitions = useMemo(() => {
     if (!showLeagues) return [];
-    const ranked = [...(rankings ?? [])].sort((a, b) => a.rank - b.rank);
+    // A ranked competition drops out the moment it has no matches, rather
+    // than showing an empty quicklink - the next-ranked one slides up into
+    // its spot automatically since this filters before slicing to
+    // MAX_QUICKLINKS below, not after.
+    const ranked = [...(rankings ?? [])]
+      .filter((ranking) => competitionsWithMatches.has(ranking.competition))
+      .sort((a, b) => a.rank - b.rank);
     const filtered = isSearching
       ? ranked.filter((ranking) => ranking.competition.toLowerCase().includes(trimmedQuery))
       : ranked;
     return filtered.slice(0, MAX_QUICKLINKS);
-  }, [rankings, trimmedQuery, isSearching, showLeagues]);
+  }, [rankings, trimmedQuery, isSearching, showLeagues, competitionsWithMatches]);
 
   const [expandedSport, setExpandedSport] = useState<string | null>(null);
   const [expandedCountry, setExpandedCountry] = useState<string | null>(null);

@@ -35,6 +35,12 @@ export function AppShell() {
                   >
                     Display names
                   </Link>
+                  <Link
+                    to="/competition-ranking"
+                    className="text-sm text-text-secondary hover:text-text-primary"
+                  >
+                    Competition ranking
+                  </Link>
                 </>
               )}
               {user?.role === 'ADMIN' && (

@@ -59,10 +59,13 @@ afterEach(() => {
 
 describe('Sidebar', () => {
   it('shows a Top Competitions quicklinks block sorted by rank, linking to the filtered sport page', async () => {
-    stubFetch([buildMatch()], [
-      { competition: 'La Liga', rank: 1 },
-      { competition: 'Premier League', rank: 0 },
-    ]);
+    stubFetch(
+      [buildMatch(), buildMatch({ id: 'm2', country: 'Spain', competition: 'La Liga' })],
+      [
+        { competition: 'La Liga', rank: 1 },
+        { competition: 'Premier League', rank: 0 },
+      ],
+    );
 
     renderSidebar();
 
@@ -178,23 +181,19 @@ describe('Sidebar', () => {
     expect(screen.queryByRole('button', { name: /Ice Hockey/ })).not.toBeInTheDocument();
   });
 
-  it('falls back to Top Competitions when the search matches a configured league by name but no live match', async () => {
+  it('drops a ranked competition from Top Competitions once it has no matches, sliding the next ranked one into its place', async () => {
     stubFetch(
       [buildMatch({ id: 'm1', sport: 'Football', country: 'England', competition: 'Premier League' })],
-      [{ competition: 'Bundesliga', rank: 0 }],
+      [
+        { competition: 'Bundesliga', rank: 0 },
+        { competition: 'Premier League', rank: 1 },
+      ],
     );
 
     renderSidebar();
-    await screen.findByRole('button', { name: /Football/ });
 
-    await userEvent.type(
-      screen.getByRole('searchbox', { name: 'Search sports and competitions' }),
-      'Bundesliga',
-    );
-
-    expect(await screen.findByRole('heading', { name: 'Top Competitions' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Bundesliga/ })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Matches' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('link', { name: /Premier League/ })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Bundesliga/ })).not.toBeInTheDocument();
   });
 
   it('shows a "no matches found" message when the search query matches nothing', async () => {
