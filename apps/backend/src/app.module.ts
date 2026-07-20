@@ -20,6 +20,7 @@ import { ReportsModule } from './modules/reports/reports.module';
 import { MasterModule } from './modules/master/master.module';
 import { TeamColorsModule } from './modules/team-colors/team-colors.module';
 import { DisplayNamesModule } from './modules/display-names/display-names.module';
+import { BrandImagesModule } from './modules/brand-images/brand-images.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { DisplayNamesModule } from './modules/display-names/display-names.module
     MasterModule,
     TeamColorsModule,
     DisplayNamesModule,
+    BrandImagesModule,
   ],
 })
 export class AppModule {}

@@ -111,6 +111,8 @@ enum AuditAction {
   COMPETITION_RANKING_REMOVED
   TEAM_COLOR_SET
   DISPLAY_NAME_OVERRIDE_SET
+  BRAND_IMAGE_SET
+  BRAND_IMAGE_REMOVED
 }
 
 /**
@@ -370,8 +372,38 @@ model Brand {
   auditLogEntries     AuditLogEntry[]
   marketSuspensions   MarketSuspension[]
   competitionRankings CompetitionRanking[]
+  images              BrandImage[]
 
   @@map("brands")
+}
+
+enum BrandImageSlot {
+  REGISTER_DESKTOP
+  REGISTER_MOBILE
+  HOMEPAGE_OFFER
+}
+
+/**
+ * Staff-uploaded CMS images per brand and slot (see BrandImageSlot) - the
+ * register page's promo panel (desktop/mobile) and the homepage offer
+ * card. Stored as bytes directly in Postgres rather than an object-storage
+ * bucket - no such provider is configured for this deployment, and these
+ * are small, infrequently-changed images, so this avoids a new infra
+ * dependency. One row per brand+slot; re-uploading replaces it in place.
+ */
+model BrandImage {
+  id        String         @id @default(uuid())
+  brandId   String
+  brand     Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  slot      BrandImageSlot
+  data      Bytes
+  mimeType  String
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@unique([brandId, slot])
+  @@index([brandId])
+  @@map("brand_images")
 }
 
 /**
