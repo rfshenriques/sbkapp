@@ -1,10 +1,31 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BottomSheet } from '../components/ui/BottomSheet';
+import { BrandPromoImage } from '../components/ui/BrandPromoImage';
 import { useAuth } from '../features/auth/useAuth';
 import { useBrandStore } from '../features/brand/brandStore';
 
 const REGISTER_FORM_ID = 'register-form';
+
+/** Shown until the brand uploads a real REGISTER_DESKTOP/REGISTER_MOBILE image in the backoffice's CMS images page - same mocked copy the homepage's promo card falls back to. */
+function RegisterPromoFallback({ size }: { size: 'mobile' | 'desktop' }) {
+  return (
+    <div
+      className="flex h-full flex-col justify-end p-4 text-white sm:justify-center sm:p-6"
+      style={{
+        background:
+          'linear-gradient(155deg, color-mix(in srgb, var(--color-highlight) 80%, black) 0%, color-mix(in srgb, var(--color-highlight) 25%, black) 55%, #0a0a10 100%)',
+      }}
+    >
+      <span className="mb-1 inline-flex w-fit items-center gap-2 rounded-full bg-black/30 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest backdrop-blur-sm">
+        Welcome Bonus
+      </span>
+      <p className={`font-display leading-tight ${size === 'mobile' ? 'text-lg' : 'text-2xl'}`}>
+        Get up to €50 in bonus bets
+      </p>
+    </div>
+  );
+}
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -67,23 +88,26 @@ export default function RegisterPage() {
       {/* Promo panel - a short full-width strip above the form on mobile,
           a full-height column to the left of it on desktop (see
           desktopSize="wide" above, which gives this the room to sit beside
-          the form instead of stacking). Mocked copy for now, same as the
-          homepage's welcome-bonus card - both stand in for what will
-          become a brand-configurable promo once the backoffice supports it. */}
-      <div
-        className="relative h-28 shrink-0 overflow-hidden sm:h-auto sm:w-2/5"
-        style={{
-          background:
-            'linear-gradient(155deg, color-mix(in srgb, var(--color-highlight) 80%, black) 0%, color-mix(in srgb, var(--color-highlight) 25%, black) 55%, #0a0a10 100%)',
-        }}
-      >
-        <div className="flex h-full flex-col justify-end p-4 text-white sm:justify-center sm:p-6">
-          <span className="mb-1 inline-flex w-fit items-center gap-2 rounded-full bg-black/30 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest backdrop-blur-sm">
-            Welcome Bonus
-          </span>
-          <p className="font-display text-lg leading-tight sm:text-2xl">
-            Get up to €50 in bonus bets
-          </p>
+          the form instead of stacking). Two separate CMS image slots (not
+          one image reused) since the desktop panel is a tall portrait and
+          the mobile strip is a short wide banner - a single image cropped
+          to fit both would compromise one or the other. */}
+      <div className="relative h-28 shrink-0 overflow-hidden sm:h-auto sm:w-2/5">
+        <div className="h-full sm:hidden">
+          <BrandPromoImage
+            brandId={brandId}
+            slot="REGISTER_MOBILE"
+            className="h-full w-full object-cover"
+            fallback={<RegisterPromoFallback size="mobile" />}
+          />
+        </div>
+        <div className="hidden h-full sm:block">
+          <BrandPromoImage
+            brandId={brandId}
+            slot="REGISTER_DESKTOP"
+            className="h-full w-full object-cover"
+            fallback={<RegisterPromoFallback size="desktop" />}
+          />
         </div>
       </div>
 

@@ -6,12 +6,14 @@ import { useMatches } from '../features/odds-board/useMatches';
 import { usePrefetchMatchDetail } from '../features/odds-board/usePrefetchMatchDetail';
 import { sortMatches } from '../features/odds-board/sortMatches';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
+import { BrandPromoImage } from '../components/ui/BrandPromoImage';
 import { Card } from '../components/ui/Card';
 import { HorizontalScroller } from '../components/ui/HorizontalScroller';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { SportIcon } from '../components/ui/SportIcon';
 import { TeamColorAccent } from '../components/ui/TeamColorAccent';
 import { cn } from '../lib/cn';
+import { useBrandStore } from '../features/brand/brandStore';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { useTeamColors } from '../features/odds-board/useTeamColors';
 import { formatKickoff } from '../lib/formatKickoff';
@@ -123,21 +125,34 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
 }
 
 /**
- * Desktop only, next to the featured match - a placeholder for a promo
- * that will become brand-configurable in the backoffice (image/copy/CTA
- * per brand). Mocked here as a welcome-bonus card since there's no
- * PromotionModule yet to back it with real data.
+ * Desktop only, next to the featured match - copy/CTA are always shown (the
+ * "Claim now" link is real, working navigation, not decorative), with a
+ * staff-uploaded HOMEPAGE_OFFER CMS image as the backdrop once one's set
+ * (see the backoffice's CMS images page), falling back to a mocked
+ * welcome-bonus gradient otherwise.
  */
 function PromoCard({ className }: { className?: string }) {
+  const brandId = useBrandStore((state) => state.brandId);
+
   return (
     <aside className={cn('relative overflow-hidden rounded-3xl', className)}>
-      <div
-        className="flex h-full flex-col justify-end gap-2 p-6 text-white"
-        style={{
-          background:
-            'linear-gradient(155deg, color-mix(in srgb, var(--color-highlight) 80%, black) 0%, color-mix(in srgb, var(--color-highlight) 25%, black) 55%, #0a0a10 100%)',
-        }}
-      >
+      <BrandPromoImage
+        brandId={brandId}
+        slot="HOMEPAGE_OFFER"
+        className="absolute inset-0 h-full w-full object-cover"
+        fallback={
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'linear-gradient(155deg, color-mix(in srgb, var(--color-highlight) 80%, black) 0%, color-mix(in srgb, var(--color-highlight) 25%, black) 55%, #0a0a10 100%)',
+            }}
+          />
+        }
+      />
+      {/* Scrim so the text stays legible over a real (possibly light) photo, not just the mocked gradient which is already dark at this edge. */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+      <div className="relative flex h-full flex-col justify-end gap-2 p-6 text-white">
         <span className="inline-flex w-fit items-center gap-2 rounded-full bg-black/30 px-3 py-1 text-[11px] font-bold uppercase tracking-widest backdrop-blur-sm">
           Welcome Bonus
         </span>
