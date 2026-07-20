@@ -95,9 +95,13 @@ describe('OddsBoardPage', () => {
     renderPageWithRouting();
 
     // mockMatches' only live fixture (Real Madrid vs Barcelona) sorts first.
-    await screen.findByRole('heading', { name: 'Real Madrid vs Barcelona' });
-    // "Match of the day" only appears once, in the featured card's own badge.
-    await userEvent.click(screen.getByText('Match of the day'));
+    // The featured card renders twice - a mobile copy and a desktop copy,
+    // each CSS-hidden at the other breakpoint but both present in the DOM
+    // (jsdom doesn't apply that CSS) - either copy behaves identically, so
+    // this just picks the first.
+    await screen.findAllByRole('heading', { name: 'Real Madrid vs Barcelona' });
+    const badges = screen.getAllByText('Match of the day');
+    await userEvent.click(badges[0] as HTMLElement);
 
     expect(await screen.findByText('Match detail page')).toBeInTheDocument();
   });
@@ -105,7 +109,7 @@ describe('OddsBoardPage', () => {
   it('does not navigate when picking an odd on the featured card', async () => {
     renderPageWithRouting();
 
-    await screen.findByRole('heading', { name: 'Real Madrid vs Barcelona' });
+    await screen.findAllByRole('heading', { name: 'Real Madrid vs Barcelona' });
     const oddsButtons = screen.getAllByRole('button', { name: /Home/ });
     await userEvent.click(oddsButtons[0] as HTMLElement);
 
@@ -130,14 +134,17 @@ describe('OddsBoardPage', () => {
 
     const { container } = renderPage();
 
-    await screen.findByRole('heading', { name: 'Real Madrid vs Barcelona' });
+    await screen.findAllByRole('heading', { name: 'Real Madrid vs Barcelona' });
     const markers = await waitFor(() => {
       const found = container.querySelectorAll('[aria-hidden="true"][style*="background-color"]');
       expect(found.length).toBeGreaterThan(0);
       return found;
     });
-    expect(markers).toHaveLength(1);
+    // One marker per featured-card copy (mobile + desktop - see the comment
+    // in the test above).
+    expect(markers).toHaveLength(2);
     expect(markers[0]).toHaveStyle({ backgroundColor: '#FEBE10' });
+    expect(markers[1]).toHaveStyle({ backgroundColor: '#FEBE10' });
   });
 
   it('caps the Upcoming list at 10 and shows a Load more link to the sport page', async () => {

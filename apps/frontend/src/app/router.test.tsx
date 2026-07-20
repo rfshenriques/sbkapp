@@ -42,9 +42,12 @@ describe('router', () => {
     expect(screen.getByText('Sportsbook')).toBeInTheDocument();
     // Real Madrid vs Barcelona is the only isLive:true fixture, so it's always
     // the featured match's heading regardless of kickoff-time sort order.
+    // The featured card renders twice (a mobile copy and a desktop copy,
+    // each CSS-hidden at the other breakpoint but both present in jsdom),
+    // so this expects at least one rather than exactly one.
     expect(
-      await screen.findByRole('heading', { name: 'Real Madrid vs Barcelona' }),
-    ).toBeInTheDocument();
+      (await screen.findAllByRole('heading', { name: 'Real Madrid vs Barcelona' })).length,
+    ).toBeGreaterThan(0);
   });
 
   it('renders the match detail page for a known match id', async () => {
