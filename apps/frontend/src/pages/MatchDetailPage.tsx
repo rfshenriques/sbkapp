@@ -104,16 +104,15 @@ export default function MatchDetailPage() {
         ) : (
           <p className="text-center text-sm font-semibold text-text-secondary">{formatKickoff(kickoff)}</p>
         )}
-        <h1 aria-label={matchLabel} className="mt-3 font-display text-2xl leading-tight sm:text-3xl">
-          <span className="flex items-center gap-2.5">
-            <TeamColorAccent colorHex={teamColors.get(match.homeTeam)} className="h-5 sm:h-7" />
-            {homeTeamLabel}
-            <span className="text-base font-normal text-text-muted normal-case sm:text-lg">vs</span>
-          </span>
-          <span className="mt-1.5 flex items-center gap-2.5">
-            <TeamColorAccent colorHex={teamColors.get(match.awayTeam)} className="h-5 sm:h-7" />
-            {awayTeamLabel}
-          </span>
+        <h1
+          aria-label={matchLabel}
+          className="mt-3 flex items-center gap-2 font-display text-lg leading-tight sm:text-2xl"
+        >
+          <TeamColorAccent colorHex={teamColors.get(match.homeTeam)} className="h-4 shrink-0 sm:h-6" />
+          <span className="min-w-0 truncate">{homeTeamLabel}</span>
+          <span className="shrink-0 text-sm font-normal text-text-muted normal-case sm:text-base">vs</span>
+          <span className="min-w-0 truncate">{awayTeamLabel}</span>
+          <TeamColorAccent colorHex={teamColors.get(match.awayTeam)} className="h-4 shrink-0 sm:h-6" />
         </h1>
       </section>
 
