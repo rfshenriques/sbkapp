@@ -115,7 +115,7 @@ function SingleBetRow({ selection, stake, onStakeChange, showStake }: SingleBetR
   const stakeId = useId();
 
   return (
-    <Card className="space-y-2 border-border bg-surface-2">
+    <Card className="fade-in-up space-y-2 border-border bg-surface-2">
       <div className="flex items-start justify-between gap-2">
         <div>
           <p className="text-xs text-text-muted">{selection.matchLabel}</p>
@@ -360,7 +360,7 @@ export function BetSlipPanel({
             {selections.map((selection) => (
               <Card
                 key={selectionKey(selection)}
-                className="flex items-start justify-between gap-2 border-border bg-surface-2"
+                className="fade-in-up flex items-start justify-between gap-2 border-border bg-surface-2"
               >
                 <div>
                   <p className="text-xs text-text-muted">{selection.matchLabel}</p>

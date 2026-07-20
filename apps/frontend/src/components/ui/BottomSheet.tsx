@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { cn } from '../../lib/cn';
+import { useScrollLock } from '../../lib/useScrollLock';
 
 export interface BottomSheetProps {
   title: string;
@@ -50,20 +51,14 @@ export function BottomSheet({
   // A background page tall enough to scroll would otherwise keep scrolling
   // underneath the sheet once the sheet's own content hits its scroll
   // limit - lock it for as long as this sheet is mounted.
-  useEffect(() => {
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, []);
+  useScrollLock(true);
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <button
         type="button"
         aria-label={closeLabel}
-        className="absolute inset-0 bg-gradient-to-b from-black/75 via-black/65 to-black/80 backdrop-blur-sm"
+        className="backdrop-fade-in absolute inset-0 bg-gradient-to-b from-black/75 via-black/65 to-black/80 backdrop-blur-sm"
         onClick={onClose}
       />
       {/* dvh, not vh: on real mobile browsers vh is pinned to the largest

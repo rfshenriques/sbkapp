@@ -66,6 +66,21 @@ body {
   overflow-x: hidden;
 }
 
+/* useScrollLock pins <body> itself to position:fixed while a modal/drawer
+   is open (see there for why plain overflow:hidden isn't enough on iOS).
+   That breaks position:sticky descendants - the app header has nothing
+   left to stick against once its scrolling ancestor stops scrolling, and
+   just renders at its true (now off-screen) document position. Switching
+   it to position:fixed for the lock's duration keeps it viewport-anchored
+   instead, matching the drawer/bottom-nav/CTA button, which are already
+   fixed. */
+body.scroll-locked .app-header {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+}
+
 /* Stays scrollable, just never shows a scrollbar track/thumb - so an
    overflowing block never has to reserve or lose width to one. */
 .scrollbar-hide {
@@ -296,6 +311,69 @@ body {
 }
 .sheet-slide-up {
   animation: sheet-slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes backdrop-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.backdrop-fade-in {
+  animation: backdrop-fade-in 0.2s ease-out;
+}
+
+/* ---------- General entrance animations ---------- */
+/* Content settling in from slightly below - page bodies, the floating
+   mobile bet-slip CTA, a newly-opened bet slip selection row. */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.fade-in-up {
+  animation: fade-in-up 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Panels that drop down from something above them - the mobile sports
+   drawer, Sidebar accordion sublists. */
+@keyframes fade-in-down {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.fade-in-down {
+  animation: fade-in-down 0.18s ease-out;
+}
+
+/* A brief pop the moment an odd becomes selected - separate from the
+   :active press-down scale above, this plays right after the click
+   completes rather than while held. */
+@keyframes odd-selected-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.odd-btn.selected {
+  animation: odd-selected-pop 0.2s ease-out;
 }
 
 /* ---------- Live match tracker ---------- */

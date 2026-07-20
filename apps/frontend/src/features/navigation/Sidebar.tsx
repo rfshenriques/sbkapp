@@ -205,7 +205,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                     {/* Nested levels read as "deeper" via a lighter block
                         background rather than border lines. */}
                     {isSportOpen && (
-                      <ul className="divide-y divide-border/60 bg-black/10">
+                      <ul className="fade-in-down divide-y divide-border/60 bg-black/10">
                         {sportNode.countries.map((countryNode) => {
                           const isCountryOpen = isSearching || expandedCountry === countryNode.country;
                           return (
@@ -231,7 +231,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                               </button>
 
                               {isCountryOpen && (
-                                <ul className="divide-y divide-border/60 bg-black/10">
+                                <ul className="fade-in-down divide-y divide-border/60 bg-black/10">
                                   {countryNode.competitions.map((competitionNode) => (
                                     <li key={competitionNode.competition}>
                                       <Link

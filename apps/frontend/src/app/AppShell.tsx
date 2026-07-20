@@ -10,6 +10,7 @@ import { useBootstrapAuth } from '../features/auth/useBootstrapAuth';
 import { formatCents, useWallet } from '../features/wallet/useWallet';
 import { Sidebar } from '../features/navigation/Sidebar';
 import { HomeIcon, LiveIcon, MyBetsIcon, PromotionsIcon, SearchIcon } from '../components/ui/NavIcons';
+import { useScrollLock } from '../lib/useScrollLock';
 
 /** The 5 bottom-nav destinations in on-screen order, for swipe navigation. */
 const NAV_STOPS: Array<{ kind: 'search' } | { kind: 'route'; path: string }> = [
@@ -53,20 +54,12 @@ export function AppShell() {
     }
   }, [isInitialized, isAuthenticated, location.pathname, navigate]);
 
-  // Matches BottomSheet's own lock (see there) - this drawer isn't a
-  // BottomSheet, it's a bespoke overlay, so it needs the same treatment
-  // itself: without it, scrolling inside the drawer once it hits its own
-  // scroll limit falls through to the homepage underneath.
-  useEffect(() => {
-    if (!isNavOpen) {
-      return;
-    }
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [isNavOpen]);
+  // Matches BottomSheet's own lock (see useScrollLock) - this drawer isn't
+  // a BottomSheet, it's a bespoke overlay, so it needs the same treatment
+  // itself: without it, the homepage underneath can still scroll (and on
+  // iOS Safari, visibly detach the fixed-position drawer from the
+  // viewport) while the drawer is open.
+  useScrollLock(isNavOpen);
 
   // Swipe left/right between the 5 bottom-nav destinations, mobile only.
   // Swipes that start inside a horizontally-scrolling block (carousels,
@@ -125,7 +118,7 @@ export function AppShell() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
+      <header className="app-header sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto flex max-w-[1680px] items-center gap-4 px-4 py-3">
           <NavLink to="/" className="flex shrink-0 items-center gap-2">
             <span className="font-display text-xl">{brandName}</span>
@@ -182,7 +175,9 @@ export function AppShell() {
 
         <main className="min-w-0 flex-1">
           <Suspense fallback={<PageSkeleton />}>
-            <Outlet />
+            <div key={location.pathname} className="fade-in-up">
+              <Outlet />
+            </div>
           </Suspense>
         </main>
 
@@ -210,7 +205,7 @@ export function AppShell() {
           // sat right on top of (and got visually cut off by) the nav on
           // devices with a home-indicator safe area.
           style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
-          className="btn-primary fixed inset-x-3 z-30 flex items-center justify-between gap-3 rounded-2xl px-[22px] py-[15px] text-left shadow-lg sm:hidden"
+          className="btn-primary fade-in-up fixed inset-x-3 z-30 flex items-center justify-between gap-3 rounded-2xl px-[22px] py-[15px] text-left shadow-lg sm:hidden"
         >
           <span className="flex items-center gap-3">
             <span className="flex h-6 min-w-6 items-center justify-center rounded-lg bg-black/20 font-display text-sm">
@@ -325,7 +320,7 @@ export function AppShell() {
           closes it, same as switching between any other pair of pages. */}
       {isNavOpen && (
         <div
-          className="scrollbar-hide fixed inset-x-0 top-16 z-20 flex flex-col overflow-y-auto bg-background p-4 sm:hidden"
+          className="fade-in-down scrollbar-hide fixed inset-x-0 top-16 z-20 flex flex-col overflow-y-auto bg-background p-4 sm:hidden"
           style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
         >
           <h2 className="mb-3 font-display text-lg">Sports</h2>

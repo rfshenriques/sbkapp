@@ -104,7 +104,7 @@ function BreadcrumbDropdown({
           ref={panelRef}
           role="listbox"
           style={{ top: panel.top, left: panel.left, width: panel.width }}
-          className="scrollbar-hide fixed z-30 max-h-72 overflow-y-auto rounded-2xl border border-border bg-surface py-1 shadow-lg"
+          className="fade-in-down scrollbar-hide fixed z-30 max-h-72 overflow-y-auto rounded-2xl border border-border bg-surface py-1 shadow-lg"
         >
           {options.map((option) => (
             <li key={option.key}>
