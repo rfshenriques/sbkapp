@@ -55,18 +55,18 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
 
   return (
     <div
-      className={cn(
-        'flex cursor-pointer flex-col overflow-hidden rounded-3xl transition-transform hover:scale-[1.005]',
-        className,
-      )}
+      className={cn('flex cursor-pointer flex-col transition-transform hover:scale-[1.005]', className)}
       onClick={() => navigate(href)}
       onMouseEnter={() => prefetchMatchDetail(match.id)}
       onTouchStart={() => prefetchMatchDetail(match.id)}
     >
-      <div className="shrink-0 bg-highlight px-5 py-3 font-display text-lg font-black text-black sm:text-xl">
+      <div className="shrink-0 rounded-t-3xl bg-highlight px-5 pt-3 pb-7 font-display text-lg font-black text-black sm:text-xl">
         #MATCHOFTHEDAY
       </div>
-      <section className="relative flex-1 text-white">
+      {/* Rounded on all four corners and pulled up by its own corner
+          radius so the top corners peek out from under the gold header
+          instead of sitting flush with it - matches the reference card. */}
+      <section className="relative -mt-6 flex-1 overflow-hidden rounded-3xl text-white">
         <BrandPromoImage
           brandId={brandId}
           slot="MATCH_OF_THE_DAY"
