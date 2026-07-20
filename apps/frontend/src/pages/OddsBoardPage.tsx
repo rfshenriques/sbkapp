@@ -36,12 +36,13 @@ interface FeaturedMatchCardProps {
  * pass more of them into the HorizontalScroller around it.
  *
  * The "featured" cue lives outside the card, as the same brand-flag +
- * heading eyebrow used above "Live now"/"Upcoming" - no colored block
- * competing with the photo underneath it. The card itself is a real photo
- * (the staff-uploaded MATCH_OF_THE_DAY CMS image, falling back to the old
- * brand-color gradient when none is set) with black-to-transparent
- * gradients top and bottom for legibility, and a soft highlight-colored
- * ring/glow so it still reads as special without a solid color fill.
+ * heading eyebrow used above "Live now"/"Upcoming", colored in
+ * --color-highlight so it reads as a callout rather than a plain section
+ * title. The card itself is a real photo (the staff-uploaded
+ * MATCH_OF_THE_DAY CMS image, falling back to the old brand-color
+ * gradient when none is set) with a crisp highlight-colored border - a
+ * solid border, not a blurred shadow, so it renders cleanly instead of as
+ * a soft grey smudge past the rounded corners.
  */
 function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardProps) {
   const navigate = useNavigate();
@@ -61,14 +62,10 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
           <i></i>
           <i></i>
         </span>
-        <h2 className="font-display text-lg">Match of the day</h2>
+        <h2 className="font-display text-lg text-highlight">Match of the day</h2>
       </div>
       <section
-        className="relative flex-1 cursor-pointer overflow-hidden rounded-3xl text-white ring-1 ring-highlight/40 transition-transform hover:scale-[1.005]"
-        style={{
-          boxShadow:
-            '0 24px 48px -28px color-mix(in srgb, var(--color-highlight) 55%, transparent)',
-        }}
+        className="relative flex-1 cursor-pointer overflow-hidden rounded-3xl border-2 border-highlight text-white transition-transform hover:scale-[1.005]"
         onClick={() => navigate(href)}
         onMouseEnter={() => prefetchMatchDetail(match.id)}
         onTouchStart={() => prefetchMatchDetail(match.id)}
@@ -91,8 +88,8 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
             hero scrim) - the competition/kickoff row up top needs the same
             legibility guarantee over a photo as the odds buttons at the
             bottom do. */}
-        <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/85 to-transparent" />
-        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-black/85 to-transparent" />
+        <div className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-black/90 via-black/40 to-transparent" />
+        <div className="absolute inset-x-0 bottom-0 h-36 bg-gradient-to-t from-black/90 via-black/40 to-transparent" />
 
         <div className="relative flex h-full flex-col p-6 pb-5">
           <p className="flex items-center gap-2 text-xs font-semibold text-white/70">
