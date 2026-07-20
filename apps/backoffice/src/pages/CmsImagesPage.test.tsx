@@ -52,14 +52,15 @@ describe('CmsImagesPage', () => {
     expect(await screen.findByText('Register - desktop')).toBeInTheDocument();
     expect(screen.getByText('Register - mobile')).toBeInTheDocument();
     expect(screen.getByText('Homepage offer')).toBeInTheDocument();
+    expect(screen.getByText('Match of the day background')).toBeInTheDocument();
     expect(screen.getByText('Recommended: 800 × 1000px (4:5, portrait)')).toBeInTheDocument();
 
-    // Only the slot with an image gets a preview + "Replace"/"Remove"; the other two show "Upload".
+    // Only the slot with an image gets a preview + "Replace"/"Remove"; the rest show "Upload".
     expect(screen.getByRole('img', { name: 'Homepage offer preview' })).toHaveAttribute(
       'src',
       '/backend/public/brand-images/brand-1/HOMEPAGE_OFFER?v=2026-07-20T00%3A00%3A00Z',
     );
-    expect(screen.getAllByRole('button', { name: 'Upload' })).toHaveLength(2);
+    expect(screen.getAllByRole('button', { name: 'Upload' })).toHaveLength(3);
     expect(screen.getByRole('button', { name: 'Replace' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument();
   });

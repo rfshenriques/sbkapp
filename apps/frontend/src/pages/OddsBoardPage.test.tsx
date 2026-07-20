@@ -99,9 +99,8 @@ describe('OddsBoardPage', () => {
     // each CSS-hidden at the other breakpoint but both present in the DOM
     // (jsdom doesn't apply that CSS) - either copy behaves identically, so
     // this just picks the first.
-    await screen.findAllByRole('heading', { name: 'Real Madrid vs Barcelona' });
-    const badges = screen.getAllByText('Match of the day');
-    await userEvent.click(badges[0] as HTMLElement);
+    const headings = await screen.findAllByRole('heading', { name: 'Real Madrid vs Barcelona' });
+    await userEvent.click(headings[0] as HTMLElement);
 
     expect(await screen.findByText('Match detail page')).toBeInTheDocument();
   });

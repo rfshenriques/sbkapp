@@ -27,6 +27,12 @@ const SLOTS: { slot: backendApi.BrandImageSlot; label: string; recommendation: s
     recommendation: '800 × 800px (1:1, square)',
     usage: "The homepage's promo card next to (desktop) or alongside (mobile) the featured match.",
   },
+  {
+    slot: 'MATCH_OF_THE_DAY',
+    label: 'Match of the day background',
+    recommendation: '1200 × 600px (2:1, landscape)',
+    usage: "Background photo behind the homepage's featured \"Match of the day\" hero card.",
+  },
 ];
 
 function SlotRow({

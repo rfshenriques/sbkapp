@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 
-export type BrandImageSlot = 'REGISTER_DESKTOP' | 'REGISTER_MOBILE' | 'HOMEPAGE_OFFER';
+export type BrandImageSlot = 'REGISTER_DESKTOP' | 'REGISTER_MOBILE' | 'HOMEPAGE_OFFER' | 'MATCH_OF_THE_DAY';
 
 export interface BrandPromoImageProps {
   brandId: string | undefined;

@@ -391,7 +391,7 @@ export async function removeCompetitionRanking(id: string): Promise<void> {
   }
 }
 
-export type BrandImageSlot = 'REGISTER_DESKTOP' | 'REGISTER_MOBILE' | 'HOMEPAGE_OFFER';
+export type BrandImageSlot = 'REGISTER_DESKTOP' | 'REGISTER_MOBILE' | 'HOMEPAGE_OFFER' | 'MATCH_OF_THE_DAY';
 
 export interface BrandImage {
   id: string;
