@@ -21,6 +21,12 @@ export default defineConfig({
   server: {
     // Distinct from apps/frontend's 5173 so both can run side by side on a bare host.
     port: 5174,
+    // Vite's dev server rejects requests with an unrecognized Host header by
+    // default (only localhost out of the box) - without this, Railway's
+    // generated *.up.railway.app domain (and later betsome.me) get a
+    // blocked-request error instead of the app. Same fix apps/frontend
+    // already needed for its own Railway domain.
+    allowedHosts: ['.up.railway.app', 'betsome.me', 'www.betsome.me'],
     proxy: {
       '/backend': {
         target: backendTarget,
