@@ -3,12 +3,14 @@ import { BackButton } from '../components/ui/BackButton';
 import { Breadcrumb, type BreadcrumbSegment } from '../components/ui/Breadcrumb';
 import { Skeleton } from '../components/ui/Skeleton';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
+import { TeamColorAccent } from '../components/ui/TeamColorAccent';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { LiveMatchTracker } from '../features/match-detail/LiveMatchTracker';
 import { useLiveMatch } from '../features/match-detail/useLiveMatch';
 import { useMatch } from '../features/match-detail/useMatch';
 import { useMatches } from '../features/odds-board/useMatches';
+import { useTeamColors } from '../features/odds-board/useTeamColors';
 import { formatKickoff } from '../lib/formatKickoff';
 import type { Match } from '@sportsbook/shared';
 
@@ -23,6 +25,7 @@ export default function MatchDetailPage() {
   const { data: liveState } = useLiveMatch(matchId, match?.isLive ?? false);
   const { data: allMatches } = useMatches();
   const displayName = useDisplayNames();
+  const teamColors = useTeamColors();
 
   if (isPending) {
     return (
@@ -94,19 +97,24 @@ export default function MatchDetailPage() {
       />
 
       <section className="relative mt-2 overflow-hidden rounded-3xl border border-border bg-surface p-6">
-        <div className="flex items-center gap-2.5">
-          <span
-            className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest ${
-              match.isLive ? 'bg-price-down text-white' : 'bg-highlight text-black'
-            }`}
-          >
-            {match.isLive ? 'Live' : 'Pre-match'}
+        {match.isLive ? (
+          <span className="absolute top-4 right-4 rounded-full bg-price-down px-2.5 py-1 text-[10px] font-extrabold tracking-widest text-white uppercase">
+            Live
           </span>
-          {!match.isLive && (
-            <span className="text-sm font-semibold text-text-secondary">{formatKickoff(kickoff)}</span>
-          )}
-        </div>
-        <h1 className="mt-2.5 font-display text-2xl leading-none sm:text-3xl">{matchLabel}</h1>
+        ) : (
+          <p className="text-center text-sm font-semibold text-text-secondary">{formatKickoff(kickoff)}</p>
+        )}
+        <h1 aria-label={matchLabel} className="mt-3 font-display text-2xl leading-tight sm:text-3xl">
+          <span className="flex items-center gap-2.5">
+            <TeamColorAccent colorHex={teamColors.get(match.homeTeam)} className="h-5 sm:h-7" />
+            {homeTeamLabel}
+            <span className="text-base font-normal text-text-muted normal-case sm:text-lg">vs</span>
+          </span>
+          <span className="mt-1.5 flex items-center gap-2.5">
+            <TeamColorAccent colorHex={teamColors.get(match.awayTeam)} className="h-5 sm:h-7" />
+            {awayTeamLabel}
+          </span>
+        </h1>
       </section>
 
       {match.isLive && liveState && (
