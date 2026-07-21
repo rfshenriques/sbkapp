@@ -158,6 +158,35 @@ body.scroll-locked .app-header {
   color: #000;
 }
 
+/* Brief background wash on the price itself when it moves - green on a
+   rise, red on a drop - so a returning player notices the market shifted
+   without needing to have watched it happen. Fades to transparent rather
+   than snapping off, so it doesn't read as a UI glitch. */
+@keyframes odds-flash-up {
+  from {
+    background-color: color-mix(in srgb, var(--color-price-up) 45%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+@keyframes odds-flash-down {
+  from {
+    background-color: color-mix(in srgb, var(--color-price-down) 45%, transparent);
+  }
+  to {
+    background-color: transparent;
+  }
+}
+.odd-btn .odd-value.flash-up {
+  animation: odds-flash-up 1s ease-out;
+  border-radius: 6px;
+}
+.odd-btn .odd-value.flash-down {
+  animation: odds-flash-down 1s ease-out;
+  border-radius: 6px;
+}
+
 /* CTAs only (Register, Place Bet, Browse matches, ...) - the one place
    --color-brand appears. Filters/tabs/badges use --color-highlight instead
    (see .tab.active below) so an actual call-to-action never blends into the

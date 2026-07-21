@@ -1,6 +1,6 @@
 import type { ReactElement } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Market } from '@sportsbook/shared';
@@ -144,5 +144,47 @@ describe('MarketSelections', () => {
     );
     const grid = container.firstElementChild as HTMLElement;
     expect(grid.style.gridTemplateColumns).toBe('repeat(1, minmax(0, 1fr))');
+  });
+
+  it('flashes the odds value green on a rise and red on a drop, clearing after a moment', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const queryClient = new QueryClient();
+    const { rerender } = render(
+      <QueryClientProvider client={queryClient}>
+        <MarketSelections matchId="match-1" matchLabel="Arsenal vs Chelsea" market={matchResult} />
+      </QueryClientProvider>,
+    );
+
+    const homeValue = () => screen.getByRole('button', { name: /^Home/ }).querySelector('.odd-value')!;
+    expect(homeValue().className).not.toMatch(/flash-/);
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MarketSelections
+          matchId="match-1"
+          matchLabel="Arsenal vs Chelsea"
+          market={{ ...matchResult, selections: [{ id: 'home', name: 'Home', odds: 2.5 }, ...matchResult.selections.slice(1)] }}
+        />
+      </QueryClientProvider>,
+    );
+    expect(homeValue().className).toContain('flash-up');
+
+    act(() => {
+      vi.advanceTimersByTime(1100);
+    });
+    expect(homeValue().className).not.toMatch(/flash-/);
+
+    rerender(
+      <QueryClientProvider client={queryClient}>
+        <MarketSelections
+          matchId="match-1"
+          matchLabel="Arsenal vs Chelsea"
+          market={{ ...matchResult, selections: [{ id: 'home', name: 'Home', odds: 1.8 }, ...matchResult.selections.slice(1)] }}
+        />
+      </QueryClientProvider>,
+    );
+    expect(homeValue().className).toContain('flash-down');
+
+    vi.useRealTimers();
   });
 });
