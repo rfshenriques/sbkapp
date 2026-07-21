@@ -202,4 +202,26 @@ describe('MatchCard', () => {
     expect(screen.queryByText('Match detail page')).not.toBeInTheDocument();
     expect(useBetSlipStore.getState().selections).toHaveLength(1);
   });
+
+  it('shows a full-width Bet Now link to the match detail page when there is no match-result market', async () => {
+    const noOddsMatch: Match = { ...baseMatch, markets: [] };
+
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={['/']}>
+          <Routes>
+            <Route path="/" element={<MatchCard match={noOddsMatch} />} />
+            <Route path="/matches/:matchId" element={<p>Match detail page</p>} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.queryByRole('button', { name: /Home/ })).not.toBeInTheDocument();
+    const betNowLink = screen.getByRole('link', { name: 'Bet Now' });
+    expect(betNowLink).toHaveAttribute('href', '/matches/match-1');
+
+    await userEvent.click(betNowLink);
+    expect(await screen.findByText('Match detail page')).toBeInTheDocument();
+  });
 });

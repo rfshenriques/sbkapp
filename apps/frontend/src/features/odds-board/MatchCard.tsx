@@ -91,10 +91,21 @@ export function MatchCard({ match, style }: MatchCardProps) {
           </span>
         )}
       </div>
-      {matchResult && (
+      {matchResult ? (
         <div className="mt-3">
           <MarketSelections matchId={match.id} matchLabel={matchLabel} market={matchResult} />
         </div>
+      ) : (
+        // No odds to show inline yet (feed hasn't priced this match, or
+        // every market's currently suspended) - a full-width CTA into the
+        // match detail page instead of leaving the card odds-less/dead.
+        <Link
+          to={matchHref}
+          onClick={(event) => event.stopPropagation()}
+          className="btn-primary mt-3 flex w-full items-center justify-center"
+        >
+          Bet Now
+        </Link>
       )}
     </Card>
   );
