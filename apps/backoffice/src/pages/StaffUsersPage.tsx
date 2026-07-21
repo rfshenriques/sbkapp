@@ -125,6 +125,7 @@ export default function StaffUsersPage() {
         {isPending && <p className="text-sm text-text-secondary">Loading staff users…</p>}
         {isError && <p className="text-sm text-danger">Failed to load staff users.</p>}
         {staffUsers && (
+          <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border text-text-secondary">
@@ -145,6 +146,7 @@ export default function StaffUsersPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
     </div>

@@ -113,7 +113,7 @@ export default function DisplayNamesPage() {
         Champions League Qualification" shown as "Champions League (Q)".
       </p>
 
-      <div className="mt-4 flex gap-2" role="group" aria-label="Entity type">
+      <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Entity type">
         {ENTITY_TYPES.map((entityType) => (
           <Button
             key={entityType.value}

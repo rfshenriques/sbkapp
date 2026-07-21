@@ -105,7 +105,7 @@ export default function CompetitionRankingPage() {
       </p>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        <div>
+        <div className="min-w-0">
           <h2 className="mb-2 text-sm font-semibold text-text-secondary">
             Ranked order ({orderedRankings.length})
           </h2>
@@ -142,7 +142,7 @@ export default function CompetitionRankingPage() {
                         ⠿
                       </span>
                       <span className="w-6 shrink-0 text-sm font-semibold text-text-muted">{index + 1}</span>
-                      <span className="truncate text-sm">{ranking.competition}</span>
+                      <span className="min-w-0 truncate text-sm">{ranking.competition}</span>
                       {matchCount === 0 && (
                         <span className="shrink-0 rounded-full bg-surface-hover px-2 py-0.5 text-xs text-text-muted">
                           No matches
@@ -163,7 +163,7 @@ export default function CompetitionRankingPage() {
           )}
         </div>
 
-        <div>
+        <div className="min-w-0">
           <h2 className="mb-2 text-sm font-semibold text-text-secondary">
             Available competitions ({unrankedCompetitions.length})
           </h2>
@@ -182,7 +182,7 @@ export default function CompetitionRankingPage() {
                   key={competition}
                   className="flex items-center justify-between gap-2 rounded-md bg-background px-3 py-2"
                 >
-                  <span className="truncate text-sm">{competition}</span>
+                  <span className="min-w-0 truncate text-sm">{competition}</span>
                   <Button
                     variant="secondary"
                     onClick={() => handleAdd(competition)}

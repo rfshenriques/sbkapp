@@ -34,6 +34,7 @@ export default function AuditLogPage() {
           <p className="text-sm text-text-secondary">No audit entries yet.</p>
         )}
         {entries && entries.length > 0 && (
+          <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border text-text-secondary">
@@ -60,6 +61,7 @@ export default function AuditLogPage() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
     </div>
