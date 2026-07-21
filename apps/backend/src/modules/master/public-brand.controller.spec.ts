@@ -54,6 +54,7 @@ describe('PublicBrandController', () => {
       buttonColorHex: '#112233',
       highlightColorHex: '#445566',
       filterColorHex: null,
+      supportHelplineText: null,
     });
     expect(result).not.toHaveProperty('domain');
     expect(result).not.toHaveProperty('slug');

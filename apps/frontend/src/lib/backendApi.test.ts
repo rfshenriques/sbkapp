@@ -9,6 +9,7 @@ const publicBrand: PublicBrand = {
   buttonColorHex: '#E02127',
   highlightColorHex: '#2ED573',
   filterColorHex: '#3B82F6',
+  supportHelplineText: null,
 };
 
 beforeEach(() => {

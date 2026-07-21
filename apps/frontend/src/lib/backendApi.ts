@@ -104,6 +104,7 @@ export interface PublicBrand {
   buttonColorHex: string | null;
   highlightColorHex: string | null;
   filterColorHex: string | null;
+  supportHelplineText: string | null;
 }
 
 /**
@@ -207,6 +208,30 @@ export async function getMarketSuspensions(brandId: string): Promise<MarketSuspe
     throw new Error(`Failed to fetch market suspensions: ${response.status}`);
   }
   return (await response.json()) as MarketSuspension[];
+}
+
+export type BrandImageListKind = 'SPONSOR_LOGO' | 'PAYMENT_METHOD';
+
+export interface BrandImageListItem {
+  id: string;
+  brandId: string;
+  kind: BrandImageListKind;
+  mimeType: string;
+  sortOrder: number;
+}
+
+/** Staff-uploaded, ordered image list (sponsor logos, payment method icons) - see apps/backend's BrandImageListModule. Empty until an admin uploads something. */
+export async function getBrandImageList(
+  brandId: string,
+  kind: BrandImageListKind,
+): Promise<BrandImageListItem[]> {
+  const response = await fetch(
+    `${BASE_URL}/public/brand-image-list/${encodeURIComponent(brandId)}/${kind}`,
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch ${kind} images: ${response.status}`);
+  }
+  return (await response.json()) as BrandImageListItem[];
 }
 
 export async function getMatchById(brandId: string, matchId: string): Promise<Match | undefined> {

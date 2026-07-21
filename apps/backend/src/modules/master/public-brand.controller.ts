@@ -11,6 +11,7 @@ const PUBLIC_BRAND_SELECT = {
   buttonColorHex: true,
   highlightColorHex: true,
   filterColorHex: true,
+  supportHelplineText: true,
 } as const;
 
 /**
