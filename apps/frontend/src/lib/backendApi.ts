@@ -194,6 +194,21 @@ export async function getMatches(brandId: string): Promise<Match[]> {
   return (await response.json()) as Match[];
 }
 
+export interface MarketSuspension {
+  matchId: string;
+  /** Empty string means the whole match is suspended, not just one market - see apps/backend's MarketSuspensionService. */
+  marketId: string;
+}
+
+/** Currently-suspended matches/markets for the acting brand - see apps/backend's MarketSuspensionModule. */
+export async function getMarketSuspensions(brandId: string): Promise<MarketSuspension[]> {
+  const response = await fetch(`${BASE_URL}/public/market-suspensions/${encodeURIComponent(brandId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch market suspensions: ${response.status}`);
+  }
+  return (await response.json()) as MarketSuspension[];
+}
+
 export async function getMatchById(brandId: string, matchId: string): Promise<Match | undefined> {
   const response = await fetch(
     `${BASE_URL}/public/matches/${encodeURIComponent(brandId)}/${encodeURIComponent(matchId)}`,

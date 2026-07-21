@@ -4,6 +4,7 @@ import { act, render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Market } from '@sportsbook/shared';
+import { useBrandStore } from '../brand/brandStore';
 import { MarketSelections } from './MarketSelections';
 import { useBetSlipStore } from './betSlipStore';
 
@@ -26,6 +27,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  useBrandStore.setState({ brandId: undefined });
 });
 
 function renderWithQueryClient(ui: ReactElement) {
@@ -186,5 +188,52 @@ describe('MarketSelections', () => {
     expect(homeValue().className).toContain('flash-down');
 
     vi.useRealTimers();
+  });
+
+  it('mutes every selection and shows a lock icon instead of odds when the market is suspended', async () => {
+    useBrandStore.setState({ brandId: 'brand-1' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/backend/public/market-suspensions/brand-1') {
+          return new Response(JSON.stringify([{ matchId: 'match-1', marketId: 'match-result' }]), {
+            status: 200,
+          });
+        }
+        return new Response(JSON.stringify([]), { status: 200 });
+      }),
+    );
+
+    renderMarketSelections();
+
+    const homeButton = await screen.findByRole('button', { name: 'Home suspended' });
+    expect(homeButton).toBeDisabled();
+    expect(homeButton.querySelector('.odd-value')).toBeNull();
+    expect(homeButton.querySelector('svg')).not.toBeNull();
+
+    await userEvent.click(homeButton);
+    expect(useBetSlipStore.getState().selections).toEqual([]);
+  });
+
+  it('does not suspend a different match sharing the same market name', async () => {
+    useBrandStore.setState({ brandId: 'brand-1' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/backend/public/market-suspensions/brand-1') {
+          return new Response(JSON.stringify([{ matchId: 'some-other-match', marketId: 'match-result' }]), {
+            status: 200,
+          });
+        }
+        return new Response(JSON.stringify([]), { status: 200 });
+      }),
+    );
+
+    renderMarketSelections();
+
+    const homeButton = await screen.findByRole('button', { name: 'Home2.10' });
+    expect(homeButton).not.toBeDisabled();
   });
 });

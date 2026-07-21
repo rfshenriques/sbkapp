@@ -126,6 +126,28 @@ body.scroll-locked .app-header {
 .odd-btn:active {
   transform: scale(0.96);
 }
+/* A suspended market/selection (see useMarketSuspensions) - muted and
+   inert regardless of whether it was already picked before suspension
+   kicked in, hence the .selected override too. */
+.odd-btn.suspended,
+.odd-btn.selected.suspended {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  cursor: not-allowed;
+}
+.odd-btn.suspended:hover {
+  border-color: var(--color-border);
+}
+.odd-btn.suspended:active {
+  transform: none;
+}
+.odd-btn.suspended .odd-label,
+.odd-btn.selected.suspended .odd-label {
+  color: var(--color-text-muted);
+}
+.odd-btn.suspended svg {
+  color: var(--color-text-muted);
+}
 .odd-btn .odd-label {
   font-size: 10px;
   color: var(--color-text-secondary);
