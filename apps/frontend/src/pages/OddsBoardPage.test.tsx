@@ -4,7 +4,7 @@ import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Match } from '@sportsbook/shared';
-import { stubOddsEngineFetch } from '../test/mockOddsEngine';
+import { stubOddsEngineFetch, TEST_BRAND_ID } from '../test/mockOddsEngine';
 import { mockMatches } from '../mocks/matches';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import OddsBoardPage from './OddsBoardPage';
@@ -119,7 +119,7 @@ describe('OddsBoardPage', () => {
   it('shows a colored edge marker on the featured card only for teams with a backoffice-assigned color', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
-      if (url === '/api/events') {
+      if (url === `/backend/public/matches/${TEST_BRAND_ID}`) {
         return new Response(JSON.stringify(mockMatches), { status: 200 });
       }
       if (url === '/backend/public/team-colors') {

@@ -25,7 +25,7 @@ function buildMatch(overrides: Partial<Match> = {}): Match {
 function stubFetch(matches: Match[], rankings: { competition: string; rank: number }[] = []) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = typeof input === 'string' ? input : input.toString();
-    if (url === '/api/events') {
+    if (url === '/backend/public/matches/brand-1') {
       return new Response(JSON.stringify(matches), { status: 200 });
     }
     if (url.startsWith('/backend/public/competition-rankings/')) {

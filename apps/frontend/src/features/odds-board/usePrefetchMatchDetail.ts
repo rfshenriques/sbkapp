@@ -1,7 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { loadMatchDetailPage } from '../../app/routes';
 import { matchQueryKey } from '../match-detail/useMatch';
-import { fetchMatchById } from '../../lib/oddsEngineApi';
+import { getMatchById } from '../../lib/backendApi';
+import { useBrandStore } from '../brand/brandStore';
 
 /**
  * Warms both the match-detail route chunk and its data on touchstart/hover,
@@ -11,12 +12,16 @@ import { fetchMatchById } from '../../lib/oddsEngineApi';
  */
 export function usePrefetchMatchDetail() {
   const queryClient = useQueryClient();
+  const brandId = useBrandStore((state) => state.brandId);
 
   return (matchId: string) => {
+    if (!brandId) {
+      return;
+    }
     void loadMatchDetailPage();
     void queryClient.prefetchQuery({
-      queryKey: matchQueryKey(matchId),
-      queryFn: () => fetchMatchById(matchId),
+      queryKey: matchQueryKey(matchId, brandId),
+      queryFn: () => getMatchById(brandId, matchId),
     });
   };
 }

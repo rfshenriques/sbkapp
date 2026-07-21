@@ -1,3 +1,4 @@
+import type { Match } from '@sportsbook/shared';
 import { useAuthStore } from '../features/auth/authStore';
 import { useBrandStore } from '../features/brand/brandStore';
 
@@ -178,6 +179,32 @@ export async function getDisplayNameOverrides(): Promise<PublicDisplayNameOverri
     throw new Error(`Failed to fetch display name overrides: ${response.status}`);
   }
   return (await response.json()) as PublicDisplayNameOverride[];
+}
+
+/**
+ * Matches/odds for the acting brand, margin-adjusted server-side (see
+ * MarginPricingService) - this is why matches are fetched through the
+ * backend rather than straight from odds-engine like apps/backoffice does.
+ */
+export async function getMatches(brandId: string): Promise<Match[]> {
+  const response = await fetch(`${BASE_URL}/public/matches/${encodeURIComponent(brandId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch matches: ${response.status}`);
+  }
+  return (await response.json()) as Match[];
+}
+
+export async function getMatchById(brandId: string, matchId: string): Promise<Match | undefined> {
+  const response = await fetch(
+    `${BASE_URL}/public/matches/${encodeURIComponent(brandId)}/${encodeURIComponent(matchId)}`,
+  );
+  if (response.status === 404) {
+    return undefined;
+  }
+  if (!response.ok) {
+    throw new Error(`Failed to fetch match ${matchId}: ${response.status}`);
+  }
+  return (await response.json()) as Match;
 }
 
 export async function register(payload: RegisterPayload): Promise<AuthTokenResponse> {

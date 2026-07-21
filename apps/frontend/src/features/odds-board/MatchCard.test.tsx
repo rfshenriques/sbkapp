@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { matchQueryKey } from '../match-detail/useMatch';
 import type { Match } from '@sportsbook/shared';
-import { stubOddsEngineFetch } from '../../test/mockOddsEngine';
+import { stubOddsEngineFetch, TEST_BRAND_ID } from '../../test/mockOddsEngine';
 import { useBetSlipStore } from '../bet-slip/betSlipStore';
 import { MatchCard } from './MatchCard';
 
@@ -128,12 +128,12 @@ describe('MatchCard', () => {
   it('prefetches the match detail data when the link is hovered', async () => {
     const { queryClient } = renderMatchCard(baseMatch);
 
-    expect(queryClient.getQueryData(matchQueryKey('match-1'))).toBeUndefined();
+    expect(queryClient.getQueryData(matchQueryKey('match-1', TEST_BRAND_ID))).toBeUndefined();
 
     await userEvent.hover(screen.getByRole('link', { name: 'Arsenal vs Chelsea' }));
 
     await waitFor(() => {
-      expect(queryClient.getQueryData(matchQueryKey('match-1'))).toEqual(baseMatch);
+      expect(queryClient.getQueryData(matchQueryKey('match-1', TEST_BRAND_ID))).toEqual(baseMatch);
     });
   });
 
@@ -166,9 +166,6 @@ describe('MatchCard', () => {
   it('shows a colored edge marker only for teams with a backoffice-assigned color', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
-      if (url === '/api/events') {
-        return new Response(JSON.stringify([baseMatch]), { status: 200 });
-      }
       if (url === '/backend/public/team-colors') {
         return new Response(JSON.stringify([{ name: 'Arsenal', colorHex: '#EF0107' }]), { status: 200 });
       }

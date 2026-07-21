@@ -5,7 +5,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { LiveMatchState } from '@sportsbook/shared';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
-import { stubOddsEngineFetch } from '../test/mockOddsEngine';
+import { stubOddsEngineFetch, TEST_BRAND_ID } from '../test/mockOddsEngine';
 import MatchDetailPage from './MatchDetailPage';
 
 function renderAt(matchId: string) {
@@ -116,11 +116,11 @@ describe('MatchDetailPage', () => {
   it('shows a MARKET display-name override on the market heading instead of the raw feed name', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
-      if (url === '/api/events') {
+      if (url === `/backend/public/matches/${TEST_BRAND_ID}`) {
         const { mockMatches } = await import('../mocks/matches');
         return new Response(JSON.stringify(mockMatches), { status: 200 });
       }
-      if (/\/events\/match-1$/.test(url)) {
+      if (url === `/backend/public/matches/${TEST_BRAND_ID}/match-1`) {
         const { mockMatches } = await import('../mocks/matches');
         const match = mockMatches.find((candidate) => candidate.id === 'match-1');
         return new Response(JSON.stringify(match), { status: 200 });
