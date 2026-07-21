@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
@@ -12,9 +13,11 @@ import type { Match } from '@sportsbook/shared';
 
 interface MatchCardProps {
   match: Match;
+  /** Passed through to the root Card - callers use this to stagger a list's entrance (see fade-in-up's animation-delay). */
+  style?: CSSProperties;
 }
 
-export function MatchCard({ match }: MatchCardProps) {
+export function MatchCard({ match, style }: MatchCardProps) {
   const matchResult = match.markets.find((market) => market.id === 'match-result');
   const prefetchMatchDetail = usePrefetchMatchDetail();
   const navigate = useNavigate();
@@ -38,7 +41,8 @@ export function MatchCard({ match }: MatchCardProps) {
       // bg-surface reads almost identically to the page's own bg-background
       // behind it (both near-black) - bg-surface-2 gives the card real
       // separation instead of nearly vanishing into the page.
-      className="cursor-pointer bg-surface-2 transition-colors hover:border-text-muted"
+      className="fade-in-up cursor-pointer bg-surface-2 transition-colors hover:border-text-muted"
+      style={style}
       onClick={() => navigate(matchHref)}
       onMouseEnter={() => prefetchMatchDetail(match.id)}
       onTouchStart={() => prefetchMatchDetail(match.id)}

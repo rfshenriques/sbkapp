@@ -205,7 +205,7 @@ export function AppShell() {
           // sat right on top of (and got visually cut off by) the nav on
           // devices with a home-indicator safe area.
           style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
-          className="btn-primary fade-in-up fixed inset-x-3 z-30 flex items-center justify-between gap-3 rounded-2xl px-[22px] py-[15px] text-left shadow-lg sm:hidden"
+          className="btn-primary cta-spring-in fixed inset-x-3 z-30 flex items-center justify-between gap-3 rounded-2xl px-[22px] py-[15px] text-left shadow-lg sm:hidden"
         >
           <span className="flex items-center gap-3">
             <span className="flex h-6 min-w-6 items-center justify-center rounded-lg bg-black/20 font-display text-sm">

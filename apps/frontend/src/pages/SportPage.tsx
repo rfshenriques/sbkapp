@@ -10,6 +10,7 @@ import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { BackButton } from '../components/ui/BackButton';
 import { Breadcrumb, type BreadcrumbSegment } from '../components/ui/Breadcrumb';
 import { Card } from '../components/ui/Card';
+import { staggerDelay } from '../lib/staggerDelay';
 
 /** "all" shows every sport unfiltered - used by the homepage's "Live now" load-more, which isn't scoped to one sport. */
 const ALL_SPORTS = 'all';
@@ -152,8 +153,8 @@ export default function SportPage() {
       )}
       {visible && visible.length > 0 && (
         <div className="space-y-3">
-          {visible.map((match) => (
-            <MatchCard key={match.id} match={match} />
+          {visible.map((match, index) => (
+            <MatchCard key={match.id} match={match} style={staggerDelay(index)} />
           ))}
         </div>
       )}

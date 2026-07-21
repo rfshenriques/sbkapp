@@ -16,6 +16,7 @@ import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { useTeamColors } from '../features/odds-board/useTeamColors';
 import { formatKickoff } from '../lib/formatKickoff';
 import { sortSportsByPriority } from '../lib/sportPriority';
+import { staggerDelay } from '../lib/staggerDelay';
 import type { Market, Match } from '@sportsbook/shared';
 
 /** Homepage sections stay short; "Load more" hands off to the full sport page. */
@@ -295,9 +296,9 @@ export default function OddsBoardPage() {
             <h2 className="font-display text-lg">Live now</h2>
           </div>
           <HorizontalScroller itemCount={liveCapped.length} ariaLabel="Live matches">
-            {liveCapped.map((match) => (
+            {liveCapped.map((match, index) => (
               <div key={match.id} className="w-72 shrink-0 snap-start">
-                <MatchCard match={match} />
+                <MatchCard match={match} style={staggerDelay(index)} />
               </div>
             ))}
           </HorizontalScroller>
@@ -349,8 +350,8 @@ export default function OddsBoardPage() {
         )}
         {upcomingCapped.length > 0 && (
           <div className="space-y-3">
-            {upcomingCapped.map((match) => (
-              <MatchCard key={match.id} match={match} />
+            {upcomingCapped.map((match, index) => (
+              <MatchCard key={match.id} match={match} style={staggerDelay(index)} />
             ))}
           </div>
         )}

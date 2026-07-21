@@ -102,6 +102,7 @@ body.scroll-locked .app-header {
 }
 
 .odd-btn {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -301,16 +302,21 @@ body.scroll-locked .app-header {
 }
 
 /* ---------- Modal presentations (login/register) ---------- */
+/* Slight overshoot past 0 before settling - a plain ease-out here read as
+   flat/mechanical next to the rest of the app's springier motion. */
 @keyframes sheet-slide-up {
-  from {
+  0% {
     transform: translateY(100%);
   }
-  to {
+  85% {
+    transform: translateY(-1.5%);
+  }
+  100% {
     transform: translateY(0);
   }
 }
 .sheet-slide-up {
-  animation: sheet-slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: sheet-slide-up 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes backdrop-fade-in {
@@ -358,22 +364,68 @@ body.scroll-locked .app-header {
   animation: fade-in-down 0.18s ease-out;
 }
 
+/* Spring/bounce entrance for the floating mobile bet-slip CTA - it needs
+   more presence than a plain fade-in-up since it's replacing the bottom
+   nav's visual space and should feel like it "arrived", not just faded
+   in. */
+@keyframes cta-spring-in {
+  0% {
+    opacity: 0;
+    transform: translateY(40px) scale(0.92);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(-6px) scale(1.02);
+  }
+  80% {
+    transform: translateY(2px) scale(0.995);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.cta-spring-in {
+  animation: cta-spring-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
 /* A brief pop the moment an odd becomes selected - separate from the
    :active press-down scale above, this plays right after the click
-   completes rather than while held. */
+   completes rather than while held. Overshoots past its rest scale for a
+   punchier feel, paired with a colored ring that expands and fades so the
+   selection reads even outside the button's own small bounding box. */
 @keyframes odd-selected-pop {
   0% {
     transform: scale(1);
   }
-  50% {
-    transform: scale(1.05);
+  40% {
+    transform: scale(1.14);
+  }
+  70% {
+    transform: scale(0.96);
   }
   100% {
     transform: scale(1);
   }
 }
 .odd-btn.selected {
-  animation: odd-selected-pop 0.2s ease-out;
+  animation: odd-selected-pop 0.32s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes odd-selected-ring {
+  from {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-highlight) 55%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 8px color-mix(in srgb, var(--color-highlight) 0%, transparent);
+  }
+}
+.odd-btn.selected::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  animation: odd-selected-ring 0.5s ease-out;
 }
 
 /* ---------- Live match tracker ---------- */
