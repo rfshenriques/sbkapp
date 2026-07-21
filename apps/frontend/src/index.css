@@ -180,33 +180,57 @@ body.scroll-locked .app-header {
   color: #000;
 }
 
-/* Brief background wash on the price itself when it moves - green on a
-   rise, red on a drop - so a returning player notices the market shifted
-   without needing to have watched it happen. Fades to transparent rather
-   than snapping off, so it doesn't read as a UI glitch. */
+/* Whole-button flash when its price moves - bright, saturated green on a
+   rise, red on a drop, plus a glowing ring so it still reads even on a
+   .selected button's opaque gradient (box-shadow sits outside the
+   background layer, background-color alone would be hidden under it).
+   Deliberately punchy/full-strength at the start, not a subtle tint, per
+   the whole point of the animation: a returning player should feel the
+   market moved without having watched it happen. */
 @keyframes odds-flash-up {
-  from {
-    background-color: color-mix(in srgb, var(--color-price-up) 45%, transparent);
+  0% {
+    background-color: var(--color-price-up);
+    border-color: var(--color-price-up);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-price-up) 55%, transparent);
   }
-  to {
-    background-color: transparent;
+  100% {
+    background-color: var(--color-surface-hover);
+    border-color: var(--color-border);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
 @keyframes odds-flash-down {
-  from {
-    background-color: color-mix(in srgb, var(--color-price-down) 45%, transparent);
+  0% {
+    background-color: var(--color-price-down);
+    border-color: var(--color-price-down);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-price-down) 55%, transparent);
   }
-  to {
-    background-color: transparent;
+  100% {
+    background-color: var(--color-surface-hover);
+    border-color: var(--color-border);
+    box-shadow: 0 0 0 0 transparent;
   }
 }
-.odd-btn .odd-value.flash-up {
+.odd-btn.flash-up {
   animation: odds-flash-up 1s ease-out;
-  border-radius: 6px;
 }
-.odd-btn .odd-value.flash-down {
+.odd-btn.flash-down {
   animation: odds-flash-down 1s ease-out;
-  border-radius: 6px;
+}
+/* .odd-btn.selected also carries its own `animation` (the selection pop,
+   further down this file) - same specificity as the two rules above and
+   declared later, so it would silently win the cascade and swallow the
+   flash on a selected button. These three-class overrides outrank it. */
+.odd-btn.selected.flash-up {
+  animation: odds-flash-up 1s ease-out;
+}
+.odd-btn.selected.flash-down {
+  animation: odds-flash-down 1s ease-out;
+}
+/* A suspended selection never flashes, however its underlying price moves - it's inert either way. */
+.odd-btn.suspended.flash-up,
+.odd-btn.suspended.flash-down {
+  animation: none;
 }
 
 /* CTAs only (Register, Place Bet, Browse matches, ...) - the one place

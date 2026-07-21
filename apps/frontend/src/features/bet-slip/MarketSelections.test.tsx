@@ -148,7 +148,7 @@ describe('MarketSelections', () => {
     expect(grid.style.gridTemplateColumns).toBe('repeat(1, minmax(0, 1fr))');
   });
 
-  it('flashes the odds value green on a rise and red on a drop, clearing after a moment', async () => {
+  it('flashes the whole odd button green on a rise and red on a drop, clearing after a moment', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     const queryClient = new QueryClient();
     const { rerender } = render(
@@ -157,8 +157,8 @@ describe('MarketSelections', () => {
       </QueryClientProvider>,
     );
 
-    const homeValue = () => screen.getByRole('button', { name: /^Home/ }).querySelector('.odd-value')!;
-    expect(homeValue().className).not.toMatch(/flash-/);
+    const homeButton = () => screen.getByRole('button', { name: /^Home/ });
+    expect(homeButton().className).not.toMatch(/flash-/);
 
     rerender(
       <QueryClientProvider client={queryClient}>
@@ -169,12 +169,12 @@ describe('MarketSelections', () => {
         />
       </QueryClientProvider>,
     );
-    expect(homeValue().className).toContain('flash-up');
+    expect(homeButton().className).toContain('flash-up');
 
     act(() => {
       vi.advanceTimersByTime(1100);
     });
-    expect(homeValue().className).not.toMatch(/flash-/);
+    expect(homeButton().className).not.toMatch(/flash-/);
 
     rerender(
       <QueryClientProvider client={queryClient}>
@@ -185,7 +185,7 @@ describe('MarketSelections', () => {
         />
       </QueryClientProvider>,
     );
-    expect(homeValue().className).toContain('flash-down');
+    expect(homeButton().className).toContain('flash-down');
 
     vi.useRealTimers();
   });

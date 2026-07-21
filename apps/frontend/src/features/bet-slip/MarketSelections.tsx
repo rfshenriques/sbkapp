@@ -28,7 +28,7 @@ function SelectionButton({ selection, label, isSelected, isSuspended, onSelect }
       type="button"
       disabled={isSuspended}
       aria-label={isSuspended ? `${label} suspended` : undefined}
-      className={`odd-btn${isSelected ? ' selected' : ''}${isSuspended ? ' suspended' : ''}`}
+      className={`odd-btn${isSelected ? ' selected' : ''}${isSuspended ? ' suspended' : ''}${flash ? ` flash-${flash}` : ''}`}
       onClick={(event) => {
         // MatchCard's whole card is clickable and navigates to the match -
         // stop this from also triggering that when picking an odd.
@@ -40,7 +40,7 @@ function SelectionButton({ selection, label, isSelected, isSuspended, onSelect }
       {isSuspended ? (
         <LockIcon className="h-4 w-4" aria-hidden="true" />
       ) : (
-        <span className={`odd-value${flash ? ` flash-${flash}` : ''}`}>{selection.odds.toFixed(2)}</span>
+        <span className="odd-value">{selection.odds.toFixed(2)}</span>
       )}
     </button>
   );
