@@ -40,6 +40,7 @@ services:
       ADMIN_API_KEY: ${ADMIN_API_KEY:-dev-only-insecure-admin-key-change-me}
       MASTER_JWT_SECRET: ${MASTER_JWT_SECRET:-dev-only-insecure-master-secret-change-me}
       MASTER_ADMIN_KEY: ${MASTER_ADMIN_KEY:-dev-only-insecure-master-key-change-me}
+      ODDS_ENGINE_URL: http://odds-engine:4001
     volumes:
       - ../../apps/backend/src:/workspace/apps/backend/src
       - ../../apps/backend/prisma:/workspace/apps/backend/prisma
@@ -49,6 +50,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      odds-engine:
+        condition: service_started
 
   odds-engine:
     build:

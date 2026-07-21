@@ -5,11 +5,13 @@ import { CompetitionTierService } from './competition-tier.service';
 import { MarginConfigController } from './margin-config.controller';
 import { MarginConfigService } from './margin-config.service';
 import { MarginPricingService } from './margin-pricing.service';
+import { OddsEngineClient } from './odds-engine-client';
+import { PublicMatchesController } from './public-matches.controller';
 
 @Module({
   imports: [AdminModule],
-  controllers: [CompetitionTierController, MarginConfigController],
-  providers: [CompetitionTierService, MarginConfigService, MarginPricingService],
+  controllers: [CompetitionTierController, MarginConfigController, PublicMatchesController],
+  providers: [CompetitionTierService, MarginConfigService, MarginPricingService, OddsEngineClient],
   exports: [MarginPricingService],
 })
 export class MarginsModule {}
