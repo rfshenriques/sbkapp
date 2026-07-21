@@ -332,7 +332,7 @@ export function AppShell() {
           closes it, same as switching between any other pair of pages. */}
       {isNavOpen && (
         <div
-          className="fade-in-down scrollbar-hide fixed inset-x-0 top-16 z-20 flex flex-col overflow-y-auto bg-background p-4 sm:hidden"
+          className="slide-in-down scrollbar-hide fixed inset-x-0 top-16 z-20 flex flex-col overflow-y-auto bg-background p-4 sm:hidden"
           style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
         >
           <h2 className="mb-3 font-display text-lg">Sports</h2>
