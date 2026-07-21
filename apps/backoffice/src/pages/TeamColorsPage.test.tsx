@@ -80,10 +80,52 @@ describe('TeamColorsPage', () => {
 
     renderTeamColorsPage();
 
+    // Grouped by letter by default, each group collapsed until opened -
+    // Arsenal and Chelsea land in different ("A"/"C") groups.
+    await userEvent.click(await screen.findByRole('button', { name: /^A \(1\)/ }));
+    expect(await screen.findByText('Arsenal')).toBeInTheDocument();
+    expect(screen.getByLabelText('Arsenal color hex')).toHaveValue('#EF0107');
+
+    await userEvent.click(screen.getByRole('button', { name: /^C \(1\)/ }));
+    expect(await screen.findByText('Chelsea')).toBeInTheDocument();
+    expect(screen.getByLabelText('Chelsea color hex')).toHaveValue('');
+  });
+
+  it('groups teams by letter or by country, one group expanded at a time', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/api/events') {
+        return new Response(JSON.stringify([liveMatch]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/team-colors') {
+        return new Response(JSON.stringify([arsenal, chelsea]), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderTeamColorsPage();
+
+    const groupA = await screen.findByRole('button', { name: /^A \(1\)/ });
+    const groupC = screen.getByRole('button', { name: /^C \(1\)/ });
+    expect(screen.queryByText('Arsenal')).not.toBeInTheDocument();
+
+    await userEvent.click(groupA);
+    expect(await screen.findByText('Arsenal')).toBeInTheDocument();
+
+    // Opening a second group closes the first - only one open at a time.
+    await userEvent.click(groupC);
+    expect(await screen.findByText('Chelsea')).toBeInTheDocument();
+    expect(screen.queryByText('Arsenal')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'By country' }));
+    expect(screen.queryByText('Chelsea')).not.toBeInTheDocument();
+    const englandGroup = await screen.findByRole('button', { name: /^England \(2\)/ });
+    await userEvent.click(englandGroup);
     expect(await screen.findByText('Arsenal')).toBeInTheDocument();
     expect(await screen.findByText('Chelsea')).toBeInTheDocument();
-    expect(screen.getByLabelText('Arsenal color hex')).toHaveValue('#EF0107');
-    expect(screen.getByLabelText('Chelsea color hex')).toHaveValue('');
   });
 
   it('setting a color sends the right request and disables Save until a change is made', async () => {
@@ -106,6 +148,7 @@ describe('TeamColorsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderTeamColorsPage();
+    await userEvent.click(await screen.findByRole('button', { name: /^C \(1\)/ }));
     await screen.findByText('Chelsea');
 
     const saveButton = screen.getByRole('button', { name: 'Save' });
