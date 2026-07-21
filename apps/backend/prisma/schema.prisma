@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-  id     String @id @default(uuid())
+  id              String    @id @default(uuid())
   /**
    * Kept globally unique rather than unique-per-brand for now: there's no
    * domain-based tenant resolution yet (see PROJECT_BRIEF.md Section 10),
@@ -130,6 +130,9 @@ enum AuditAction {
   MARGIN_CONFIG_REMOVED
   MARKETING_SPEND_CREATED
   MARKETING_SPEND_REMOVED
+  BRAND_IMAGE_LIST_ITEM_ADDED
+  BRAND_IMAGE_LIST_ITEM_REMOVED
+  BRAND_IMAGE_LIST_REORDERED
 }
 
 /**
@@ -205,16 +208,16 @@ model MarginConfig {
  * row still reads sensibly if that staff account is later removed.
  */
 model MarketingSpend {
-  id                  String   @id @default(uuid())
-  brandId             String
-  brand               Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  date                DateTime
-  channel             String
-  amountCents         Int
+  id                   String   @id @default(uuid())
+  brandId              String
+  brand                Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  date                 DateTime
+  channel              String
+  amountCents          Int
   createdByStaffUserId String?
-  createdByUsername   String
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdByUsername    String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@index([brandId, date])
   @@map("marketing_spend")
@@ -431,22 +434,32 @@ enum ThemeMode {
  * one brand - see PROJECT_BRIEF.md Section 10 for the brandId retrofit.
  */
 model Brand {
-  id                String    @id @default(uuid())
-  name              String
-  /** URL-safe identifier, e.g. for future path-based routing. */
-  slug              String    @unique
-  /** The domain that resolves to this brand, once domain routing exists. */
-  domain            String?   @unique
-  logoUrl           String?
-  themeMode         ThemeMode @default(DARK)
-  buttonColorHex    String?
-  highlightColorHex String?
-  /** Filter/tab active-state and gradient accent color - kept distinct from
-      both the CTA (buttonColorHex) and the general accent (highlightColorHex)
-      so a filter chip never visually reads as a button. */
-  filterColorHex    String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
+  id                  String    @id @default(uuid())
+  name                String
+  /**
+   * URL-safe identifier, e.g. for future path-based routing.
+   */
+  slug                String    @unique
+  /**
+   * The domain that resolves to this brand, once domain routing exists.
+   */
+  domain              String?   @unique
+  logoUrl             String?
+  themeMode           ThemeMode @default(DARK)
+  buttonColorHex      String?
+  highlightColorHex   String?
+  /**
+   * Filter/tab active-state and gradient accent color - kept distinct from
+   * both the CTA (buttonColorHex) and the general accent (highlightColorHex)
+   * so a filter chip never visually reads as a button.
+   */
+  filterColorHex      String?
+  /**
+   * Shown on the player-facing Responsible Gambling page when set - never a fabricated phone number if left unset.
+   */
+  supportHelplineText String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   productFlags        BrandProductFlag[]
   users               User[]
@@ -456,6 +469,7 @@ model Brand {
   marketSuspensions   MarketSuspension[]
   competitionRankings CompetitionRanking[]
   images              BrandImage[]
+  imageListItems      BrandImageListItem[]
   competitionTiers    CompetitionTier[]
   marginConfigs       MarginConfig[]
   marketingSpends     MarketingSpend[]
@@ -491,6 +505,32 @@ model BrandImage {
   @@unique([brandId, slot])
   @@index([brandId])
   @@map("brand_images")
+}
+
+enum BrandImageListKind {
+  SPONSOR_LOGO
+  PAYMENT_METHOD
+}
+
+/**
+ * Ordered, multi-item image lists per brand (footer sponsor logos, footer
+ * payment method icons) - unlike BrandImage's one-per-slot shape, a brand
+ * can have any number of these, shown in sortOrder. Same byte-storage
+ * reasoning as BrandImage.
+ */
+model BrandImageListItem {
+  id        String             @id @default(uuid())
+  brandId   String
+  brand     Brand              @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  kind      BrandImageListKind
+  data      Bytes
+  mimeType  String
+  sortOrder Int
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  @@index([brandId, kind])
+  @@map("brand_image_list_items")
 }
 
 /**

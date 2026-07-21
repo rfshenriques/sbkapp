@@ -21,6 +21,7 @@ import { MasterModule } from './modules/master/master.module';
 import { TeamColorsModule } from './modules/team-colors/team-colors.module';
 import { DisplayNamesModule } from './modules/display-names/display-names.module';
 import { BrandImagesModule } from './modules/brand-images/brand-images.module';
+import { BrandImageListModule } from './modules/brand-image-list/brand-image-list.module';
 import { MarginsModule } from './modules/margins/margins.module';
 import { MarketingSpendModule } from './modules/marketing-spend/marketing-spend.module';
 
@@ -48,6 +49,7 @@ import { MarketingSpendModule } from './modules/marketing-spend/marketing-spend.
     TeamColorsModule,
     DisplayNamesModule,
     BrandImagesModule,
+    BrandImageListModule,
     MarginsModule,
     MarketingSpendModule,
   ],
