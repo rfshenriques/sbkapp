@@ -90,6 +90,9 @@ describe('DisplayNamesPage', () => {
 
     renderPage();
 
+    // Competitions tab groups by country, one group expanded at a time -
+    // the synced match's competition falls under its "Europe" country.
+    await userEvent.click(await screen.findByRole('button', { name: /^Europe \(1\)/ }));
     expect(await screen.findByText('UEFA Champions League Qualification')).toBeInTheDocument();
     expect(synced).toEqual({
       SPORT: ['Football'],
@@ -124,6 +127,9 @@ describe('DisplayNamesPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderPage();
+    // No live match feed in this test, so the override has no country
+    // evidence and falls under the "Unknown" group.
+    await userEvent.click(await screen.findByRole('button', { name: /^Unknown \(1\)/ }));
     await screen.findByText('UEFA Champions League Qualification');
 
     const saveButton = screen.getByRole('button', { name: 'Save' });
@@ -205,5 +211,79 @@ describe('DisplayNamesPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Markets' }));
 
     expect(await screen.findByText('Match Result')).toBeInTheDocument();
+  });
+
+  it('groups the Competitions tab by country, one group at a time, but leaves other tabs flat', async () => {
+    const eplOverride: DisplayNameOverride = {
+      id: 'dn-4',
+      entityType: 'COMPETITION',
+      rawName: 'EPL',
+      displayName: null,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const laLigaOverride: DisplayNameOverride = {
+      id: 'dn-5',
+      entityType: 'COMPETITION',
+      rawName: 'La Liga',
+      displayName: null,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const teamOverride: DisplayNameOverride = {
+      id: 'dn-6',
+      entityType: 'TEAM',
+      rawName: 'Real Madrid',
+      displayName: null,
+      createdAt: '',
+      updatedAt: '',
+    };
+    const matches: Match[] = [
+      { ...liveMatch, id: 'm-epl', country: 'England', competition: 'EPL' },
+      { ...liveMatch, id: 'm-laliga', country: 'Spain', competition: 'La Liga' },
+    ];
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/api/events') {
+        return new Response(JSON.stringify(matches), { status: 200 });
+      }
+      if (method === 'POST' && url === '/backend/admin/display-names/sync') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/display-names?entityType=COMPETITION') {
+        return new Response(JSON.stringify([eplOverride, laLigaOverride]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/display-names?entityType=TEAM') {
+        return new Response(JSON.stringify([teamOverride]), { status: 200 });
+      }
+      if (method === 'GET' && url.startsWith('/backend/admin/display-names?entityType=')) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderPage();
+
+    const englandGroup = await screen.findByRole('button', { name: /^England \(1\)/ });
+    const spainGroup = screen.getByRole('button', { name: /^Spain \(1\)/ });
+    expect(screen.queryByText('EPL')).not.toBeInTheDocument();
+
+    await userEvent.click(englandGroup);
+    expect(await screen.findByText('EPL')).toBeInTheDocument();
+    expect(screen.queryByText('La Liga')).not.toBeInTheDocument();
+
+    // Opening a second group closes the first - only one open at a time.
+    await userEvent.click(spainGroup);
+    expect(await screen.findByText('La Liga')).toBeInTheDocument();
+    expect(screen.queryByText('EPL')).not.toBeInTheDocument();
+
+    // Switching tabs resets the expanded group and shows a plain flat list.
+    await userEvent.click(screen.getByRole('button', { name: 'Teams' }));
+    expect(await screen.findByText('Real Madrid')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Spain/ })).not.toBeInTheDocument();
   });
 });

@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { ChevronIcon } from '../components/ui/ChevronIcon';
+import { competitionCountryMap } from '../lib/countryMaps';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
 
@@ -16,6 +18,34 @@ const ENTITY_TYPES: { value: backendApi.DisplayNameEntityType; label: string }[]
   { value: 'MARKET', label: 'Markets' },
   { value: 'SELECTION', label: 'Selections' },
 ];
+
+/** Competitions with no evidence in the currently-loaded match feed. */
+const UNKNOWN_COUNTRY = 'Unknown';
+
+interface CountryGroup {
+  country: string;
+  overrides: backendApi.DisplayNameOverride[];
+}
+
+function groupByCountry(
+  overrides: backendApi.DisplayNameOverride[],
+  byCountry: Map<string, string>,
+): CountryGroup[] {
+  const map = new Map<string, backendApi.DisplayNameOverride[]>();
+  for (const override of overrides) {
+    const country = byCountry.get(override.rawName) ?? UNKNOWN_COUNTRY;
+    const bucket = map.get(country) ?? [];
+    bucket.push(override);
+    map.set(country, bucket);
+  }
+  return Array.from(map.entries())
+    .map(([country, bucket]) => ({ country, overrides: bucket }))
+    .sort((a, b) => {
+      if (a.country === UNKNOWN_COUNTRY) return 1;
+      if (b.country === UNKNOWN_COUNTRY) return -1;
+      return a.country.localeCompare(b.country);
+    });
+}
 
 function DisplayNameRow({ override }: { override: backendApi.DisplayNameOverride }) {
   const queryClient = useQueryClient();
@@ -57,6 +87,7 @@ export default function DisplayNamesPage() {
   const queryClient = useQueryClient();
   const [activeType, setActiveType] = useState<backendApi.DisplayNameEntityType>('COMPETITION');
   const [hasSynced, setHasSynced] = useState(false);
+  const [expandedCountry, setExpandedCountry] = useState<string | null>(null);
 
   const { data: matches } = useQuery({ queryKey: matchesQueryKey, queryFn: oddsEngineApi.fetchMatches });
 
@@ -104,6 +135,13 @@ export default function DisplayNamesPage() {
     setHasSynced(true);
   }, [matches, hasSynced]);
 
+  const isGrouped = activeType === 'COMPETITION';
+  const byCountry = useMemo(() => competitionCountryMap(matches ?? []), [matches]);
+  const countryGroups = useMemo(
+    () => (isGrouped && overrides ? groupByCountry(overrides, byCountry) : []),
+    [isGrouped, overrides, byCountry],
+  );
+
   return (
     <div>
       <h1 className="text-2xl font-semibold">Display names</h1>
@@ -119,7 +157,10 @@ export default function DisplayNamesPage() {
             key={entityType.value}
             variant={activeType === entityType.value ? 'primary' : 'secondary'}
             aria-pressed={activeType === entityType.value}
-            onClick={() => setActiveType(entityType.value)}
+            onClick={() => {
+              setActiveType(entityType.value);
+              setExpandedCountry(null);
+            }}
           >
             {entityType.label}
           </Button>
@@ -135,13 +176,40 @@ export default function DisplayNamesPage() {
           </p>
         )}
 
-        {overrides && overrides.length > 0 && (
+        {overrides && overrides.length > 0 && !isGrouped && (
           <Card className="space-y-2">
             {overrides.map((override) => (
               <DisplayNameRow key={override.id} override={override} />
             ))}
           </Card>
         )}
+
+        {isGrouped &&
+          countryGroups.map((group) => {
+            const isExpanded = expandedCountry === group.country;
+            return (
+              <Card key={group.country} className="p-0">
+                <button
+                  type="button"
+                  aria-expanded={isExpanded}
+                  onClick={() => setExpandedCountry(isExpanded ? null : group.country)}
+                  className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+                >
+                  <span className="text-sm font-semibold">
+                    {group.country} <span className="text-text-muted">({group.overrides.length})</span>
+                  </span>
+                  <ChevronIcon className={`h-4 w-4 shrink-0 text-text-muted ${isExpanded ? 'rotate-180' : ''}`} />
+                </button>
+                {isExpanded && (
+                  <div className="space-y-2 border-t border-border p-4 pt-3">
+                    {group.overrides.map((override) => (
+                      <DisplayNameRow key={override.id} override={override} />
+                    ))}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
       </div>
     </div>
   );
