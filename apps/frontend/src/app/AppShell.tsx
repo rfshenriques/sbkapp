@@ -5,6 +5,7 @@ import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { BetSlipPanel } from '../features/bet-slip/BetSlipPanel';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { useBrandTheme } from '../features/brand/useBrandTheme';
+import { Footer } from '../features/footer/Footer';
 import { useAuth } from '../features/auth/useAuth';
 import { useBootstrapAuth } from '../features/auth/useBootstrapAuth';
 import { formatCents, useWallet } from '../features/wallet/useWallet';
@@ -207,6 +208,8 @@ export function AppShell() {
           </div>
         </aside>
       </div>
+
+      <Footer />
 
       {selections.length > 0 && (
         <button
