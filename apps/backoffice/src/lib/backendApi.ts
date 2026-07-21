@@ -391,6 +391,77 @@ export async function removeCompetitionRanking(id: string): Promise<void> {
   }
 }
 
+export interface CompetitionTier {
+  id: string;
+  brandId: string;
+  competition: string;
+  tier: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listCompetitionTiers(): Promise<CompetitionTier[]> {
+  const response = await authenticatedFetch('/admin/competition-tiers');
+  return parseJsonOrThrow(response, `Failed to load competition tiers: ${response.status}`);
+}
+
+/** Idempotent - setting a tier for an already-tiered competition just updates it. */
+export async function setCompetitionTier(competition: string, tier: number): Promise<CompetitionTier> {
+  const response = await authenticatedFetch('/admin/competition-tiers', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ competition, tier }),
+  });
+  return parseJsonOrThrow(response, `Failed to set competition tier: ${response.status}`);
+}
+
+export async function removeCompetitionTier(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/competition-tiers/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to remove competition tier: ${response.status}`);
+  }
+}
+
+export interface MarginConfig {
+  id: string;
+  brandId: string;
+  marketName: string;
+  tier: number;
+  marginPercent: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listMarginConfigs(): Promise<MarginConfig[]> {
+  const response = await authenticatedFetch('/admin/margin-configs');
+  return parseJsonOrThrow(response, `Failed to load margin configs: ${response.status}`);
+}
+
+/** Idempotent - setting a margin for an already-configured (marketName, tier) pair just updates it. */
+export async function setMarginConfig(
+  marketName: string,
+  tier: number,
+  marginPercent: number,
+): Promise<MarginConfig> {
+  const response = await authenticatedFetch('/admin/margin-configs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ marketName, tier, marginPercent }),
+  });
+  return parseJsonOrThrow(response, `Failed to set margin config: ${response.status}`);
+}
+
+export async function removeMarginConfig(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/margin-configs/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to remove margin config: ${response.status}`);
+  }
+}
+
 export type BrandImageSlot = 'REGISTER_DESKTOP' | 'REGISTER_MOBILE' | 'HOMEPAGE_OFFER' | 'MATCH_OF_THE_DAY';
 
 export interface BrandImage {

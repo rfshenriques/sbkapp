@@ -2,7 +2,9 @@ import type { RouteObject } from 'react-router-dom';
 import AuditLogPage from '../pages/AuditLogPage';
 import CmsImagesPage from '../pages/CmsImagesPage';
 import CompetitionRankingPage from '../pages/CompetitionRankingPage';
+import CompetitionTiersPage from '../pages/CompetitionTiersPage';
 import DisplayNamesPage from '../pages/DisplayNamesPage';
+import MarginsPage from '../pages/MarginsPage';
 import MarketsPage from '../pages/MarketsPage';
 import NotFoundPage from '../pages/NotFoundPage';
 import ReportsPage from '../pages/ReportsPage';
@@ -83,6 +85,26 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'CMS']}>
               <DisplayNamesPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'competition-tiers',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'TRADING']}>
+              <CompetitionTiersPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'margins',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'TRADING']}>
+              <MarginsPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),
