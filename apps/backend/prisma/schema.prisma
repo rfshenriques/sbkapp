@@ -124,6 +124,10 @@ enum AuditAction {
   DISPLAY_NAME_OVERRIDE_SET
   BRAND_IMAGE_SET
   BRAND_IMAGE_REMOVED
+  COMPETITION_TIER_SET
+  COMPETITION_TIER_REMOVED
+  MARGIN_CONFIG_SET
+  MARGIN_CONFIG_REMOVED
 }
 
 /**
@@ -146,6 +150,49 @@ model CompetitionRanking {
   @@unique([brandId, competition])
   @@index([brandId])
   @@map("competition_rankings")
+}
+
+/**
+ * Which pricing tier a competition falls into (1-4) - set by trading per
+ * brand, since two operators running the same feed may want to price the
+ * same competition differently. A competition with no row here has no
+ * tier, so MarginConfig never applies to it (raw feed odds pass through
+ * unchanged) - never guessed to a default tier.
+ */
+model CompetitionTier {
+  id          String   @id @default(uuid())
+  brandId     String
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  competition String
+  tier        Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([brandId, competition])
+  @@index([brandId])
+  @@map("competition_tiers")
+}
+
+/**
+ * Margin percent for a given raw feed market name (e.g. "Match Result") at
+ * a given tier (1-4), per brand. Applied to every match whose competition
+ * is assigned that tier (see CompetitionTier) - a (tier, marketName) pair
+ * with no row here means no margin is applied to that market, same
+ * "nothing fabricated" rule as CompetitionTier.
+ */
+model MarginConfig {
+  id            String   @id @default(uuid())
+  brandId       String
+  brand         Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  marketName    String
+  tier          Int
+  marginPercent Float
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([brandId, marketName, tier])
+  @@index([brandId])
+  @@map("margin_configs")
 }
 
 /**
@@ -384,6 +431,8 @@ model Brand {
   marketSuspensions   MarketSuspension[]
   competitionRankings CompetitionRanking[]
   images              BrandImage[]
+  competitionTiers    CompetitionTier[]
+  marginConfigs       MarginConfig[]
 
   @@map("brands")
 }
