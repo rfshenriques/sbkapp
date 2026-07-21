@@ -84,6 +84,18 @@ export interface ReportRange {
   to?: string;
 }
 
+export type ReportGranularity = 'day' | 'week' | 'month';
+
+export interface TimeSeriesPoint {
+  bucket: string;
+  count: number;
+}
+
+export interface GgrTimeSeriesPoint {
+  bucket: string;
+  ggrCents: number;
+}
+
 export type SelectionStatus = 'OPEN' | 'WON' | 'LOST' | 'VOID';
 export type BetStatus = 'PENDING' | 'WON' | 'LOST' | 'VOID';
 
@@ -286,6 +298,34 @@ export async function getReportSummary(range: ReportRange): Promise<ReportSummar
 export async function getStaffActivity(range: ReportRange): Promise<StaffActivityEntry[]> {
   const response = await authenticatedFetch(`/admin/reports/staff-activity${rangeQuery(range)}`);
   return parseJsonOrThrow(response, `Failed to load staff activity: ${response.status}`);
+}
+
+function timeSeriesQuery(range: ReportRange, granularity: ReportGranularity): string {
+  const params = new URLSearchParams();
+  if (range.from) params.set('from', range.from);
+  if (range.to) params.set('to', range.to);
+  params.set('granularity', granularity);
+  return `?${params.toString()}`;
+}
+
+export async function getRegistrationsTimeSeries(
+  range: ReportRange,
+  granularity: ReportGranularity,
+): Promise<TimeSeriesPoint[]> {
+  const response = await authenticatedFetch(
+    `/admin/reports/registrations-time-series${timeSeriesQuery(range, granularity)}`,
+  );
+  return parseJsonOrThrow(response, `Failed to load registrations: ${response.status}`);
+}
+
+export async function getGgrTimeSeries(
+  range: ReportRange,
+  granularity: ReportGranularity,
+): Promise<GgrTimeSeriesPoint[]> {
+  const response = await authenticatedFetch(
+    `/admin/reports/ggr-time-series${timeSeriesQuery(range, granularity)}`,
+  );
+  return parseJsonOrThrow(response, `Failed to load GGR: ${response.status}`);
 }
 
 export async function listTeamColors(): Promise<TeamColor[]> {

@@ -8,6 +8,7 @@ import MarginsPage from '../pages/MarginsPage';
 import MarketingSpendPage from '../pages/MarketingSpendPage';
 import MarketsPage from '../pages/MarketsPage';
 import NotFoundPage from '../pages/NotFoundPage';
+import RegistrationsPage from '../pages/RegistrationsPage';
 import ReportsPage from '../pages/ReportsPage';
 import SettlementPage from '../pages/SettlementPage';
 import StaffLoginPage from '../pages/StaffLoginPage';
@@ -106,6 +107,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'TRADING']}>
               <MarginsPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'registrations',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN']}>
+              <RegistrationsPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),
