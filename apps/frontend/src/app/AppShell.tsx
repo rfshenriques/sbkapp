@@ -61,6 +61,18 @@ export function AppShell() {
   // viewport) while the drawer is open.
   useScrollLock(isNavOpen);
 
+  // Clicking a Link inside a horizontally-scroll-snapped carousel (the
+  // homepage's mobile Featured/Promo card pair) leaves <body> - which the
+  // page-wide overflow-x: hidden rule makes an accidental scroll
+  // container even though it's never meant to scroll - offset sideways
+  // by however far that carousel had snapped, surviving the navigation
+  // since body itself doesn't unmount between routes. Nothing in the app
+  // ever wants body scrolled horizontally, so force it back to 0 on every
+  // route change rather than chasing the exact browser mechanism that set it.
+  useEffect(() => {
+    document.body.scrollLeft = 0;
+  }, [location.pathname]);
+
   // Swipe left/right between the 5 bottom-nav destinations, mobile only.
   // Swipes that start inside a horizontally-scrolling block (carousels,
   // the sport filter row, the breadcrumb trail) or inside a bottom-sheet
