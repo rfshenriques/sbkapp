@@ -574,3 +574,56 @@ export async function removeBrandImage(slot: BrandImageSlot): Promise<void> {
     throw new Error(`Failed to remove brand image: ${response.status}`);
   }
 }
+
+export type BrandImageListKind = 'SPONSOR_LOGO' | 'PAYMENT_METHOD';
+
+export interface BrandImageListItem {
+  id: string;
+  brandId: string;
+  kind: BrandImageListKind;
+  mimeType: string;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listBrandImageList(kind: BrandImageListKind): Promise<BrandImageListItem[]> {
+  const response = await authenticatedFetch(`/admin/brand-image-list?kind=${kind}`);
+  return parseJsonOrThrow(response, `Failed to load images: ${response.status}`);
+}
+
+/** No Content-Type header set - fetch derives the multipart boundary itself from the FormData body. */
+export async function addBrandImageListItem(
+  kind: BrandImageListKind,
+  file: File,
+): Promise<BrandImageListItem> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await authenticatedFetch(`/admin/brand-image-list/${kind}`, {
+    method: 'POST',
+    body: formData,
+  });
+  return parseJsonOrThrow(response, `Failed to upload image: ${response.status}`);
+}
+
+export async function removeBrandImageListItem(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/brand-image-list/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to remove image: ${response.status}`);
+  }
+}
+
+/** `ids` must be exactly the current set of items for this kind, in the desired order. */
+export async function reorderBrandImageList(
+  kind: BrandImageListKind,
+  ids: string[],
+): Promise<BrandImageListItem[]> {
+  const response = await authenticatedFetch(`/admin/brand-image-list/${kind}/reorder`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  });
+  return parseJsonOrThrow(response, `Failed to reorder images: ${response.status}`);
+}
