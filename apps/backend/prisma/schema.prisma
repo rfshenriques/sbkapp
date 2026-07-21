@@ -31,6 +31,17 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
+  /**
+   * Captured client-side on the register page's first mount (see
+   * RegisterPage), not at submit, so it survives a player browsing around
+   * before actually signing up. Nullable and forward-only - there's no way
+   * to backfill these for users who registered before this existed.
+   */
+  referrerUrl String?
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+
   brandId String
   brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Restrict)
 

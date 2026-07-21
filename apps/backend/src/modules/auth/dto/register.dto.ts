@@ -1,4 +1,4 @@
-import { IsEmail, IsPhoneNumber, IsString, Matches, MinLength } from 'class-validator';
+import { IsEmail, IsOptional, IsPhoneNumber, IsString, Matches, MaxLength, MinLength } from 'class-validator';
 
 export class RegisterDto {
   /**
@@ -25,4 +25,29 @@ export class RegisterDto {
 
   @MinLength(8, { message: 'Password must be at least 8 characters' })
   password!: string;
+
+  /**
+   * Marketing attribution, captured client-side on the register page's
+   * first mount (see the frontend's RegisterPage) - all optional since
+   * a direct visit has no referrer or UTM params to send.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(2048)
+  referrerUrl?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  utmSource?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  utmMedium?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  utmCampaign?: string;
 }

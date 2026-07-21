@@ -52,6 +52,10 @@ export class AuthService {
         phone: dto.phone,
         passwordHash,
         brandId: dto.brandId,
+        referrerUrl: dto.referrerUrl,
+        utmSource: dto.utmSource,
+        utmMedium: dto.utmMedium,
+        utmCampaign: dto.utmCampaign,
       },
     });
 

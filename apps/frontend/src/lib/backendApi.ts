@@ -12,6 +12,10 @@ export interface RegisterPayload {
   username: string;
   phone: string;
   password: string;
+  referrerUrl?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
 }
 
 export interface LoginPayload {

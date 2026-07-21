@@ -37,13 +37,25 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Captured once, on this page's first mount rather than at submit, so it
+  // reflects how the player actually arrived here even if they browse
+  // around a while before submitting the form.
+  const [attribution] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return {
+      referrerUrl: document.referrer || undefined,
+      utmSource: params.get('utm_source') ?? undefined,
+      utmMedium: params.get('utm_medium') ?? undefined,
+      utmCampaign: params.get('utm_campaign') ?? undefined,
+    };
+  });
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
     setIsSubmitting(true);
     try {
-      await register({ email, username, phone, password });
+      await register({ email, username, phone, password, ...attribution });
       navigate('/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
