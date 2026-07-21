@@ -128,6 +128,8 @@ enum AuditAction {
   COMPETITION_TIER_REMOVED
   MARGIN_CONFIG_SET
   MARGIN_CONFIG_REMOVED
+  MARKETING_SPEND_CREATED
+  MARKETING_SPEND_REMOVED
 }
 
 /**
@@ -193,6 +195,29 @@ model MarginConfig {
   @@unique([brandId, marketName, tier])
   @@index([brandId])
   @@map("margin_configs")
+}
+
+/**
+ * A manual log of marketing spend, entered by an admin - there's no ad-
+ * platform integration yet, so this is deliberately just a ledger an
+ * admin fills in by hand. Denormalizes the creating staff member's
+ * username (like AuditLogEntry does) rather than a StaffUser FK, so the
+ * row still reads sensibly if that staff account is later removed.
+ */
+model MarketingSpend {
+  id                  String   @id @default(uuid())
+  brandId             String
+  brand               Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  date                DateTime
+  channel             String
+  amountCents         Int
+  createdByStaffUserId String?
+  createdByUsername   String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([brandId, date])
+  @@map("marketing_spend")
 }
 
 /**
@@ -433,6 +458,7 @@ model Brand {
   images              BrandImage[]
   competitionTiers    CompetitionTier[]
   marginConfigs       MarginConfig[]
+  marketingSpends     MarketingSpend[]
 
   @@map("brands")
 }

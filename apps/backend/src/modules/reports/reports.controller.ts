@@ -4,6 +4,7 @@ import { RolesGuard } from '../admin/roles.guard';
 import { StaffJwtAuthGuard } from '../admin/staff-jwt-auth.guard';
 import type { StaffJwtPayload } from '../admin/staff-jwt.strategy';
 import { ReportRangeQueryDto } from './dto/report-range-query.dto';
+import { ReportTimeSeriesQueryDto } from './dto/report-time-series-query.dto';
 import { ReportsService, type ReportRange } from './reports.service';
 
 interface AuthenticatedStaffRequest {
@@ -24,6 +25,23 @@ export class ReportsController {
   @Get('staff-activity')
   staffActivity(@Query() query: ReportRangeQueryDto, @Req() req: AuthenticatedStaffRequest) {
     return this.reportsService.getStaffActivity(req.user.brandId, toRange(query));
+  }
+
+  @Get('registrations-time-series')
+  registrationsTimeSeries(
+    @Query() query: ReportTimeSeriesQueryDto,
+    @Req() req: AuthenticatedStaffRequest,
+  ) {
+    return this.reportsService.getRegistrationsTimeSeries(
+      req.user.brandId,
+      toRange(query),
+      query.granularity,
+    );
+  }
+
+  @Get('ggr-time-series')
+  ggrTimeSeries(@Query() query: ReportTimeSeriesQueryDto, @Req() req: AuthenticatedStaffRequest) {
+    return this.reportsService.getGgrTimeSeries(req.user.brandId, toRange(query), query.granularity);
   }
 }
 

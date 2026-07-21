@@ -5,6 +5,7 @@ import CompetitionRankingPage from '../pages/CompetitionRankingPage';
 import CompetitionTiersPage from '../pages/CompetitionTiersPage';
 import DisplayNamesPage from '../pages/DisplayNamesPage';
 import MarginsPage from '../pages/MarginsPage';
+import MarketingSpendPage from '../pages/MarketingSpendPage';
 import MarketsPage from '../pages/MarketsPage';
 import NotFoundPage from '../pages/NotFoundPage';
 import ReportsPage from '../pages/ReportsPage';
@@ -105,6 +106,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'TRADING']}>
               <MarginsPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'marketing-spend',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN']}>
+              <MarketingSpendPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

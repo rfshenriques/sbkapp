@@ -225,4 +225,76 @@ describe('ReportsService', () => {
     expect(actorAEntry?.settlementCount).toBe(2);
     expect(actorBEntry?.settlementCount).toBe(1);
   });
+
+  it('buckets registrations by day', async () => {
+    await prisma.user.update({
+      where: { id: await createTestUser() },
+      data: { createdAt: new Date('2026-07-01T10:00:00Z') },
+    });
+    const secondUserId = await createTestUser();
+    await prisma.user.update({
+      where: { id: secondUserId },
+      data: { createdAt: new Date('2026-07-01T18:00:00Z') },
+    });
+    const thirdUserId = await createTestUser();
+    await prisma.user.update({
+      where: { id: thirdUserId },
+      data: { createdAt: new Date('2026-07-02T09:00:00Z') },
+    });
+
+    const series = await reportsService.getRegistrationsTimeSeries(
+      testBrandId,
+      { from: new Date('2026-07-01T00:00:00Z'), to: new Date('2026-07-02T23:59:59Z') },
+      'day',
+    );
+
+    expect(series).toEqual([
+      { bucket: new Date('2026-07-01T00:00:00Z').toISOString(), count: 2 },
+      { bucket: new Date('2026-07-02T00:00:00Z').toISOString(), count: 1 },
+    ]);
+  });
+
+  it('returns an empty registrations series for a range with no signups', async () => {
+    const series = await reportsService.getRegistrationsTimeSeries(
+      testBrandId,
+      { from: new Date('2999-01-01'), to: new Date('2999-01-31') },
+      'day',
+    );
+    expect(series).toEqual([]);
+  });
+
+  it('rejects an invalid granularity', async () => {
+    await expect(
+      reportsService.getRegistrationsTimeSeries(testBrandId, {}, 'year' as never),
+    ).rejects.toThrow('Invalid granularity');
+  });
+
+  it('buckets GGR by day, based on when the bet settled', async () => {
+    const userId = await createTestUser();
+
+    const wonBet = await pamService.placeBet(userId, {
+      selections: [buildSelection({ matchId: 'match-reports-ts-1', odds: 2 })],
+      stakeCents: 1_000,
+    });
+    await pamService.settleSelection(testBrandId, wonBet.id, wonBet.selections[0]!.id, 'WON', ACTOR_A);
+    await prisma.bet.update({ where: { id: wonBet.id }, data: { settledAt: new Date('2026-07-01T12:00:00Z') } });
+
+    const lostBet = await pamService.placeBet(userId, {
+      selections: [buildSelection({ matchId: 'match-reports-ts-2', odds: 3 })],
+      stakeCents: 500,
+    });
+    await pamService.settleSelection(testBrandId, lostBet.id, lostBet.selections[0]!.id, 'LOST', ACTOR_A);
+    await prisma.bet.update({ where: { id: lostBet.id }, data: { settledAt: new Date('2026-07-02T09:00:00Z') } });
+
+    const series = await reportsService.getGgrTimeSeries(
+      testBrandId,
+      { from: new Date('2026-07-01T00:00:00Z'), to: new Date('2026-07-02T23:59:59Z') },
+      'day',
+    );
+
+    expect(series).toEqual([
+      { bucket: new Date('2026-07-01T00:00:00Z').toISOString(), ggrCents: -1_000 },
+      { bucket: new Date('2026-07-02T00:00:00Z').toISOString(), ggrCents: 500 },
+    ]);
+  });
 });

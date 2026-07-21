@@ -462,6 +462,43 @@ export async function removeMarginConfig(id: string): Promise<void> {
   }
 }
 
+export interface MarketingSpend {
+  id: string;
+  brandId: string;
+  date: string;
+  channel: string;
+  amountCents: number;
+  createdByUsername: string;
+  createdAt: string;
+}
+
+export async function listMarketingSpend(range: ReportRange = {}): Promise<MarketingSpend[]> {
+  const response = await authenticatedFetch(`/admin/marketing-spend${rangeQuery(range)}`);
+  return parseJsonOrThrow(response, `Failed to load marketing spend: ${response.status}`);
+}
+
+export async function createMarketingSpend(
+  date: string,
+  channel: string,
+  amountCents: number,
+): Promise<MarketingSpend> {
+  const response = await authenticatedFetch('/admin/marketing-spend', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date, channel, amountCents }),
+  });
+  return parseJsonOrThrow(response, `Failed to record marketing spend: ${response.status}`);
+}
+
+export async function removeMarketingSpend(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/marketing-spend/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to remove marketing spend: ${response.status}`);
+  }
+}
+
 export type BrandImageSlot = 'REGISTER_DESKTOP' | 'REGISTER_MOBILE' | 'HOMEPAGE_OFFER' | 'MATCH_OF_THE_DAY';
 
 export interface BrandImage {
