@@ -396,6 +396,19 @@ export async function createManualMarket(
   return parseJsonOrThrow(response, `Failed to create manual market: ${response.status}`);
 }
 
+export async function updateManualMarket(
+  id: string,
+  name: string,
+  selections: ManualMarketSelectionInput[],
+): Promise<ManualMarket> {
+  const response = await authenticatedFetch(`/admin/manual-markets/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, selections }),
+  });
+  return parseJsonOrThrow(response, `Failed to update manual market: ${response.status}`);
+}
+
 export async function removeManualMarket(id: string): Promise<void> {
   const response = await authenticatedFetch(`/admin/manual-markets/${id}`, {
     method: 'DELETE',

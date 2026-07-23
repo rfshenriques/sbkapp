@@ -150,6 +150,80 @@ describe('ManualMarketsPage', () => {
     expect(await screen.findByText('Novelty Market')).toBeInTheDocument();
   });
 
+  it('editing a market pre-fills the form and sends a PATCH with the full replacement selection list', async () => {
+    let manualMarkets: ManualMarket[] = [
+      {
+        id: 'market-1',
+        matchId: 'match-1',
+        name: 'To Win Both Halves',
+        createdAt: '2026-07-18T00:00:00Z',
+        selections: [
+          { id: 'sel-1', name: 'Yes', odds: 3.5 },
+          { id: 'sel-2', name: 'No', odds: 1.25 },
+        ],
+      },
+    ];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/api/events') {
+        return new Response(JSON.stringify([liveMatch]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/manual-markets') {
+        return new Response(JSON.stringify(manualMarkets), { status: 200 });
+      }
+      if (method === 'PATCH' && url === '/backend/admin/manual-markets/market-1') {
+        expect(JSON.parse(init!.body as string)).toEqual({
+          name: 'To Win Both Halves (fixed)',
+          selections: [
+            { name: 'Yes', odds: 3.5 },
+            { name: 'No', odds: 1.25 },
+          ],
+        });
+        manualMarkets = [{ ...manualMarkets[0]!, name: 'To Win Both Halves (fixed)' }];
+        return new Response(JSON.stringify(manualMarkets[0]), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderManualMarketsPage();
+    await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+
+    const nameInput = screen.getByLabelText('Edit market name');
+    expect(nameInput).toHaveValue('To Win Both Halves');
+    expect(screen.getByLabelText('Edit selection 1 name')).toHaveValue('Yes');
+    expect(screen.getByLabelText('Edit selection 1 odds')).toHaveValue('3.5');
+
+    await userEvent.type(nameInput, ' (fixed)');
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(await screen.findByText('To Win Both Halves (fixed)')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Edit market name')).not.toBeInTheDocument();
+  });
+
+  it('cancelling an edit discards changes and restores the static view', async () => {
+    stubFetch([
+      {
+        id: 'market-1',
+        matchId: 'match-1',
+        name: 'To Win Both Halves',
+        createdAt: '2026-07-18T00:00:00Z',
+        selections: [{ id: 'sel-1', name: 'Yes', odds: 3.5 }],
+      },
+    ]);
+
+    renderManualMarketsPage();
+    await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByLabelText('Edit market name')).not.toBeInTheDocument();
+    expect(screen.getByText('To Win Both Halves')).toBeInTheDocument();
+  });
+
   it('removing a market sends a DELETE for its id', async () => {
     let manualMarkets: ManualMarket[] = [
       {

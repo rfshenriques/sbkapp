@@ -13,30 +13,46 @@ interface DraftSelection {
   odds: string;
 }
 
-function NewMarketForm({ matchId }: { matchId: string }) {
-  const queryClient = useQueryClient();
-  const [name, setName] = useState('');
-  const [selections, setSelections] = useState<DraftSelection[]>([
-    { name: '', odds: '' },
-    { name: '', odds: '' },
-  ]);
+function draftFromMarket(market?: backendApi.ManualMarket): DraftSelection[] {
+  return market
+    ? market.selections.map((selection) => ({ name: selection.name, odds: String(selection.odds) }))
+    : [
+        { name: '', odds: '' },
+        { name: '', odds: '' },
+      ];
+}
 
-  const createMutation = useMutation({
-    mutationFn: () =>
-      backendApi.createManualMarket(
-        matchId,
-        name,
-        selections
-          .filter((selection) => selection.name.trim() !== '' && selection.odds !== '')
-          .map((selection) => ({ name: selection.name, odds: Number(selection.odds) })),
-      ),
+interface MarketFormProps {
+  matchId: string;
+  /** Present -> editing this existing market in place; absent -> creating a new one. */
+  market?: backendApi.ManualMarket;
+  /** Called after a successful save when editing, so the caller can close the edit row. */
+  onSaved?: () => void;
+  onCancel?: () => void;
+}
+
+function MarketForm({ matchId, market, onSaved, onCancel }: MarketFormProps) {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState(market?.name ?? '');
+  const [selections, setSelections] = useState<DraftSelection[]>(draftFromMarket(market));
+
+  const saveMutation = useMutation({
+    mutationFn: () => {
+      const payload = selections
+        .filter((selection) => selection.name.trim() !== '' && selection.odds !== '')
+        .map((selection) => ({ name: selection.name, odds: Number(selection.odds) }));
+      return market
+        ? backendApi.updateManualMarket(market.id, name, payload)
+        : backendApi.createManualMarket(matchId, name, payload);
+    },
     onSuccess: () => {
-      setName('');
-      setSelections([
-        { name: '', odds: '' },
-        { name: '', odds: '' },
-      ]);
       void queryClient.invalidateQueries({ queryKey: manualMarketsQueryKey });
+      if (market) {
+        onSaved?.();
+      } else {
+        setName('');
+        setSelections(draftFromMarket());
+      }
     },
   });
 
@@ -49,12 +65,14 @@ function NewMarketForm({ matchId }: { matchId: string }) {
     setSelections((prev) => prev.map((selection, i) => (i === index ? { ...selection, [field]: value } : selection)));
   }
 
+  const namePrefix = market ? 'Edit' : 'New';
+
   return (
     <div className="space-y-2 rounded-md bg-background px-3 py-2">
       <input
         type="text"
         placeholder="Market name"
-        aria-label="New market name"
+        aria-label={`${namePrefix} market name`}
         value={name}
         onChange={(event) => setName(event.target.value)}
         className="w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary"
@@ -64,7 +82,7 @@ function NewMarketForm({ matchId }: { matchId: string }) {
           <input
             type="text"
             placeholder="Selection name"
-            aria-label={`New selection ${index + 1} name`}
+            aria-label={`${namePrefix} selection ${index + 1} name`}
             value={selection.name}
             onChange={(event) => updateSelection(index, 'name', event.target.value)}
             className="flex-1 rounded-md border border-border bg-surface px-2 py-1 text-sm text-text-primary"
@@ -73,7 +91,7 @@ function NewMarketForm({ matchId }: { matchId: string }) {
             type="text"
             inputMode="decimal"
             placeholder="Odds"
-            aria-label={`New selection ${index + 1} odds`}
+            aria-label={`${namePrefix} selection ${index + 1} odds`}
             value={selection.odds}
             onChange={(event) => updateSelection(index, 'odds', event.target.value)}
             className="w-20 rounded-md border border-border bg-surface px-2 py-1 text-center text-sm text-text-primary"
@@ -92,13 +110,14 @@ function NewMarketForm({ matchId }: { matchId: string }) {
         <Button variant="secondary" onClick={() => setSelections((prev) => [...prev, { name: '', odds: '' }])}>
           Add selection
         </Button>
-        <Button
-          variant="primary"
-          disabled={!canSubmit || createMutation.isPending}
-          onClick={() => createMutation.mutate()}
-        >
-          Create market
+        <Button variant="primary" disabled={!canSubmit || saveMutation.isPending} onClick={() => saveMutation.mutate()}>
+          {market ? 'Save changes' : 'Create market'}
         </Button>
+        {market && (
+          <Button variant="ghost" disabled={saveMutation.isPending} onClick={onCancel}>
+            Cancel
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -107,6 +126,7 @@ function NewMarketForm({ matchId }: { matchId: string }) {
 export default function ManualMarketsPage() {
   const queryClient = useQueryClient();
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
+  const [editingMarketId, setEditingMarketId] = useState<string | null>(null);
 
   const {
     data: matches,
@@ -165,30 +185,45 @@ export default function ManualMarketsPage() {
 
               {isExpanded && (
                 <div className="mt-3 space-y-3 border-t border-border pt-3">
-                  {existing.map((market) => (
-                    <div key={market.id} className="rounded-md bg-background px-3 py-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-medium">{market.name}</span>
-                        <Button
-                          variant="danger"
-                          disabled={removeMutation.isPending}
-                          onClick={() => removeMutation.mutate(market.id)}
-                        >
-                          Remove market
-                        </Button>
-                      </div>
-                      <div className="mt-1.5 space-y-1 text-sm text-text-secondary">
-                        {market.selections.map((selection) => (
-                          <div key={selection.id} className="flex items-center justify-between">
-                            <span>{selection.name}</span>
-                            <span className="text-text-muted">{selection.odds.toFixed(2)}</span>
+                  {existing.map((market) =>
+                    editingMarketId === market.id ? (
+                      <MarketForm
+                        key={market.id}
+                        matchId={match.id}
+                        market={market}
+                        onSaved={() => setEditingMarketId(null)}
+                        onCancel={() => setEditingMarketId(null)}
+                      />
+                    ) : (
+                      <div key={market.id} className="rounded-md bg-background px-3 py-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-medium">{market.name}</span>
+                          <div className="flex items-center gap-2">
+                            <Button variant="secondary" onClick={() => setEditingMarketId(market.id)}>
+                              Edit
+                            </Button>
+                            <Button
+                              variant="danger"
+                              disabled={removeMutation.isPending}
+                              onClick={() => removeMutation.mutate(market.id)}
+                            >
+                              Remove market
+                            </Button>
                           </div>
-                        ))}
+                        </div>
+                        <div className="mt-1.5 space-y-1 text-sm text-text-secondary">
+                          {market.selections.map((selection) => (
+                            <div key={selection.id} className="flex items-center justify-between">
+                              <span>{selection.name}</span>
+                              <span className="text-text-muted">{selection.odds.toFixed(2)}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ),
+                  )}
 
-                  <NewMarketForm matchId={match.id} />
+                  <MarketForm matchId={match.id} />
                 </div>
               )}
             </Card>
