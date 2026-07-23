@@ -70,6 +70,8 @@ export default function MatchDetailPage() {
   }
 
   const matchResult = match.markets.find((market) => market.id === 'match-result');
+  // Everything else - manual markets included - shown as its own section below Match Result.
+  const otherMarkets = match.markets.filter((market) => market.id !== 'match-result');
   const homeTeamLabel = displayName('TEAM', match.homeTeam);
   const awayTeamLabel = displayName('TEAM', match.awayTeam);
   const matchLabel = `${homeTeamLabel} vs ${awayTeamLabel}`;
@@ -177,6 +179,25 @@ export default function MatchDetailPage() {
       ) : (
         <p className="mt-6 text-text-secondary">No odds available for this match yet.</p>
       )}
+
+      {otherMarkets.map((market) => (
+        <div key={market.id} className="mt-6">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="brand-flag" aria-hidden="true">
+              <i></i>
+              <i></i>
+              <i></i>
+            </span>
+            <h2 className="font-display text-lg">{displayName('MARKET', market.name)}</h2>
+          </div>
+          <MarketSelections
+            matchId={match.id}
+            matchLabel={matchLabel}
+            competition={match.competition}
+            market={market}
+          />
+        </div>
+      ))}
     </div>
   );
 }

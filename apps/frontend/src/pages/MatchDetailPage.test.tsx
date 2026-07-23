@@ -70,6 +70,43 @@ describe('MatchDetailPage', () => {
     expect(await screen.findByText('No odds available for this match yet.')).toBeInTheDocument();
   });
 
+  it('renders every other market on the match below Match Result, manual markets included', async () => {
+    stubOddsEngineFetch([
+      {
+        id: 'match-7',
+        sport: 'Football',
+        country: 'England',
+        competition: 'Some Small League',
+        homeTeam: 'Home Team',
+        awayTeam: 'Away Team',
+        kickoff: '2026-07-20T15:00:00Z',
+        isLive: false,
+        markets: [
+          {
+            id: 'match-result',
+            name: 'Match Result',
+            selections: [{ id: 'home', name: 'Home', odds: 1.5 }],
+          },
+          {
+            id: 'manual-1',
+            name: 'To Win Both Halves',
+            selections: [
+              { id: 'yes', name: 'Yes', odds: 3.5 },
+              { id: 'no', name: 'No', odds: 1.25 },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    renderAt('match-7');
+
+    expect(await screen.findByText('Match Result')).toBeInTheDocument();
+    expect(await screen.findByText('To Win Both Halves')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Yes3.50' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'No1.25' })).toBeInTheDocument();
+  });
+
   it('shows the live match tracker for a live match once its live state loads', async () => {
     const liveState: LiveMatchState = {
       matchId: 'match-3',
