@@ -5,6 +5,7 @@ import CompetitionRankingPage from '../pages/CompetitionRankingPage';
 import CompetitionSuspensionsPage from '../pages/CompetitionSuspensionsPage';
 import CompetitionTiersPage from '../pages/CompetitionTiersPage';
 import DisplayNamesPage from '../pages/DisplayNamesPage';
+import ManualMarketsPage from '../pages/ManualMarketsPage';
 import MarginsPage from '../pages/MarginsPage';
 import MarketingSpendPage from '../pages/MarketingSpendPage';
 import MarketsPage from '../pages/MarketsPage';
@@ -59,6 +60,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'TRADING']}>
               <OddsOverridesPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'manual-markets',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'TRADING']}>
+              <ManualMarketsPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

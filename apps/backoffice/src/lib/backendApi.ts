@@ -69,6 +69,25 @@ export interface OddsOverride {
   updatedAt: string;
 }
 
+export interface ManualMarketSelection {
+  id: string;
+  name: string;
+  odds: number;
+}
+
+export interface ManualMarket {
+  id: string;
+  matchId: string;
+  name: string;
+  createdAt: string;
+  selections: ManualMarketSelection[];
+}
+
+export interface ManualMarketSelectionInput {
+  name: string;
+  odds: number;
+}
+
 export interface TeamColor {
   id: string;
   name: string;
@@ -356,6 +375,33 @@ export async function clearOddsOverride(id: string): Promise<void> {
   });
   if (!response.ok) {
     throw new Error(`Failed to clear odds override: ${response.status}`);
+  }
+}
+
+export async function listManualMarkets(): Promise<ManualMarket[]> {
+  const response = await authenticatedFetch('/admin/manual-markets');
+  return parseJsonOrThrow(response, `Failed to load manual markets: ${response.status}`);
+}
+
+export async function createManualMarket(
+  matchId: string,
+  name: string,
+  selections: ManualMarketSelectionInput[],
+): Promise<ManualMarket> {
+  const response = await authenticatedFetch('/admin/manual-markets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ matchId, name, selections }),
+  });
+  return parseJsonOrThrow(response, `Failed to create manual market: ${response.status}`);
+}
+
+export async function removeManualMarket(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/manual-markets/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to remove manual market: ${response.status}`);
   }
 }
 
