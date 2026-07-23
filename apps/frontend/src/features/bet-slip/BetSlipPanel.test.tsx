@@ -145,6 +145,8 @@ describe('BetSlipPanel', () => {
       // 2.1 * 2.5 * 2.0 = 10.5 base; 3 legs x 5% = 15% -> 12.08 (rounded).
       expect(await screen.findByText('🚀 Acca Boost +15%')).toBeInTheDocument();
       expect(screen.getByText('+5% for 1 more selection')).toBeInTheDocument();
+      // Combined odds shows both the pre-boost and boosted figures, not just the end result.
+      expect(screen.getByText('10.50')).toBeInTheDocument();
       expect(screen.getByText('12.08')).toBeInTheDocument();
     });
 

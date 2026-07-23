@@ -124,6 +124,8 @@ interface StakeFieldProps {
    * equivalent header, so its one combined odds figure belongs here.
    */
   hideOdds?: boolean;
+  /** Set to the pre-boost combined odds when the accumulator qualifies for Acca Boost, so the player sees what changed, not just the end result. */
+  previousOdds?: number;
 }
 
 /**
@@ -134,7 +136,7 @@ interface StakeFieldProps {
  * singles share a single payout total in the footer instead of repeating a
  * payout line under every row - see the two `footer` branches below.
  */
-function StakeField({ stakeId, stake, onStakeChange, odds, hideOdds }: StakeFieldProps) {
+function StakeField({ stakeId, stake, onStakeChange, odds, hideOdds, previousOdds }: StakeFieldProps) {
   return (
     <div className="flex items-end gap-2">
       <div className="min-w-0 flex-1">
@@ -154,7 +156,14 @@ function StakeField({ stakeId, stake, onStakeChange, odds, hideOdds }: StakeFiel
       {!hideOdds && (
         <span className="odd-btn shrink-0">
           <span className="odd-label">Odds</span>
-          <span className="odd-value">{odds.toFixed(2)}</span>
+          {previousOdds !== undefined ? (
+            <span className="flex items-center gap-1.5">
+              <span className="text-xs text-text-muted line-through">{previousOdds.toFixed(2)}</span>
+              <span className="odd-value text-highlight">{odds.toFixed(2)}</span>
+            </span>
+          ) : (
+            <span className="odd-value">{odds.toFixed(2)}</span>
+          )}
         </span>
       )}
     </div>
@@ -485,7 +494,13 @@ export function BetSlipPanel({
           <AccaBoostBar legOdds={selections.map((selection) => selection.odds)} config={accaBoostConfig} />
         )}
         {tab === 'accumulator' && (
-          <StakeField stakeId={stakeId} stake={stake} onStakeChange={setStake} odds={combinedOdds} />
+          <StakeField
+            stakeId={stakeId}
+            stake={stake}
+            onStakeChange={setStake}
+            odds={combinedOdds}
+            previousOdds={accaBoost.qualifies ? accaBoost.baseCombinedOdds : undefined}
+          />
         )}
         {singleSelection && (
           <StakeField
