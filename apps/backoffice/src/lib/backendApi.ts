@@ -58,6 +58,17 @@ export interface CompetitionSuspension {
   createdAt: string;
 }
 
+export interface OddsOverride {
+  id: string;
+  matchId: string;
+  marketId: string;
+  selectionId: string;
+  oddsValue: number;
+  reason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface TeamColor {
   id: string;
   name: string;
@@ -316,6 +327,35 @@ export async function unsuspendCompetition(id: string): Promise<void> {
   });
   if (!response.ok) {
     throw new Error(`Failed to unsuspend competition: ${response.status}`);
+  }
+}
+
+export async function listOddsOverrides(): Promise<OddsOverride[]> {
+  const response = await authenticatedFetch('/admin/odds-overrides');
+  return parseJsonOrThrow(response, `Failed to load odds overrides: ${response.status}`);
+}
+
+export async function setOddsOverride(
+  matchId: string,
+  marketId: string,
+  selectionId: string,
+  oddsValue: number,
+  reason: string | undefined,
+): Promise<OddsOverride> {
+  const response = await authenticatedFetch('/admin/odds-overrides', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ matchId, marketId, selectionId, oddsValue, reason }),
+  });
+  return parseJsonOrThrow(response, `Failed to set odds override: ${response.status}`);
+}
+
+export async function clearOddsOverride(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/odds-overrides/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to clear odds override: ${response.status}`);
   }
 }
 

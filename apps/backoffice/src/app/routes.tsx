@@ -9,6 +9,7 @@ import MarginsPage from '../pages/MarginsPage';
 import MarketingSpendPage from '../pages/MarketingSpendPage';
 import MarketsPage from '../pages/MarketsPage';
 import NotFoundPage from '../pages/NotFoundPage';
+import OddsOverridesPage from '../pages/OddsOverridesPage';
 import RegistrationsPage from '../pages/RegistrationsPage';
 import ReportsPage from '../pages/ReportsPage';
 import SettlementPage from '../pages/SettlementPage';
@@ -48,6 +49,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'TRADING']}>
               <CompetitionSuspensionsPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'odds-overrides',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'TRADING']}>
+              <OddsOverridesPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),
