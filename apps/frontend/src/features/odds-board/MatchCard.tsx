@@ -93,7 +93,12 @@ export function MatchCard({ match, style }: MatchCardProps) {
       </div>
       {matchResult ? (
         <div className="mt-3">
-          <MarketSelections matchId={match.id} matchLabel={matchLabel} market={matchResult} />
+          <MarketSelections
+            matchId={match.id}
+            matchLabel={matchLabel}
+            competition={match.competition}
+            market={matchResult}
+          />
         </div>
       ) : (
         // No odds to show inline yet (feed hasn't priced this match, or

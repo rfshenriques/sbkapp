@@ -8,6 +8,8 @@ import { useBrandStore } from '../brand/brandStore';
 import { MarketSelections } from './MarketSelections';
 import { useBetSlipStore } from './betSlipStore';
 
+const COMPETITION = 'Premier League';
+
 const matchResult: Market = {
   id: 'match-result',
   name: 'Match Result',
@@ -37,7 +39,12 @@ function renderWithQueryClient(ui: ReactElement) {
 
 function renderMarketSelections() {
   return renderWithQueryClient(
-    <MarketSelections matchId="match-1" matchLabel="Arsenal vs Chelsea" market={matchResult} />,
+    <MarketSelections
+      matchId="match-1"
+      matchLabel="Arsenal vs Chelsea"
+      competition={COMPETITION}
+      market={matchResult}
+    />,
   );
 }
 
@@ -129,7 +136,12 @@ describe('MarketSelections', () => {
       ],
     };
     const { container } = renderWithQueryClient(
-      <MarketSelections matchId="match-1" matchLabel="Arsenal vs Chelsea" market={twoWay} />,
+      <MarketSelections
+        matchId="match-1"
+        matchLabel="Arsenal vs Chelsea"
+        competition={COMPETITION}
+        market={twoWay}
+      />,
     );
     const grid = container.firstElementChild as HTMLElement;
     expect(grid.style.gridTemplateColumns).toBe('repeat(2, minmax(0, 1fr))');
@@ -142,7 +154,12 @@ describe('MarketSelections', () => {
       selections: [{ id: 'team-a', name: 'Team A', odds: 1.5 }],
     };
     const { container } = renderWithQueryClient(
-      <MarketSelections matchId="match-1" matchLabel="Arsenal vs Chelsea" market={oneWay} />,
+      <MarketSelections
+        matchId="match-1"
+        matchLabel="Arsenal vs Chelsea"
+        competition={COMPETITION}
+        market={oneWay}
+      />,
     );
     const grid = container.firstElementChild as HTMLElement;
     expect(grid.style.gridTemplateColumns).toBe('repeat(1, minmax(0, 1fr))');
@@ -153,7 +170,12 @@ describe('MarketSelections', () => {
     const queryClient = new QueryClient();
     const { rerender } = render(
       <QueryClientProvider client={queryClient}>
-        <MarketSelections matchId="match-1" matchLabel="Arsenal vs Chelsea" market={matchResult} />
+        <MarketSelections
+          matchId="match-1"
+          matchLabel="Arsenal vs Chelsea"
+          competition={COMPETITION}
+          market={matchResult}
+        />
       </QueryClientProvider>,
     );
 
@@ -165,6 +187,7 @@ describe('MarketSelections', () => {
         <MarketSelections
           matchId="match-1"
           matchLabel="Arsenal vs Chelsea"
+          competition={COMPETITION}
           market={{ ...matchResult, selections: [{ id: 'home', name: 'Home', odds: 2.5 }, ...matchResult.selections.slice(1)] }}
         />
       </QueryClientProvider>,
@@ -181,6 +204,7 @@ describe('MarketSelections', () => {
         <MarketSelections
           matchId="match-1"
           matchLabel="Arsenal vs Chelsea"
+          competition={COMPETITION}
           market={{ ...matchResult, selections: [{ id: 'home', name: 'Home', odds: 1.8 }, ...matchResult.selections.slice(1)] }}
         />
       </QueryClientProvider>,
@@ -190,16 +214,17 @@ describe('MarketSelections', () => {
     vi.useRealTimers();
   });
 
-  it('mutes every selection and shows a lock icon instead of odds when the market is suspended', async () => {
+  it('mutes every selection and shows a lock icon instead of odds when the whole market is suspended', async () => {
     useBrandStore.setState({ brandId: 'brand-1' });
     vi.stubGlobal(
       'fetch',
       vi.fn(async (input: RequestInfo | URL) => {
         const url = typeof input === 'string' ? input : input.toString();
         if (url === '/backend/public/market-suspensions/brand-1') {
-          return new Response(JSON.stringify([{ matchId: 'match-1', marketId: 'match-result' }]), {
-            status: 200,
-          });
+          return new Response(
+            JSON.stringify([{ matchId: 'match-1', marketId: 'match-result', selectionId: '' }]),
+            { status: 200 },
+          );
         }
         return new Response(JSON.stringify([]), { status: 200 });
       }),
@@ -211,9 +236,55 @@ describe('MarketSelections', () => {
     expect(homeButton).toBeDisabled();
     expect(homeButton.querySelector('.odd-value')).toBeNull();
     expect(homeButton.querySelector('svg')).not.toBeNull();
+    // Every other selection in the market is muted too.
+    expect(screen.getByRole('button', { name: 'Draw suspended' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Away suspended' })).toBeDisabled();
 
     await userEvent.click(homeButton);
     expect(useBetSlipStore.getState().selections).toEqual([]);
+  });
+
+  it('mutes only the specific selection when just that selection is suspended', async () => {
+    useBrandStore.setState({ brandId: 'brand-1' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/backend/public/market-suspensions/brand-1') {
+          return new Response(
+            JSON.stringify([{ matchId: 'match-1', marketId: 'match-result', selectionId: 'home' }]),
+            { status: 200 },
+          );
+        }
+        return new Response(JSON.stringify([]), { status: 200 });
+      }),
+    );
+
+    renderMarketSelections();
+
+    expect(await screen.findByRole('button', { name: 'Home suspended' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Draw3.40' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Away3.20' })).not.toBeDisabled();
+  });
+
+  it('mutes every selection in every market when the competition is suspended', async () => {
+    useBrandStore.setState({ brandId: 'brand-1' });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/backend/public/competition-suspensions/brand-1') {
+          return new Response(JSON.stringify([COMPETITION]), { status: 200 });
+        }
+        return new Response(JSON.stringify([]), { status: 200 });
+      }),
+    );
+
+    renderMarketSelections();
+
+    expect(await screen.findByRole('button', { name: 'Home suspended' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Draw suspended' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Away suspended' })).toBeDisabled();
   });
 
   it('does not suspend a different match sharing the same market name', async () => {
@@ -223,9 +294,10 @@ describe('MarketSelections', () => {
       vi.fn(async (input: RequestInfo | URL) => {
         const url = typeof input === 'string' ? input : input.toString();
         if (url === '/backend/public/market-suspensions/brand-1') {
-          return new Response(JSON.stringify([{ matchId: 'some-other-match', marketId: 'match-result' }]), {
-            status: 200,
-          });
+          return new Response(
+            JSON.stringify([{ matchId: 'some-other-match', marketId: 'match-result', selectionId: '' }]),
+            { status: 200 },
+          );
         }
         return new Response(JSON.stringify([]), { status: 200 });
       }),

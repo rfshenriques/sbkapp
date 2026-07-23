@@ -199,15 +199,28 @@ export interface MarketSuspension {
   matchId: string;
   /** Empty string means the whole match is suspended, not just one market - see apps/backend's MarketSuspensionService. */
   marketId: string;
+  /** Empty string means the whole market is suspended, not just one selection. */
+  selectionId: string;
 }
 
-/** Currently-suspended matches/markets for the acting brand - see apps/backend's MarketSuspensionModule. */
+/** Currently-suspended matches/markets/selections for the acting brand - see apps/backend's MarketSuspensionModule. */
 export async function getMarketSuspensions(brandId: string): Promise<MarketSuspension[]> {
   const response = await fetch(`${BASE_URL}/public/market-suspensions/${encodeURIComponent(brandId)}`);
   if (!response.ok) {
     throw new Error(`Failed to fetch market suspensions: ${response.status}`);
   }
   return (await response.json()) as MarketSuspension[];
+}
+
+/** Currently-suspended competitions for the acting brand (every match within blocked) - see apps/backend's CompetitionSuspensionService. */
+export async function getCompetitionSuspensions(brandId: string): Promise<string[]> {
+  const response = await fetch(
+    `${BASE_URL}/public/competition-suspensions/${encodeURIComponent(brandId)}`,
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch competition suspensions: ${response.status}`);
+  }
+  return (await response.json()) as string[];
 }
 
 export type BrandImageListKind = 'SPONSOR_LOGO' | 'PAYMENT_METHOD';

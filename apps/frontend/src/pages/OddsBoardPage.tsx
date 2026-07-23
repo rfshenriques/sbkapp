@@ -164,6 +164,7 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
             <MarketSelections
               matchId={match.id}
               matchLabel={`${homeTeamLabel} vs ${awayTeamLabel}`}
+              competition={match.competition}
               market={matchResult}
             />
           </div>

@@ -9,6 +9,8 @@ import { useOddsFlash } from './useOddsFlash';
 interface MarketSelectionsProps {
   matchId: string;
   matchLabel: string;
+  /** Raw feed competition name, e.g. "EPL" - checked against competition-level suspensions, which lock every selection here regardless of any market/selection-level suspension. */
+  competition: string;
   market: Market;
 }
 
@@ -46,7 +48,7 @@ function SelectionButton({ selection, label, isSelected, isSuspended, onSelect }
   );
 }
 
-export function MarketSelections({ matchId, matchLabel, market }: MarketSelectionsProps) {
+export function MarketSelections({ matchId, matchLabel, competition, market }: MarketSelectionsProps) {
   const toggleSelection = useBetSlipStore((state) => state.toggleSelection);
   const selectedSelectionId = useBetSlipStore(
     (state) =>
@@ -55,10 +57,10 @@ export function MarketSelections({ matchId, matchLabel, market }: MarketSelectio
       )?.selectionId,
   );
   const displayName = useDisplayNames();
-  const { isSuspended } = useMarketSuspensions();
+  const { isSuspended, isCompetitionSuspended } = useMarketSuspensions();
 
   const orderedSelections = sortMatchResultSelections(market.selections);
-  const marketSuspended = isSuspended(matchId, market.id);
+  const competitionSuspended = isCompetitionSuspended(competition);
 
   return (
     <div
@@ -73,7 +75,7 @@ export function MarketSelections({ matchId, matchLabel, market }: MarketSelectio
             selection={selection}
             label={selectionLabel}
             isSelected={selectedSelectionId === selection.id}
-            isSuspended={marketSuspended}
+            isSuspended={competitionSuspended || isSuspended(matchId, market.id, selection.id)}
             onSelect={() =>
               toggleSelection({
                 matchId,

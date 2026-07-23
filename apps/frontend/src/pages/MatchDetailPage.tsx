@@ -167,7 +167,12 @@ export default function MatchDetailPage() {
             </span>
             <h2 className="font-display text-lg">{displayName('MARKET', matchResult.name)}</h2>
           </div>
-          <MarketSelections matchId={match.id} matchLabel={matchLabel} market={matchResult} />
+          <MarketSelections
+            matchId={match.id}
+            matchLabel={matchLabel}
+            competition={match.competition}
+            market={matchResult}
+          />
         </div>
       ) : (
         <p className="mt-6 text-text-secondary">No odds available for this match yet.</p>
