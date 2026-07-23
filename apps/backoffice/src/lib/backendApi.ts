@@ -58,6 +58,13 @@ export interface CompetitionSuspension {
   createdAt: string;
 }
 
+export interface AccaBoostConfig {
+  boostPercentPerLeg: number;
+  minSelections: number;
+  minOddsPerLeg: number;
+  enabled: boolean;
+}
+
 export interface OddsOverride {
   id: string;
   matchId: string;
@@ -486,6 +493,20 @@ export async function clearBoost(id: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`Failed to clear boost: ${response.status}`);
   }
+}
+
+export async function getAccaBoostConfig(): Promise<AccaBoostConfig> {
+  const response = await authenticatedFetch('/admin/acca-boost-config');
+  return parseJsonOrThrow(response, `Failed to load acca boost config: ${response.status}`);
+}
+
+export async function setAccaBoostConfig(config: AccaBoostConfig): Promise<AccaBoostConfig> {
+  const response = await authenticatedFetch('/admin/acca-boost-config', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  return parseJsonOrThrow(response, `Failed to save acca boost config: ${response.status}`);
 }
 
 function rangeQuery(range: ReportRange): string {

@@ -1,4 +1,5 @@
 import type { RouteObject } from 'react-router-dom';
+import AccaBoostPage from '../pages/AccaBoostPage';
 import AuditLogPage from '../pages/AuditLogPage';
 import CmsImagesPage from '../pages/CmsImagesPage';
 import CompetitionRankingPage from '../pages/CompetitionRankingPage';
@@ -82,6 +83,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'TRADING']}>
               <BoostsPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'acca-boost',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'TRADING']}>
+              <AccaBoostPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

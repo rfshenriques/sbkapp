@@ -35,6 +35,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/manual-markets', label: 'Manual markets', roles: ['ADMIN', 'TRADING'] },
       { to: '/odds-ladder', label: 'Odds ladder', roles: ['ADMIN', 'TRADING'] },
       { to: '/boosts', label: 'Boosts', roles: ['ADMIN', 'TRADING'] },
+      { to: '/acca-boost', label: 'Acca boost', roles: ['ADMIN', 'TRADING'] },
       { to: '/competition-ranking', label: 'Competition rankings', roles: ['ADMIN', 'CMS'] },
     ],
   },
