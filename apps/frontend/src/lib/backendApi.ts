@@ -223,6 +223,22 @@ export async function getCompetitionSuspensions(brandId: string): Promise<string
   return (await response.json()) as string[];
 }
 
+export interface AccaBoostConfig {
+  boostPercentPerLeg: number;
+  minSelections: number;
+  minOddsPerLeg: number;
+  enabled: boolean;
+}
+
+/** The acting brand's accumulator-boost settings - see apps/backend's AccaBoostService. */
+export async function getAccaBoostConfig(brandId: string): Promise<AccaBoostConfig> {
+  const response = await fetch(`${BASE_URL}/public/acca-boost-config/${encodeURIComponent(brandId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch acca boost config: ${response.status}`);
+  }
+  return (await response.json()) as AccaBoostConfig;
+}
+
 export type BrandImageListKind = 'SPONSOR_LOGO' | 'PAYMENT_METHOD';
 
 export interface BrandImageListItem {

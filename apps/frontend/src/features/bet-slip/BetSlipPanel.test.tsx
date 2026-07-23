@@ -4,6 +4,7 @@ import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../auth/authStore';
+import { useBrandStore } from '../brand/brandStore';
 import { BetSlipPanel, type BetSlipPanelProps } from './BetSlipPanel';
 import { useBetSlipStore } from './betSlipStore';
 
@@ -38,9 +39,20 @@ const awaySelection = {
   odds: 2.5,
 };
 
+const drawSelection = {
+  matchId: 'match-3',
+  marketId: 'match-result',
+  selectionId: 'draw',
+  matchLabel: 'Inter vs Milan',
+  marketName: 'Match Result',
+  selectionName: 'Draw',
+  odds: 2.0,
+};
+
 beforeEach(() => {
   useBetSlipStore.setState({ selections: [] });
   useAuthStore.setState({ accessToken: null, user: null, isInitialized: true });
+  useBrandStore.setState({ brandId: undefined });
 });
 
 afterEach(() => {
@@ -85,6 +97,68 @@ describe('BetSlipPanel', () => {
     // Accumulator is the default tab once there are 2+ selections.
     expect(screen.getAllByText('Boost')).toHaveLength(1);
     expect(screen.getByText('2.10')).toBeInTheDocument();
+  });
+
+  describe('acca boost bar', () => {
+    function stubAccaBoostConfig(config: {
+      boostPercentPerLeg: number;
+      minSelections: number;
+      minOddsPerLeg: number;
+      enabled: boolean;
+    }) {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          if (url === '/backend/public/acca-boost-config/brand-1') {
+            return new Response(JSON.stringify(config), { status: 200 });
+          }
+          return new Response(null, { status: 404 });
+        }),
+      );
+    }
+
+    it('shows nothing when acca boost is disabled', () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubAccaBoostConfig({ boostPercentPerLeg: 5, minSelections: 3, minOddsPerLeg: 1.2, enabled: false });
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+      renderPanel();
+
+      expect(screen.queryByText(/Acca Boost/)).not.toBeInTheDocument();
+    });
+
+    it('shows a progress nudge before the minimum number of selections is reached', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubAccaBoostConfig({ boostPercentPerLeg: 5, minSelections: 3, minOddsPerLeg: 1.2, enabled: true });
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+      renderPanel();
+
+      expect(await screen.findByText('Add 1 more selection to unlock Acca Boost')).toBeInTheDocument();
+    });
+
+    it('shows the applied boost percent and next-leg nudge once qualifying, and boosts the potential payout', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubAccaBoostConfig({ boostPercentPerLeg: 5, minSelections: 3, minOddsPerLeg: 1.2, enabled: true });
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection, drawSelection] });
+      renderPanel();
+
+      // 2.1 * 2.5 * 2.0 = 10.5 base; 3 legs x 5% = 15% -> 12.08 (rounded).
+      expect(await screen.findByText('🚀 Acca Boost +15%')).toBeInTheDocument();
+      expect(screen.getByText('+5% for 1 more selection')).toBeInTheDocument();
+      expect(screen.getByText('12.08')).toBeInTheDocument();
+    });
+
+    it('shows a disqualified message when a leg is under the minimum odds, even with enough selections', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubAccaBoostConfig({ boostPercentPerLeg: 5, minSelections: 3, minOddsPerLeg: 1.2, enabled: true });
+      const shortOddsSelection = { ...drawSelection, odds: 1.1 };
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection, shortOddsSelection] });
+      renderPanel();
+
+      expect(
+        await screen.findByText('Every selection needs odds of at least 1.20 to qualify for Acca Boost.'),
+      ).toBeInTheDocument();
+    });
   });
 
   it('removes a selection when its remove button is clicked', async () => {

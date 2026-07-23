@@ -10,6 +10,8 @@ import { useAuth } from '../auth/useAuth';
 import { walletQueryKey } from '../wallet/useWallet';
 import { betsQueryKey } from '../bet-history/useBets';
 import { BetHistoryList } from '../bet-history/BetHistoryList';
+import { calculateAccaBoost, type AccaBoostConfig } from './accaBoost';
+import { useAccaBoostConfig } from './useAccaBoostConfig';
 import { useBetSlipStore, type BetSlipSelection } from './betSlipStore';
 
 type BetSlipTab = 'singles' | 'accumulator';
@@ -52,6 +54,61 @@ function SelectionOdds({ selection }: { selection: BetSlipSelection }) {
       <span className="text-xs text-text-muted line-through">{selection.originalOdds.toFixed(2)}</span>
       <span className="font-semibold text-highlight">{selection.odds.toFixed(2)}</span>
     </span>
+  );
+}
+
+/**
+ * Only rendered for the accumulator tab - singles never qualify (see
+ * calculateAccaBoost's minSelections gate). Three states: not enough
+ * selections yet (progress bar toward the threshold), enough selections but
+ * a leg's price is too short to qualify, or qualifying (bar full, shows the
+ * live boost % and what one more selection would add).
+ */
+function AccaBoostBar({ legOdds, config }: { legOdds: number[]; config: AccaBoostConfig }) {
+  if (!config.enabled) {
+    return null;
+  }
+
+  const result = calculateAccaBoost(legOdds, config);
+
+  if (result.qualifies) {
+    return (
+      <div className="space-y-1.5 rounded-xl border border-highlight/40 bg-highlight/10 p-2.5">
+        <div className="flex items-center justify-between gap-2 text-xs font-semibold">
+          <span className="text-highlight">🚀 Acca Boost +{result.boostPercent}%</span>
+          <span className="text-text-muted">+{config.boostPercentPerLeg}% for 1 more selection</span>
+        </div>
+        <div className="h-1.5 overflow-hidden rounded-full bg-surface">
+          <div className="h-full w-full rounded-full bg-highlight" />
+        </div>
+      </div>
+    );
+  }
+
+  const belowMinOdds = legOdds.length > 0 && legOdds.some((odds) => odds < config.minOddsPerLeg);
+  if (belowMinOdds) {
+    return (
+      <div className="rounded-xl border border-border bg-surface-2 p-2.5 text-xs text-text-muted">
+        Every selection needs odds of at least {config.minOddsPerLeg.toFixed(2)} to qualify for Acca
+        Boost.
+      </div>
+    );
+  }
+
+  const remaining = Math.max(0, config.minSelections - legOdds.length);
+  const progressPercent = Math.min(100, Math.round((legOdds.length / config.minSelections) * 100));
+  return (
+    <div className="space-y-1.5 rounded-xl border border-border bg-surface-2 p-2.5">
+      <p className="text-xs font-medium text-text-secondary">
+        Add {remaining} more selection{remaining === 1 ? '' : 's'} to unlock Acca Boost
+      </p>
+      <div className="h-1.5 overflow-hidden rounded-full bg-surface">
+        <div
+          className="h-full rounded-full bg-highlight transition-all"
+          style={{ width: `${progressPercent}%` }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -202,6 +259,7 @@ export function BetSlipPanel({
   const removeSelection = useBetSlipStore((state) => state.removeSelection);
   const clear = useBetSlipStore((state) => state.clear);
   const { isAuthenticated } = useAuth();
+  const accaBoostConfig = useAccaBoostConfig();
   const queryClient = useQueryClient();
   const [stake, setStake] = useState('10.00');
   // Keyed by selectionKey() - each single-bet row's own stake, entered
@@ -273,7 +331,12 @@ export function BetSlipPanel({
 
   const showTabs = selections.length >= 2;
   const tab: BetSlipTab = showTabs ? activeTab : 'singles';
-  const combinedOdds = selections.reduce((total, selection) => total * selection.odds, 1);
+  const accaBoost = calculateAccaBoost(
+    selections.map((selection) => selection.odds),
+    accaBoostConfig,
+  );
+  // The un-boosted product passes straight through when the accumulator doesn't qualify (see calculateAccaBoost).
+  const combinedOdds = accaBoost.boostedCombinedOdds;
   const stakeCents = Math.round(Number(stake) * 100);
   const isStakeValid = Number.isFinite(stakeCents) && stakeCents > 0;
   const potentialPayout = isStakeValid ? ((stakeCents * combinedOdds) / 100).toFixed(2) : '—';
@@ -418,6 +481,9 @@ export function BetSlipPanel({
 
     footer = (
       <div className="mt-3 shrink-0 space-y-2 border-t border-border pt-3">
+        {tab === 'accumulator' && (
+          <AccaBoostBar legOdds={selections.map((selection) => selection.odds)} config={accaBoostConfig} />
+        )}
         {tab === 'accumulator' && (
           <StakeField stakeId={stakeId} stake={stake} onStakeChange={setStake} odds={combinedOdds} />
         )}
