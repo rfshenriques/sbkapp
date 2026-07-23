@@ -1,9 +1,10 @@
-import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Roles } from '../admin/roles.decorator';
 import { RolesGuard } from '../admin/roles.guard';
 import { StaffJwtAuthGuard } from '../admin/staff-jwt-auth.guard';
 import type { StaffJwtPayload } from '../admin/staff-jwt.strategy';
 import { CreateManualMarketDto } from './dto/create-manual-market.dto';
+import { UpdateManualMarketDto } from './dto/update-manual-market.dto';
 import { ManualMarketService } from './manual-market.service';
 
 interface AuthenticatedStaffRequest {
@@ -24,6 +25,15 @@ export class ManualMarketAdminController {
   @Post()
   create(@Body() dto: CreateManualMarketDto, @Req() req: AuthenticatedStaffRequest) {
     return this.manualMarketService.createMarket(req.user.brandId, dto.matchId, dto.name, dto.selections, {
+      id: req.user.sub,
+      username: req.user.username,
+      brandId: req.user.brandId,
+    });
+  }
+
+  @Patch(':id')
+  update(@Param('id') id: string, @Body() dto: UpdateManualMarketDto, @Req() req: AuthenticatedStaffRequest) {
+    return this.manualMarketService.updateMarket(req.user.brandId, id, dto.name, dto.selections, {
       id: req.user.sub,
       username: req.user.username,
       brandId: req.user.brandId,

@@ -91,6 +91,48 @@ describe('ManualMarketService', () => {
     expect(listed[0]?.selections.map((s) => s.name)).toEqual(['Yes', 'No']);
   });
 
+  it('updating a market replaces its name and its entire selection list', async () => {
+    const market = await service.createMarket(
+      brandAId,
+      'match-1',
+      'To Win Both Halves',
+      [
+        { name: 'Yes', odds: 3.5 },
+        { name: 'No', odds: 1.25 },
+      ],
+      TEST_ACTOR,
+    );
+
+    const updated = await service.updateMarket(
+      brandAId,
+      market.id,
+      'To Win Both Halves (corrected)',
+      [{ name: 'Definitely', odds: 4.0 }],
+      TEST_ACTOR,
+    );
+
+    expect(updated.name).toBe('To Win Both Halves (corrected)');
+    expect(updated.selections.map((s) => s.name)).toEqual(['Definitely']);
+    expect(
+      await prisma.manualMarketSelection.findMany({ where: { manualMarketId: market.id } }),
+    ).toHaveLength(1);
+  });
+
+  it('updating a nonexistent market throws NotFoundException', async () => {
+    await expect(
+      service.updateMarket(brandAId, 'does-not-exist', 'Renamed', [{ name: 'Yes', odds: 2 }], TEST_ACTOR),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("a brand can never update another brand's manual market, even by guessing its id", async () => {
+    const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+
+    await expect(
+      service.updateMarket(brandBId, market.id, 'Hijacked', [{ name: 'Yes', odds: 2 }], OTHER_BRAND_ACTOR),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect((await service.listMarkets(brandAId))[0]?.name).toBe('Novelty');
+  });
+
   it('removing a market cascades to its selections', async () => {
     const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
     await service.removeMarket(brandAId, market.id, TEST_ACTOR);
@@ -114,15 +156,20 @@ describe('ManualMarketService', () => {
     expect(await service.listMarkets(brandAId)).toHaveLength(1);
   });
 
-  it('records audit entries for create and remove', async () => {
+  it('records audit entries for create, update, and remove', async () => {
     const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+    await service.updateMarket(brandAId, market.id, 'Novelty (renamed)', [{ name: 'Yes', odds: 2.5 }], TEST_ACTOR);
     await service.removeMarket(brandAId, market.id, TEST_ACTOR);
 
     const entries = await prisma.auditLogEntry.findMany({
       where: { actorUsername: TEST_ACTOR.username },
       orderBy: { createdAt: 'asc' },
     });
-    expect(entries.map((entry) => entry.action)).toEqual(['MANUAL_MARKET_CREATED', 'MANUAL_MARKET_REMOVED']);
+    expect(entries.map((entry) => entry.action)).toEqual([
+      'MANUAL_MARKET_CREATED',
+      'MANUAL_MARKET_UPDATED',
+      'MANUAL_MARKET_REMOVED',
+    ]);
     expect(entries[0]?.targetType).toBe('ManualMarket');
   });
 

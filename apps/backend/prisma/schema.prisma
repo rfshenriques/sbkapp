@@ -139,6 +139,7 @@ enum AuditAction {
   ODDS_OVERRIDE_CLEARED
   MANUAL_MARKET_CREATED
   MANUAL_MARKET_REMOVED
+  MANUAL_MARKET_UPDATED
 }
 
 /**
@@ -429,8 +430,8 @@ model OddsOverride {
  * match.markets alongside the feed's own markets. Its selections carry
  * whatever price the trader set directly (no margin pipeline involvement -
  * there's no feed price to apply a margin to). Deleting the market cascades
- * to its selections; there's no incremental edit, a trader who wants to
- * change one recreates it.
+ * to its selections; editing replaces the name and the whole selection list
+ * in one write rather than patching individual selections.
  */
 model ManualMarket {
   id        String   @id @default(uuid())

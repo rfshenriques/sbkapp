@@ -51,6 +51,44 @@ export class ManualMarketService {
     return market;
   }
 
+  /**
+   * Replaces the market's name and its entire selection list in one write -
+   * a trader fixing a typo or repricing doesn't need to delete and
+   * recreate. `brandId` must match the market's own brand, same as
+   * removeMarket.
+   */
+  async updateMarket(
+    brandId: string,
+    id: string,
+    name: string,
+    selections: ManualMarketSelectionInput[],
+    actor: AuditActor,
+  ) {
+    const existing = await this.prisma.manualMarket.findUnique({ where: { id } });
+    if (!existing || existing.brandId !== brandId) {
+      throw new NotFoundException('Manual market not found');
+    }
+
+    const market = await this.prisma.manualMarket.update({
+      where: { id },
+      data: {
+        name,
+        selections: { deleteMany: {}, create: selections },
+      },
+      include: { selections: true },
+    });
+
+    await this.auditLogService.record({
+      actor,
+      action: 'MANUAL_MARKET_UPDATED',
+      targetType: 'ManualMarket',
+      targetId: market.id,
+      metadata: { name, selections: selections.map(({ name: n, odds }) => ({ name: n, odds })) },
+    });
+
+    return market;
+  }
+
   /** `brandId` must match the market's own brand - a staff member can never remove another brand's manual market, even by guessing its id. */
   async removeMarket(brandId: string, id: string, actor: AuditActor) {
     const existing = await this.prisma.manualMarket.findUnique({ where: { id } });
