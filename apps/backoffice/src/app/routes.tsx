@@ -10,6 +10,8 @@ import MarginsPage from '../pages/MarginsPage';
 import MarketingSpendPage from '../pages/MarketingSpendPage';
 import MarketsPage from '../pages/MarketsPage';
 import NotFoundPage from '../pages/NotFoundPage';
+import BoostsPage from '../pages/BoostsPage';
+import OddsLadderPage from '../pages/OddsLadderPage';
 import OddsOverridesPage from '../pages/OddsOverridesPage';
 import RegistrationsPage from '../pages/RegistrationsPage';
 import ReportsPage from '../pages/ReportsPage';
@@ -60,6 +62,26 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'TRADING']}>
               <OddsOverridesPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'odds-ladder',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'TRADING']}>
+              <OddsLadderPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'boosts',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'TRADING']}>
+              <BoostsPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

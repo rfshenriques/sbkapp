@@ -88,6 +88,23 @@ export interface ManualMarketSelectionInput {
   odds: number;
 }
 
+export interface OddsLadderRung {
+  id: string;
+  value: number;
+  createdAt: string;
+}
+
+export interface Boost {
+  id: string;
+  matchId: string;
+  marketId: string;
+  selectionId: string;
+  ticks: number;
+  reason: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface TeamColor {
   id: string;
   name: string;
@@ -415,6 +432,59 @@ export async function removeManualMarket(id: string): Promise<void> {
   });
   if (!response.ok) {
     throw new Error(`Failed to remove manual market: ${response.status}`);
+  }
+}
+
+export async function listOddsLadderRungs(): Promise<OddsLadderRung[]> {
+  const response = await authenticatedFetch('/admin/odds-ladder');
+  return parseJsonOrThrow(response, `Failed to load odds ladder: ${response.status}`);
+}
+
+export async function addOddsLadderRung(value: number): Promise<OddsLadderRung> {
+  const response = await authenticatedFetch('/admin/odds-ladder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value }),
+  });
+  return parseJsonOrThrow(response, `Failed to add odds ladder rung: ${response.status}`);
+}
+
+export async function generateStandardOddsLadder(): Promise<OddsLadderRung[]> {
+  const response = await authenticatedFetch('/admin/odds-ladder/generate-standard', { method: 'POST' });
+  return parseJsonOrThrow(response, `Failed to generate standard odds ladder: ${response.status}`);
+}
+
+export async function removeOddsLadderRung(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/odds-ladder/${id}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(`Failed to remove odds ladder rung: ${response.status}`);
+  }
+}
+
+export async function listBoosts(): Promise<Boost[]> {
+  const response = await authenticatedFetch('/admin/boosts');
+  return parseJsonOrThrow(response, `Failed to load boosts: ${response.status}`);
+}
+
+export async function setBoost(
+  matchId: string,
+  marketId: string,
+  selectionId: string,
+  ticks: number,
+  reason: string | undefined,
+): Promise<Boost> {
+  const response = await authenticatedFetch('/admin/boosts', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ matchId, marketId, selectionId, ticks, reason }),
+  });
+  return parseJsonOrThrow(response, `Failed to set boost: ${response.status}`);
+}
+
+export async function clearBoost(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/boosts/${id}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(`Failed to clear boost: ${response.status}`);
   }
 }
 
