@@ -2,6 +2,7 @@ import type { RouteObject } from 'react-router-dom';
 import AuditLogPage from '../pages/AuditLogPage';
 import CmsImagesPage from '../pages/CmsImagesPage';
 import CompetitionRankingPage from '../pages/CompetitionRankingPage';
+import CompetitionSuspensionsPage from '../pages/CompetitionSuspensionsPage';
 import CompetitionTiersPage from '../pages/CompetitionTiersPage';
 import DisplayNamesPage from '../pages/DisplayNamesPage';
 import MarginsPage from '../pages/MarginsPage';
@@ -37,6 +38,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'TRADING']}>
               <MarketsPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'competition-suspensions',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'TRADING']}>
+              <CompetitionSuspensionsPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

@@ -44,6 +44,16 @@ export interface MarketSuspension {
   matchId: string;
   /** Empty string means the whole match is suspended, not one specific market. */
   marketId: string;
+  /** Empty string means the whole market is suspended, not one specific selection. */
+  selectionId: string;
+  reason: string | null;
+  createdAt: string;
+}
+
+export interface CompetitionSuspension {
+  id: string;
+  brandId: string;
+  competition: string;
   reason: string | null;
   createdAt: string;
 }
@@ -263,12 +273,13 @@ export async function listMarketSuspensions(): Promise<MarketSuspension[]> {
 export async function suspendMarket(
   matchId: string,
   marketId: string | undefined,
+  selectionId: string | undefined,
   reason: string | undefined,
 ): Promise<MarketSuspension> {
   const response = await authenticatedFetch('/admin/market-suspensions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ matchId, marketId, reason }),
+    body: JSON.stringify({ matchId, marketId, selectionId, reason }),
   });
   return parseJsonOrThrow(response, `Failed to suspend market: ${response.status}`);
 }
@@ -279,6 +290,32 @@ export async function unsuspendMarket(id: string): Promise<void> {
   });
   if (!response.ok) {
     throw new Error(`Failed to unsuspend market: ${response.status}`);
+  }
+}
+
+export async function listCompetitionSuspensions(): Promise<CompetitionSuspension[]> {
+  const response = await authenticatedFetch('/admin/competition-suspensions');
+  return parseJsonOrThrow(response, `Failed to load competition suspensions: ${response.status}`);
+}
+
+export async function suspendCompetition(
+  competition: string,
+  reason: string | undefined,
+): Promise<CompetitionSuspension> {
+  const response = await authenticatedFetch('/admin/competition-suspensions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ competition, reason }),
+  });
+  return parseJsonOrThrow(response, `Failed to suspend competition: ${response.status}`);
+}
+
+export async function unsuspendCompetition(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/competition-suspensions/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to unsuspend competition: ${response.status}`);
   }
 }
 

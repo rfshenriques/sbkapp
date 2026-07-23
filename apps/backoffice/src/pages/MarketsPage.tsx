@@ -8,12 +8,14 @@ import * as oddsEngineApi from '../lib/oddsEngineApi';
 const suspensionsQueryKey = ['market-suspensions'] as const;
 const matchesQueryKey = ['live-matches'] as const;
 
-/** Backend convention: an empty marketId on a suspension means the whole match. */
+/** Backend convention: an empty marketId/selectionId means the whole match/market. */
 const WHOLE_MATCH_MARKER = '';
+const WHOLE_MARKET_MARKER = '';
 
 export default function MarketsPage() {
   const queryClient = useQueryClient();
   const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
+  const [expandedMarketId, setExpandedMarketId] = useState<string | null>(null);
 
   const {
     data: matches,
@@ -33,8 +35,15 @@ export default function MarketsPage() {
   });
 
   const suspendMutation = useMutation({
-    mutationFn: ({ matchId, marketId }: { matchId: string; marketId?: string }) =>
-      backendApi.suspendMarket(matchId, marketId, undefined),
+    mutationFn: ({
+      matchId,
+      marketId,
+      selectionId,
+    }: {
+      matchId: string;
+      marketId?: string;
+      selectionId?: string;
+    }) => backendApi.suspendMarket(matchId, marketId, selectionId, undefined),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: suspensionsQueryKey }),
   });
 
@@ -43,11 +52,16 @@ export default function MarketsPage() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: suspensionsQueryKey }),
   });
 
-  function findSuspension(matchId: string, marketId: string) {
+  function findSuspension(matchId: string, marketId: string, selectionId: string = WHOLE_MARKET_MARKER) {
     return suspensions?.find(
-      (suspension) => suspension.matchId === matchId && suspension.marketId === marketId,
+      (suspension) =>
+        suspension.matchId === matchId &&
+        suspension.marketId === marketId &&
+        suspension.selectionId === selectionId,
     );
   }
+
+  const isMutating = suspendMutation.isPending || unsuspendMutation.isPending;
 
   return (
     <div>
@@ -83,7 +97,7 @@ export default function MarketsPage() {
                   )}
                   <Button
                     variant={matchSuspension ? 'secondary' : 'danger'}
-                    disabled={suspendMutation.isPending || unsuspendMutation.isPending}
+                    disabled={isMutating}
                     onClick={() =>
                       matchSuspension
                         ? unsuspendMutation.mutate(matchSuspension.id)
@@ -105,30 +119,81 @@ export default function MarketsPage() {
                   )}
                   {expandedMatch?.markets.map((market) => {
                     const marketSuspension = findSuspension(match.id, market.id);
+                    const isMarketExpanded = expandedMarketId === market.id;
                     return (
-                      <div
-                        key={market.id}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-background px-3 py-2"
-                      >
-                        <span className="text-sm">{market.name}</span>
-                        <div className="flex items-center gap-2">
-                          {marketSuspension && (
-                            <span className="rounded bg-warning/20 px-2 py-0.5 text-xs text-warning">
-                              Suspended
-                            </span>
-                          )}
-                          <Button
-                            variant={marketSuspension ? 'secondary' : 'danger'}
-                            disabled={suspendMutation.isPending || unsuspendMutation.isPending}
-                            onClick={() =>
-                              marketSuspension
-                                ? unsuspendMutation.mutate(marketSuspension.id)
-                                : suspendMutation.mutate({ matchId: match.id, marketId: market.id })
-                            }
+                      <div key={market.id} className="rounded-md bg-background px-3 py-2">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedMarketId(isMarketExpanded ? null : market.id)}
+                            className="text-left text-sm hover:underline"
                           >
-                            {marketSuspension ? 'Unsuspend' : 'Suspend'}
-                          </Button>
+                            {market.name}
+                          </button>
+                          <div className="flex items-center gap-2">
+                            {marketSuspension && (
+                              <span className="rounded bg-warning/20 px-2 py-0.5 text-xs text-warning">
+                                Suspended
+                              </span>
+                            )}
+                            <Button
+                              variant={marketSuspension ? 'secondary' : 'danger'}
+                              disabled={isMutating}
+                              onClick={() =>
+                                marketSuspension
+                                  ? unsuspendMutation.mutate(marketSuspension.id)
+                                  : suspendMutation.mutate({ matchId: match.id, marketId: market.id })
+                              }
+                            >
+                              {marketSuspension ? 'Unsuspend' : 'Suspend'}
+                            </Button>
+                          </div>
                         </div>
+
+                        {isMarketExpanded && (
+                          <div className="mt-2 space-y-1.5 border-t border-border pt-2">
+                            {market.selections.map((selection) => {
+                              const selectionSuspension = findSuspension(
+                                match.id,
+                                market.id,
+                                selection.id,
+                              );
+                              return (
+                                <div
+                                  key={selection.id}
+                                  className="flex flex-wrap items-center justify-between gap-2 pl-2 text-sm"
+                                >
+                                  <span className="text-text-secondary">
+                                    {selection.name}{' '}
+                                    <span className="text-text-muted">({selection.odds.toFixed(2)})</span>
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    {selectionSuspension && (
+                                      <span className="rounded bg-warning/20 px-2 py-0.5 text-xs text-warning">
+                                        Suspended
+                                      </span>
+                                    )}
+                                    <Button
+                                      variant={selectionSuspension ? 'secondary' : 'danger'}
+                                      disabled={isMutating || Boolean(marketSuspension)}
+                                      onClick={() =>
+                                        selectionSuspension
+                                          ? unsuspendMutation.mutate(selectionSuspension.id)
+                                          : suspendMutation.mutate({
+                                              matchId: match.id,
+                                              marketId: market.id,
+                                              selectionId: selection.id,
+                                            })
+                                      }
+                                    >
+                                      {selectionSuspension ? 'Unsuspend' : 'Suspend'}
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
