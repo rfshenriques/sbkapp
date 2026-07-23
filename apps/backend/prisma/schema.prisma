@@ -135,6 +135,8 @@ enum AuditAction {
   BRAND_IMAGE_LIST_REORDERED
   COMPETITION_SUSPENDED
   COMPETITION_UNSUSPENDED
+  ODDS_OVERRIDE_SET
+  ODDS_OVERRIDE_CLEARED
 }
 
 /**
@@ -394,6 +396,32 @@ model CompetitionSuspension {
 }
 
 /**
+ * A trader's manual fixed price for one selection, applied to
+ * PublicMatchesController's response after MarginPricingService - takes
+ * the final price straight to oddsValue, bypassing the tier/margin
+ * calculation entirely for that selection (not a modifier on top of it).
+ * Keyed on matchId/marketId/selectionId same as MarketSuspension, since
+ * matches are never persisted; scoped per brand like every other trading
+ * tool here.
+ */
+model OddsOverride {
+  id          String   @id @default(uuid())
+  brandId     String
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  matchId     String
+  marketId    String
+  selectionId String
+  oddsValue   Float
+  reason      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([brandId, matchId, marketId, selectionId])
+  @@index([brandId, matchId])
+  @@map("odds_overrides")
+}
+
+/**
  * A snapshot of what was picked at bet time - not a live reference to the
  * odds feed, which has no persistence of its own and can reshuffle/expire.
  */
@@ -499,6 +527,7 @@ model Brand {
   competitionTiers       CompetitionTier[]
   marginConfigs          MarginConfig[]
   marketingSpends        MarketingSpend[]
+  oddsOverrides          OddsOverride[]
 
   @@map("brands")
 }
