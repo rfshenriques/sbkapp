@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { BetStatus, SelectionStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AccaBoostService } from '../acca-boost/acca-boost.service';
+import { calculateAccaBoost } from '../acca-boost/acca-boost';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { computeBetOutcome } from './bet-settlement';
@@ -16,6 +18,7 @@ export class PamService {
     private readonly marketSuspensionService: MarketSuspensionService,
     private readonly competitionSuspensionService: CompetitionSuspensionService,
     private readonly oddsEngineClient: OddsEngineClient,
+    private readonly accaBoostService: AccaBoostService,
   ) {}
 
   async getWallet(userId: string): Promise<{ balanceCents: number }> {
@@ -43,14 +46,19 @@ export class PamService {
   }
 
   async placeBet(userId: string, dto: PlaceBetDto) {
-    const combinedOdds = dto.selections.reduce((total, selection) => total * selection.odds, 1);
-    const potentialPayoutCents = Math.round(dto.stakeCents * combinedOdds);
-
     const { brandId } = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { brandId: true },
     });
     await this.assertNoCompetitionSuspended(brandId, dto);
+
+    const accaBoostConfig = await this.accaBoostService.getConfig(brandId);
+    const boost = calculateAccaBoost(
+      dto.selections.map((selection) => selection.odds),
+      accaBoostConfig,
+    );
+    const combinedOdds = boost.boostedCombinedOdds;
+    const potentialPayoutCents = Math.round(dto.stakeCents * combinedOdds);
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
@@ -85,6 +93,7 @@ export class PamService {
           stakeCents: dto.stakeCents,
           combinedOdds,
           potentialPayoutCents,
+          accaBoostPercent: boost.boostPercent,
           selections: {
             create: dto.selections.map((selection) => ({
               matchId: selection.matchId,
@@ -176,6 +185,7 @@ export class PamService {
           odds: Number(betSelection.odds),
         })),
         updatedBet.stakeCents,
+        updatedBet.accaBoostPercent,
       );
 
       const previousCredited = updatedBet.settledPayoutCents ?? 0;

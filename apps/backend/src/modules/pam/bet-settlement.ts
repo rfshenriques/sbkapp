@@ -27,10 +27,16 @@ export interface SettlementOutcome {
  * Settling one selection never touches any other selection's own status -
  * a leg that's already WON stays WON in its own record even if a sibling
  * leg later settles LOST and kills the bet overall.
+ *
+ * `boostPercent` is the acca boost (see acca-boost.ts) locked in at
+ * placement time - applied on top of the recomputed effective odds so a
+ * boosted accumulator still pays the boosted amount even after some legs
+ * void, rather than silently losing the boost.
  */
 export function computeBetOutcome(
   selections: SettlementSelectionInput[],
   stakeCents: number,
+  boostPercent = 0,
 ): SettlementOutcome {
   if (selections.some((selection) => selection.status === 'LOST')) {
     return { overallStatus: 'LOST', payoutCents: 0 };
@@ -46,5 +52,6 @@ export function computeBetOutcome(
     (total, selection) => (selection.status === 'VOID' ? total : total * selection.odds),
     1,
   );
-  return { overallStatus: 'WON', payoutCents: Math.round(stakeCents * effectiveOdds) };
+  const boostedOdds = effectiveOdds * (1 + boostPercent / 100);
+  return { overallStatus: 'WON', payoutCents: Math.round(stakeCents * boostedOdds) };
 }

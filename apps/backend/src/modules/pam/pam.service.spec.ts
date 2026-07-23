@@ -4,6 +4,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AccaBoostService } from '../acca-boost/acca-boost.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { CompetitionSuspensionService } from './competition-suspension.service';
@@ -46,6 +47,7 @@ describe('PamService', () => {
   let pamService: PamService;
   let marketSuspensionService: MarketSuspensionService;
   let competitionSuspensionService: CompetitionSuspensionService;
+  let accaBoostService: AccaBoostService;
   let prisma: PrismaService;
   let setupPrisma: PrismaService;
   let testBrandId: string;
@@ -81,6 +83,7 @@ describe('PamService', () => {
         AuditLogService,
         MarketSuspensionService,
         CompetitionSuspensionService,
+        AccaBoostService,
         {
           provide: OddsEngineClient,
           useValue: { fetchMatchById: vi.fn(async (matchId: string) => fakeMatch(matchId)) },
@@ -92,12 +95,14 @@ describe('PamService', () => {
     pamService = moduleRef.get(PamService);
     marketSuspensionService = moduleRef.get(MarketSuspensionService);
     competitionSuspensionService = moduleRef.get(CompetitionSuspensionService);
+    accaBoostService = moduleRef.get(AccaBoostService);
     prisma = moduleRef.get(PrismaService);
   });
 
   afterEach(async () => {
     await prisma.marketSuspension.deleteMany({ where: { matchId: { startsWith: 'match-' } } });
     await prisma.competitionSuspension.deleteMany({ where: { competition: DEFAULT_TEST_COMPETITION } });
+    await prisma.accaBoostConfig.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     if (createdUserIds.length > 0) {
       await prisma.auditLogEntry.deleteMany({ where: { actorUsername: TEST_ACTOR.username } });
       await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
@@ -159,6 +164,93 @@ describe('PamService', () => {
     expect(Number(bet.combinedOdds)).toBeCloseTo(3.15);
     expect(bet.potentialPayoutCents).toBe(3_150);
     expect(bet.selections).toHaveLength(2);
+    expect(bet.accaBoostPercent).toBe(0);
+  });
+
+  describe('acca boost', () => {
+    it('boosts a qualifying accumulator and records the boost percent on the bet', async () => {
+      await accaBoostService.setConfig(
+        testBrandId,
+        { boostPercentPerLeg: 5, minSelections: 3, minOddsPerLeg: 1.2, enabled: true },
+        TEST_ACTOR,
+      );
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', odds: 2.0 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2.0 }),
+          buildSelection({ matchId: 'match-3', selectionId: 'away', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+      });
+
+      // Base combined = 8. 3 legs x 5% = 15% boost -> 9.2.
+      expect(bet.accaBoostPercent).toBe(15);
+      expect(Number(bet.combinedOdds)).toBeCloseTo(9.2);
+      expect(bet.potentialPayoutCents).toBe(9_200);
+    });
+
+    it('does not boost when the accumulator has fewer legs than minSelections', async () => {
+      await accaBoostService.setConfig(
+        testBrandId,
+        { boostPercentPerLeg: 5, minSelections: 3, minOddsPerLeg: 1.2, enabled: true },
+        TEST_ACTOR,
+      );
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', odds: 2.0 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+      });
+
+      expect(bet.accaBoostPercent).toBe(0);
+      expect(Number(bet.combinedOdds)).toBeCloseTo(4);
+    });
+
+    it('does not boost when acca boost is not enabled for the brand', async () => {
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', odds: 2.0 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2.0 }),
+          buildSelection({ matchId: 'match-3', selectionId: 'away', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+      });
+
+      expect(bet.accaBoostPercent).toBe(0);
+    });
+
+    it('a boosted accumulator still pays the boosted amount at settlement', async () => {
+      await accaBoostService.setConfig(
+        testBrandId,
+        { boostPercentPerLeg: 5, minSelections: 3, minOddsPerLeg: 1.2, enabled: true },
+        TEST_ACTOR,
+      );
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', odds: 2.0 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2.0 }),
+          buildSelection({ matchId: 'match-3', selectionId: 'away', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+      });
+
+      let settled;
+      for (const selection of bet.selections) {
+        settled = await pamService.settleSelection(testBrandId, bet.id, selection.id, 'WON', TEST_ACTOR);
+      }
+
+      expect(settled!.status).toBe('WON');
+      // Same 9.2 boosted odds recomputed at settlement from the legs' own odds + the locked-in 15% boost.
+      expect(settled!.settledPayoutCents).toBe(9_200);
+    });
   });
 
   it('rejects placing a bet on a suspended match', async () => {

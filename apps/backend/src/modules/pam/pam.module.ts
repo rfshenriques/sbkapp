@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AccaBoostModule } from '../acca-boost/acca-boost.module';
 import { AdminModule } from '../admin/admin.module';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { CompetitionSuspensionAdminController } from './competition-suspension-admin.controller';
@@ -12,7 +13,7 @@ import { PublicCompetitionSuspensionController } from './public-competition-susp
 import { PublicMarketSuspensionController } from './public-market-suspension.controller';
 
 @Module({
-  imports: [AdminModule],
+  imports: [AdminModule, AccaBoostModule],
   controllers: [
     PamController,
     PamAdminController,

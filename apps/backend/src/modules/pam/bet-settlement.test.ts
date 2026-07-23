@@ -67,4 +67,28 @@ describe('computeBetOutcome', () => {
     const outcome = computeBetOutcome([{ status: 'VOID', odds: 2.1 }], 1_000);
     expect(outcome).toEqual({ overallStatus: 'VOID', payoutCents: 1_000 });
   });
+
+  it('applies the locked-in acca boost percent on top of the recomputed effective odds', () => {
+    const outcome = computeBetOutcome(
+      [
+        { status: 'WON', odds: 2 },
+        { status: 'WON', odds: 2 },
+        { status: 'WON', odds: 2 },
+      ],
+      1_000,
+      15,
+    );
+    // Effective odds 8, +15% boost -> 9.2.
+    expect(outcome).toEqual({ overallStatus: 'WON', payoutCents: 9_200 });
+  });
+
+  it('a LOST leg still pays nothing regardless of a boost percent', () => {
+    const outcome = computeBetOutcome([{ status: 'LOST', odds: 2 }, { status: 'WON', odds: 2 }], 1_000, 15);
+    expect(outcome).toEqual({ overallStatus: 'LOST', payoutCents: 0 });
+  });
+
+  it('defaults to no boost when boostPercent is omitted', () => {
+    const outcome = computeBetOutcome([{ status: 'WON', odds: 2.1 }], 1_000);
+    expect(outcome.payoutCents).toBe(2_100);
+  });
 });
