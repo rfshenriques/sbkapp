@@ -1,0 +1,41 @@
+import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { Roles } from '../admin/roles.decorator';
+import { RolesGuard } from '../admin/roles.guard';
+import { StaffJwtAuthGuard } from '../admin/staff-jwt-auth.guard';
+import type { StaffJwtPayload } from '../admin/staff-jwt.strategy';
+import { CreateManualMarketDto } from './dto/create-manual-market.dto';
+import { ManualMarketService } from './manual-market.service';
+
+interface AuthenticatedStaffRequest {
+  user: StaffJwtPayload;
+}
+
+@UseGuards(StaffJwtAuthGuard, RolesGuard)
+@Roles('ADMIN', 'TRADING')
+@Controller('admin/manual-markets')
+export class ManualMarketAdminController {
+  constructor(private readonly manualMarketService: ManualMarketService) {}
+
+  @Get()
+  list(@Req() req: AuthenticatedStaffRequest) {
+    return this.manualMarketService.listMarkets(req.user.brandId);
+  }
+
+  @Post()
+  create(@Body() dto: CreateManualMarketDto, @Req() req: AuthenticatedStaffRequest) {
+    return this.manualMarketService.createMarket(req.user.brandId, dto.matchId, dto.name, dto.selections, {
+      id: req.user.sub,
+      username: req.user.username,
+      brandId: req.user.brandId,
+    });
+  }
+
+  @Delete(':id')
+  remove(@Param('id') id: string, @Req() req: AuthenticatedStaffRequest) {
+    return this.manualMarketService.removeMarket(req.user.brandId, id, {
+      id: req.user.sub,
+      username: req.user.username,
+      brandId: req.user.brandId,
+    });
+  }
+}

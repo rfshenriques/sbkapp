@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AdminModule } from '../admin/admin.module';
+import { ManualMarketModule } from '../manual-markets/manual-market.module';
 import { OddsOverrideModule } from '../odds-override/odds-override.module';
 import { CompetitionTierController } from './competition-tier.controller';
 import { CompetitionTierService } from './competition-tier.service';
@@ -10,7 +11,7 @@ import { OddsEngineClient } from './odds-engine-client';
 import { PublicMatchesController } from './public-matches.controller';
 
 @Module({
-  imports: [AdminModule, OddsOverrideModule],
+  imports: [AdminModule, OddsOverrideModule, ManualMarketModule],
   controllers: [CompetitionTierController, MarginConfigController, PublicMatchesController],
   providers: [CompetitionTierService, MarginConfigService, MarginPricingService, OddsEngineClient],
   exports: [MarginPricingService],

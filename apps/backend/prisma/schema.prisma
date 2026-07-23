@@ -137,6 +137,8 @@ enum AuditAction {
   COMPETITION_UNSUSPENDED
   ODDS_OVERRIDE_SET
   ODDS_OVERRIDE_CLEARED
+  MANUAL_MARKET_CREATED
+  MANUAL_MARKET_REMOVED
 }
 
 /**
@@ -422,6 +424,40 @@ model OddsOverride {
 }
 
 /**
+ * A trader-created market that doesn't exist in the odds feed at all -
+ * merged into PublicMatchesController's response as an extra entry in
+ * match.markets alongside the feed's own markets. Its selections carry
+ * whatever price the trader set directly (no margin pipeline involvement -
+ * there's no feed price to apply a margin to). Deleting the market cascades
+ * to its selections; there's no incremental edit, a trader who wants to
+ * change one recreates it.
+ */
+model ManualMarket {
+  id        String   @id @default(uuid())
+  brandId   String
+  brand     Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  matchId   String
+  name      String
+  createdAt DateTime @default(now())
+
+  selections ManualMarketSelection[]
+
+  @@index([brandId, matchId])
+  @@map("manual_markets")
+}
+
+model ManualMarketSelection {
+  id             String       @id @default(uuid())
+  manualMarketId String
+  manualMarket   ManualMarket @relation(fields: [manualMarketId], references: [id], onDelete: Cascade)
+  name           String
+  odds           Float
+  createdAt      DateTime     @default(now())
+
+  @@map("manual_market_selections")
+}
+
+/**
  * A snapshot of what was picked at bet time - not a live reference to the
  * odds feed, which has no persistence of its own and can reshuffle/expire.
  */
@@ -528,6 +564,7 @@ model Brand {
   marginConfigs          MarginConfig[]
   marketingSpends        MarketingSpend[]
   oddsOverrides          OddsOverride[]
+  manualMarkets          ManualMarket[]
 
   @@map("brands")
 }
