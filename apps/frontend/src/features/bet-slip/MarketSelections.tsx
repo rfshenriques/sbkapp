@@ -24,12 +24,20 @@ interface SelectionButtonProps {
 
 function SelectionButton({ selection, label, isSelected, isSuspended, onSelect }: SelectionButtonProps) {
   const flash = useOddsFlash(selection.odds);
+  // originalOdds is only ever set by the backend when a boost actually changed the price (see BoostService.applyBoosts).
+  const isBoosted = selection.originalOdds !== undefined;
 
   return (
     <button
       type="button"
       disabled={isSuspended}
-      aria-label={isSuspended ? `${label} suspended` : undefined}
+      aria-label={
+        isSuspended
+          ? `${label} suspended`
+          : isBoosted
+            ? `${label} boosted to ${selection.odds.toFixed(2)}, was ${selection.originalOdds!.toFixed(2)}`
+            : undefined
+      }
       className={`odd-btn${isSelected ? ' selected' : ''}${isSuspended ? ' suspended' : ''}${flash ? ` flash-${flash}` : ''}`}
       onClick={(event) => {
         // MatchCard's whole card is clickable and navigates to the match -
@@ -38,9 +46,22 @@ function SelectionButton({ selection, label, isSelected, isSuspended, onSelect }
         onSelect();
       }}
     >
+      {isBoosted && !isSuspended && (
+        <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-highlight px-1.5 py-px text-[8px] font-extrabold tracking-wide text-black uppercase">
+          Boost
+        </span>
+      )}
       <span className="odd-label">{label}</span>
       {isSuspended ? (
         <LockIcon className="h-4 w-4" aria-hidden="true" />
+      ) : isBoosted ? (
+        // Stacked, not side-by-side: the narrowest match cards (e.g. the
+        // homepage's featured/hero card) only have ~60px per column, too
+        // tight to fit a struck-through price and the new one on one line.
+        <span className="flex flex-col items-center leading-none">
+          <span className="text-[9px] text-text-muted line-through">{selection.originalOdds!.toFixed(2)}</span>
+          <span className="odd-value text-highlight">{selection.odds.toFixed(2)}</span>
+        </span>
       ) : (
         <span className="odd-value">{selection.odds.toFixed(2)}</span>
       )}
@@ -85,6 +106,7 @@ export function MarketSelections({ matchId, matchLabel, competition, market }: M
                 marketName: displayName('MARKET', market.name),
                 selectionName: selectionLabel,
                 odds: selection.odds,
+                originalOdds: selection.originalOdds,
               })
             }
           />

@@ -308,4 +308,52 @@ describe('MarketSelections', () => {
     const homeButton = await screen.findByRole('button', { name: 'Home2.10' });
     expect(homeButton).not.toBeDisabled();
   });
+
+  it('shows the original price struck through next to the boosted price, plus a Boost badge, when originalOdds is set', () => {
+    const boostedMarket: Market = {
+      ...matchResult,
+      selections: [
+        { id: 'home', name: 'Home', odds: 2.5, originalOdds: 2.1 },
+        ...matchResult.selections.slice(1),
+      ],
+    };
+    renderWithQueryClient(
+      <MarketSelections
+        matchId="match-1"
+        matchLabel="Arsenal vs Chelsea"
+        competition={COMPETITION}
+        market={boostedMarket}
+      />,
+    );
+
+    expect(screen.getByText('Boost')).toBeInTheDocument();
+    expect(screen.getByText('2.10')).toBeInTheDocument();
+    expect(screen.getByText('2.50')).toBeInTheDocument();
+    // Draw/Away have no originalOdds, so no boost chrome for them.
+    expect(screen.getAllByText('Boost')).toHaveLength(1);
+  });
+
+  it('captures the boosted odds and originalOdds when a boosted selection is added to the bet slip', async () => {
+    const boostedMarket: Market = {
+      ...matchResult,
+      selections: [
+        { id: 'home', name: 'Home', odds: 2.5, originalOdds: 2.1 },
+        ...matchResult.selections.slice(1),
+      ],
+    };
+    renderWithQueryClient(
+      <MarketSelections
+        matchId="match-1"
+        matchLabel="Arsenal vs Chelsea"
+        competition={COMPETITION}
+        market={boostedMarket}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /Home boosted to 2.50, was 2.10/ }));
+
+    expect(useBetSlipStore.getState().selections).toEqual([
+      expect.objectContaining({ odds: 2.5, originalOdds: 2.1 }),
+    ]);
+  });
 });

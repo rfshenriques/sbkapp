@@ -8,6 +8,8 @@ export interface BetSlipSelection {
   marketName: string;
   selectionName: string;
   odds: number;
+  /** Present only when a trader-configured boost bumped this selection's price - the price it would otherwise show, for the "before/after" display. */
+  originalOdds?: number;
 }
 
 interface BetSlipState {

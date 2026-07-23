@@ -67,6 +67,26 @@ describe('BetSlipPanel', () => {
     expect(screen.getByText('5.25')).toBeInTheDocument();
   });
 
+  it('shows a Boost badge and the struck-through original price for a boosted selection, and the payout uses the boosted price', () => {
+    const boostedHome = { ...homeSelection, odds: 2.5, originalOdds: 2.1 };
+    useBetSlipStore.setState({ selections: [boostedHome] });
+    renderPanel();
+
+    expect(screen.getByText('Boost')).toBeInTheDocument();
+    expect(screen.getByText('2.10')).toBeInTheDocument();
+    expect(screen.getAllByText('2.50').length).toBeGreaterThan(0);
+  });
+
+  it('shows the Boost badge on every boosted accumulator row, not on unboosted ones', () => {
+    const boostedHome = { ...homeSelection, odds: 2.5, originalOdds: 2.1 };
+    useBetSlipStore.setState({ selections: [boostedHome, awaySelection] });
+    renderPanel();
+
+    // Accumulator is the default tab once there are 2+ selections.
+    expect(screen.getAllByText('Boost')).toHaveLength(1);
+    expect(screen.getByText('2.10')).toBeInTheDocument();
+  });
+
   it('removes a selection when its remove button is clicked', async () => {
     useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
     renderPanel();

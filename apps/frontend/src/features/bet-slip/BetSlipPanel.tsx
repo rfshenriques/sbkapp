@@ -39,6 +39,22 @@ function selectionKey(selection: BetSlipSelection): string {
   return `${selection.matchId}-${selection.marketId}`;
 }
 
+/** Plain odds, or - when originalOdds is set (see BoostService.applyBoosts) - a Boost tag plus the struck-through original next to the boosted price. */
+function SelectionOdds({ selection }: { selection: BetSlipSelection }) {
+  if (selection.originalOdds === undefined) {
+    return <span className="font-semibold">{selection.odds.toFixed(2)}</span>;
+  }
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="rounded-full bg-highlight px-1.5 py-px text-[9px] font-extrabold tracking-wide text-black uppercase">
+        Boost
+      </span>
+      <span className="text-xs text-text-muted line-through">{selection.originalOdds.toFixed(2)}</span>
+      <span className="font-semibold text-highlight">{selection.odds.toFixed(2)}</span>
+    </span>
+  );
+}
+
 interface StakeFieldProps {
   stakeId: string;
   stake: string;
@@ -124,7 +140,7 @@ function SingleBetRow({ selection, stake, onStakeChange, showStake }: SingleBetR
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-semibold">{selection.odds.toFixed(2)}</span>
+          <SelectionOdds selection={selection} />
           <button
             type="button"
             aria-label={`Remove ${selection.selectionName} for ${selection.matchLabel}`}
@@ -369,7 +385,7 @@ export function BetSlipPanel({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="font-semibold">{selection.odds.toFixed(2)}</span>
+                  <SelectionOdds selection={selection} />
                   <button
                     type="button"
                     aria-label={`Remove ${selection.selectionName} for ${selection.matchLabel}`}
