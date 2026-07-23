@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -60,7 +60,7 @@ describe('MarketSuspensionService', () => {
   });
 
   it('suspending a whole match blocks every market on it', async () => {
-    await service.suspend(brandAId, 'match-a', undefined, 'weather delay', TEST_ACTOR);
+    await service.suspend(brandAId, 'match-a', undefined, undefined, 'weather delay', TEST_ACTOR);
 
     expect(await service.isSuspended(brandAId, 'match-a', 'match-result')).toBe(true);
     expect(await service.isSuspended(brandAId, 'match-a', 'total-goals')).toBe(true);
@@ -68,15 +68,31 @@ describe('MarketSuspensionService', () => {
   });
 
   it('suspending one market only blocks that market', async () => {
-    await service.suspend(brandAId, 'match-c', 'match-result', undefined, TEST_ACTOR);
+    await service.suspend(brandAId, 'match-c', 'match-result', undefined, undefined, TEST_ACTOR);
 
     expect(await service.isSuspended(brandAId, 'match-c', 'match-result')).toBe(true);
     expect(await service.isSuspended(brandAId, 'match-c', 'total-goals')).toBe(false);
   });
 
+  it('suspending one selection only blocks that selection, not the rest of the market', async () => {
+    await service.suspend(brandAId, 'match-sel', 'match-result', 'home', undefined, TEST_ACTOR);
+
+    expect(await service.isSuspended(brandAId, 'match-sel', 'match-result', 'home')).toBe(true);
+    expect(await service.isSuspended(brandAId, 'match-sel', 'match-result', 'away')).toBe(false);
+    // A market-level check (no selectionId) still reports suspended, since
+    // the caller may just be checking "is anything in this market locked."
+    expect(await service.isSuspended(brandAId, 'match-sel', 'match-result')).toBe(false);
+  });
+
+  it('rejects a selectionId without a marketId', async () => {
+    await expect(
+      service.suspend(brandAId, 'match-bad', undefined, 'home', undefined, TEST_ACTOR),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
   it('is idempotent - suspending an already-suspended match updates the reason instead of erroring', async () => {
-    await service.suspend(brandAId, 'match-d', undefined, 'first reason', TEST_ACTOR);
-    await service.suspend(brandAId, 'match-d', undefined, 'updated reason', TEST_ACTOR);
+    await service.suspend(brandAId, 'match-d', undefined, undefined, 'first reason', TEST_ACTOR);
+    await service.suspend(brandAId, 'match-d', undefined, undefined, 'updated reason', TEST_ACTOR);
 
     const suspensions = await prisma.marketSuspension.findMany({
       where: { brandId: brandAId, matchId: 'match-d' },
@@ -86,7 +102,14 @@ describe('MarketSuspensionService', () => {
   });
 
   it('unsuspending removes the block', async () => {
-    const suspension = await service.suspend(brandAId, 'match-e', undefined, undefined, TEST_ACTOR);
+    const suspension = await service.suspend(
+      brandAId,
+      'match-e',
+      undefined,
+      undefined,
+      undefined,
+      TEST_ACTOR,
+    );
     expect(await service.isSuspended(brandAId, 'match-e', 'match-result')).toBe(true);
 
     await service.unsuspend(brandAId, suspension.id, TEST_ACTOR);
@@ -99,11 +122,12 @@ describe('MarketSuspensionService', () => {
     );
   });
 
-  it('records audit entries for suspend and unsuspend', async () => {
+  it('records audit entries for suspend and unsuspend, with targetType reflecting the granularity', async () => {
     const suspension = await service.suspend(
       brandAId,
       'match-f',
       'match-result',
+      undefined,
       'trading call',
       TEST_ACTOR,
     );
@@ -122,19 +146,48 @@ describe('MarketSuspensionService', () => {
     expect(entries[0]?.metadata).toMatchObject({
       matchId: 'match-f',
       marketId: 'match-result',
+      selectionId: null,
       reason: 'trading call',
     });
   });
 
+  it('records a Selection targetType for a selection-level suspension', async () => {
+    const suspension = await service.suspend(
+      brandAId,
+      'match-sel-audit',
+      'match-result',
+      'home',
+      undefined,
+      TEST_ACTOR,
+    );
+
+    const entries = await prisma.auditLogEntry.findMany({
+      where: { actorUsername: TEST_ACTOR.username },
+      orderBy: { createdAt: 'desc' },
+      take: 1,
+    });
+    expect(entries[0]?.targetType).toBe('Selection');
+    expect(entries[0]?.targetId).toBe(`match-sel-audit:match-result:home`);
+    expect(entries[0]?.metadata).toMatchObject({ selectionId: 'home' });
+    await service.unsuspend(brandAId, suspension.id, TEST_ACTOR);
+  });
+
   it('is isolated per brand: the same matchId suspended in one brand does not affect another', async () => {
-    await service.suspend(brandAId, 'match-shared', undefined, 'brand A only', TEST_ACTOR);
+    await service.suspend(brandAId, 'match-shared', undefined, undefined, 'brand A only', TEST_ACTOR);
 
     expect(await service.isSuspended(brandAId, 'match-shared', 'match-result')).toBe(true);
     expect(await service.isSuspended(brandBId, 'match-shared', 'match-result')).toBe(false);
   });
 
   it("a brand can never unsuspend another brand's suspension, even by guessing its id", async () => {
-    const suspension = await service.suspend(brandAId, 'match-g', undefined, undefined, TEST_ACTOR);
+    const suspension = await service.suspend(
+      brandAId,
+      'match-g',
+      undefined,
+      undefined,
+      undefined,
+      TEST_ACTOR,
+    );
 
     await expect(
       service.unsuspend(brandBId, suspension.id, OTHER_BRAND_ACTOR),

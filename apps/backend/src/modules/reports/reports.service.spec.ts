@@ -1,8 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { Test, type TestingModule } from '@nestjs/testing';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { OddsEngineClient } from '../margins/odds-engine-client';
+import { CompetitionSuspensionService } from '../pam/competition-suspension.service';
 import { MarketSuspensionService } from '../pam/market-suspension.service';
 import { PamService } from '../pam/pam.service';
 import type { PlaceBetDto } from '../pam/dto/place-bet.dto';
@@ -56,6 +59,25 @@ describe('ReportsService', () => {
         PrismaService,
         AuditLogService,
         MarketSuspensionService,
+        CompetitionSuspensionService,
+        {
+          provide: OddsEngineClient,
+          useValue: {
+            fetchMatchById: vi.fn(
+              async (matchId: string): Promise<Match> => ({
+                id: matchId,
+                sport: 'Football',
+                country: 'Testland',
+                competition: 'Test Competition',
+                homeTeam: 'Home',
+                awayTeam: 'Away',
+                kickoff: new Date().toISOString(),
+                isLive: false,
+                markets: [],
+              }),
+            ),
+          },
+        },
       ],
     }).compile();
     await moduleRef.init();

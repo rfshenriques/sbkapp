@@ -35,14 +35,14 @@ describe('PublicMarketSuspensionController', () => {
     await moduleRef.close();
   });
 
-  it('returns only matchId + marketId, no suspension id or reason', async () => {
+  it('returns only matchId + marketId + selectionId, no suspension id or reason', async () => {
     await prisma.marketSuspension.create({
       data: { brandId, matchId: 'match-1', marketId: 'match-result', reason: 'internal trading note' },
     });
 
     const result = await controller.listForBrand(brandId);
 
-    expect(result).toEqual([{ matchId: 'match-1', marketId: 'match-result' }]);
+    expect(result).toEqual([{ matchId: 'match-1', marketId: 'match-result', selectionId: '' }]);
   });
 
   it('a whole-match suspension is exposed with an empty marketId, same as it is stored', async () => {
@@ -50,7 +50,17 @@ describe('PublicMarketSuspensionController', () => {
 
     const result = await controller.listForBrand(brandId);
 
-    expect(result).toEqual([{ matchId: 'match-2', marketId: '' }]);
+    expect(result).toEqual([{ matchId: 'match-2', marketId: '', selectionId: '' }]);
+  });
+
+  it('a selection-level suspension is exposed with its selectionId set', async () => {
+    await prisma.marketSuspension.create({
+      data: { brandId, matchId: 'match-3', marketId: 'match-result', selectionId: 'home' },
+    });
+
+    const result = await controller.listForBrand(brandId);
+
+    expect(result).toEqual([{ matchId: 'match-3', marketId: 'match-result', selectionId: 'home' }]);
   });
 
   it('returns an empty list for a brand with no suspensions', async () => {

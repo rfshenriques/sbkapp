@@ -9,6 +9,11 @@ export class SuspendMarketDto {
   @IsString()
   marketId?: string;
 
+  /** Omit (with a marketId) to suspend the whole market. Requires marketId. */
+  @IsOptional()
+  @IsString()
+  selectionId?: string;
+
   @IsOptional()
   @IsString()
   reason?: string;

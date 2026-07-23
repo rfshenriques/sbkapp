@@ -27,6 +27,7 @@ export class MarketAdminController {
       req.user.brandId,
       dto.matchId,
       dto.marketId,
+      dto.selectionId,
       dto.reason,
       { id: req.user.sub, username: req.user.username, brandId: req.user.brandId },
     );

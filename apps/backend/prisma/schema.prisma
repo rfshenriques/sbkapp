@@ -133,6 +133,8 @@ enum AuditAction {
   BRAND_IMAGE_LIST_ITEM_ADDED
   BRAND_IMAGE_LIST_ITEM_REMOVED
   BRAND_IMAGE_LIST_REORDERED
+  COMPETITION_SUSPENDED
+  COMPETITION_UNSUSPENDED
 }
 
 /**
@@ -346,26 +348,49 @@ model Bet {
 }
 
 /**
- * Blocks new bets on a match (marketId = "") or one specific market within
- * it. The odds-engine itself is a stateless read-through proxy over the
- * live feed with no persistence of its own - this is our own DB's record
- * of what trading has locked, checked by PamService.placeBet. Scoped per
- * brand: the same externally-sourced matchId is shared across all brands
- * (one global odds feed), but suspending it is each brand's own trading
- * decision, independent of every other brand's.
+ * Blocks new bets on a match (marketId = ""), one whole market (selectionId
+ * = ""), or one specific selection within a market. The odds-engine itself
+ * is a stateless read-through proxy over the live feed with no persistence
+ * of its own - this is our own DB's record of what trading has locked,
+ * checked by PamService.placeBet. Scoped per brand: the same externally-
+ * sourced matchId is shared across all brands (one global odds feed), but
+ * suspending it is each brand's own trading decision, independent of every
+ * other brand's. See also CompetitionSuspension for the coarser "suspend
+ * every match in this competition" case, which isn't expressible here
+ * since matches themselves are never persisted.
  */
 model MarketSuspension {
-  id        String   @id @default(uuid())
-  brandId   String
-  brand     Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  matchId   String
-  marketId  String   @default("")
-  reason    String?
-  createdAt DateTime @default(now())
+  id          String   @id @default(uuid())
+  brandId     String
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  matchId     String
+  marketId    String   @default("")
+  selectionId String   @default("")
+  reason      String?
+  createdAt   DateTime @default(now())
 
-  @@unique([brandId, matchId, marketId])
+  @@unique([brandId, matchId, marketId, selectionId])
   @@index([brandId, matchId])
   @@map("market_suspensions")
+}
+
+/**
+ * Blocks new bets on every match in a named competition, for one brand.
+ * Keyed on the competition's raw feed name (matches Match.competition
+ * verbatim, e.g. "EPL") rather than an id, since matches/competitions are
+ * never persisted - same convention as CompetitionRanking/CompetitionTier.
+ */
+model CompetitionSuspension {
+  id          String   @id @default(uuid())
+  brandId     String
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  competition String
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@unique([brandId, competition])
+  @@index([brandId])
+  @@map("competition_suspensions")
 }
 
 /**
@@ -461,18 +486,19 @@ model Brand {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  productFlags        BrandProductFlag[]
-  users               User[]
-  staffUsers          StaffUser[]
-  bets                Bet[]
-  auditLogEntries     AuditLogEntry[]
-  marketSuspensions   MarketSuspension[]
-  competitionRankings CompetitionRanking[]
-  images              BrandImage[]
-  imageListItems      BrandImageListItem[]
-  competitionTiers    CompetitionTier[]
-  marginConfigs       MarginConfig[]
-  marketingSpends     MarketingSpend[]
+  productFlags           BrandProductFlag[]
+  users                  User[]
+  staffUsers             StaffUser[]
+  bets                   Bet[]
+  auditLogEntries        AuditLogEntry[]
+  marketSuspensions      MarketSuspension[]
+  competitionSuspensions CompetitionSuspension[]
+  competitionRankings    CompetitionRanking[]
+  images                 BrandImage[]
+  imageListItems         BrandImageListItem[]
+  competitionTiers       CompetitionTier[]
+  marginConfigs          MarginConfig[]
+  marketingSpends        MarketingSpend[]
 
   @@map("brands")
 }

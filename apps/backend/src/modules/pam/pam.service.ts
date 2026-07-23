@@ -2,7 +2,9 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import type { BetStatus, SelectionStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { OddsEngineClient } from '../margins/odds-engine-client';
 import { computeBetOutcome } from './bet-settlement';
+import { CompetitionSuspensionService } from './competition-suspension.service';
 import type { PlaceBetDto } from './dto/place-bet.dto';
 import { MarketSuspensionService } from './market-suspension.service';
 
@@ -12,6 +14,8 @@ export class PamService {
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
     private readonly marketSuspensionService: MarketSuspensionService,
+    private readonly competitionSuspensionService: CompetitionSuspensionService,
+    private readonly oddsEngineClient: OddsEngineClient,
   ) {}
 
   async getWallet(userId: string): Promise<{ balanceCents: number }> {
@@ -19,9 +23,34 @@ export class PamService {
     return { balanceCents: user.balanceCents };
   }
 
+  /**
+   * Competition suspension needs each selection's match looked up from
+   * odds-engine (competitions are never persisted) - deliberately done
+   * before the DB transaction opens, so a slow/failed HTTP call never
+   * holds a Postgres transaction open.
+   */
+  private async assertNoCompetitionSuspended(brandId: string, dto: PlaceBetDto): Promise<void> {
+    const uniqueMatchIds = [...new Set(dto.selections.map((selection) => selection.matchId))];
+    const matches = await Promise.all(
+      uniqueMatchIds.map((matchId) => this.oddsEngineClient.fetchMatchById(matchId)),
+    );
+
+    for (const match of matches) {
+      if (await this.competitionSuspensionService.isSuspended(brandId, match.competition)) {
+        throw new BadRequestException(`Competition is suspended: ${match.competition}`);
+      }
+    }
+  }
+
   async placeBet(userId: string, dto: PlaceBetDto) {
     const combinedOdds = dto.selections.reduce((total, selection) => total * selection.odds, 1);
     const potentialPayoutCents = Math.round(dto.stakeCents * combinedOdds);
+
+    const { brandId } = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { brandId: true },
+    });
+    await this.assertNoCompetitionSuspended(brandId, dto);
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
@@ -34,6 +63,7 @@ export class PamService {
           user.brandId,
           selection.matchId,
           selection.marketId,
+          selection.selectionId,
           tx,
         );
         if (suspended) {

@@ -1,15 +1,26 @@
 import { Module } from '@nestjs/common';
 import { AdminModule } from '../admin/admin.module';
+import { OddsEngineClient } from '../margins/odds-engine-client';
+import { CompetitionSuspensionAdminController } from './competition-suspension-admin.controller';
+import { CompetitionSuspensionService } from './competition-suspension.service';
 import { MarketAdminController } from './market-admin.controller';
 import { MarketSuspensionService } from './market-suspension.service';
 import { PamAdminController } from './pam-admin.controller';
 import { PamController } from './pam.controller';
 import { PamService } from './pam.service';
+import { PublicCompetitionSuspensionController } from './public-competition-suspension.controller';
 import { PublicMarketSuspensionController } from './public-market-suspension.controller';
 
 @Module({
   imports: [AdminModule],
-  controllers: [PamController, PamAdminController, MarketAdminController, PublicMarketSuspensionController],
-  providers: [PamService, MarketSuspensionService],
+  controllers: [
+    PamController,
+    PamAdminController,
+    MarketAdminController,
+    PublicMarketSuspensionController,
+    CompetitionSuspensionAdminController,
+    PublicCompetitionSuspensionController,
+  ],
+  providers: [PamService, MarketSuspensionService, CompetitionSuspensionService, OddsEngineClient],
 })
 export class PamModule {}

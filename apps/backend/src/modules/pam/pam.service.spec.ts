@@ -1,9 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { OddsEngineClient } from '../margins/odds-engine-client';
+import { CompetitionSuspensionService } from './competition-suspension.service';
 import { MarketSuspensionService } from './market-suspension.service';
 import { PamService } from './pam.service';
 import type { PlaceBetDto } from './dto/place-bet.dto';
@@ -21,10 +24,28 @@ function buildSelection(overrides: Partial<PlaceBetDto['selections'][number]> = 
   };
 }
 
+/** Every test matchId resolves to this same fake match/competition - fine since no test relies on per-match competition variation except the competition-suspension tests below, which suspend this exact competition name. */
+const DEFAULT_TEST_COMPETITION = 'Test Competition';
+
+function fakeMatch(matchId: string): Match {
+  return {
+    id: matchId,
+    sport: 'Football',
+    country: 'Testland',
+    competition: DEFAULT_TEST_COMPETITION,
+    homeTeam: 'Home',
+    awayTeam: 'Away',
+    kickoff: new Date().toISOString(),
+    isLive: false,
+    markets: [],
+  };
+}
+
 describe('PamService', () => {
   let moduleRef: TestingModule;
   let pamService: PamService;
   let marketSuspensionService: MarketSuspensionService;
+  let competitionSuspensionService: CompetitionSuspensionService;
   let prisma: PrismaService;
   let setupPrisma: PrismaService;
   let testBrandId: string;
@@ -54,17 +75,29 @@ describe('PamService', () => {
 
   beforeEach(async () => {
     moduleRef = await Test.createTestingModule({
-      providers: [PamService, PrismaService, AuditLogService, MarketSuspensionService],
+      providers: [
+        PamService,
+        PrismaService,
+        AuditLogService,
+        MarketSuspensionService,
+        CompetitionSuspensionService,
+        {
+          provide: OddsEngineClient,
+          useValue: { fetchMatchById: vi.fn(async (matchId: string) => fakeMatch(matchId)) },
+        },
+      ],
     }).compile();
     await moduleRef.init();
 
     pamService = moduleRef.get(PamService);
     marketSuspensionService = moduleRef.get(MarketSuspensionService);
+    competitionSuspensionService = moduleRef.get(CompetitionSuspensionService);
     prisma = moduleRef.get(PrismaService);
   });
 
   afterEach(async () => {
     await prisma.marketSuspension.deleteMany({ where: { matchId: { startsWith: 'match-' } } });
+    await prisma.competitionSuspension.deleteMany({ where: { competition: DEFAULT_TEST_COMPETITION } });
     if (createdUserIds.length > 0) {
       await prisma.auditLogEntry.deleteMany({ where: { actorUsername: TEST_ACTOR.username } });
       await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
@@ -134,6 +167,7 @@ describe('PamService', () => {
       testBrandId,
       'match-suspended',
       undefined,
+      undefined,
       'kickoff imminent',
       TEST_ACTOR,
     );
@@ -156,6 +190,7 @@ describe('PamService', () => {
       'match-market-suspended',
       'match-result',
       undefined,
+      undefined,
       TEST_ACTOR,
     );
 
@@ -171,6 +206,40 @@ describe('PamService', () => {
     // A different market on that same match is unaffected.
     const bet = await pamService.placeBet(userId, {
       selections: [buildSelection({ matchId: 'match-market-suspended', marketId: 'total-goals' })],
+      stakeCents: 1_000,
+    });
+    expect(bet.stakeCents).toBe(1_000);
+  });
+
+  it('rejects placing a bet on a match whose competition is suspended', async () => {
+    const userId = await createTestUser(100_000);
+    await competitionSuspensionService.suspend(
+      testBrandId,
+      DEFAULT_TEST_COMPETITION,
+      'integrity concern',
+      TEST_ACTOR,
+    );
+
+    await expect(
+      pamService.placeBet(userId, { selections: [buildSelection()], stakeCents: 1_000 }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    const wallet = await pamService.getWallet(userId);
+    expect(wallet.balanceCents).toBe(100_000);
+  });
+
+  it('lifting a competition suspension allows bets on it again', async () => {
+    const userId = await createTestUser(100_000);
+    const suspension = await competitionSuspensionService.suspend(
+      testBrandId,
+      DEFAULT_TEST_COMPETITION,
+      undefined,
+      TEST_ACTOR,
+    );
+    await competitionSuspensionService.unsuspend(testBrandId, suspension.id, TEST_ACTOR);
+
+    const bet = await pamService.placeBet(userId, {
+      selections: [buildSelection()],
       stakeCents: 1_000,
     });
     expect(bet.stakeCents).toBe(1_000);
