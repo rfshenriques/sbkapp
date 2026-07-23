@@ -1,4 +1,5 @@
 import { Controller, Get, Param } from '@nestjs/common';
+import { BoostService } from '../boosts/boost.service';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsOverrideService } from '../odds-override/odds-override.service';
 import { MarginPricingService } from './margin-pricing.service';
@@ -10,10 +11,12 @@ import { OddsEngineClient } from './odds-engine-client';
  * the acting brand's trading margin applied (MarginPricingService), then
  * any trader-created market with no feed equivalent is appended
  * (ManualMarketService), then any trader-set fixed price is substituted in
- * (OddsOverrideService, applied last so it always wins - including on a
- * manual market's own selections). apps/backoffice keeps hitting
- * odds-engine directly for the raw feed price traders are actually setting
- * margin and overrides against.
+ * (OddsOverrideService), then any trader-configured boost climbs the
+ * result up the brand's odds ladder (BoostService, applied last so "the
+ * price it would otherwise show" already accounts for margin, manual
+ * markets, and overrides). apps/backoffice keeps hitting odds-engine
+ * directly for the raw feed price traders are actually setting margin,
+ * overrides, and boosts against.
  */
 @Controller('public/matches')
 export class PublicMatchesController {
@@ -22,6 +25,7 @@ export class PublicMatchesController {
     private readonly marginPricingService: MarginPricingService,
     private readonly manualMarketService: ManualMarketService,
     private readonly oddsOverrideService: OddsOverrideService,
+    private readonly boostService: BoostService,
   ) {}
 
   @Get(':brandId')
@@ -29,7 +33,8 @@ export class PublicMatchesController {
     const matches = await this.oddsEngineClient.fetchMatches();
     const priced = await this.marginPricingService.applyMarginToMatches(brandId, matches);
     const withManualMarkets = await this.manualMarketService.mergeIntoMatches(brandId, priced);
-    return this.oddsOverrideService.applyOverrides(brandId, withManualMarkets);
+    const overridden = await this.oddsOverrideService.applyOverrides(brandId, withManualMarkets);
+    return this.boostService.applyBoosts(brandId, overridden);
   }
 
   @Get(':brandId/:matchId')
@@ -38,6 +43,7 @@ export class PublicMatchesController {
     const [priced] = await this.marginPricingService.applyMarginToMatches(brandId, [match]);
     const [withManualMarkets] = await this.manualMarketService.mergeIntoMatches(brandId, [priced!]);
     const [overridden] = await this.oddsOverrideService.applyOverrides(brandId, [withManualMarkets!]);
-    return overridden;
+    const [boosted] = await this.boostService.applyBoosts(brandId, [overridden!]);
+    return boosted;
   }
 }

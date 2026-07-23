@@ -3,6 +3,8 @@ export interface Selection {
   name: string;
   /** Decimal odds, e.g. 1.85 */
   odds: number;
+  /** Present only when a trader-configured boost bumped this selection's price up the odds ladder - the price a player would have seen without it. */
+  originalOdds?: number;
 }
 
 export interface Market {

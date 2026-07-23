@@ -140,6 +140,11 @@ enum AuditAction {
   MANUAL_MARKET_CREATED
   MANUAL_MARKET_REMOVED
   MANUAL_MARKET_UPDATED
+  ODDS_LADDER_RUNG_ADDED
+  ODDS_LADDER_RUNG_REMOVED
+  ODDS_LADDER_REGENERATED
+  BOOST_SET
+  BOOST_CLEARED
 }
 
 /**
@@ -459,6 +464,53 @@ model ManualMarketSelection {
 }
 
 /**
+ * One rung of a brand's price grid - the only decimal odds a boosted price
+ * is ever allowed to land on (see BoostService.applyBoosts / odds-ladder.ts).
+ * Seeded per brand via OddsLadderService.regenerateStandard (the real
+ * industry-standard tick ladder), then freely added to/removed from by
+ * trading. Not tied to any one match/market - one grid covers every
+ * selection a brand ever boosts.
+ */
+model OddsLadderRung {
+  id        String   @id @default(uuid())
+  brandId   String
+  brand     Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  value     Float
+  createdAt DateTime @default(now())
+
+  @@unique([brandId, value])
+  @@index([brandId])
+  @@map("odds_ladder_rungs")
+}
+
+/**
+ * A trader-configured price boost on one selection: instead of a fixed
+ * price (see OddsOverride), this stores how many rungs to climb the
+ * brand's OddsLadderRung grid from whatever price the selection would
+ * otherwise show - applied as the last step of the public matches pricing
+ * pipeline, after margin, manual markets, and overrides, so "the price it
+ * would otherwise show" already accounts for all of those. Upsert-keyed
+ * like MarketSuspension/OddsOverride, so re-setting a boost on the same
+ * selection edits it in place rather than duplicating.
+ */
+model Boost {
+  id          String   @id @default(uuid())
+  brandId     String
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  matchId     String
+  marketId    String
+  selectionId String
+  ticks       Int
+  reason      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([brandId, matchId, marketId, selectionId])
+  @@index([brandId, matchId])
+  @@map("boosts")
+}
+
+/**
  * A snapshot of what was picked at bet time - not a live reference to the
  * odds feed, which has no persistence of its own and can reshuffle/expire.
  */
@@ -566,6 +618,8 @@ model Brand {
   marketingSpends        MarketingSpend[]
   oddsOverrides          OddsOverride[]
   manualMarkets          ManualMarket[]
+  oddsLadderRungs        OddsLadderRung[]
+  boosts                 Boost[]
 
   @@map("brands")
 }
