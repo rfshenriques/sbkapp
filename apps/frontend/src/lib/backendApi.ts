@@ -55,6 +55,8 @@ export interface PlaceBetPayload {
   stakeCents: number;
   /** Funds this bet with a freebet instead of cash - stakeCents must equal that grant's amountCents exactly (see FreebetService). */
   freebetGrantId?: string;
+  /** Opts into insurance (see InsuranceBetService) - reduces the payout by the brand's cost percent, refunds the stake as a freebet if the bet loses. Never applies alongside freebetGrantId. */
+  insuranceOptIn?: boolean;
 }
 
 /** A player's own freebet token - always ACTIVE and unexpired (see PamService.getFreebets/FreebetService.listActive), since that's all a player ever needs to see to place a bet with one. */
@@ -312,6 +314,20 @@ export async function getAccaRollbackConfig(brandId: string): Promise<AccaRollba
     throw new Error(`Failed to fetch acca rollback config: ${response.status}`);
   }
   return (await response.json()) as AccaRollbackConfig;
+}
+
+export interface InsuranceBetConfig {
+  costPercent: number;
+  enabled: boolean;
+}
+
+/** The acting brand's insurance-bet settings - see apps/backend's InsuranceBetService. */
+export async function getInsuranceBetConfig(brandId: string): Promise<InsuranceBetConfig> {
+  const response = await fetch(`${BASE_URL}/public/insurance-bet-config/${encodeURIComponent(brandId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch insurance bet config: ${response.status}`);
+  }
+  return (await response.json()) as InsuranceBetConfig;
 }
 
 export type BrandImageListKind = 'SPONSOR_LOGO' | 'PAYMENT_METHOD';

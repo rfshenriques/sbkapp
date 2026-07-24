@@ -16,6 +16,8 @@ import { calculateAccaBoost, type AccaBoostConfig } from './accaBoost';
 import { useAccaBoostConfig } from './useAccaBoostConfig';
 import { evaluateAccaRollbackEligibility, type AccaRollbackConfig } from './accaRollback';
 import { useAccaRollbackConfig } from './useAccaRollbackConfig';
+import { calculateInsuredPayout } from './insuranceBet';
+import { useInsuranceBetConfig } from './useInsuranceBetConfig';
 import { useBetSlipStore, type BetSlipSelection } from './betSlipStore';
 
 type PayMethod = 'cash' | 'freebet';
@@ -364,11 +366,13 @@ export function BetSlipPanel({
   const openAuthModal = useAuthModalStore((state) => state.open);
   const accaBoostConfig = useAccaBoostConfig();
   const accaRollbackConfig = useAccaRollbackConfig();
+  const insuranceBetConfig = useInsuranceBetConfig();
   const { data: freebets } = useFreebets();
   const queryClient = useQueryClient();
   const [stake, setStake] = useState('10.00');
   const [payMethod, setPayMethod] = useState<PayMethod>('cash');
   const [selectedFreebetId, setSelectedFreebetId] = useState<string | null>(null);
+  const [insuranceOptIn, setInsuranceOptIn] = useState(false);
   // Keyed by selectionKey() - each single-bet row's own stake, entered
   // independently of every other row but all placed together by the one
   // bottom button (see placeSinglesMutation below).
@@ -403,6 +407,15 @@ export function BetSlipPanel({
       setSelectedFreebetId(null);
     }
   }, [payMethod, activeTab, selections.length]);
+  // Insurance never applies alongside a freebet-funded bet, to avoid
+  // double-bonusing (same rule acca boost/rollback follow) - drop it the
+  // moment the player switches into freebet mode rather than silently
+  // ignoring an opt-in they can still see checked.
+  useEffect(() => {
+    if (payMethod === 'freebet' && insuranceOptIn) {
+      setInsuranceOptIn(false);
+    }
+  }, [payMethod, insuranceOptIn]);
   const stakeId = useId();
 
   function getSingleStake(selection: BetSlipSelection): string {
@@ -418,6 +431,7 @@ export function BetSlipPanel({
   function resetPayMethod() {
     setPayMethod('cash');
     setSelectedFreebetId(null);
+    setInsuranceOptIn(false);
   }
 
   const placeAccumulatorMutation = useMutation({
@@ -453,7 +467,7 @@ export function BetSlipPanel({
       return Promise.all(
         selections.map((selection) => {
           const stakeCents = Math.round(Number(getSingleStake(selection)) * 100);
-          return placeBet({ selections: [selection], stakeCents });
+          return placeBet({ selections: [selection], stakeCents, insuranceOptIn });
         }),
       );
     },
@@ -491,7 +505,13 @@ export function BetSlipPanel({
   // the bet slip shows only the profit it would add, not the raw stake*odds
   // figure, so the player isn't misled about what they'd actually receive.
   const rawPotentialCents = stakeCents * combinedOdds;
-  const potentialPayoutCents = isFreebetMode ? Math.max(0, rawPotentialCents - stakeCents) : rawPotentialCents;
+  const freebetAdjustedPotentialCents = isFreebetMode
+    ? Math.max(0, rawPotentialCents - stakeCents)
+    : rawPotentialCents;
+  // Insurance never applies in freebet mode (see the reset effect above) -
+  // this always passes through unchanged there, same as calculateInsuredPayout would.
+  const insurancePricing = calculateInsuredPayout(freebetAdjustedPotentialCents, insuranceOptIn, insuranceBetConfig);
+  const potentialPayoutCents = insurancePricing.insuredPayoutCents;
   const potentialPayout = isStakeValid ? (potentialPayoutCents / 100).toFixed(2) : '—';
   const allSinglesValid = isFreebetMode
     ? selectedFreebet !== null
@@ -513,7 +533,8 @@ export function BetSlipPanel({
       ? (
           selections.reduce((total, selection) => {
             const stakeCents = Math.round(Number(getSingleStake(selection)) * 100);
-            return total + stakeCents * selection.odds;
+            const rawCents = stakeCents * selection.odds;
+            return total + calculateInsuredPayout(rawCents, insuranceOptIn, insuranceBetConfig).insuredPayoutCents;
           }, 0) / 100
         ).toFixed(2)
       : '—';
@@ -694,6 +715,19 @@ export function BetSlipPanel({
               hideOdds
             />
           ))}
+        {!isFreebetMode && insuranceBetConfig.enabled && selections.length > 0 && (
+          <label className="flex items-center justify-between gap-2 rounded-xl border border-border bg-surface-2 p-2.5 text-xs">
+            <span className="text-text-secondary">
+              Insure this bet - pay {insuranceBetConfig.costPercent}% for your stake back as a freebet if
+              it loses
+            </span>
+            <input
+              type="checkbox"
+              checked={insuranceOptIn}
+              onChange={(event) => setInsuranceOptIn(event.target.checked)}
+            />
+          </label>
+        )}
         <div className="flex items-center justify-between text-sm text-text-secondary">
           <span>{isFreebetMode ? 'Potential winnings' : 'Potential payout'}</span>
           <span className="font-semibold text-text-primary">
@@ -713,6 +747,7 @@ export function BetSlipPanel({
                   selections,
                   stakeCents,
                   freebetGrantId: isFreebetMode ? (selectedFreebetId ?? undefined) : undefined,
+                  insuranceOptIn,
                 });
               } else {
                 placeSinglesMutation.mutate();

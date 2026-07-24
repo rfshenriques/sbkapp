@@ -216,6 +216,47 @@ describe('BetSlipPanel', () => {
     });
   });
 
+  describe('insurance bet toggle', () => {
+    function stubInsuranceBetConfig(config: { costPercent: number; enabled: boolean }) {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          if (url === '/backend/public/insurance-bet-config/brand-1') {
+            return new Response(JSON.stringify(config), { status: 200 });
+          }
+          return new Response(null, { status: 404 });
+        }),
+      );
+    }
+
+    it('shows nothing when insurance bet is disabled', () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubInsuranceBetConfig({ costPercent: 10, enabled: false });
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      expect(screen.queryByText(/Insure this bet/)).not.toBeInTheDocument();
+    });
+
+    it('shows the toggle and reduces the potential payout once checked', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubInsuranceBetConfig({ costPercent: 10, enabled: true });
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      const toggle = await screen.findByRole('checkbox', { name: /Insure this bet/ });
+      expect(toggle).not.toBeChecked();
+      // Stake 10.00 * odds 2.1 = 21.00 uninsured.
+      expect(screen.getByText('21.00')).toBeInTheDocument();
+
+      await userEvent.click(toggle);
+
+      // 21.00 - 10% cost -> 18.90.
+      expect(await screen.findByText('18.90')).toBeInTheDocument();
+    });
+  });
+
   describe('freebets', () => {
     function stubFreebetsAndAccaBoost(
       freebets: { id: string; amountCents: number; expiresAt: string | null }[],
@@ -400,6 +441,7 @@ describe('BetSlipPanel', () => {
     expect(JSON.parse(requestInit.body as string)).toEqual({
       selections: [homeSelection, awaySelection],
       stakeCents: 1000,
+      insuranceOptIn: false,
     });
   });
 
