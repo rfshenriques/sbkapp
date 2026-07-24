@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import { teamCountryMap } from '../lib/countryMaps';
+import { groupByLetter } from '../lib/groupByLetter';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
 
@@ -65,27 +66,6 @@ interface Group {
   teamColors: backendApi.TeamColor[];
 }
 
-const NUMERIC_BUCKET_KEY = '0-9';
-
-/** A-Z each get their own bucket; a name starting with a digit (e.g. "1899 Hoffenheim") falls into one combined numbers bucket rather than a separate bucket per digit. */
-function groupByLetter(teamColors: backendApi.TeamColor[]): Group[] {
-  const map = new Map<string, backendApi.TeamColor[]>();
-  for (const teamColor of teamColors) {
-    const firstChar = teamColor.name.trim().charAt(0).toUpperCase();
-    const key = /[0-9]/.test(firstChar) ? NUMERIC_BUCKET_KEY : firstChar || '#';
-    const bucket = map.get(key) ?? [];
-    bucket.push(teamColor);
-    map.set(key, bucket);
-  }
-  return Array.from(map.entries())
-    .map(([key, bucket]) => ({ key, label: key, teamColors: bucket }))
-    .sort((a, b) => {
-      if (a.key === NUMERIC_BUCKET_KEY) return 1;
-      if (b.key === NUMERIC_BUCKET_KEY) return -1;
-      return a.key.localeCompare(b.key);
-    });
-}
-
 function groupByCountry(teamColors: backendApi.TeamColor[], byCountry: Map<string, string>): Group[] {
   const map = new Map<string, backendApi.TeamColor[]>();
   for (const teamColor of teamColors) {
@@ -135,7 +115,13 @@ export default function TeamColorsPage() {
 
   const groups = useMemo(() => {
     if (!teamColors) return [];
-    return groupMode === 'letter' ? groupByLetter(teamColors) : groupByCountry(teamColors, byCountry);
+    return groupMode === 'letter'
+      ? groupByLetter(teamColors, (teamColor) => teamColor.name).map((group) => ({
+          key: group.key,
+          label: group.label,
+          teamColors: group.items,
+        }))
+      : groupByCountry(teamColors, byCountry);
   }, [teamColors, groupMode, byCountry]);
 
   return (

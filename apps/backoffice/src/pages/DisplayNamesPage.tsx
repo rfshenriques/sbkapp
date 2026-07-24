@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import { competitionCountryMap } from '../lib/countryMaps';
+import { groupByLetter } from '../lib/groupByLetter';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
 
@@ -91,6 +92,7 @@ export default function DisplayNamesPage() {
   const [activeType, setActiveType] = useState<TabValue>('COMPETITION');
   const [hasSynced, setHasSynced] = useState(false);
   const [expandedCountry, setExpandedCountry] = useState<string | null>(null);
+  const [expandedLetter, setExpandedLetter] = useState<string | null>(null);
   const [expandedMarket, setExpandedMarket] = useState<string | null>(null);
 
   const { data: matches } = useQuery({ queryKey: matchesQueryKey, queryFn: oddsEngineApi.fetchMatches });
@@ -160,6 +162,12 @@ export default function DisplayNamesPage() {
     [isGrouped, overrides, byCountry],
   );
 
+  const isLetterGrouped = activeType === 'TEAM';
+  const letterGroups = useMemo(
+    () => (isLetterGrouped && overrides ? groupByLetter(overrides, (override) => override.rawName) : []),
+    [isLetterGrouped, overrides],
+  );
+
   /** market name -> the distinct selection names seen under it in the live feed, so an expanded market shows only its own selections instead of every selection ever seen anywhere. */
   const selectionNamesByMarket = useMemo(() => {
     const map = new Map<string, Set<string>>();
@@ -197,6 +205,7 @@ export default function DisplayNamesPage() {
             onClick={() => {
               setActiveType(tab.value);
               setExpandedCountry(null);
+              setExpandedLetter(null);
               setExpandedMarket(null);
             }}
           >
@@ -218,13 +227,41 @@ export default function DisplayNamesPage() {
           </p>
         )}
 
-        {!isMarketsSelections && overrides && overrides.length > 0 && !isGrouped && (
+        {!isMarketsSelections && overrides && overrides.length > 0 && !isGrouped && !isLetterGrouped && (
           <Card className="space-y-2">
             {overrides.map((override) => (
               <DisplayNameRow key={override.id} override={override} />
             ))}
           </Card>
         )}
+
+        {!isMarketsSelections &&
+          isLetterGrouped &&
+          letterGroups.map((group) => {
+            const isExpanded = expandedLetter === group.key;
+            return (
+              <Card key={group.key} className="p-0">
+                <button
+                  type="button"
+                  aria-expanded={isExpanded}
+                  onClick={() => setExpandedLetter(isExpanded ? null : group.key)}
+                  className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+                >
+                  <span className="text-sm font-semibold">
+                    {group.label} <span className="text-text-muted">({group.items.length})</span>
+                  </span>
+                  <ChevronIcon className={`h-4 w-4 shrink-0 text-text-muted ${isExpanded ? 'rotate-180' : ''}`} />
+                </button>
+                {isExpanded && (
+                  <div className="space-y-2 border-t border-border p-4 pt-3">
+                    {group.items.map((override) => (
+                      <DisplayNameRow key={override.id} override={override} />
+                    ))}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
 
         {!isMarketsSelections &&
           isGrouped &&

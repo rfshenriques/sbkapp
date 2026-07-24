@@ -175,7 +175,60 @@ describe('DisplayNamesPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Teams' }));
 
+    // Teams are grouped by first letter, same as Team Colors - drill into
+    // "A" to reach Arsenal.
+    await userEvent.click(await screen.findByRole('button', { name: /^A \(1\)/ }));
     expect(await screen.findByText('Arsenal')).toBeInTheDocument();
+  });
+
+  it('groups the Teams tab by first letter (numeric names bucketed under 0-9), one group open at a time', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/api/events') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/display-names?entityType=TEAM') {
+        return new Response(
+          JSON.stringify([
+            { id: 'dn-1', entityType: 'TEAM', rawName: 'Arsenal', displayName: null, createdAt: '', updatedAt: '' },
+            { id: 'dn-2', entityType: 'TEAM', rawName: 'Aston Villa', displayName: null, createdAt: '', updatedAt: '' },
+            {
+              id: 'dn-3',
+              entityType: 'TEAM',
+              rawName: '1899 Hoffenheim',
+              displayName: null,
+              createdAt: '',
+              updatedAt: '',
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+      if (method === 'GET' && url.startsWith('/backend/admin/display-names?entityType=')) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderPage();
+    await userEvent.click(screen.getByRole('button', { name: 'Teams' }));
+
+    const aGroup = await screen.findByRole('button', { name: /^A \(2\)/ });
+    const numericGroup = screen.getByRole('button', { name: /^0-9 \(1\)/ });
+    expect(screen.queryByText('Arsenal')).not.toBeInTheDocument();
+
+    await userEvent.click(aGroup);
+    expect(await screen.findByText('Arsenal')).toBeInTheDocument();
+    expect(screen.getByText('Aston Villa')).toBeInTheDocument();
+    expect(screen.queryByText('1899 Hoffenheim')).not.toBeInTheDocument();
+
+    // Opening the numeric group closes "A" - only one group open at a time.
+    await userEvent.click(numericGroup);
+    expect(await screen.findByText('1899 Hoffenheim')).toBeInTheDocument();
+    expect(screen.queryByText('Arsenal')).not.toBeInTheDocument();
   });
 
   it('has one Markets/Selections tab where expanding a market reveals its own selections, not every selection ever seen', async () => {
@@ -296,9 +349,11 @@ describe('DisplayNamesPage', () => {
     expect(await screen.findByText('La Liga')).toBeInTheDocument();
     expect(screen.queryByText('EPL')).not.toBeInTheDocument();
 
-    // Switching tabs resets the expanded group and shows a plain flat list.
+    // Switching tabs resets the expanded group - Teams groups by letter
+    // instead of country, so the country group buttons are gone too.
     await userEvent.click(screen.getByRole('button', { name: 'Teams' }));
-    expect(await screen.findByText('Real Madrid')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Spain/ })).not.toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: /^R \(1\)/ }));
+    expect(await screen.findByText('Real Madrid')).toBeInTheDocument();
   });
 });
