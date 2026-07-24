@@ -72,6 +72,11 @@ export interface AccaRollbackConfig {
   enabled: boolean;
 }
 
+export interface InsuranceBetConfig {
+  costPercent: number;
+  enabled: boolean;
+}
+
 export interface OddsOverride {
   id: string;
   matchId: string;
@@ -568,6 +573,20 @@ export async function setAccaRollbackConfig(config: AccaRollbackConfig): Promise
     body: JSON.stringify(config),
   });
   return parseJsonOrThrow(response, `Failed to save acca rollback config: ${response.status}`);
+}
+
+export async function getInsuranceBetConfig(): Promise<InsuranceBetConfig> {
+  const response = await authenticatedFetch('/admin/insurance-bet-config');
+  return parseJsonOrThrow(response, `Failed to load insurance bet config: ${response.status}`);
+}
+
+export async function setInsuranceBetConfig(config: InsuranceBetConfig): Promise<InsuranceBetConfig> {
+  const response = await authenticatedFetch('/admin/insurance-bet-config', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  return parseJsonOrThrow(response, `Failed to save insurance bet config: ${response.status}`);
 }
 
 function rangeQuery(range: ReportRange): string {

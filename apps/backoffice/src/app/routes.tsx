@@ -2,6 +2,7 @@ import type { RouteObject } from 'react-router-dom';
 import AccaBoostPage from '../pages/AccaBoostPage';
 import AccaRollbackPage from '../pages/AccaRollbackPage';
 import AuditLogPage from '../pages/AuditLogPage';
+import InsuranceBetPage from '../pages/InsuranceBetPage';
 import CmsImagesPage from '../pages/CmsImagesPage';
 import CmsPaymentsPage from '../pages/CmsPaymentsPage';
 import CmsQuicklinksPage from '../pages/CmsQuicklinksPage';
@@ -99,6 +100,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'TRADING']}>
               <AccaRollbackPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'insurance-bet',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'TRADING']}>
+              <InsuranceBetPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),
