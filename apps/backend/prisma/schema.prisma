@@ -209,6 +209,8 @@ model FreebetGrant {
   expiresAt     DateTime?
   spentAt       DateTime?
   spentOnBetId  String?
+  /** The bet that triggered a system grant (e.g. the losing accumulator an ACCA_ROLLBACK reward refunds) - null for MANUAL grants. Also doubles as the idempotency key so re-settling a bet never grants the reward twice. */
+  sourceBetId   String?
   voidedAt      DateTime?
   /** Denormalized actor snapshot, same pattern as AuditLogEntry - null for a system-granted (non-MANUAL) source. */
   createdByStaffUserId String?
@@ -220,6 +222,7 @@ model FreebetGrant {
 
   @@index([userId, status])
   @@index([brandId])
+  @@index([sourceBetId])
   @@map("freebet_grants")
 }
 

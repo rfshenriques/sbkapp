@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { Prisma } from '@prisma/client';
+import type { FreebetSource, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 
@@ -12,6 +12,16 @@ export interface GrantFreebetInput {
   amountCents: number;
   note?: string;
   expiresAt?: Date;
+}
+
+export interface SystemGrantFreebetInput {
+  userId: string;
+  brandId: string;
+  amountCents: number;
+  /** Never MANUAL - that source is staff-initiated via grant(). */
+  source: Exclude<FreebetSource, 'MANUAL'>;
+  /** The bet that triggered this reward, e.g. the losing accumulator an ACCA_ROLLBACK refunds - also the idempotency key callers should check via findBySourceBet before granting. */
+  sourceBetId: string;
 }
 
 /**
@@ -61,6 +71,46 @@ export class FreebetService {
       targetId: grant.id,
       metadata: { username: user.username, amountCents: input.amountCents, source: 'MANUAL' },
     });
+
+    return grant;
+  }
+
+  /**
+   * A system-triggered reward (acca rollback, insurance bet) rather than a
+   * staff-initiated one - no actor to attribute it to, so it's logged under
+   * a `system:<source>` audit actor instead. Idempotent on (sourceBetId,
+   * source): a bet whose settlement is corrected and re-evaluated must
+   * never be granted the same reward twice, so a second call with the same
+   * pair just returns the grant already created by the first.
+   */
+  async grantSystem(input: SystemGrantFreebetInput, client: PrismaClientLike = this.prisma) {
+    const existing = await client.freebetGrant.findFirst({
+      where: { sourceBetId: input.sourceBetId, source: input.source },
+    });
+    if (existing) {
+      return existing;
+    }
+
+    const grant = await client.freebetGrant.create({
+      data: {
+        userId: input.userId,
+        brandId: input.brandId,
+        amountCents: input.amountCents,
+        source: input.source,
+        sourceBetId: input.sourceBetId,
+      },
+    });
+
+    await this.auditLogService.record(
+      {
+        actor: { id: 'system', username: `system:${input.source.toLowerCase()}`, brandId: input.brandId },
+        action: 'FREEBET_GRANTED',
+        targetType: 'FreebetGrant',
+        targetId: grant.id,
+        metadata: { amountCents: input.amountCents, source: input.source, sourceBetId: input.sourceBetId },
+      },
+      client,
+    );
 
     return grant;
   }

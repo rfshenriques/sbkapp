@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import type { Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AccaBoostService } from '../acca-boost/acca-boost.service';
+import { AccaRollbackService } from '../acca-rollback/acca-rollback.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { BoostService } from '../boosts/boost.service';
 import { OddsLadderService } from '../boosts/odds-ladder.service';
@@ -66,6 +67,7 @@ describe('ReportsService', () => {
         MarketSuspensionService,
         CompetitionSuspensionService,
         AccaBoostService,
+        AccaRollbackService,
         ManualMarketService,
         BoostService,
         OddsLadderService,

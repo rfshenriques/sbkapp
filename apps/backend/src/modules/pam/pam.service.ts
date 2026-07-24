@@ -4,6 +4,8 @@ import type { Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AccaBoostService } from '../acca-boost/acca-boost.service';
 import { calculateAccaBoost } from '../acca-boost/acca-boost';
+import { AccaRollbackService } from '../acca-rollback/acca-rollback.service';
+import { calculateAccaRollbackReward } from '../acca-rollback/acca-rollback';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { BoostService } from '../boosts/boost.service';
 import { FreebetService } from '../freebets/freebet.service';
@@ -28,6 +30,7 @@ export class PamService {
     private readonly competitionSuspensionService: CompetitionSuspensionService,
     private readonly oddsEngineClient: OddsEngineClient,
     private readonly accaBoostService: AccaBoostService,
+    private readonly accaRollbackService: AccaRollbackService,
     private readonly manualMarketService: ManualMarketService,
     private readonly boostService: BoostService,
     private readonly freebetService: FreebetService,
@@ -406,6 +409,37 @@ export class PamService {
         updatedBet.stakeCents,
         updatedBet.accaBoostPercent,
       );
+
+      // computeBetOutcome returns LOST the instant any single leg loses,
+      // even while siblings are still OPEN - so the losing-leg count isn't
+      // final until every leg has a terminal status. Evaluating rollback
+      // eligibility any earlier could grant a reward before all the facts
+      // (how many legs actually lost) are in. Freebet-funded bets never
+      // qualify either - refunding a reward on top of a bet that was
+      // already a reward is the same double-bonusing acca boost avoids.
+      const allLegsTerminal = updatedBet.selections.every((selection) => selection.status !== 'OPEN');
+      if (outcome.overallStatus === 'LOST' && allLegsTerminal && updatedBet.freebetGrantId === null) {
+        const rollbackConfig = await this.accaRollbackService.getConfig(brandId);
+        const lostLegCount = updatedBet.selections.filter((selection) => selection.status === 'LOST').length;
+        const reward = calculateAccaRollbackReward(
+          updatedBet.selections.length,
+          lostLegCount,
+          updatedBet.stakeCents,
+          rollbackConfig,
+        );
+        if (reward.qualifies) {
+          await this.freebetService.grantSystem(
+            {
+              userId: updatedBet.userId,
+              brandId,
+              amountCents: reward.rewardCents,
+              source: 'ACCA_ROLLBACK',
+              sourceBetId: betId,
+            },
+            tx,
+          );
+        }
+      }
 
       const previousCredited = updatedBet.settledPayoutCents ?? 0;
       const rawCredited = outcome.overallStatus === 'PENDING' ? 0 : outcome.payoutCents;

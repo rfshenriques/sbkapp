@@ -5,6 +5,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import type { Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AccaBoostService } from '../acca-boost/acca-boost.service';
+import { AccaRollbackService } from '../acca-rollback/acca-rollback.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { BoostService } from '../boosts/boost.service';
 import { OddsLadderService } from '../boosts/odds-ladder.service';
@@ -52,6 +53,7 @@ describe('PamService', () => {
   let marketSuspensionService: MarketSuspensionService;
   let competitionSuspensionService: CompetitionSuspensionService;
   let accaBoostService: AccaBoostService;
+  let accaRollbackService: AccaRollbackService;
   let manualMarketService: ManualMarketService;
   let boostService: BoostService;
   let freebetService: FreebetService;
@@ -91,6 +93,7 @@ describe('PamService', () => {
         MarketSuspensionService,
         CompetitionSuspensionService,
         AccaBoostService,
+        AccaRollbackService,
         ManualMarketService,
         BoostService,
         OddsLadderService,
@@ -107,6 +110,7 @@ describe('PamService', () => {
     marketSuspensionService = moduleRef.get(MarketSuspensionService);
     competitionSuspensionService = moduleRef.get(CompetitionSuspensionService);
     accaBoostService = moduleRef.get(AccaBoostService);
+    accaRollbackService = moduleRef.get(AccaRollbackService);
     manualMarketService = moduleRef.get(ManualMarketService);
     boostService = moduleRef.get(BoostService);
     freebetService = moduleRef.get(FreebetService);
@@ -117,11 +121,12 @@ describe('PamService', () => {
     await prisma.marketSuspension.deleteMany({ where: { matchId: { startsWith: 'match-' } } });
     await prisma.competitionSuspension.deleteMany({ where: { competition: DEFAULT_TEST_COMPETITION } });
     await prisma.accaBoostConfig.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
+    await prisma.accaRollbackConfig.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.stakeLimit.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.manualMarket.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.boost.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.auditLogEntry.deleteMany({
-      where: { actorUsername: { in: [TEST_ACTOR.username, 'system:boost-auto-disable'] } },
+      where: { actorUsername: { in: [TEST_ACTOR.username, 'system:boost-auto-disable', 'system:acca_rollback'] } },
     });
     if (createdUserIds.length > 0) {
       await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
@@ -1068,6 +1073,170 @@ describe('PamService', () => {
 
       const wallet = await pamService.getWallet(otherBrandUserId);
       expect(wallet.balanceCents).toBe(99_500); // stake deducted, never settled
+    });
+  });
+
+  describe('acca rollback', () => {
+    it('grants a freebet for the lost stake when a qualifying accumulator loses by no more than lossThreshold legs', async () => {
+      await accaRollbackService.setConfig(
+        testBrandId,
+        { minSelections: 3, lossThreshold: 1, rewardPercent: 100, enabled: true },
+        TEST_ACTOR,
+      );
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', odds: 2.0 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2.0 }),
+          buildSelection({ matchId: 'match-3', selectionId: 'away', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+      });
+
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[1]!.id, 'WON', TEST_ACTOR);
+      const settled = await pamService.settleSelection(
+        testBrandId,
+        bet.id,
+        bet.selections[2]!.id,
+        'LOST',
+        TEST_ACTOR,
+      );
+
+      expect(settled.status).toBe('LOST');
+      const grant = await prisma.freebetGrant.findFirstOrThrow({ where: { sourceBetId: bet.id } });
+      expect(grant.source).toBe('ACCA_ROLLBACK');
+      expect(grant.amountCents).toBe(1_000);
+      expect(grant.userId).toBe(userId);
+    });
+
+    it('does not grant a reward while sibling legs are still open, even though the bet is already overall LOST', async () => {
+      await accaRollbackService.setConfig(
+        testBrandId,
+        { minSelections: 3, lossThreshold: 1, rewardPercent: 100, enabled: true },
+        TEST_ACTOR,
+      );
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', odds: 2.0 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2.0 }),
+          buildSelection({ matchId: 'match-3', selectionId: 'away', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+      });
+
+      const settled = await pamService.settleSelection(
+        testBrandId,
+        bet.id,
+        bet.selections[0]!.id,
+        'LOST',
+        TEST_ACTOR,
+      );
+
+      expect(settled.status).toBe('LOST');
+      const grant = await prisma.freebetGrant.findFirst({ where: { sourceBetId: bet.id } });
+      expect(grant).toBeNull();
+    });
+
+    it('does not grant a reward when more legs lost than lossThreshold allows', async () => {
+      await accaRollbackService.setConfig(
+        testBrandId,
+        { minSelections: 3, lossThreshold: 1, rewardPercent: 100, enabled: true },
+        TEST_ACTOR,
+      );
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', odds: 2.0 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2.0 }),
+          buildSelection({ matchId: 'match-3', selectionId: 'away', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+      });
+
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'LOST', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[1]!.id, 'LOST', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[2]!.id, 'WON', TEST_ACTOR);
+
+      const grant = await prisma.freebetGrant.findFirst({ where: { sourceBetId: bet.id } });
+      expect(grant).toBeNull();
+    });
+
+    it('does not grant a reward when acca rollback is not enabled for the brand', async () => {
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', odds: 2.0 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2.0 }),
+          buildSelection({ matchId: 'match-3', selectionId: 'away', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+      });
+
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[1]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[2]!.id, 'LOST', TEST_ACTOR);
+
+      const grant = await prisma.freebetGrant.findFirst({ where: { sourceBetId: bet.id } });
+      expect(grant).toBeNull();
+    });
+
+    it('does not grant a reward for a freebet-funded accumulator, to avoid double-bonusing', async () => {
+      await accaRollbackService.setConfig(
+        testBrandId,
+        { minSelections: 3, lossThreshold: 1, rewardPercent: 100, enabled: true },
+        TEST_ACTOR,
+      );
+      const userId = await createTestUser(100_000);
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      const freebetGrant = await freebetService.grant(
+        testBrandId,
+        { identifier: user.username, amountCents: 1_000 },
+        TEST_ACTOR,
+      );
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', odds: 2.0 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2.0 }),
+          buildSelection({ matchId: 'match-3', selectionId: 'away', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+        freebetGrantId: freebetGrant.id,
+      });
+
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[1]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[2]!.id, 'LOST', TEST_ACTOR);
+
+      const rollbackGrant = await prisma.freebetGrant.findFirst({ where: { sourceBetId: bet.id } });
+      expect(rollbackGrant).toBeNull();
+    });
+
+    it('is idempotent - re-settling the same losing leg never grants the reward twice', async () => {
+      await accaRollbackService.setConfig(
+        testBrandId,
+        { minSelections: 3, lossThreshold: 1, rewardPercent: 100, enabled: true },
+        TEST_ACTOR,
+      );
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', odds: 2.0 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2.0 }),
+          buildSelection({ matchId: 'match-3', selectionId: 'away', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+      });
+
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[1]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[2]!.id, 'LOST', TEST_ACTOR);
+      // A correction re-settle, same terminal status.
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[2]!.id, 'LOST', TEST_ACTOR);
+
+      const grants = await prisma.freebetGrant.findMany({ where: { sourceBetId: bet.id } });
+      expect(grants).toHaveLength(1);
     });
   });
 });
