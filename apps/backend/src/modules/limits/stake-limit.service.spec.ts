@@ -187,4 +187,85 @@ describe('StakeLimitService', () => {
       expect(await service.list(brandBId)).toHaveLength(1);
     });
   });
+
+  describe('PLAYER scope', () => {
+    let userId: string;
+    let username: string;
+    let email: string;
+
+    beforeEach(async () => {
+      const unique = randomUUID();
+      username = `player_${unique.slice(0, 8)}`;
+      email = `player-${unique}@example.com`;
+      const user = await prisma.user.create({
+        data: {
+          email,
+          username,
+          phone: `+1555${unique.replace(/\D/g, '').slice(0, 7)}`,
+          passwordHash: 'irrelevant',
+          brandId: brandAId,
+        },
+      });
+      userId = user.id;
+    });
+
+    afterEach(async () => {
+      await prisma.user.delete({ where: { id: userId } });
+    });
+
+    it('resolves an email identifier to the player\'s userId and stores that as scopeValue', async () => {
+      const row = await service.set(
+        brandAId,
+        { scope: 'PLAYER', scopeValue: email, tier: 0, maxStakeCents: 5_000, maxLiabilityCents: 20_000 },
+        TEST_ACTOR,
+      );
+      expect(row.scopeValue).toBe(userId);
+    });
+
+    it('resolves a username identifier the same way', async () => {
+      const row = await service.set(
+        brandAId,
+        { scope: 'PLAYER', scopeValue: username, tier: 0, maxStakeCents: 5_000, maxLiabilityCents: 20_000 },
+        TEST_ACTOR,
+      );
+      expect(row.scopeValue).toBe(userId);
+    });
+
+    it('is idempotent - setting a limit for the same player twice (by different identifiers) updates the same row', async () => {
+      await service.set(
+        brandAId,
+        { scope: 'PLAYER', scopeValue: email, tier: 0, maxStakeCents: 5_000, maxLiabilityCents: null },
+        TEST_ACTOR,
+      );
+      await service.set(
+        brandAId,
+        { scope: 'PLAYER', scopeValue: username, tier: 0, maxStakeCents: 9_000, maxLiabilityCents: null },
+        TEST_ACTOR,
+      );
+
+      const rows = await service.list(brandAId);
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ scopeValue: userId, maxStakeCents: 9_000 });
+    });
+
+    it('rejects an identifier that matches no player in this brand', async () => {
+      await expect(
+        service.set(
+          brandAId,
+          { scope: 'PLAYER', scopeValue: 'no-such-player@example.com', tier: 0, maxStakeCents: 5_000, maxLiabilityCents: null },
+          TEST_ACTOR,
+        ),
+      ).rejects.toThrow('No player found with that email or username in this brand');
+    });
+
+    it('does not resolve a player who belongs to a different brand', async () => {
+      await expect(
+        service.set(
+          brandBId,
+          { scope: 'PLAYER', scopeValue: email, tier: 0, maxStakeCents: 5_000, maxLiabilityCents: null },
+          { ...TEST_ACTOR, brandId: brandBId },
+        ),
+      ).rejects.toThrow('No player found with that email or username in this brand');
+    });
+  });
 });

@@ -1,12 +1,17 @@
 import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
 
-const SCOPES = ['GLOBAL', 'SPORT', 'COUNTRY', 'LEAGUE', 'MARKET'] as const;
+const SCOPES = ['GLOBAL', 'SPORT', 'COUNTRY', 'LEAGUE', 'MARKET', 'PLAYER'] as const;
 
 export class SetStakeLimitDto {
   @IsIn(SCOPES)
   scope!: (typeof SCOPES)[number];
 
-  /** "" for GLOBAL, otherwise the raw feed sport/country/competition/market name it targets. */
+  /**
+   * "" for GLOBAL, otherwise the raw feed sport/country/competition/market
+   * name it targets. For PLAYER, this is instead the player's email or
+   * username - StakeLimitService.set() resolves it to their User.id and
+   * stores that as the row's actual scopeValue.
+   */
   @IsString()
   scopeValue!: string;
 

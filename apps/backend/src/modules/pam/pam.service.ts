@@ -11,7 +11,7 @@ import { BoostService } from '../boosts/boost.service';
 import { FreebetService } from '../freebets/freebet.service';
 import { InsuranceBetService } from '../insurance-bet/insurance-bet.service';
 import { calculateInsuredPayout } from '../insurance-bet/insurance-bet';
-import { resolveBetLimit, type LegContext } from '../limits/stake-limits';
+import { resolveBetLimit, type LegContext, type PlayerExposure } from '../limits/stake-limits';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { computeBetOutcome } from './bet-settlement';
@@ -86,6 +86,7 @@ export class PamService {
    * trading tools use.
    */
   private async assertWithinStakeLimits(
+    userId: string,
     brandId: string,
     dto: PlaceBetDto,
     matchesById: Map<string, Match>,
@@ -113,7 +114,13 @@ export class PamService {
       };
     });
 
-    const limit = resolveBetLimit(limitRows, legs);
+    // Only worth the extra round-trip when this player actually has a
+    // PLAYER-scoped row - most bets never touch it.
+    const player = limitRows.some((row) => row.scope === 'PLAYER' && row.scopeValue === userId)
+      ? await this.buildPlayerExposure(userId)
+      : undefined;
+
+    const limit = resolveBetLimit(limitRows, legs, player);
     if (limit.maxStakeCents !== null && dto.stakeCents > limit.maxStakeCents) {
       throw new BadRequestException(
         `Stake exceeds the maximum allowed for this bet (max €${formatEuros(limit.maxStakeCents)})`,
@@ -125,6 +132,19 @@ export class PamService {
         `Potential liability exceeds the maximum allowed for this bet (max €${formatEuros(limit.maxLiabilityCents)})`,
       );
     }
+  }
+
+  /** What a player already has riding on their own currently-PENDING bets - see PlayerExposure in stake-limits.ts. */
+  private async buildPlayerExposure(userId: string): Promise<PlayerExposure> {
+    const pending = await this.prisma.bet.findMany({
+      where: { userId, status: 'PENDING' },
+      select: { stakeCents: true, potentialPayoutCents: true },
+    });
+    return {
+      userId,
+      existingStakedCents: pending.reduce((sum, bet) => sum + bet.stakeCents, 0),
+      existingLiabilityCents: pending.reduce((sum, bet) => sum + (bet.potentialPayoutCents - bet.stakeCents), 0),
+    };
   }
 
   /**
@@ -279,7 +299,7 @@ export class PamService {
     );
     const potentialPayoutCents = insurancePricing.insuredPayoutCents;
 
-    await this.assertWithinStakeLimits(brandId, dto, matchesById, potentialPayoutCents);
+    await this.assertWithinStakeLimits(userId, brandId, dto, matchesById, potentialPayoutCents);
     const manualMarketLiabilityToRecord = await this.assertWithinManualMarketLimitsAndCollectLiability(
       brandId,
       dto,

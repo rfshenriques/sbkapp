@@ -353,6 +353,8 @@ enum LimitScope {
   COUNTRY
   LEAGUE
   MARKET
+  /** Targets one specific player (scopeValue = that player's User.id) - the most specific possible scope, overriding whatever the market/league/sport/global cascade would otherwise say for their bets. See stake-limits.ts's player-aware resolution. */
+  PLAYER
 }
 
 /**

@@ -27,19 +27,22 @@ export class StakeLimitService {
 
   /** Idempotent - setting a limit for an already-configured (scope, scopeValue, tier) triple just updates it. */
   async set(brandId: string, values: StakeLimitValues, actor: AuditActor) {
+    const resolvedValues =
+      values.scope === 'PLAYER' ? { ...values, scopeValue: await this.resolvePlayerId(brandId, values.scopeValue) } : values;
+
     const row = await this.prisma.stakeLimit.upsert({
       where: {
         brandId_scope_scopeValue_tier: {
           brandId,
-          scope: values.scope,
-          scopeValue: values.scopeValue,
-          tier: values.tier,
+          scope: resolvedValues.scope,
+          scopeValue: resolvedValues.scopeValue,
+          tier: resolvedValues.tier,
         },
       },
-      create: { brandId, ...values },
+      create: { brandId, ...resolvedValues },
       update: {
-        maxStakeCents: values.maxStakeCents,
-        maxLiabilityCents: values.maxLiabilityCents,
+        maxStakeCents: resolvedValues.maxStakeCents,
+        maxLiabilityCents: resolvedValues.maxLiabilityCents,
       },
     });
 
@@ -48,10 +51,22 @@ export class StakeLimitService {
       action: 'STAKE_LIMIT_SET',
       targetType: 'StakeLimit',
       targetId: row.id,
-      metadata: { ...values },
+      metadata: { ...resolvedValues, playerIdentifier: values.scope === 'PLAYER' ? values.scopeValue : undefined },
     });
 
     return row;
+  }
+
+  /** Resolves a PLAYER-scope row's email/username input to that player's User.id, scoped to this brand - same lookup FreebetService.grant() uses. */
+  private async resolvePlayerId(brandId: string, identifier: string): Promise<string> {
+    const user = await this.prisma.user.findFirst({
+      where: { brandId, OR: [{ email: identifier }, { username: identifier }] },
+      select: { id: true },
+    });
+    if (!user) {
+      throw new NotFoundException('No player found with that email or username in this brand');
+    }
+    return user.id;
   }
 
   /** `brandId` must match the row's own brand - a staff member can never remove another brand's limit, even by guessing its id. */

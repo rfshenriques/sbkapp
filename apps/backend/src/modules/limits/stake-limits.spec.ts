@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { resolveBetLimit, resolveLegLimit, type LegContext, type StakeLimitRow } from './stake-limits';
+import {
+  resolveBetLimit,
+  resolveLegLimit,
+  type LegContext,
+  type PlayerExposure,
+  type StakeLimitRow,
+} from './stake-limits';
 
 const leg: LegContext = {
   sport: 'Football',
@@ -97,5 +103,67 @@ describe('resolveBetLimit', () => {
 
   it('no cap anywhere means an unlimited bet (null)', () => {
     expect(resolveBetLimit([], [leg, leg])).toEqual({ maxStakeCents: null, maxLiabilityCents: null });
+  });
+
+  describe('PLAYER scope override', () => {
+    it('a PLAYER row overrides the cascade for that userId', () => {
+      const rows: StakeLimitRow[] = [
+        { scope: 'GLOBAL', scopeValue: '', tier: 0, maxStakeCents: 100_000, maxLiabilityCents: 500_000 },
+        { scope: 'PLAYER', scopeValue: 'user-1', tier: 0, maxStakeCents: 5_000, maxLiabilityCents: 20_000 },
+      ];
+      const player: PlayerExposure = { userId: 'user-1', existingStakedCents: 0, existingLiabilityCents: 0 };
+      expect(resolveBetLimit(rows, [leg], player)).toEqual({ maxStakeCents: 5_000, maxLiabilityCents: 20_000 });
+    });
+
+    it('a PLAYER row for a different userId does not apply', () => {
+      const rows: StakeLimitRow[] = [
+        { scope: 'GLOBAL', scopeValue: '', tier: 0, maxStakeCents: 100_000, maxLiabilityCents: 500_000 },
+        { scope: 'PLAYER', scopeValue: 'user-1', tier: 0, maxStakeCents: 5_000, maxLiabilityCents: 20_000 },
+      ];
+      const player: PlayerExposure = { userId: 'user-2', existingStakedCents: 0, existingLiabilityCents: 0 };
+      expect(resolveBetLimit(rows, [leg], player)).toEqual({ maxStakeCents: 100_000, maxLiabilityCents: 500_000 });
+    });
+
+    it('a PLAYER row with a null field falls back to the cascade for that field only', () => {
+      const rows: StakeLimitRow[] = [
+        { scope: 'GLOBAL', scopeValue: '', tier: 0, maxStakeCents: 100_000, maxLiabilityCents: 500_000 },
+        { scope: 'PLAYER', scopeValue: 'user-1', tier: 0, maxStakeCents: 5_000, maxLiabilityCents: null },
+      ];
+      const player: PlayerExposure = { userId: 'user-1', existingStakedCents: 0, existingLiabilityCents: 0 };
+      expect(resolveBetLimit(rows, [leg], player)).toEqual({ maxStakeCents: 5_000, maxLiabilityCents: 500_000 });
+    });
+
+    it('existing exposure reduces the player\'s effective headroom', () => {
+      const rows: StakeLimitRow[] = [
+        { scope: 'PLAYER', scopeValue: 'user-1', tier: 0, maxStakeCents: 5_000, maxLiabilityCents: 20_000 },
+      ];
+      const player: PlayerExposure = { userId: 'user-1', existingStakedCents: 3_000, existingLiabilityCents: 12_000 };
+      expect(resolveBetLimit(rows, [leg], player)).toEqual({ maxStakeCents: 2_000, maxLiabilityCents: 8_000 });
+    });
+
+    it('existing exposure at or beyond the cap floors headroom at zero, not negative', () => {
+      const rows: StakeLimitRow[] = [
+        { scope: 'PLAYER', scopeValue: 'user-1', tier: 0, maxStakeCents: 5_000, maxLiabilityCents: 20_000 },
+      ];
+      const player: PlayerExposure = { userId: 'user-1', existingStakedCents: 9_000, existingLiabilityCents: 25_000 };
+      expect(resolveBetLimit(rows, [leg], player)).toEqual({ maxStakeCents: 0, maxLiabilityCents: 0 });
+    });
+
+    it('a MARKET-level cap is overridden by the PLAYER row even though MARKET is normally most specific', () => {
+      const rows: StakeLimitRow[] = [
+        { scope: 'MARKET', scopeValue: 'Match Result', tier: 0, maxStakeCents: 1_000, maxLiabilityCents: 4_000 },
+        { scope: 'PLAYER', scopeValue: 'user-1', tier: 0, maxStakeCents: 50_000, maxLiabilityCents: 200_000 },
+      ];
+      const player: PlayerExposure = { userId: 'user-1', existingStakedCents: 0, existingLiabilityCents: 0 };
+      expect(resolveBetLimit(rows, [leg], player)).toEqual({ maxStakeCents: 50_000, maxLiabilityCents: 200_000 });
+    });
+
+    it('no PLAYER row for the given player falls back to the ordinary cascade', () => {
+      const rows: StakeLimitRow[] = [
+        { scope: 'SPORT', scopeValue: 'Football', tier: 0, maxStakeCents: 50_000, maxLiabilityCents: 200_000 },
+      ];
+      const player: PlayerExposure = { userId: 'user-1', existingStakedCents: 0, existingLiabilityCents: 0 };
+      expect(resolveBetLimit(rows, [leg], player)).toEqual({ maxStakeCents: 50_000, maxLiabilityCents: 200_000 });
+    });
   });
 });

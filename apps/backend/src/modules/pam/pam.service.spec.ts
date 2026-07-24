@@ -393,6 +393,60 @@ describe('PamService', () => {
 
       expect(bet.stakeCents).toBe(50_000);
     });
+
+    it('a PLAYER-scoped row overrides the ordinary MARKET cascade for that player', async () => {
+      const userId = await createTestUser(100_000);
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'MARKET', scopeValue: 'Match Result', tier: 0, maxStakeCents: 1_000 },
+      });
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'PLAYER', scopeValue: userId, tier: 0, maxStakeCents: 10_000 },
+      });
+
+      // 5000 exceeds the MARKET cap (1000) but is under the PLAYER cap (10000) - the player override wins.
+      const bet = await pamService.placeBet(userId, { selections: [buildSelection()], stakeCents: 5_000 });
+      expect(bet.stakeCents).toBe(5_000);
+
+      // Only 5000 of headroom remains under the 10000 player cap now that the first bet is PENDING.
+      await expect(
+        pamService.placeBet(userId, { selections: [buildSelection()], stakeCents: 5_001 }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('a PLAYER row does not apply to a different player', async () => {
+      const targetUserId = await createTestUser(100_000);
+      const otherUserId = await createTestUser(100_000);
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'PLAYER', scopeValue: targetUserId, tier: 0, maxStakeCents: 1_000 },
+      });
+
+      const bet = await pamService.placeBet(otherUserId, { selections: [buildSelection()], stakeCents: 50_000 });
+      expect(bet.stakeCents).toBe(50_000);
+    });
+
+    it('a player\'s existing PENDING exposure shrinks their remaining PLAYER-cap headroom', async () => {
+      const userId = await createTestUser(100_000);
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'PLAYER', scopeValue: userId, tier: 0, maxStakeCents: 10_000 },
+      });
+
+      const firstBet = await pamService.placeBet(userId, {
+        selections: [buildSelection()],
+        stakeCents: 7_000,
+      });
+      expect(firstBet.stakeCents).toBe(7_000);
+
+      // Only 3000 of headroom remains under the 10000 player cap.
+      await expect(
+        pamService.placeBet(userId, { selections: [buildSelection()], stakeCents: 3_001 }),
+      ).rejects.toThrow(BadRequestException);
+
+      const secondBet = await pamService.placeBet(userId, {
+        selections: [buildSelection()],
+        stakeCents: 3_000,
+      });
+      expect(secondBet.stakeCents).toBe(3_000);
+    });
   });
 
   describe('manual market limits', () => {

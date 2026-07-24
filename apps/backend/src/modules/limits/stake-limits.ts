@@ -39,6 +39,9 @@ function scopeValueFor(scope: LimitScope, leg: LegContext): string {
       return leg.sport;
     case 'GLOBAL':
       return '';
+    case 'PLAYER':
+      // Never reached: PLAYER is resolved separately in resolveBetLimit, not part of SCOPE_PRECEDENCE.
+      throw new Error('PLAYER scope is not resolved via scopeValueFor');
   }
 }
 
@@ -76,6 +79,13 @@ function minIgnoringNull(values: (number | null)[]): number | null {
   return real.length === 0 ? null : Math.min(...real);
 }
 
+/** What a player already has riding on their currently-unsettled (PENDING) bets, before this new one - see PamService. */
+export interface PlayerExposure {
+  userId: string;
+  existingStakedCents: number;
+  existingLiabilityCents: number;
+}
+
 /**
  * A single bet is just a one-leg accumulator here - resolving "the smallest
  * cap across legs" for a single selection degenerates to that selection's
@@ -84,14 +94,42 @@ function minIgnoringNull(values: (number | null)[]): number | null {
  * is the smallest one found - a book's real exposure on an accumulator is
  * bounded by whichever leg is most restrictive, e.g. one leg capped at
  * €1000 and another at €400 means the whole bet is capped at €400.
+ *
+ * When `player` is supplied and a PLAYER-scoped row exists for their
+ * userId, that row overrides the market/league/sport/global cascade
+ * outright for whichever field it sets (a null field on the player row
+ * falls back to the cascade) - the most specific possible target beats
+ * even a MARKET-level cap. The override is exposure-aware: the player's
+ * own cap is a ceiling on their *total* outstanding stake/liability, not
+ * just this one bet in isolation, so headroom shrinks by whatever they
+ * already have riding on other PENDING bets.
  */
 export function resolveBetLimit(
   rows: StakeLimitRow[],
   legs: LegContext[],
+  player?: PlayerExposure,
 ): { maxStakeCents: number | null; maxLiabilityCents: number | null } {
   const perLeg = legs.map((leg) => resolveLegLimit(rows, leg));
-  return {
+  const cascaded = {
     maxStakeCents: minIgnoringNull(perLeg.map((limit) => limit.maxStakeCents)),
     maxLiabilityCents: minIgnoringNull(perLeg.map((limit) => limit.maxLiabilityCents)),
+  };
+
+  const playerRow = player
+    ? rows.find((row) => row.scope === 'PLAYER' && row.scopeValue === player.userId)
+    : undefined;
+  if (!player || !playerRow) {
+    return cascaded;
+  }
+
+  return {
+    maxStakeCents:
+      playerRow.maxStakeCents === null
+        ? cascaded.maxStakeCents
+        : Math.max(0, playerRow.maxStakeCents - player.existingStakedCents),
+    maxLiabilityCents:
+      playerRow.maxLiabilityCents === null
+        ? cascaded.maxLiabilityCents
+        : Math.max(0, playerRow.maxLiabilityCents - player.existingLiabilityCents),
   };
 }
