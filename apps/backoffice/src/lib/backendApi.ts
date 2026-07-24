@@ -965,3 +965,62 @@ export async function importStakeLimits(file: File): Promise<StakeLimitImportRes
   });
   return parseJsonOrThrow(response, `Failed to import stake limits: ${response.status}`);
 }
+
+export type AudienceMode = 'ALL' | 'LOGGED_OUT' | 'LOGGED_IN' | 'SEGMENTS';
+
+export interface PlayerSegmentMember {
+  id: string;
+  userId: string;
+  addedAt: string;
+  user: { id: string; email: string; username: string };
+}
+
+export interface PlayerSegment {
+  id: string;
+  brandId: string;
+  name: string;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+  members: PlayerSegmentMember[];
+}
+
+export async function listPlayerSegments(): Promise<PlayerSegment[]> {
+  const response = await authenticatedFetch('/admin/player-segments');
+  return parseJsonOrThrow(response, `Failed to load player segments: ${response.status}`);
+}
+
+export async function createPlayerSegment(name: string, description?: string): Promise<PlayerSegment> {
+  const response = await authenticatedFetch('/admin/player-segments', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, description }),
+  });
+  return parseJsonOrThrow(response, `Failed to create player segment: ${response.status}`);
+}
+
+export async function removePlayerSegment(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/player-segments/${id}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(`Failed to remove player segment: ${response.status}`);
+  }
+}
+
+/** `identifier` is the player's email or username - whichever staff has on hand. */
+export async function addPlayerSegmentMember(segmentId: string, identifier: string): Promise<PlayerSegmentMember> {
+  const response = await authenticatedFetch(`/admin/player-segments/${segmentId}/members`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ identifier }),
+  });
+  return parseJsonOrThrow(response, `Failed to add player to segment: ${response.status}`);
+}
+
+export async function removePlayerSegmentMember(segmentId: string, userId: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/player-segments/${segmentId}/members/${userId}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to remove player from segment: ${response.status}`);
+  }
+}

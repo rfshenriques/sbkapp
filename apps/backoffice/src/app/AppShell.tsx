@@ -40,6 +40,10 @@ const NAV_GROUPS: NavGroup[] = [
     items: [{ to: '/cms-images', label: 'CMS images', roles: ['ADMIN', 'CMS'] }],
   },
   {
+    label: 'CRM',
+    items: [{ to: '/player-segments', label: 'Player segments', roles: ['ADMIN', 'CRM'] }],
+  },
+  {
     label: 'Customization',
     items: [
       { to: '/display-names', label: 'Translations', roles: ['ADMIN', 'CMS'] },

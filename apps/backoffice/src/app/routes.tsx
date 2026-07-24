@@ -12,6 +12,7 @@ import NotFoundPage from '../pages/NotFoundPage';
 import BoostsPage from '../pages/BoostsPage';
 import OddsLadderPage from '../pages/OddsLadderPage';
 import OddsOverridesPage from '../pages/OddsOverridesPage';
+import PlayerSegmentsPage from '../pages/PlayerSegmentsPage';
 import RegistrationsPage from '../pages/RegistrationsPage';
 import ReportsPage from '../pages/ReportsPage';
 import SettlementPage from '../pages/SettlementPage';
@@ -203,6 +204,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'CMS']}>
               <CompetitionRankingPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'player-segments',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'CRM']}>
+              <PlayerSegmentsPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),
