@@ -330,6 +330,35 @@ export async function getInsuranceBetConfig(brandId: string): Promise<InsuranceB
   return (await response.json()) as InsuranceBetConfig;
 }
 
+export interface StakeLimitPreview {
+  maxStakeCents: number | null;
+  maxLiabilityCents: number | null;
+  /** The smaller of maxStakeCents and maxLiabilityCents converted into stake terms via this bet's own combined odds - the one number to compare a typed stake against. Null means unlimited. */
+  effectiveMaxStakeCents: number | null;
+}
+
+/**
+ * A preview of what PamService.assertWithinStakeLimits would allow for
+ * this exact set of selections, so the bet slip can warn before a player
+ * tries to place a bet that would just get rejected. Soft-authenticated
+ * (see optionalAuthHeaders) - a logged-out player still gets the
+ * cascade-based preview, just without any PLAYER-scoped override.
+ */
+export async function previewStakeLimit(
+  brandId: string,
+  selections: PlaceBetSelection[],
+): Promise<StakeLimitPreview> {
+  const response = await fetch(`${BASE_URL}/public/stake-limit-preview/${encodeURIComponent(brandId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...optionalAuthHeaders() },
+    body: JSON.stringify({ selections }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to preview stake limit: ${response.status}`);
+  }
+  return (await response.json()) as StakeLimitPreview;
+}
+
 export type BrandImageListKind = 'SPONSOR_LOGO' | 'PAYMENT_METHOD';
 
 export interface BrandImageListItem {

@@ -10,7 +10,10 @@ import { BetSlipPanel, type BetSlipPanelProps } from './BetSlipPanel';
 import { useBetSlipStore } from './betSlipStore';
 
 function renderPanel(props: BetSlipPanelProps = {}) {
-  const queryClient = new QueryClient();
+  // No retries - a 404 stub for an endpoint a given test doesn't care about
+  // should fail once and settle, not burn through react-query's default
+  // exponential backoff before the assertion below even gets to run.
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
@@ -254,6 +257,80 @@ describe('BetSlipPanel', () => {
 
       // 21.00 - 10% cost -> 18.90.
       expect(await screen.findByText('18.90')).toBeInTheDocument();
+    });
+  });
+
+  describe('stake limit preview alert', () => {
+    function stubStakeLimitPreview(preview: {
+      maxStakeCents: number | null;
+      maxLiabilityCents: number | null;
+      effectiveMaxStakeCents: number | null;
+    }) {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          const method = init?.method ?? 'GET';
+          if (method === 'POST' && url === '/backend/public/stake-limit-preview/brand-1') {
+            return new Response(JSON.stringify(preview), { status: 200 });
+          }
+          return new Response(null, { status: 404 });
+        }),
+      );
+    }
+
+    it('shows nothing when no cap applies', () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubStakeLimitPreview({ maxStakeCents: null, maxLiabilityCents: null, effectiveMaxStakeCents: null });
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      expect(screen.queryByText(/Max stake/)).not.toBeInTheDocument();
+    });
+
+    it('shows an informational note when the typed stake is within the cap', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubStakeLimitPreview({ maxStakeCents: 5_000, maxLiabilityCents: null, effectiveMaxStakeCents: 5_000 });
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      // Default stake is 10.00 -> 1000 cents, under the 5000-cent cap.
+      expect(await screen.findByText('Max stake for this bet: €50.00')).toBeInTheDocument();
+      expect(screen.queryByText(/Stake exceeds/)).not.toBeInTheDocument();
+    });
+
+    it('shows a warning naming the stake limit once the typed stake exceeds a plain stake cap', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubStakeLimitPreview({ maxStakeCents: 500, maxLiabilityCents: null, effectiveMaxStakeCents: 500 });
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      // Default stake is 10.00 -> 1000 cents, over the 500-cent cap.
+      expect(
+        await screen.findByText('Stake exceeds the maximum allowed for this bet (max €5.00, stake limit)'),
+      ).toBeInTheDocument();
+    });
+
+    it('names the liability limit when that is the binding cap', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubStakeLimitPreview({ maxStakeCents: 2_000, maxLiabilityCents: 500, effectiveMaxStakeCents: 400 });
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      expect(
+        await screen.findByText('Stake exceeds the maximum allowed for this bet (max €4.00, liability limit)'),
+      ).toBeInTheDocument();
+    });
+
+    it('shows one alert per row on the singles tab with 2+ selections', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubStakeLimitPreview({ maxStakeCents: 500, maxLiabilityCents: null, effectiveMaxStakeCents: 500 });
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+      renderPanel();
+
+      await userEvent.click(screen.getByRole('tab', { name: /Singles/ }));
+
+      expect(await screen.findAllByText('Stake exceeds the maximum allowed for this bet (max €5.00, stake limit)')).toHaveLength(2);
     });
   });
 

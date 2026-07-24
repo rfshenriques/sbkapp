@@ -18,7 +18,9 @@ import { evaluateAccaRollbackEligibility, type AccaRollbackConfig } from './acca
 import { useAccaRollbackConfig } from './useAccaRollbackConfig';
 import { calculateInsuredPayout } from './insuranceBet';
 import { useInsuranceBetConfig } from './useInsuranceBetConfig';
+import { useStakeLimitPreview } from './useStakeLimitPreview';
 import { useBetSlipStore, type BetSlipSelection } from './betSlipStore';
+import type { StakeLimitPreview } from '../../lib/backendApi';
 
 type PayMethod = 'cash' | 'freebet';
 
@@ -171,6 +173,37 @@ function AccaRollbackBar({ selectionCount, config }: { selectionCount: number; c
 }
 
 /**
+ * Previews what PamService.assertWithinStakeLimits (see the
+ * /public/stake-limit-preview endpoint) would allow for this exact bet.
+ * `null` (still loading, no brand resolved yet, or no cap configured at
+ * all) renders nothing - never a fabricated limit. Within the cap it's a
+ * quiet informational note matching MaxStakeNote's style; once the typed
+ * stake exceeds it, it becomes a warning naming which cap (stake vs
+ * liability) is the binding one, so the player sees the problem before
+ * the place-bet request would just get rejected for it.
+ */
+function StakeLimitAlert({ stakeCents, preview }: { stakeCents: number; preview: StakeLimitPreview | null }) {
+  if (!preview || preview.effectiveMaxStakeCents === null) {
+    return null;
+  }
+
+  const maxStakeLabel = (preview.effectiveMaxStakeCents / 100).toFixed(2);
+  if (stakeCents <= preview.effectiveMaxStakeCents) {
+    return <p className="text-[11px] text-text-secondary">Max stake for this bet: €{maxStakeLabel}</p>;
+  }
+
+  // effectiveMaxStakeCents is whichever of the two caps is smaller (see
+  // maxStakeFromLiability) - if the plain stake cap matches it, that's the
+  // binding one, otherwise the liability-derived cap must be.
+  const reason = preview.maxStakeCents === preview.effectiveMaxStakeCents ? 'stake limit' : 'liability limit';
+  return (
+    <p className="rounded-xl border border-danger/40 bg-danger/10 px-2.5 py-2 text-xs font-medium text-danger">
+      Stake exceeds the maximum allowed for this bet (max €{maxStakeLabel}, {reason})
+    </p>
+  );
+}
+
+/**
  * Replaces the typed stake input in freebet mode - a freebet is a single-use
  * token of a fixed value (see FreebetGrant), not an amount the player types,
  * so they pick which one to spend instead.
@@ -288,6 +321,7 @@ interface SingleBetRowProps {
 function SingleBetRow({ selection, stake, onStakeChange, showStake }: SingleBetRowProps) {
   const removeSelection = useBetSlipStore((state) => state.removeSelection);
   const stakeId = useId();
+  const stakeLimitPreview = useStakeLimitPreview([selection]);
 
   return (
     <Card className="fade-in-up space-y-2 border-border bg-surface-2">
@@ -314,13 +348,16 @@ function SingleBetRow({ selection, stake, onStakeChange, showStake }: SingleBetR
       <MaxStakeNote selection={selection} />
 
       {showStake && (
-        <StakeField
-          stakeId={stakeId}
-          stake={stake}
-          onStakeChange={onStakeChange}
-          odds={selection.odds}
-          hideOdds
-        />
+        <>
+          <StakeField
+            stakeId={stakeId}
+            stake={stake}
+            onStakeChange={onStakeChange}
+            odds={selection.odds}
+            hideOdds
+          />
+          <StakeLimitAlert stakeCents={Math.round(Number(stake) * 100)} preview={stakeLimitPreview} />
+        </>
       )}
     </Card>
   );
@@ -487,6 +524,13 @@ export function BetSlipPanel({
 
   const showTabs = selections.length >= 2;
   const tab: BetSlipTab = showTabs ? activeTab : 'singles';
+  // A lone selection has nowhere else for its stake to live once it's not
+  // inline on the row (see SingleBetRow's showStake) - computed up here
+  // (not inside the branch below) since the stake-limit preview hooks
+  // that use it must be called unconditionally on every render.
+  const singleSelection = selections.length === 1 ? selections[0] : undefined;
+  const accumulatorStakeLimitPreview = useStakeLimitPreview(tab === 'accumulator' ? selections : []);
+  const singleSelectionStakeLimitPreview = useStakeLimitPreview(singleSelection ? [singleSelection] : []);
   const rawAccaBoost = calculateAccaBoost(
     selections.map((selection) => selection.odds),
     accaBoostConfig,
@@ -677,12 +721,6 @@ export function BetSlipPanel({
         ? activeMutation.error.message
         : 'Failed to place bet'
       : null;
-    // A lone selection has nowhere else for its stake to live once it's not
-    // inline on the row (see SingleBetRow's showStake) - one selection means
-    // tab is always 'singles' already, so this and the accumulator's own
-    // stake field below are mutually exclusive.
-    const singleSelection = selections.length === 1 ? selections[0] : undefined;
-
     footer = (
       <div className="mt-3 shrink-0 space-y-2 border-t border-border pt-3">
         {tab === 'accumulator' && !isFreebetMode && (
@@ -695,25 +733,34 @@ export function BetSlipPanel({
           (isFreebetMode ? (
             <FreebetPicker freebets={freebets ?? []} selectedId={selectedFreebetId} onSelect={setSelectedFreebetId} />
           ) : (
-            <StakeField
-              stakeId={stakeId}
-              stake={stake}
-              onStakeChange={setStake}
-              odds={combinedOdds}
-              previousOdds={accaBoost.qualifies ? accaBoost.baseCombinedOdds : undefined}
-            />
+            <>
+              <StakeField
+                stakeId={stakeId}
+                stake={stake}
+                onStakeChange={setStake}
+                odds={combinedOdds}
+                previousOdds={accaBoost.qualifies ? accaBoost.baseCombinedOdds : undefined}
+              />
+              <StakeLimitAlert stakeCents={stakeCents} preview={accumulatorStakeLimitPreview} />
+            </>
           ))}
         {singleSelection &&
           (isFreebetMode ? (
             <FreebetPicker freebets={freebets ?? []} selectedId={selectedFreebetId} onSelect={setSelectedFreebetId} />
           ) : (
-            <StakeField
-              stakeId={stakeId}
-              stake={getSingleStake(singleSelection)}
-              onStakeChange={(value) => setSingleStake(singleSelection, value)}
-              odds={singleSelection.odds}
-              hideOdds
-            />
+            <>
+              <StakeField
+                stakeId={stakeId}
+                stake={getSingleStake(singleSelection)}
+                onStakeChange={(value) => setSingleStake(singleSelection, value)}
+                odds={singleSelection.odds}
+                hideOdds
+              />
+              <StakeLimitAlert
+                stakeCents={Math.round(Number(getSingleStake(singleSelection)) * 100)}
+                preview={singleSelectionStakeLimitPreview}
+              />
+            </>
           ))}
         {!isFreebetMode && insuranceBetConfig.enabled && selections.length > 0 && (
           <label className="flex items-center justify-between gap-2 rounded-xl border border-border bg-surface-2 p-2.5 text-xs">
