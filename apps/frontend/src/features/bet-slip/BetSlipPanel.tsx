@@ -14,6 +14,8 @@ import { betsQueryKey } from '../bet-history/useBets';
 import { BetHistoryList } from '../bet-history/BetHistoryList';
 import { calculateAccaBoost, type AccaBoostConfig } from './accaBoost';
 import { useAccaBoostConfig } from './useAccaBoostConfig';
+import { evaluateAccaRollbackEligibility, type AccaRollbackConfig } from './accaRollback';
+import { useAccaRollbackConfig } from './useAccaRollbackConfig';
 import { useBetSlipStore, type BetSlipSelection } from './betSlipStore';
 
 type PayMethod = 'cash' | 'freebet';
@@ -132,6 +134,36 @@ function AccaBoostBar({ legOdds, config }: { legOdds: number[]; config: AccaBoos
           style={{ width: `${progressPercent}%` }}
         />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Only rendered for the accumulator tab - the reward itself depends on how
+ * many legs end up losing, which is unknowable until settlement, so this
+ * only ever shows whether the bet currently has enough legs to be in the
+ * running ("will qualify") or how many more it needs.
+ */
+function AccaRollbackBar({ selectionCount, config }: { selectionCount: number; config: AccaRollbackConfig }) {
+  if (!config.enabled) {
+    return null;
+  }
+
+  const { qualifies } = evaluateAccaRollbackEligibility(selectionCount, config);
+
+  if (qualifies) {
+    return (
+      <div className="rounded-xl border border-highlight/40 bg-highlight/10 p-2.5 text-xs font-semibold text-highlight">
+        🛡️ Will qualify for Acca Rollback - get {config.rewardPercent}% back as a freebet if it loses by
+        no more than {config.lossThreshold} selection{config.lossThreshold === 1 ? '' : 's'}
+      </div>
+    );
+  }
+
+  const remaining = Math.max(0, config.minSelections - selectionCount);
+  return (
+    <div className="rounded-xl border border-border bg-surface-2 p-2.5 text-xs font-medium text-text-secondary">
+      Add {remaining} more selection{remaining === 1 ? '' : 's'} to qualify for Acca Rollback
     </div>
   );
 }
@@ -331,6 +363,7 @@ export function BetSlipPanel({
   const { isAuthenticated } = useAuth();
   const openAuthModal = useAuthModalStore((state) => state.open);
   const accaBoostConfig = useAccaBoostConfig();
+  const accaRollbackConfig = useAccaRollbackConfig();
   const { data: freebets } = useFreebets();
   const queryClient = useQueryClient();
   const [stake, setStake] = useState('10.00');
@@ -633,6 +666,9 @@ export function BetSlipPanel({
       <div className="mt-3 shrink-0 space-y-2 border-t border-border pt-3">
         {tab === 'accumulator' && !isFreebetMode && (
           <AccaBoostBar legOdds={selections.map((selection) => selection.odds)} config={accaBoostConfig} />
+        )}
+        {tab === 'accumulator' && !isFreebetMode && (
+          <AccaRollbackBar selectionCount={selections.length} config={accaRollbackConfig} />
         )}
         {tab === 'accumulator' &&
           (isFreebetMode ? (

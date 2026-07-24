@@ -165,6 +165,57 @@ describe('BetSlipPanel', () => {
     });
   });
 
+  describe('acca rollback bar', () => {
+    function stubAccaRollbackConfig(config: {
+      minSelections: number;
+      lossThreshold: number;
+      rewardPercent: number;
+      enabled: boolean;
+    }) {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          if (url === '/backend/public/acca-rollback-config/brand-1') {
+            return new Response(JSON.stringify(config), { status: 200 });
+          }
+          return new Response(null, { status: 404 });
+        }),
+      );
+    }
+
+    it('shows nothing when acca rollback is disabled', () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubAccaRollbackConfig({ minSelections: 3, lossThreshold: 1, rewardPercent: 100, enabled: false });
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+      renderPanel();
+
+      expect(screen.queryByText(/Acca Rollback/)).not.toBeInTheDocument();
+    });
+
+    it('shows a progress nudge before the minimum number of selections is reached', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubAccaRollbackConfig({ minSelections: 3, lossThreshold: 1, rewardPercent: 100, enabled: true });
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+      renderPanel();
+
+      expect(await screen.findByText('Add 1 more selection to qualify for Acca Rollback')).toBeInTheDocument();
+    });
+
+    it('shows a qualifying message once the minimum number of selections is reached', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubAccaRollbackConfig({ minSelections: 3, lossThreshold: 1, rewardPercent: 100, enabled: true });
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection, drawSelection] });
+      renderPanel();
+
+      expect(
+        await screen.findByText(
+          '🛡️ Will qualify for Acca Rollback - get 100% back as a freebet if it loses by no more than 1 selection',
+        ),
+      ).toBeInTheDocument();
+    });
+  });
+
   describe('freebets', () => {
     function stubFreebetsAndAccaBoost(
       freebets: { id: string; amountCents: number; expiresAt: string | null }[],

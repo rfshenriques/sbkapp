@@ -298,6 +298,22 @@ export async function getAccaBoostConfig(brandId: string): Promise<AccaBoostConf
   return (await response.json()) as AccaBoostConfig;
 }
 
+export interface AccaRollbackConfig {
+  minSelections: number;
+  lossThreshold: number;
+  rewardPercent: number;
+  enabled: boolean;
+}
+
+/** The acting brand's accumulator-rollback settings - see apps/backend's AccaRollbackService. */
+export async function getAccaRollbackConfig(brandId: string): Promise<AccaRollbackConfig> {
+  const response = await fetch(`${BASE_URL}/public/acca-rollback-config/${encodeURIComponent(brandId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch acca rollback config: ${response.status}`);
+  }
+  return (await response.json()) as AccaRollbackConfig;
+}
+
 export type BrandImageListKind = 'SPONSOR_LOGO' | 'PAYMENT_METHOD';
 
 export interface BrandImageListItem {
