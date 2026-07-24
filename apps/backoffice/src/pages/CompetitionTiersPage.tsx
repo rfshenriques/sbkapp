@@ -1,6 +1,5 @@
-import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Card } from '../components/ui/Card';
+import { CompetitionDrilldown } from '../components/CompetitionDrilldown';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
 
@@ -11,17 +10,12 @@ const TIERS = [1, 2, 3, 4] as const;
 /** Matches the <select> value for "no tier assigned" - never sent to the API, only used to trigger a remove. */
 const UNTIERED = 'untiered';
 
-interface Row {
-  competition: string;
-  tierRow: backendApi.CompetitionTier | undefined;
-}
-
-function TierRow({ row }: { row: Row }) {
+function TierRow({ competition, tiers }: { competition: string; tiers: backendApi.CompetitionTier[] }) {
   const queryClient = useQueryClient();
+  const tierRow = tiers.find((row) => row.competition === competition);
 
   const setMutation = useMutation({
-    mutationFn: ({ competition, tier }: { competition: string; tier: number }) =>
-      backendApi.setCompetitionTier(competition, tier),
+    mutationFn: (tier: number) => backendApi.setCompetitionTier(competition, tier),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: tiersQueryKey }),
   });
   const removeMutation = useMutation({
@@ -33,18 +27,18 @@ function TierRow({ row }: { row: Row }) {
 
   function handleChange(value: string) {
     if (value === UNTIERED) {
-      if (row.tierRow) removeMutation.mutate(row.tierRow.id);
+      if (tierRow) removeMutation.mutate(tierRow.id);
       return;
     }
-    setMutation.mutate({ competition: row.competition, tier: Number(value) });
+    setMutation.mutate(Number(value));
   }
 
   return (
     <div className="flex items-center justify-between gap-2 rounded-md bg-background px-3 py-2">
-      <span className="min-w-0 truncate text-sm">{row.competition}</span>
+      <span className="min-w-0 truncate text-sm">{competition}</span>
       <select
-        aria-label={`${row.competition} tier`}
-        value={row.tierRow ? String(row.tierRow.tier) : UNTIERED}
+        aria-label={`${competition} tier`}
+        value={tierRow ? String(tierRow.tier) : UNTIERED}
         disabled={isPending}
         onChange={(event) => handleChange(event.target.value)}
         className="rounded-md border border-border bg-surface px-2 py-1 text-sm text-text-primary"
@@ -61,20 +55,12 @@ function TierRow({ row }: { row: Row }) {
 }
 
 export default function CompetitionTiersPage() {
-  const { data: matches } = useQuery({ queryKey: matchesQueryKey, queryFn: oddsEngineApi.fetchMatches });
   const {
-    data: tiers,
-    isPending: tiersPending,
-    isError: tiersError,
-  } = useQuery({ queryKey: tiersQueryKey, queryFn: backendApi.listCompetitionTiers });
-
-  const rows = useMemo(() => {
-    const tierByCompetition = new Map((tiers ?? []).map((row) => [row.competition, row]));
-    const competitions = new Set<string>([...tierByCompetition.keys(), ...(matches ?? []).map((m) => m.competition)]);
-    return [...competitions]
-      .sort((a, b) => a.localeCompare(b))
-      .map((competition) => ({ competition, tierRow: tierByCompetition.get(competition) }));
-  }, [matches, tiers]);
+    data: matches,
+    isPending: matchesPending,
+    isError: matchesError,
+  } = useQuery({ queryKey: matchesQueryKey, queryFn: oddsEngineApi.fetchMatches });
+  const { data: tiers } = useQuery({ queryKey: tiersQueryKey, queryFn: backendApi.listCompetitionTiers });
 
   return (
     <div>
@@ -86,20 +72,12 @@ export default function CompetitionTiersPage() {
       </p>
 
       <div className="mt-4">
-        {tiersPending && <p className="text-sm text-text-secondary">Loading competition tiers…</p>}
-        {tiersError && <p className="text-sm text-danger">Failed to load competition tiers.</p>}
-        {!tiersPending && rows.length === 0 && (
-          <p className="text-sm text-text-secondary">
-            No competitions yet - they'll appear here once matches are live.
-          </p>
-        )}
-        {rows.length > 0 && (
-          <Card className="space-y-2">
-            {rows.map((row) => (
-              <TierRow key={row.competition} row={row} />
-            ))}
-          </Card>
-        )}
+        <CompetitionDrilldown
+          matches={matches}
+          isLoading={matchesPending}
+          isError={matchesError}
+          renderCompetition={(competition) => <TierRow competition={competition} tiers={tiers ?? []} />}
+        />
       </div>
     </div>
   );
