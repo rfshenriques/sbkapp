@@ -163,6 +163,7 @@ enum AuditAction {
   FREEBET_GRANTED
   FREEBET_VOIDED
   ACCA_ROLLBACK_CONFIG_SET
+  INSURANCE_BET_CONFIG_SET
 }
 
 enum FreebetStatus {
@@ -545,6 +546,8 @@ model Bet {
   potentialPayoutCents Int
   /** The acca boost percent (see AccaBoostConfig) actually applied at placement time - 0 for a single bet or an accumulator that didn't qualify. Stored on the bet, not recomputed later, so a config change never retroactively changes a bet already placed. */
   accaBoostPercent     Float     @default(0)
+  /** The insurance premium percent (see InsuranceBetConfig) actually deducted from the payout at placement time - 0 when the player didn't opt in or the feature was off. A non-zero value here is also what settlement checks to decide whether a loss refunds the stake as a freebet. */
+  insuranceCostPercent Float     @default(0)
   status               BetStatus @default(PENDING)
   createdAt            DateTime  @default(now())
 
@@ -812,6 +815,26 @@ model AccaRollbackConfig {
 }
 
 /**
+ * A brand's insurance-bet settings - a single row per brand (same "no row =
+ * feature off" default pattern as AccaBoostConfig/AccaRollbackConfig).
+ * When a player opts in at placement (any bet - single or accumulator),
+ * costPercent is deducted from the potential payout up front as the
+ * premium; if the bet then loses at all, the stake comes back as a
+ * freebet (FreebetSource.INSURANCE_BET) - see insurance-bet.ts and
+ * PamService.
+ */
+model InsuranceBetConfig {
+  id          String   @id @default(uuid())
+  brandId     String   @unique
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  costPercent Float    @default(10)
+  enabled     Boolean  @default(false)
+  updatedAt   DateTime @updatedAt
+
+  @@map("insurance_bet_configs")
+}
+
+/**
  * A snapshot of what was picked at bet time - not a live reference to the
  * odds feed, which has no persistence of its own and can reshuffle/expire.
  */
@@ -923,6 +946,7 @@ model Brand {
   boosts                 Boost[]
   accaBoostConfig        AccaBoostConfig?
   accaRollbackConfig     AccaRollbackConfig?
+  insuranceBetConfig     InsuranceBetConfig?
   stakeLimits            StakeLimit[]
   competitionQuicklinks  CompetitionQuicklink[]
   playerSegments         PlayerSegment[]

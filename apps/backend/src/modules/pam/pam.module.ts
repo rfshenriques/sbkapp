@@ -4,6 +4,7 @@ import { AccaRollbackModule } from '../acca-rollback/acca-rollback.module';
 import { AdminModule } from '../admin/admin.module';
 import { BoostsModule } from '../boosts/boosts.module';
 import { FreebetModule } from '../freebets/freebet.module';
+import { InsuranceBetModule } from '../insurance-bet/insurance-bet.module';
 import { LimitsModule } from '../limits/limits.module';
 import { ManualMarketModule } from '../manual-markets/manual-market.module';
 import { OddsEngineClient } from '../margins/odds-engine-client';
@@ -22,6 +23,7 @@ import { PublicMarketSuspensionController } from './public-market-suspension.con
     AdminModule,
     AccaBoostModule,
     AccaRollbackModule,
+    InsuranceBetModule,
     LimitsModule,
     ManualMarketModule,
     BoostsModule,
