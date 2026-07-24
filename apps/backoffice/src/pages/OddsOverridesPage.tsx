@@ -1,7 +1,11 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Match } from '@sportsbook/shared';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { ChevronIcon } from '../components/ui/ChevronIcon';
+import { MatchDrilldown } from '../components/MatchDrilldown';
+import type { CompetitionNode } from '../lib/matchTree';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
 
@@ -79,10 +83,88 @@ function OverrideCell({
   );
 }
 
-export default function OddsOverridesPage() {
-  const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
-  const [expandedMarketId, setExpandedMarketId] = useState<string | null>(null);
+function MatchRow({ match, overrides }: { match: Match; overrides: backendApi.OddsOverride[] }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const { data: expandedMatch, isPending: expandedMatchPending } = useQuery({
+    queryKey: ['match-detail', match.id],
+    queryFn: () => oddsEngineApi.fetchMatchById(match.id),
+    enabled: isExpanded,
+  });
 
+  function findOverride(marketId: string, selectionId: string) {
+    return overrides.find(
+      (override) =>
+        override.matchId === match.id && override.marketId === marketId && override.selectionId === selectionId,
+    );
+  }
+
+  return (
+    <Card>
+      <button
+        type="button"
+        onClick={() => setIsExpanded((previous) => !previous)}
+        className="flex items-center gap-1 text-left text-sm font-medium hover:underline"
+      >
+        <ChevronIcon className={`h-4 w-4 shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        {match.homeTeam} vs {match.awayTeam}
+      </button>
+
+      {isExpanded && (
+        <div className="mt-3 space-y-2 border-t border-border pt-3">
+          {expandedMatchPending && <p className="text-sm text-text-secondary">Loading markets…</p>}
+          {expandedMatch?.markets.length === 0 && (
+            <p className="text-sm text-text-secondary">No markets available yet.</p>
+          )}
+          {expandedMatch?.markets.map((market) => (
+            <MarketDisclosure key={market.id} market={market} findOverride={findOverride} matchId={match.id} />
+          ))}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function MarketDisclosure({
+  market,
+  findOverride,
+  matchId,
+}: {
+  market: { id: string; name: string; selections: { id: string; name: string; odds: number }[] };
+  findOverride: (marketId: string, selectionId: string) => backendApi.OddsOverride | undefined;
+  matchId: string;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  return (
+    <div className="rounded-md bg-background px-3 py-2">
+      <button
+        type="button"
+        onClick={() => setIsExpanded((previous) => !previous)}
+        className="text-left text-sm hover:underline"
+      >
+        {market.name}
+      </button>
+
+      {isExpanded && (
+        <div className="mt-2 space-y-2 border-t border-border pt-2">
+          {market.selections.map((selection) => (
+            <div key={selection.id} className="flex flex-wrap items-center justify-between gap-2 pl-2 text-sm">
+              <span className="text-text-secondary">{selection.name}</span>
+              <OverrideCell
+                matchId={matchId}
+                marketId={market.id}
+                selectionId={selection.id}
+                liveOdds={selection.odds}
+                existing={findOverride(market.id, selection.id)}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function OddsOverridesPage() {
   const {
     data: matches,
     isPending: matchesPending,
@@ -94,92 +176,29 @@ export default function OddsOverridesPage() {
     queryFn: backendApi.listOddsOverrides,
   });
 
-  const { data: expandedMatch, isPending: expandedMatchPending } = useQuery({
-    queryKey: ['match-detail', expandedMatchId],
-    queryFn: () => oddsEngineApi.fetchMatchById(expandedMatchId!),
-    enabled: expandedMatchId !== null,
-  });
-
-  function findOverride(matchId: string, marketId: string, selectionId: string) {
-    return overrides?.find(
-      (override) =>
-        override.matchId === matchId && override.marketId === marketId && override.selectionId === selectionId,
-    );
-  }
-
   return (
     <div>
       <h1 className="text-2xl font-semibold">Odds management</h1>
       <p className="mt-1 text-sm text-text-secondary">
         Set a fixed price for a specific selection - it replaces whatever the margin pipeline would
         otherwise price that selection at, independent of tier/margin configuration. Clear it to go
-        back to the margin-priced feed odds.
+        back to the margin-priced feed odds. Navigate sport &gt; country &gt; league &gt; match to find
+        the selection you're pricing.
       </p>
 
-      <div className="mt-4 space-y-3">
-        {matchesPending && <p className="text-sm text-text-secondary">Loading live matches…</p>}
-        {matchesError && <p className="text-sm text-danger">Failed to load live matches.</p>}
-        {matches?.length === 0 && <p className="text-sm text-text-secondary">No live matches right now.</p>}
-
-        {matches?.map((match) => {
-          const isExpanded = expandedMatchId === match.id;
-
-          return (
-            <Card key={match.id}>
-              <button
-                type="button"
-                onClick={() => setExpandedMatchId(isExpanded ? null : match.id)}
-                className="text-left text-sm font-medium hover:underline"
-              >
-                {match.homeTeam} vs {match.awayTeam}{' '}
-                <span className="text-text-muted">({match.competition})</span>
-              </button>
-
-              {isExpanded && (
-                <div className="mt-3 space-y-2 border-t border-border pt-3">
-                  {expandedMatchPending && <p className="text-sm text-text-secondary">Loading markets…</p>}
-                  {expandedMatch?.markets.length === 0 && (
-                    <p className="text-sm text-text-secondary">No markets available yet.</p>
-                  )}
-                  {expandedMatch?.markets.map((market) => {
-                    const isMarketExpanded = expandedMarketId === market.id;
-                    return (
-                      <div key={market.id} className="rounded-md bg-background px-3 py-2">
-                        <button
-                          type="button"
-                          onClick={() => setExpandedMarketId(isMarketExpanded ? null : market.id)}
-                          className="text-left text-sm hover:underline"
-                        >
-                          {market.name}
-                        </button>
-
-                        {isMarketExpanded && (
-                          <div className="mt-2 space-y-2 border-t border-border pt-2">
-                            {market.selections.map((selection) => (
-                              <div
-                                key={selection.id}
-                                className="flex flex-wrap items-center justify-between gap-2 pl-2 text-sm"
-                              >
-                                <span className="text-text-secondary">{selection.name}</span>
-                                <OverrideCell
-                                  matchId={match.id}
-                                  marketId={market.id}
-                                  selectionId={selection.id}
-                                  liveOdds={selection.odds}
-                                  existing={findOverride(match.id, market.id, selection.id)}
-                                />
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </Card>
-          );
-        })}
+      <div className="mt-4">
+        <MatchDrilldown
+          matches={matches}
+          isLoading={matchesPending}
+          isError={matchesError}
+          renderLeague={(node: CompetitionNode) => (
+            <>
+              {node.matches.map((match) => (
+                <MatchRow key={match.id} match={match} overrides={overrides ?? []} />
+              ))}
+            </>
+          )}
+        />
       </div>
     </div>
   );

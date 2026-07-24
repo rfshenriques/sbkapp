@@ -74,10 +74,19 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+async function drillToLeague() {
+  await userEvent.click(await screen.findByRole('button', { name: /Football/ }));
+  await userEvent.click(screen.getByRole('button', { name: /England/ }));
+  await userEvent.click(screen.getByRole('button', { name: /Premier League/ }));
+}
+
 describe('OddsOverridesPage', () => {
-  it('lists live matches from the odds-engine', async () => {
+  it('lists live matches from the odds-engine once drilled into their league', async () => {
     stubFetch([]);
     renderOddsOverridesPage();
+
+    expect(screen.queryByText(/Arsenal vs Chelsea/)).not.toBeInTheDocument();
+    await drillToLeague();
 
     expect(await screen.findByText(/Arsenal vs Chelsea/)).toBeInTheDocument();
   });
@@ -86,6 +95,7 @@ describe('OddsOverridesPage', () => {
     stubFetch([]);
     renderOddsOverridesPage();
 
+    await drillToLeague();
     await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
     await userEvent.click(await screen.findByText('Match Result'));
 
@@ -137,6 +147,7 @@ describe('OddsOverridesPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderOddsOverridesPage();
+    await drillToLeague();
     await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
     await userEvent.click(await screen.findByText('Match Result'));
 
@@ -183,6 +194,7 @@ describe('OddsOverridesPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderOddsOverridesPage();
+    await drillToLeague();
     await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
     await userEvent.click(await screen.findByText('Match Result'));
 
