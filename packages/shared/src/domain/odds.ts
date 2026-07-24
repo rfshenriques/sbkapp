@@ -17,6 +17,8 @@ export interface Market {
   isSpecial?: boolean;
   /** Present only for manual markets with a trader-configured per-bet stake cap - applies to any selection within this market. In cents. */
   maxStakeCents?: number;
+  /** True only for a manual market a trader flagged as accumulator-incompatible (see PamService) - a selection from this market can only ever be bet as a single. */
+  singlesOnly?: boolean;
 }
 
 export interface Match {

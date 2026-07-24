@@ -20,6 +20,7 @@ import { useAccaRollbackConfig } from './useAccaRollbackConfig';
 import { calculateInsuredPayout } from './insuranceBet';
 import { useInsuranceBetConfig } from './useInsuranceBetConfig';
 import { useStakeLimitPreview } from './useStakeLimitPreview';
+import { invalidAccumulatorReason } from './accumulatorValidity';
 import { useBetSlipStore, type BetSlipSelection } from './betSlipStore';
 import type { StakeLimitPreview } from '../../lib/backendApi';
 
@@ -536,6 +537,9 @@ export function BetSlipPanel({
   // (not inside the branch below) since the stake-limit preview hooks
   // that use it must be called unconditionally on every render.
   const singleSelection = selections.length === 1 ? selections[0] : undefined;
+  // Only meaningful for the accumulator tab - singles never combine
+  // selections, so neither rule this checks can ever apply there.
+  const accumulatorInvalidReason = tab === 'accumulator' ? invalidAccumulatorReason(selections) : null;
   const accumulatorStakeLimitPreview = useStakeLimitPreview(tab === 'accumulator' ? selections : []);
   const singleSelectionStakeLimitPreview = useStakeLimitPreview(singleSelection ? [singleSelection] : []);
   const rawAccaBoost = calculateAccaBoost(
@@ -723,7 +727,7 @@ export function BetSlipPanel({
     );
 
     const isPending = tab === 'accumulator' ? placeAccumulatorMutation.isPending : placeSinglesMutation.isPending;
-    const isValid = tab === 'accumulator' ? isStakeValid : allSinglesValid;
+    const isValid = tab === 'accumulator' ? isStakeValid && !accumulatorInvalidReason : allSinglesValid;
     const activeMutation = tab === 'accumulator' ? placeAccumulatorMutation : placeSinglesMutation;
     const error = activeMutation.isError
       ? activeMutation.error instanceof Error
@@ -732,6 +736,11 @@ export function BetSlipPanel({
       : null;
     footer = (
       <div className="mt-3 shrink-0 space-y-2 border-t border-border pt-3">
+        {tab === 'accumulator' && accumulatorInvalidReason && (
+          <p className="rounded-xl border border-danger/40 bg-danger/10 px-2.5 py-2 text-xs font-medium text-danger">
+            {accumulatorInvalidReason}
+          </p>
+        )}
         {tab === 'accumulator' && !isFreebetMode && !insuranceOptIn && (
           <AccaBoostBar legOdds={selections.map((selection) => selection.odds)} config={accaBoostConfig} />
         )}

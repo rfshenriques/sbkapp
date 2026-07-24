@@ -252,6 +252,25 @@ describe('ManualMarketService', () => {
       expect(result?.markets[1]?.maxStakeCents).toBeUndefined();
     });
 
+    it('exposes singlesOnly on the merged market so the player app can warn against combining it', async () => {
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      await service.setLimits(brandAId, market.id, { singlesOnly: true }, TEST_ACTOR);
+      const match = buildMatch();
+
+      const [result] = await service.mergeIntoMatches(brandAId, [match]);
+
+      expect(result?.markets[1]?.singlesOnly).toBe(true);
+    });
+
+    it('omits singlesOnly on a merged market that is not restricted', async () => {
+      await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      const match = buildMatch();
+
+      const [result] = await service.mergeIntoMatches(brandAId, [match]);
+
+      expect(result?.markets[1]?.singlesOnly).toBeUndefined();
+    });
+
     it('hides a LOGGED_IN-only market from an anonymous viewer', async () => {
       const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
       await service.setLimits(brandAId, market.id, { audienceMode: 'LOGGED_IN' }, TEST_ACTOR);

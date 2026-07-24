@@ -12,6 +12,8 @@ export interface BetSlipSelection {
   originalOdds?: number;
   /** Present only alongside originalOdds when the boost has a per-bet stake cap - shown so the player knows the boosted price only applies up to this stake. In cents. */
   maxStakeCents?: number;
+  /** True only when this selection's market was flagged singlesOnly by a trader (see Market.singlesOnly) - PamService rejects combining it into any 2+-selection accumulator. */
+  marketSinglesOnly?: boolean;
 }
 
 interface BetSlipState {

@@ -266,6 +266,49 @@ describe('BetSlipPanel', () => {
     });
   });
 
+  describe('invalid accumulator combination alert', () => {
+    it('shows nothing and allows placing when the combination is fine', () => {
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+      renderPanel();
+
+      expect(screen.queryByText(/can only be bet as a single/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Only one boosted selection/)).not.toBeInTheDocument();
+    });
+
+    it('warns and disables placing a bet with two boosted selections combined', () => {
+      const boostedHome = { ...homeSelection, odds: 2.5, originalOdds: 2.1 };
+      const boostedAway = { ...awaySelection, odds: 3.0, originalOdds: 2.5 };
+      useBetSlipStore.setState({ selections: [boostedHome, boostedAway] });
+      renderPanel();
+
+      expect(
+        screen.getByText('Only one boosted selection can be combined in an accumulator.'),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Log in to place a bet' })).toBeInTheDocument();
+    });
+
+    it('warns when a singles-only manual market is combined with another selection', () => {
+      const noveltySelection = { ...homeSelection, marketName: 'Novelty Market', marketSinglesOnly: true };
+      useBetSlipStore.setState({ selections: [noveltySelection, awaySelection] });
+      renderPanel();
+
+      expect(
+        screen.getByText('Novelty Market can only be bet as a single, not combined in an accumulator.'),
+      ).toBeInTheDocument();
+    });
+
+    it('never warns on the singles tab, since each selection there is its own separate bet', async () => {
+      const boostedHome = { ...homeSelection, odds: 2.5, originalOdds: 2.1 };
+      const boostedAway = { ...awaySelection, odds: 3.0, originalOdds: 2.5 };
+      useBetSlipStore.setState({ selections: [boostedHome, boostedAway] });
+      renderPanel();
+
+      await userEvent.click(screen.getByRole('tab', { name: /Singles/ }));
+
+      expect(screen.queryByText(/Only one boosted selection/)).not.toBeInTheDocument();
+    });
+  });
+
   describe('insurance bet toggle', () => {
     function stubInsuranceBetConfig(config: { costPercent: number; enabled: boolean }) {
       vi.stubGlobal(
