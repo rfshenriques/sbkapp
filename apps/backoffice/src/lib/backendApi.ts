@@ -658,6 +658,45 @@ export async function removeCompetitionRanking(id: string): Promise<void> {
   }
 }
 
+/**
+ * A separate cross-sport curated list from CompetitionRanking above - this
+ * one drives the player app sidebar's "Top Competitions" shortcut section
+ * (can mix competitions from any sport), while CompetitionRanking orders
+ * each sport's own competitions independently in the drill-down tree.
+ */
+export interface CompetitionQuicklink {
+  id: string;
+  brandId: string;
+  competition: string;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function listCompetitionQuicklinks(): Promise<CompetitionQuicklink[]> {
+  const response = await authenticatedFetch('/admin/competition-quicklinks');
+  return parseJsonOrThrow(response, `Failed to load competition quicklinks: ${response.status}`);
+}
+
+/** Idempotent - setting an order for an already-listed competition just updates it. */
+export async function setCompetitionQuicklink(competition: string, order: number): Promise<CompetitionQuicklink> {
+  const response = await authenticatedFetch('/admin/competition-quicklinks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ competition, order }),
+  });
+  return parseJsonOrThrow(response, `Failed to set competition quicklink: ${response.status}`);
+}
+
+export async function removeCompetitionQuicklink(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/competition-quicklinks/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to remove competition quicklink: ${response.status}`);
+  }
+}
+
 export interface CompetitionTier {
   id: string;
   brandId: string;

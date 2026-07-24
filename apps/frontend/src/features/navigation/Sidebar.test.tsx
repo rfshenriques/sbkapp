@@ -22,11 +22,18 @@ function buildMatch(overrides: Partial<Match> = {}): Match {
   };
 }
 
-function stubFetch(matches: Match[], rankings: { competition: string; rank: number }[] = []) {
+function stubFetch(
+  matches: Match[],
+  quicklinks: { competition: string; order: number }[] = [],
+  rankings: { competition: string; rank: number }[] = [],
+) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = typeof input === 'string' ? input : input.toString();
     if (url === '/backend/public/matches/brand-1') {
       return new Response(JSON.stringify(matches), { status: 200 });
+    }
+    if (url.startsWith('/backend/public/competition-quicklinks/')) {
+      return new Response(JSON.stringify(quicklinks), { status: 200 });
     }
     if (url.startsWith('/backend/public/competition-rankings/')) {
       return new Response(JSON.stringify(rankings), { status: 200 });
@@ -58,12 +65,12 @@ afterEach(() => {
 });
 
 describe('Sidebar', () => {
-  it('shows a Top Competitions quicklinks block sorted by rank, linking to the filtered sport page', async () => {
+  it('shows a Top Competitions quicklinks block sorted by order, linking to the filtered sport page', async () => {
     stubFetch(
       [buildMatch(), buildMatch({ id: 'm2', country: 'Spain', competition: 'La Liga' })],
       [
-        { competition: 'La Liga', rank: 1 },
-        { competition: 'Premier League', rank: 0 },
+        { competition: 'La Liga', order: 1 },
+        { competition: 'Premier League', order: 0 },
       ],
     );
 
@@ -82,7 +89,7 @@ describe('Sidebar', () => {
     );
   });
 
-  it('omits the Top Competitions block entirely when no rankings are configured', async () => {
+  it('omits the Top Competitions block entirely when no quicklinks are configured', async () => {
     stubFetch([buildMatch()], []);
 
     renderSidebar();
@@ -94,7 +101,7 @@ describe('Sidebar', () => {
   it('shows a flag icon next to a quicklink when its country can be resolved from real match data', async () => {
     stubFetch(
       [buildMatch({ sport: 'Football', country: 'England', competition: 'Premier League' })],
-      [{ competition: 'Premier League', rank: 0 }],
+      [{ competition: 'Premier League', order: 0 }],
     );
 
     renderSidebar();
@@ -176,7 +183,7 @@ describe('Sidebar', () => {
         }),
         buildMatch({ id: 'm2', sport: 'Ice Hockey', country: 'USA', competition: 'NHL' }),
       ],
-      [{ competition: 'La Liga', rank: 0 }],
+      [{ competition: 'La Liga', order: 0 }],
     );
 
     renderSidebar();
@@ -197,12 +204,12 @@ describe('Sidebar', () => {
     expect(screen.queryByRole('button', { name: /Ice Hockey/ })).not.toBeInTheDocument();
   });
 
-  it('drops a ranked competition from Top Competitions once it has no matches, sliding the next ranked one into its place', async () => {
+  it('drops a quicklinked competition from Top Competitions once it has no matches, sliding the next one into its place', async () => {
     stubFetch(
       [buildMatch({ id: 'm1', sport: 'Football', country: 'England', competition: 'Premier League' })],
       [
-        { competition: 'Bundesliga', rank: 0 },
-        { competition: 'Premier League', rank: 1 },
+        { competition: 'Bundesliga', order: 0 },
+        { competition: 'Premier League', order: 1 },
       ],
     );
 

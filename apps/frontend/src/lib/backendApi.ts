@@ -145,6 +145,20 @@ export async function getCompetitionRankings(brandId: string): Promise<Competiti
   return (await response.json()) as CompetitionRanking[];
 }
 
+export interface CompetitionQuicklink {
+  competition: string;
+  order: number;
+}
+
+/** Staff-curated cross-sport shortcut list for the sidebar's "Top Competitions" section - see apps/backend's CompetitionQuicklinkModule. Separate from CompetitionRanking, which orders each sport's own drill-down independently. */
+export async function getCompetitionQuicklinks(brandId: string): Promise<CompetitionQuicklink[]> {
+  const response = await fetch(`${BASE_URL}/public/competition-quicklinks/${encodeURIComponent(brandId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch competition quicklinks: ${response.status}`);
+  }
+  return (await response.json()) as CompetitionQuicklink[];
+}
+
 export interface PublicTeamColor {
   name: string;
   colorHex: string;

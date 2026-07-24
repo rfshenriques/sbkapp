@@ -9,6 +9,7 @@ import { cn } from '../../lib/cn';
 import { useDisplayNames } from '../display-names/useDisplayNames';
 import { useMatches } from '../odds-board/useMatches';
 import { useCompetitionRankings } from '../odds-board/useCompetitionRankings';
+import { useCompetitionQuicklinks } from '../odds-board/useCompetitionQuicklinks';
 import { rankMapFromRankings } from '../odds-board/sortMatches';
 import { buildSportTree, competitionCountryMap } from './buildSportTree';
 
@@ -20,11 +21,11 @@ const MAX_QUICKLINKS = 6;
  * split as BetSlipPanel. AppShell supplies the persistent desktop aside and
  * the mobile drawer around this.
  *
- * "Top Competitions" quicklinks reuse the existing staff-configured
- * CompetitionRanking data (already backoffice-editable via
- * admin/competition-rankings) as a practical stand-in for real quicklinks -
- * a genuinely automatic "what's actually being bet on" ranking is a later
- * exploration, not backed by any data yet.
+ * "Top Competitions" quicklinks are a separate staff-curated cross-sport
+ * shortcut list (backoffice-editable via the CMS Quicklinks tab / admin/
+ * competition-quicklinks), independent of CompetitionRanking - which
+ * instead orders each sport's own competitions in the drill-down tree
+ * below.
  */
 export interface SidebarProps {
   /** Called when a competition link is clicked - the mobile drawer instance uses this to close itself on navigation. */
@@ -36,6 +37,7 @@ export interface SidebarProps {
 export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: SidebarProps = {}) {
   const { data: matches } = useMatches();
   const { data: rankings } = useCompetitionRankings();
+  const { data: quicklinks } = useCompetitionQuicklinks();
   const displayName = useDisplayNames();
   const [query, setQuery] = useState('');
   const trimmedQuery = query.trim().toLowerCase();
@@ -72,18 +74,18 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
   );
   const topCompetitions = useMemo(() => {
     if (!showLeagues) return [];
-    // A ranked competition drops out the moment it has no matches, rather
-    // than showing an empty quicklink - the next-ranked one slides up into
+    // A quicklinked competition drops out the moment it has no matches,
+    // rather than showing an empty shortcut - the next one slides up into
     // its spot automatically since this filters before slicing to
     // MAX_QUICKLINKS below, not after.
-    const ranked = [...(rankings ?? [])]
-      .filter((ranking) => competitionsWithMatches.has(ranking.competition))
-      .sort((a, b) => a.rank - b.rank);
+    const ordered = [...(quicklinks ?? [])]
+      .filter((quicklink) => competitionsWithMatches.has(quicklink.competition))
+      .sort((a, b) => a.order - b.order);
     const filtered = isSearching
-      ? ranked.filter((ranking) => ranking.competition.toLowerCase().includes(trimmedQuery))
-      : ranked;
+      ? ordered.filter((quicklink) => quicklink.competition.toLowerCase().includes(trimmedQuery))
+      : ordered;
     return filtered.slice(0, MAX_QUICKLINKS);
-  }, [rankings, trimmedQuery, isSearching, showLeagues, competitionsWithMatches]);
+  }, [quicklinks, trimmedQuery, isSearching, showLeagues, competitionsWithMatches]);
 
   const [expandedSport, setExpandedSport] = useState<string | null>(null);
   const [expandedCountry, setExpandedCountry] = useState<string | null>(null);
@@ -153,12 +155,12 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
           </h2>
           <div className="overflow-hidden rounded-2xl bg-surface-2">
             <ul className="divide-y divide-border/60">
-              {topCompetitions.map((ranking) => {
-                const country = competitionCountries.get(ranking.competition);
+              {topCompetitions.map((quicklink) => {
+                const country = competitionCountries.get(quicklink.competition);
                 return (
-                  <li key={ranking.competition}>
+                  <li key={quicklink.competition}>
                     <Link
-                      to={`/sports/all?competition=${encodeURIComponent(ranking.competition)}`}
+                      to={`/sports/all?competition=${encodeURIComponent(quicklink.competition)}`}
                       className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
                       onClick={onNavigate}
                     >
@@ -167,7 +169,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                       ) : (
                         <span className="inline-block h-[22px] w-[22px] shrink-0" />
                       )}
-                      <span>{displayName('COMPETITION', ranking.competition)}</span>
+                      <span>{displayName('COMPETITION', quicklink.competition)}</span>
                     </Link>
                   </li>
                 );
