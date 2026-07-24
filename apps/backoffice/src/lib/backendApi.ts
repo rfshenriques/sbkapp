@@ -694,6 +694,7 @@ export async function removeCompetitionTier(id: string): Promise<void> {
 export interface MarginConfig {
   id: string;
   brandId: string;
+  sport: string;
   marketName: string;
   tier: number;
   marginPercent: number;
@@ -706,8 +707,9 @@ export async function listMarginConfigs(): Promise<MarginConfig[]> {
   return parseJsonOrThrow(response, `Failed to load margin configs: ${response.status}`);
 }
 
-/** Idempotent - setting a margin for an already-configured (marketName, tier) pair just updates it. */
+/** Idempotent - setting a margin for an already-configured (sport, marketName, tier) triple just updates it. */
 export async function setMarginConfig(
+  sport: string,
   marketName: string,
   tier: number,
   marginPercent: number,
@@ -715,7 +717,7 @@ export async function setMarginConfig(
   const response = await authenticatedFetch('/admin/margin-configs', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ marketName, tier, marginPercent }),
+    body: JSON.stringify({ sport, marketName, tier, marginPercent }),
   });
   return parseJsonOrThrow(response, `Failed to set margin config: ${response.status}`);
 }
