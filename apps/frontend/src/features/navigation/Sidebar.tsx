@@ -9,6 +9,7 @@ import { cn } from '../../lib/cn';
 import { useDisplayNames } from '../display-names/useDisplayNames';
 import { useMatches } from '../odds-board/useMatches';
 import { useCompetitionRankings } from '../odds-board/useCompetitionRankings';
+import { rankMapFromRankings } from '../odds-board/sortMatches';
 import { buildSportTree, competitionCountryMap } from './buildSportTree';
 
 /** Sidebar stays short and scannable - the rest is reachable through the sport/country/competition drill-down below. */
@@ -60,7 +61,11 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
   // when a search finds no matches to show directly.
   const showLeagues = !isSearching || !hasMatchResults;
   const treeSourceMatches = showLeagues ? (isSearching ? matchingMatches : (matches ?? [])) : [];
-  const tree = useMemo(() => buildSportTree(treeSourceMatches), [treeSourceMatches]);
+  const rankByCompetition = useMemo(() => rankMapFromRankings(rankings ?? []), [rankings]);
+  const tree = useMemo(
+    () => buildSportTree(treeSourceMatches, rankByCompetition),
+    [treeSourceMatches, rankByCompetition],
+  );
   const competitionsWithMatches = useMemo(
     () => new Set((matches ?? []).map((match) => match.competition)),
     [matches],

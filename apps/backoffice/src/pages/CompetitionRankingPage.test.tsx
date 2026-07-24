@@ -61,7 +61,34 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+async function expandFootball() {
+  await userEvent.click(await screen.findByRole('button', { name: /^Football/ }));
+}
+
 describe('CompetitionRankingPage', () => {
+  it('groups rankings by sport, one expanded at a time', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/events') {
+        return new Response(JSON.stringify([eplMatch, laLigaMatch]), { status: 200 });
+      }
+      if (url === '/backend/admin/competition-rankings') {
+        return new Response(JSON.stringify([eplRanking]), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderPage();
+
+    expect(await screen.findByRole('button', { name: /^Football \(1\)/ })).toBeInTheDocument();
+    expect(screen.queryByText('EPL')).not.toBeInTheDocument();
+
+    await expandFootball();
+    expect(await screen.findByText('EPL')).toBeInTheDocument();
+    expect(screen.getByText('La Liga')).toBeInTheDocument();
+  });
+
   it('lists the ranked competition alongside every other competition available to add', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
@@ -76,6 +103,7 @@ describe('CompetitionRankingPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderPage();
+    await expandFootball();
 
     expect(await screen.findByText('EPL')).toBeInTheDocument();
     expect(await screen.findByText('La Liga')).toBeInTheDocument();
@@ -97,6 +125,8 @@ describe('CompetitionRankingPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderPage();
+    // No live matches at all, so EPL's sport can't be resolved from feed evidence - it falls under "Other".
+    await userEvent.click(await screen.findByRole('button', { name: /^Other/ }));
 
     expect(await screen.findByText('EPL')).toBeInTheDocument();
     expect(await screen.findByText('No matches')).toBeInTheDocument();
@@ -125,6 +155,7 @@ describe('CompetitionRankingPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderPage();
+    await expandFootball();
     await screen.findByText('La Liga');
 
     await userEvent.click(screen.getByRole('button', { name: 'Add to ranking' }));
@@ -154,6 +185,7 @@ describe('CompetitionRankingPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderPage();
+    await expandFootball();
     await screen.findByText('EPL');
 
     await userEvent.click(screen.getByRole('button', { name: 'Remove' }));

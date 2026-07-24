@@ -25,11 +25,13 @@ function byNameAsc<T extends { [key: string]: unknown }>(key: keyof T) {
 /**
  * Groups matches into a sport > country > competition tree for the sidebar's
  * drill-down menu. Sport order follows the same priority as the homepage's
- * sport chips (sortSportsByPriority); country and competition are
- * alphabetical, since there's no per-player relevance signal yet (see
- * CLAUDE.md / project brief note on quicklinks being a future exploration).
+ * sport chips (sortSportsByPriority); country is alphabetical (no per-
+ * country relevance signal exists). Competition order follows the staff-
+ * configured per-sport CompetitionRanking (see the backoffice's Competition
+ * importance page - each sport ranks its own competitions independently),
+ * falling back to alphabetical for a competition with no rank.
  */
-export function buildSportTree(matches: Match[]): SportNode[] {
+export function buildSportTree(matches: Match[], rankByCompetition: Map<string, number> = new Map()): SportNode[] {
   const sportMap = new Map<string, Map<string, Map<string, number>>>();
 
   for (const match of matches) {
@@ -42,12 +44,18 @@ export function buildSportTree(matches: Match[]): SportNode[] {
     competitionMap.set(match.competition, (competitionMap.get(match.competition) ?? 0) + 1);
   }
 
+  const rankFor = (competition: string) => rankByCompetition.get(competition) ?? Number.MAX_SAFE_INTEGER;
+  const byRankThenName = (a: CompetitionNode, b: CompetitionNode) => {
+    const rankDiff = rankFor(a.competition) - rankFor(b.competition);
+    return rankDiff !== 0 ? rankDiff : a.competition.localeCompare(b.competition);
+  };
+
   const sports: SportNode[] = Array.from(sportMap.entries()).map(([sport, countryMap]) => {
     const countries: CountryNode[] = Array.from(countryMap.entries())
       .map(([country, competitionMap]) => {
         const competitions: CompetitionNode[] = Array.from(competitionMap.entries())
           .map(([competition, matchCount]) => ({ competition, matchCount }))
-          .sort(byNameAsc('competition'));
+          .sort(byRankThenName);
         const matchCount = competitions.reduce((total, node) => total + node.matchCount, 0);
         return { country, matchCount, competitions };
       })

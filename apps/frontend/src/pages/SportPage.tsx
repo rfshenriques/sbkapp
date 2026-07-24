@@ -61,9 +61,10 @@ export default function SportPage() {
   // Only a real sport (not the "all"/"live" umbrella views) has a
   // country/competition hierarchy worth letting the player jump around in.
   const showHierarchyBreadcrumb = decodedSport !== ALL_SPORTS && !liveOnly;
-  const sportNode = useMemo(() => buildSportTree(matches ?? []), [matches]).find(
-    (node) => node.sport === decodedSport,
-  );
+  const sportNode = useMemo(
+    () => buildSportTree(matches ?? [], rankByCompetition),
+    [matches, rankByCompetition],
+  ).find((node) => node.sport === decodedSport);
   const explicitCountry =
     countryFilter ??
     (competitionFilter ? matches?.find((match) => match.competition === competitionFilter)?.country : undefined);
