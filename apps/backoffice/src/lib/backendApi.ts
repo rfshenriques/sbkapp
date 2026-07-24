@@ -854,3 +854,73 @@ export async function reorderBrandImageList(
   });
   return parseJsonOrThrow(response, `Failed to reorder images: ${response.status}`);
 }
+
+export type LimitScope = 'GLOBAL' | 'SPORT' | 'COUNTRY' | 'LEAGUE' | 'MARKET';
+
+export interface StakeLimit {
+  id: string;
+  brandId: string;
+  scope: LimitScope;
+  scopeValue: string;
+  tier: number;
+  maxStakeCents: number | null;
+  maxLiabilityCents: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StakeLimitInput {
+  scope: LimitScope;
+  scopeValue: string;
+  tier: number;
+  maxStakeCents: number | null;
+  maxLiabilityCents: number | null;
+}
+
+export async function listStakeLimits(): Promise<StakeLimit[]> {
+  const response = await authenticatedFetch('/admin/stake-limits');
+  return parseJsonOrThrow(response, `Failed to load stake limits: ${response.status}`);
+}
+
+/** Idempotent - setting a limit for an already-configured (scope, scopeValue, tier) triple just updates it. */
+export async function setStakeLimit(input: StakeLimitInput): Promise<StakeLimit> {
+  const response = await authenticatedFetch('/admin/stake-limits', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return parseJsonOrThrow(response, `Failed to set stake limit: ${response.status}`);
+}
+
+export async function removeStakeLimit(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/stake-limits/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to remove stake limit: ${response.status}`);
+  }
+}
+
+export async function exportStakeLimits(): Promise<Blob> {
+  const response = await authenticatedFetch('/admin/stake-limits/export');
+  if (!response.ok) {
+    throw new Error(`Failed to export stake limits: ${response.status}`);
+  }
+  return response.blob();
+}
+
+export interface StakeLimitImportResult {
+  count: number;
+  removedCount: number;
+}
+
+/** No Content-Type header set - fetch derives the multipart boundary itself from the FormData body. The uploaded file replaces the brand's whole limit set. */
+export async function importStakeLimits(file: File): Promise<StakeLimitImportResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await authenticatedFetch('/admin/stake-limits/import', {
+    method: 'POST',
+    body: formData,
+  });
+  return parseJsonOrThrow(response, `Failed to import stake limits: ${response.status}`);
+}

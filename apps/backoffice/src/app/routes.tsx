@@ -17,6 +17,7 @@ import OddsOverridesPage from '../pages/OddsOverridesPage';
 import RegistrationsPage from '../pages/RegistrationsPage';
 import ReportsPage from '../pages/ReportsPage';
 import SettlementPage from '../pages/SettlementPage';
+import StakeLimitsPage from '../pages/StakeLimitsPage';
 import StaffLoginPage from '../pages/StaffLoginPage';
 import StaffUsersPage from '../pages/StaffUsersPage';
 import TeamColorsPage from '../pages/TeamColorsPage';
@@ -93,6 +94,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'TRADING']}>
               <AccaBoostPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'stake-limits',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'TRADING']}>
+              <StakeLimitsPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),
