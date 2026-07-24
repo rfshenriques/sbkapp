@@ -149,6 +149,8 @@ enum AuditAction {
   STAKE_LIMIT_SET
   STAKE_LIMIT_REMOVED
   STAKE_LIMITS_BULK_IMPORTED
+  COMPETITION_QUICKLINK_SET
+  COMPETITION_QUICKLINK_REMOVED
 }
 
 /**
@@ -171,6 +173,29 @@ model CompetitionRanking {
   @@unique([brandId, competition])
   @@index([brandId])
   @@map("competition_rankings")
+}
+
+/**
+ * Staff-curated cross-sport shortcut list for the sidebar's "Top
+ * Competitions" section - deliberately a separate model from
+ * CompetitionRanking. CompetitionRanking orders each sport's own
+ * competitions independently for that sport's drill-down; Quicklinks is
+ * a single hand-picked ordered list that can mix competitions from any
+ * sport (e.g. EPL, Champions League, ATP Finals in one list) for the
+ * player-facing sidebar shortcut section. Lower order = shown first.
+ */
+model CompetitionQuicklink {
+  id          String   @id @default(uuid())
+  brandId     String
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  competition String
+  order       Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([brandId, competition])
+  @@index([brandId])
+  @@map("competition_quicklinks")
 }
 
 /**
@@ -697,6 +722,7 @@ model Brand {
   boosts                 Boost[]
   accaBoostConfig        AccaBoostConfig?
   stakeLimits            StakeLimit[]
+  competitionQuicklinks  CompetitionQuicklink[]
 
   @@map("brands")
 }
