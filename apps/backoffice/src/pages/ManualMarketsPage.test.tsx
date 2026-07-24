@@ -57,10 +57,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+async function drillToLeague() {
+  await userEvent.click(await screen.findByRole('button', { name: /Football/ }));
+  await userEvent.click(screen.getByRole('button', { name: /England/ }));
+  await userEvent.click(screen.getByRole('button', { name: /Premier League/ }));
+}
+
 describe('ManualMarketsPage', () => {
-  it('lists live matches from the odds-engine', async () => {
+  it('lists live matches from the odds-engine once drilled into their league', async () => {
     stubFetch([]);
     renderManualMarketsPage();
+    await drillToLeague();
 
     expect(await screen.findByText(/Arsenal vs Chelsea/)).toBeInTheDocument();
   });
@@ -68,6 +75,7 @@ describe('ManualMarketsPage', () => {
   it('expanding a match with no manual markets shows only the new-market form', async () => {
     stubFetch([]);
     renderManualMarketsPage();
+    await drillToLeague();
 
     await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
 
@@ -89,6 +97,7 @@ describe('ManualMarketsPage', () => {
       },
     ]);
     renderManualMarketsPage();
+    await drillToLeague();
 
     expect(await screen.findByText('1 manual market')).toBeInTheDocument();
     await userEvent.click(screen.getByText(/Arsenal vs Chelsea/));
@@ -138,6 +147,7 @@ describe('ManualMarketsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderManualMarketsPage();
+    await drillToLeague();
     await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
 
     await userEvent.type(screen.getByLabelText('New market name'), 'Novelty Market');
@@ -189,6 +199,7 @@ describe('ManualMarketsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderManualMarketsPage();
+    await drillToLeague();
     await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
     await userEvent.click(await screen.findByRole('button', { name: 'Edit' }));
 
@@ -216,6 +227,7 @@ describe('ManualMarketsPage', () => {
     ]);
 
     renderManualMarketsPage();
+    await drillToLeague();
     await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
     await userEvent.click(await screen.findByRole('button', { name: 'Edit' }));
     await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
@@ -253,6 +265,7 @@ describe('ManualMarketsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderManualMarketsPage();
+    await drillToLeague();
     await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
     await userEvent.click(await screen.findByRole('button', { name: 'Remove market' }));
 

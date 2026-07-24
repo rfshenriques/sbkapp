@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Match } from '@sportsbook/shared';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { MatchDrilldown } from '../components/MatchDrilldown';
+import type { CompetitionNode } from '../lib/matchTree';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
 
@@ -123,10 +126,85 @@ function MarketForm({ matchId, market, onSaved, onCancel }: MarketFormProps) {
   );
 }
 
+function MatchRow({
+  match,
+  manualMarkets,
+  removeMutation,
+}: {
+  match: Match;
+  manualMarkets: backendApi.ManualMarket[];
+  removeMutation: ReturnType<typeof useMutation<void, Error, string>>;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [editingMarketId, setEditingMarketId] = useState<string | null>(null);
+  const existing = manualMarkets.filter((market) => market.matchId === match.id);
+
+  return (
+    <Card>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => setIsExpanded((previous) => !previous)}
+          className="text-left text-sm font-medium hover:underline"
+        >
+          {match.homeTeam} vs {match.awayTeam}
+        </button>
+        {existing.length > 0 && (
+          <span className="rounded bg-highlight/20 px-2 py-0.5 text-xs text-highlight">
+            {existing.length} manual {existing.length === 1 ? 'market' : 'markets'}
+          </span>
+        )}
+      </div>
+
+      {isExpanded && (
+        <div className="mt-3 space-y-3 border-t border-border pt-3">
+          {existing.map((market) =>
+            editingMarketId === market.id ? (
+              <MarketForm
+                key={market.id}
+                matchId={match.id}
+                market={market}
+                onSaved={() => setEditingMarketId(null)}
+                onCancel={() => setEditingMarketId(null)}
+              />
+            ) : (
+              <div key={market.id} className="rounded-md bg-background px-3 py-2">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium">{market.name}</span>
+                  <div className="flex items-center gap-2">
+                    <Button variant="secondary" onClick={() => setEditingMarketId(market.id)}>
+                      Edit
+                    </Button>
+                    <Button
+                      variant="danger"
+                      disabled={removeMutation.isPending}
+                      onClick={() => removeMutation.mutate(market.id)}
+                    >
+                      Remove market
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-1.5 space-y-1 text-sm text-text-secondary">
+                  {market.selections.map((selection) => (
+                    <div key={selection.id} className="flex items-center justify-between">
+                      <span>{selection.name}</span>
+                      <span className="text-text-muted">{selection.odds.toFixed(2)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ),
+          )}
+
+          <MarketForm matchId={match.id} />
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function ManualMarketsPage() {
   const queryClient = useQueryClient();
-  const [expandedMatchId, setExpandedMatchId] = useState<string | null>(null);
-  const [editingMarketId, setEditingMarketId] = useState<string | null>(null);
 
   const {
     data: matches,
@@ -144,91 +222,33 @@ export default function ManualMarketsPage() {
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: manualMarketsQueryKey }),
   });
 
-  function marketsFor(matchId: string) {
-    return (manualMarkets ?? []).filter((market) => market.matchId === matchId);
-  }
-
   return (
     <div>
       <h1 className="text-2xl font-semibold">Manual markets</h1>
       <p className="mt-1 text-sm text-text-secondary">
         Create a market that doesn't exist in the odds feed - it appears on this match's page alongside
-        the feed's own markets, priced exactly as entered here.
+        the feed's own markets, priced exactly as entered here. Navigate sport &gt; country &gt; league
+        &gt; match to find the match you're adding a market to.
       </p>
 
-      <div className="mt-4 space-y-3">
-        {matchesPending && <p className="text-sm text-text-secondary">Loading live matches…</p>}
-        {matchesError && <p className="text-sm text-danger">Failed to load live matches.</p>}
-        {matches?.length === 0 && <p className="text-sm text-text-secondary">No live matches right now.</p>}
-
-        {matches?.map((match) => {
-          const isExpanded = expandedMatchId === match.id;
-          const existing = marketsFor(match.id);
-
-          return (
-            <Card key={match.id}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <button
-                  type="button"
-                  onClick={() => setExpandedMatchId(isExpanded ? null : match.id)}
-                  className="text-left text-sm font-medium hover:underline"
-                >
-                  {match.homeTeam} vs {match.awayTeam}{' '}
-                  <span className="text-text-muted">({match.competition})</span>
-                </button>
-                {existing.length > 0 && (
-                  <span className="rounded bg-highlight/20 px-2 py-0.5 text-xs text-highlight">
-                    {existing.length} manual {existing.length === 1 ? 'market' : 'markets'}
-                  </span>
-                )}
-              </div>
-
-              {isExpanded && (
-                <div className="mt-3 space-y-3 border-t border-border pt-3">
-                  {existing.map((market) =>
-                    editingMarketId === market.id ? (
-                      <MarketForm
-                        key={market.id}
-                        matchId={match.id}
-                        market={market}
-                        onSaved={() => setEditingMarketId(null)}
-                        onCancel={() => setEditingMarketId(null)}
-                      />
-                    ) : (
-                      <div key={market.id} className="rounded-md bg-background px-3 py-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-sm font-medium">{market.name}</span>
-                          <div className="flex items-center gap-2">
-                            <Button variant="secondary" onClick={() => setEditingMarketId(market.id)}>
-                              Edit
-                            </Button>
-                            <Button
-                              variant="danger"
-                              disabled={removeMutation.isPending}
-                              onClick={() => removeMutation.mutate(market.id)}
-                            >
-                              Remove market
-                            </Button>
-                          </div>
-                        </div>
-                        <div className="mt-1.5 space-y-1 text-sm text-text-secondary">
-                          {market.selections.map((selection) => (
-                            <div key={selection.id} className="flex items-center justify-between">
-                              <span>{selection.name}</span>
-                              <span className="text-text-muted">{selection.odds.toFixed(2)}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ),
-                  )}
-
-                  <MarketForm matchId={match.id} />
-                </div>
-              )}
-            </Card>
-          );
-        })}
+      <div className="mt-4">
+        <MatchDrilldown
+          matches={matches}
+          isLoading={matchesPending}
+          isError={matchesError}
+          renderLeague={(node: CompetitionNode) => (
+            <>
+              {node.matches.map((match) => (
+                <MatchRow
+                  key={match.id}
+                  match={match}
+                  manualMarkets={manualMarkets ?? []}
+                  removeMutation={removeMutation}
+                />
+              ))}
+            </>
+          )}
+        />
       </div>
     </div>
   );
