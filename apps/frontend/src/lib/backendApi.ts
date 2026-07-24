@@ -53,6 +53,15 @@ export interface PlaceBetSelection {
 export interface PlaceBetPayload {
   selections: PlaceBetSelection[];
   stakeCents: number;
+  /** Funds this bet with a freebet instead of cash - stakeCents must equal that grant's amountCents exactly (see FreebetService). */
+  freebetGrantId?: string;
+}
+
+/** A player's own freebet token - always ACTIVE and unexpired (see PamService.getFreebets/FreebetService.listActive), since that's all a player ever needs to see to place a bet with one. */
+export interface Freebet {
+  id: string;
+  amountCents: number;
+  expiresAt: string | null;
 }
 
 export type BetStatus = 'PENDING' | 'WON' | 'LOST' | 'VOID';
@@ -427,4 +436,9 @@ export async function placeBet(payload: PlaceBetPayload): Promise<PlacedBet> {
 export async function getBets(): Promise<PlacedBet[]> {
   const response = await authenticatedFetch('/bets');
   return parseJsonOrThrow(response, `Failed to load bets: ${response.status}`);
+}
+
+export async function getFreebets(): Promise<Freebet[]> {
+  const response = await authenticatedFetch('/freebets');
+  return parseJsonOrThrow(response, `Failed to load freebets: ${response.status}`);
 }

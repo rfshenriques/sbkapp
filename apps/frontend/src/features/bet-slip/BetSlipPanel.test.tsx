@@ -165,6 +165,117 @@ describe('BetSlipPanel', () => {
     });
   });
 
+  describe('freebets', () => {
+    function stubFreebetsAndAccaBoost(
+      freebets: { id: string; amountCents: number; expiresAt: string | null }[],
+      accaBoostConfig?: { boostPercentPerLeg: number; minSelections: number; minOddsPerLeg: number; enabled: boolean },
+    ) {
+      const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        const method = init?.method ?? 'GET';
+        if (method === 'GET' && url === '/backend/freebets') {
+          return new Response(JSON.stringify(freebets), { status: 200 });
+        }
+        if (method === 'GET' && url === '/backend/public/acca-boost-config/brand-1') {
+          return new Response(
+            JSON.stringify(accaBoostConfig ?? { boostPercentPerLeg: 0, minSelections: 99, minOddsPerLeg: 1, enabled: false }),
+            { status: 200 },
+          );
+        }
+        if (method === 'POST' && url === '/backend/bets') {
+          const body = JSON.parse(init!.body as string);
+          return new Response(
+            JSON.stringify({
+              id: 'bet-1',
+              stakeCents: body.stakeCents,
+              combinedOdds: '2.10',
+              potentialPayoutCents: Math.round(body.stakeCents * 2.1),
+              status: 'PENDING',
+              createdAt: '2026-07-17T00:00:00Z',
+            }),
+            { status: 201 },
+          );
+        }
+        return new Response(null, { status: 404 });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      return fetchMock;
+    }
+
+    beforeEach(() => {
+      useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+      useBrandStore.setState({ brandId: 'brand-1' });
+    });
+
+    it('does not show the Cash/Freebets toggle when the player has no freebet balance', () => {
+      stubFreebetsAndAccaBoost([]);
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      expect(screen.queryByRole('tab', { name: 'Freebets' })).not.toBeInTheDocument();
+    });
+
+    it('switching to Freebets replaces the stake input with a picker of the player’s freebets', async () => {
+      stubFreebetsAndAccaBoost([{ id: 'grant-1', amountCents: 1000, expiresAt: null }]);
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      await userEvent.click(await screen.findByRole('tab', { name: 'Freebets' }));
+
+      expect(screen.getByText('Choose a freebet')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '€10.00' })).toBeInTheDocument();
+      expect(screen.queryByLabelText('Stake')).not.toBeInTheDocument();
+    });
+
+    it('placing a freebet-funded bet sends the freebetGrantId and the freebet’s own amount as the stake', async () => {
+      const fetchMock = stubFreebetsAndAccaBoost([{ id: 'grant-1', amountCents: 1000, expiresAt: null }]);
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      await userEvent.click(await screen.findByRole('tab', { name: 'Freebets' }));
+      await userEvent.click(screen.getByRole('button', { name: '€10.00' }));
+      await userEvent.click(screen.getByRole('button', { name: 'Place Bet' }));
+
+      await screen.findByText(/Bet placed!/);
+      const betCall = fetchMock.mock.calls.find((call) => call[0] === '/backend/bets')!;
+      const [, init] = betCall as [string, RequestInit];
+      expect(JSON.parse(init.body as string)).toEqual({
+        selections: [homeSelection],
+        stakeCents: 1000,
+        freebetGrantId: 'grant-1',
+      });
+    });
+
+    it('hides the Acca Boost bar in freebet mode even for a qualifying accumulator', async () => {
+      stubFreebetsAndAccaBoost(
+        [{ id: 'grant-1', amountCents: 1000, expiresAt: null }],
+        { boostPercentPerLeg: 5, minSelections: 2, minOddsPerLeg: 1.2, enabled: true },
+      );
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+      renderPanel();
+
+      expect(await screen.findByText(/Acca Boost/)).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('tab', { name: 'Freebets' }));
+
+      expect(screen.queryByText(/Acca Boost/)).not.toBeInTheDocument();
+    });
+
+    it('falls back to Cash automatically when switching to Singles with 2+ selections while in freebet mode', async () => {
+      stubFreebetsAndAccaBoost([{ id: 'grant-1', amountCents: 1000, expiresAt: null }]);
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+      renderPanel();
+
+      await userEvent.click(await screen.findByRole('tab', { name: 'Freebets' }));
+      expect(screen.getByRole('tab', { name: 'Freebets' })).toHaveAttribute('aria-selected', 'true');
+
+      await userEvent.click(screen.getByRole('tab', { name: 'Singles' }));
+
+      expect(screen.getByRole('tab', { name: 'Cash' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.queryByText('Choose a freebet')).not.toBeInTheDocument();
+    });
+  });
+
   it('removes a selection when its remove button is clicked', async () => {
     useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
     renderPanel();
@@ -201,8 +312,12 @@ describe('BetSlipPanel', () => {
       isInitialized: true,
     });
     useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/backend/freebets') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      return new Response(
         JSON.stringify({
           id: 'bet-1',
           stakeCents: 1000,
@@ -212,8 +327,8 @@ describe('BetSlipPanel', () => {
           createdAt: '2026-07-17T00:00:00Z',
         }),
         { status: 201 },
-      ),
-    );
+      );
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     renderPanel();
@@ -228,7 +343,8 @@ describe('BetSlipPanel', () => {
     ).toBeInTheDocument();
     expect(useBetSlipStore.getState().selections).toEqual([]);
 
-    const [url, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const betCall = fetchMock.mock.calls.find((call) => call[0] === '/backend/bets')!;
+    const [url, requestInit] = betCall as [string, RequestInit];
     expect(url).toBe('/backend/bets');
     expect(JSON.parse(requestInit.body as string)).toEqual({
       selections: [homeSelection, awaySelection],
@@ -311,20 +427,23 @@ describe('BetSlipPanel', () => {
     // Promise.all, and a Response body can only be read once, so reusing a
     // single mockResolvedValue instance across both calls would make the
     // second .json() read fail as if the network had actually done that.
-    const fetchMock = vi.fn().mockImplementation(
-      async () =>
-        new Response(
-          JSON.stringify({
-            id: 'bet-1',
-            stakeCents: 1000,
-            combinedOdds: '2.10',
-            potentialPayoutCents: 2100,
-            status: 'PENDING',
-            createdAt: '2026-07-17T00:00:00Z',
-          }),
-          { status: 201 },
-        ),
-    );
+    const fetchMock = vi.fn().mockImplementation(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/backend/freebets') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      return new Response(
+        JSON.stringify({
+          id: 'bet-1',
+          stakeCents: 1000,
+          combinedOdds: '2.10',
+          potentialPayoutCents: 2100,
+          status: 'PENDING',
+          createdAt: '2026-07-17T00:00:00Z',
+        }),
+        { status: 201 },
+      );
+    });
     vi.stubGlobal('fetch', fetchMock);
 
     renderPanel();
@@ -334,9 +453,10 @@ describe('BetSlipPanel', () => {
 
     await screen.findByText(/Bet placed!/);
     expect(useBetSlipStore.getState().selections).toEqual([]);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const betCalls = fetchMock.mock.calls.filter((call) => call[0] === '/backend/bets');
+    expect(betCalls).toHaveLength(2);
 
-    const bodies = fetchMock.mock.calls.map((call) => {
+    const bodies = betCalls.map((call) => {
       const [, init] = call as [string, RequestInit];
       return JSON.parse(init.body as string);
     });
@@ -356,7 +476,11 @@ describe('BetSlipPanel', () => {
 
   it('shows a Bet Slip / History tab pair when showHistoryTab is set (desktop)', async () => {
     useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([]), { status: 200 })));
+    // A fresh Response per call - useBets and useFreebets both fetch on
+    // mount, and a Response body can only be read once, so reusing a single
+    // mockResolvedValue instance across both would make the second .json()
+    // read fail as if the network had actually done that.
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([]), { status: 200 })));
     renderPanel({ showHistoryTab: true });
 
     expect(screen.getByRole('tab', { name: 'Bet Slip' })).toHaveAttribute('aria-selected', 'true');

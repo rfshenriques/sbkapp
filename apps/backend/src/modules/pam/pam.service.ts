@@ -38,6 +38,15 @@ export class PamService {
     return { balanceCents: user.balanceCents };
   }
 
+  /** The player's own spendable freebets - what the bet slip's Cash/Freebets toggle reads to decide whether to show at all, and what it lets them pick from. */
+  async getFreebets(userId: string) {
+    const { brandId } = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { brandId: true },
+    });
+    return this.freebetService.listActive(userId, brandId);
+  }
+
   /**
    * Every selection's match, looked up from odds-engine (competitions are
    * never persisted) - deliberately done before the DB transaction opens,

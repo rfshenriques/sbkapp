@@ -27,4 +27,9 @@ export class PamController {
   getBets(@Req() req: AuthenticatedRequest) {
     return this.pamService.getBets(req.user.sub);
   }
+
+  @Get('freebets')
+  getFreebets(@Req() req: AuthenticatedRequest) {
+    return this.pamService.getFreebets(req.user.sub);
+  }
 }

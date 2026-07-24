@@ -152,6 +152,16 @@ describe('PamService', () => {
     expect(wallet.balanceCents).toBe(100_000);
   });
 
+  it("getFreebets returns the player's own active freebets", async () => {
+    const userId = await createTestUser();
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    await freebetService.grant(testBrandId, { identifier: user.username, amountCents: 1_000 }, TEST_ACTOR);
+
+    const freebets = await pamService.getFreebets(userId);
+    expect(freebets).toHaveLength(1);
+    expect(freebets[0]?.amountCents).toBe(1_000);
+  });
+
   it('places a single-selection bet and deducts the stake', async () => {
     const userId = await createTestUser(100_000);
 
