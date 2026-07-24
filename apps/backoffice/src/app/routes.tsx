@@ -1,5 +1,6 @@
 import type { RouteObject } from 'react-router-dom';
 import AccaBoostPage from '../pages/AccaBoostPage';
+import AccaRollbackPage from '../pages/AccaRollbackPage';
 import AuditLogPage from '../pages/AuditLogPage';
 import CmsImagesPage from '../pages/CmsImagesPage';
 import CmsPaymentsPage from '../pages/CmsPaymentsPage';
@@ -88,6 +89,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'TRADING']}>
               <AccaBoostPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'acca-rollback',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'TRADING']}>
+              <AccaRollbackPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

@@ -31,6 +31,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/odds-ladder', label: 'Odds ladder', roles: ['ADMIN', 'TRADING'] },
       { to: '/boosts', label: 'Boosts', roles: ['ADMIN', 'TRADING'] },
       { to: '/acca-boost', label: 'Acca boost', roles: ['ADMIN', 'TRADING'] },
+      { to: '/acca-rollback', label: 'Acca rollback', roles: ['ADMIN', 'TRADING'] },
       { to: '/stake-limits', label: 'Stake limits', roles: ['ADMIN', 'TRADING'] },
       { to: '/competition-ranking', label: 'Competition rankings', roles: ['ADMIN', 'CMS'] },
     ],

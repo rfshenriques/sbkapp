@@ -65,6 +65,13 @@ export interface AccaBoostConfig {
   enabled: boolean;
 }
 
+export interface AccaRollbackConfig {
+  minSelections: number;
+  lossThreshold: number;
+  rewardPercent: number;
+  enabled: boolean;
+}
+
 export interface OddsOverride {
   id: string;
   matchId: string;
@@ -547,6 +554,20 @@ export async function setAccaBoostConfig(config: AccaBoostConfig): Promise<AccaB
     body: JSON.stringify(config),
   });
   return parseJsonOrThrow(response, `Failed to save acca boost config: ${response.status}`);
+}
+
+export async function getAccaRollbackConfig(): Promise<AccaRollbackConfig> {
+  const response = await authenticatedFetch('/admin/acca-rollback-config');
+  return parseJsonOrThrow(response, `Failed to load acca rollback config: ${response.status}`);
+}
+
+export async function setAccaRollbackConfig(config: AccaRollbackConfig): Promise<AccaRollbackConfig> {
+  const response = await authenticatedFetch('/admin/acca-rollback-config', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  return parseJsonOrThrow(response, `Failed to save acca rollback config: ${response.status}`);
 }
 
 function rangeQuery(range: ReportRange): string {
