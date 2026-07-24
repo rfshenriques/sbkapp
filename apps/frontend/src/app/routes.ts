@@ -11,6 +11,8 @@ const MatchDetailPage = lazy(loadMatchDetailPage);
 const SportPage = lazy(() => import('../pages/SportPage'));
 const MyBetsPage = lazy(() => import('../pages/MyBetsPage'));
 const PromotionsPage = lazy(() => import('../pages/PromotionsPage'));
+const BoostsPage = lazy(() => import('../pages/BoostsPage'));
+const SpecialsPage = lazy(() => import('../pages/SpecialsPage'));
 const ResponsibleGamblingPage = lazy(() => import('../pages/ResponsibleGamblingPage'));
 const LoginPage = lazy(() => import('../pages/LoginPage'));
 const RegisterPage = lazy(() => import('../pages/RegisterPage'));
@@ -28,6 +30,8 @@ export const routes: RouteObject[] = [
       { path: 'live', Component: SportPage },
       { path: 'my-bets', Component: MyBetsPage },
       { path: 'promotions', Component: PromotionsPage },
+      { path: 'boosts', Component: BoostsPage },
+      { path: 'specials', Component: SpecialsPage },
       { path: 'responsible-gambling', Component: ResponsibleGamblingPage },
       { path: 'login', Component: LoginPage },
       { path: 'register', Component: RegisterPage },

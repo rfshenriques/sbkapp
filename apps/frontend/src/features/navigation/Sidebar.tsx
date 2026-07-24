@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { CountryFlag } from '../../components/ui/CountryFlag';
-import { SearchIcon } from '../../components/ui/NavIcons';
+import { BoostIcon, SearchIcon, SpecialsIcon } from '../../components/ui/NavIcons';
 import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
 import { SportIcon } from '../../components/ui/SportIcon';
 import { cn } from '../../lib/cn';
@@ -114,6 +114,27 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
           />
         </div>
       </div>
+
+      {!isSearching && (
+        <div className="grid grid-cols-2 gap-2">
+          <Link
+            to="/boosts"
+            onClick={onNavigate}
+            className="flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:bg-white/5"
+          >
+            <BoostIcon width={18} height={18} className="text-highlight" />
+            Boosts
+          </Link>
+          <Link
+            to="/specials"
+            onClick={onNavigate}
+            className="flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:bg-white/5"
+          >
+            <SpecialsIcon width={18} height={18} className="text-highlight" />
+            Specials
+          </Link>
+        </div>
+      )}
 
       {hasNoResults && (
         <p className="text-sm text-text-secondary">No matches found for "{query.trim()}".</p>

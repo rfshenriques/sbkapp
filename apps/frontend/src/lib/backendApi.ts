@@ -1,8 +1,20 @@
-import type { Match } from '@sportsbook/shared';
+import type { BoostedSelectionSummary, Match } from '@sportsbook/shared';
 import { useAuthStore } from '../features/auth/authStore';
 import { useBrandStore } from '../features/brand/brandStore';
 
 const BASE_URL = '/backend';
+
+/**
+ * Public match/specials/boosts endpoints work fine with no token (anonymous
+ * browsing), but attach one when a player is logged in so the backend's
+ * ViewerResolverService can resolve LOGGED_IN/SEGMENTS audience targeting
+ * (see ManualMarketService/BoostService.mergeIntoMatches/applyBoosts)
+ * instead of always seeing an anonymous viewer.
+ */
+function optionalAuthHeaders(): HeadersInit {
+  const token = useAuthStore.getState().accessToken;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 export interface AuthTokenResponse {
   accessToken: string;
@@ -202,11 +214,35 @@ export async function getDisplayNameOverrides(): Promise<PublicDisplayNameOverri
  * backend rather than straight from odds-engine like apps/backoffice does.
  */
 export async function getMatches(brandId: string): Promise<Match[]> {
-  const response = await fetch(`${BASE_URL}/public/matches/${encodeURIComponent(brandId)}`);
+  const response = await fetch(`${BASE_URL}/public/matches/${encodeURIComponent(brandId)}`, {
+    headers: optionalAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch matches: ${response.status}`);
   }
   return (await response.json()) as Match[];
+}
+
+/** Matches with at least one manual (Specials) market for the acting brand - see apps/backend's PublicSpecialsController. */
+export async function getSpecials(brandId: string): Promise<Match[]> {
+  const response = await fetch(`${BASE_URL}/public/specials/${encodeURIComponent(brandId)}`, {
+    headers: optionalAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch specials: ${response.status}`);
+  }
+  return (await response.json()) as Match[];
+}
+
+/** Every currently-boosted selection for the acting brand, flattened with match context - see apps/backend's PublicBoostsController. */
+export async function getBoosts(brandId: string): Promise<BoostedSelectionSummary[]> {
+  const response = await fetch(`${BASE_URL}/public/boosts/${encodeURIComponent(brandId)}`, {
+    headers: optionalAuthHeaders(),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch boosts: ${response.status}`);
+  }
+  return (await response.json()) as BoostedSelectionSummary[];
 }
 
 export interface MarketSuspension {
@@ -280,6 +316,7 @@ export async function getBrandImageList(
 export async function getMatchById(brandId: string, matchId: string): Promise<Match | undefined> {
   const response = await fetch(
     `${BASE_URL}/public/matches/${encodeURIComponent(brandId)}/${encodeURIComponent(matchId)}`,
+    { headers: optionalAuthHeaders() },
   );
   if (response.status === 404) {
     return undefined;

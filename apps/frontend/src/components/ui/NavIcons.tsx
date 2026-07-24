@@ -56,6 +56,22 @@ export function MyBetsIcon(props: IconProps) {
   );
 }
 
+export function BoostIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M11 2.5 4.5 11h4l-1 6.5L15.5 9h-4l-0.5-6.5Z" />
+    </svg>
+  );
+}
+
+export function SpecialsIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M10 2.8 12 7.4l5 0.6-3.7 3.4 1 4.9L10 13.9l-4.3 2.4 1-4.9L3 8l5-0.6Z" />
+    </svg>
+  );
+}
+
 export function PromotionsIcon(props: IconProps) {
   return (
     <svg {...baseProps} {...props}>

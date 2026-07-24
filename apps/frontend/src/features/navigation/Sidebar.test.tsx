@@ -76,7 +76,11 @@ describe('Sidebar', () => {
 
     renderSidebar();
 
-    const links = await screen.findAllByRole('link');
+    // Wait for the async quicklinks fetch to resolve (and the Boosts/
+    // Specials shortcuts above it to have settled in) before reading link
+    // order, rather than snapshotting on the very first render.
+    await screen.findByRole('link', { name: /Premier League/ });
+    const links = screen.getAllByRole('link');
     // Each link's textContent may be prefixed with a flag icon, so match on
     // suffix rather than exact equality.
     const quicklinkLabels = links.map((link) => link.textContent ?? '');
