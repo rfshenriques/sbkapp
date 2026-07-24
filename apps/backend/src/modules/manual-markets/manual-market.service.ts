@@ -1,11 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import type { AudienceMode } from '@prisma/client';
 import type { Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { ANONYMOUS_VIEWER, resolveAudience, type AudienceViewer } from '../audience/audience';
 
 export interface ManualMarketSelectionInput {
   name: string;
   odds: number;
+}
+
+export interface SetManualMarketLimitsInput {
+  maxStakeCents?: number | null;
+  maxLiabilityCents?: number | null;
+  audienceMode?: AudienceMode;
+  segmentIds?: string[];
 }
 
 /**
@@ -112,27 +121,90 @@ export class ManualMarketService {
   async listMarkets(brandId: string) {
     return this.prisma.manualMarket.findMany({
       where: { brandId },
-      include: { selections: true },
+      include: { selections: true, audienceSegments: true },
       orderBy: { createdAt: 'desc' },
     });
   }
 
-  /** Appends each match's manual markets (if any) onto its markets array; matches with none pass through unchanged. */
-  async mergeIntoMatches(brandId: string, matches: Match[]): Promise<Match[]> {
+  /**
+   * Replaces stake/liability caps and/or audience targeting in one write -
+   * a separate endpoint from create/update so a trader adjusting a limit
+   * doesn't have to resend the whole selection list. Only the fields
+   * present in `input` change; omit a field to leave it as-is.
+   */
+  async setLimits(brandId: string, id: string, input: SetManualMarketLimitsInput, actor: AuditActor) {
+    const existing = await this.prisma.manualMarket.findUnique({ where: { id } });
+    if (!existing || existing.brandId !== brandId) {
+      throw new NotFoundException('Manual market not found');
+    }
+
+    const market = await this.prisma.manualMarket.update({
+      where: { id },
+      data: {
+        ...(input.maxStakeCents !== undefined ? { maxStakeCents: input.maxStakeCents } : {}),
+        ...(input.maxLiabilityCents !== undefined ? { maxLiabilityCents: input.maxLiabilityCents } : {}),
+        ...(input.audienceMode !== undefined ? { audienceMode: input.audienceMode } : {}),
+        ...(input.segmentIds !== undefined
+          ? {
+              audienceSegments: {
+                deleteMany: {},
+                create: input.segmentIds.map((segmentId) => ({ segmentId })),
+              },
+            }
+          : {}),
+      },
+      include: { selections: true, audienceSegments: true },
+    });
+
+    await this.auditLogService.record({
+      actor,
+      action: 'MANUAL_MARKET_LIMITS_SET',
+      targetType: 'ManualMarket',
+      targetId: market.id,
+      metadata: { ...input },
+    });
+
+    return market;
+  }
+
+  /** Used by PamService at bet placement to check stake/liability caps - brandId-scoped, same as every other lookup here. */
+  async findForBet(brandId: string, id: string) {
+    const market = await this.prisma.manualMarket.findUnique({ where: { id } });
+    return market && market.brandId === brandId ? market : null;
+  }
+
+  /** Adds to the market's running exposure after a bet is accepted - see PamService. */
+  async recordLiability(id: string, liabilityCents: number) {
+    await this.prisma.manualMarket.update({
+      where: { id },
+      data: { currentLiabilityCents: { increment: liabilityCents } },
+    });
+  }
+
+  /** Appends each match's manual markets (if any) onto its markets array, filtered to whatever this viewer's audience can see; matches with none visible pass through unchanged. */
+  async mergeIntoMatches(brandId: string, matches: Match[], viewer: AudienceViewer = ANONYMOUS_VIEWER): Promise<Match[]> {
     const manualMarkets = await this.prisma.manualMarket.findMany({
       where: { brandId, matchId: { in: matches.map((match) => match.id) } },
-      include: { selections: true },
+      include: { selections: true, audienceSegments: true },
     });
-    if (manualMarkets.length === 0) {
+    const visibleMarkets = manualMarkets.filter((manualMarket) =>
+      resolveAudience(
+        manualMarket.audienceMode,
+        manualMarket.audienceSegments.map((segment) => segment.segmentId),
+        viewer,
+      ),
+    );
+    if (visibleMarkets.length === 0) {
       return matches;
     }
 
     const marketsByMatchId = new Map<string, Match['markets']>();
-    for (const manualMarket of manualMarkets) {
+    for (const manualMarket of visibleMarkets) {
       const mapped = marketsByMatchId.get(manualMarket.matchId) ?? [];
       mapped.push({
         id: manualMarket.id,
         name: manualMarket.name,
+        isSpecial: true,
         selections: manualMarket.selections.map((selection) => ({
           id: selection.id,
           name: selection.name,

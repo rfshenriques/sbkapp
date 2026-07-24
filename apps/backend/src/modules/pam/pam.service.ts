@@ -6,6 +6,7 @@ import { AccaBoostService } from '../acca-boost/acca-boost.service';
 import { calculateAccaBoost } from '../acca-boost/acca-boost';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { resolveBetLimit, type LegContext } from '../limits/stake-limits';
+import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { computeBetOutcome } from './bet-settlement';
 import { CompetitionSuspensionService } from './competition-suspension.service';
@@ -25,6 +26,7 @@ export class PamService {
     private readonly competitionSuspensionService: CompetitionSuspensionService,
     private readonly oddsEngineClient: OddsEngineClient,
     private readonly accaBoostService: AccaBoostService,
+    private readonly manualMarketService: ManualMarketService,
   ) {}
 
   async getWallet(userId: string): Promise<{ balanceCents: number }> {
@@ -106,6 +108,49 @@ export class PamService {
     }
   }
 
+  /**
+   * A manual market's own stake/liability caps (see ManualMarketService),
+   * separate from the brand-wide StakeLimit system above - set per market
+   * by the trader who created it. Each leg's liability is judged on its
+   * own odds (stake * (odds - 1)), not the accumulator's combined payout -
+   * decomposing a multi-leg bet's combined liability back to one market's
+   * share of it isn't well-defined, and traders think about a market's
+   * exposure in terms of what that market alone is risking.
+   */
+  private async assertWithinManualMarketLimitsAndCollectLiability(
+    brandId: string,
+    dto: PlaceBetDto,
+  ): Promise<{ marketId: string; liabilityCents: number }[]> {
+    const toRecord: { marketId: string; liabilityCents: number }[] = [];
+
+    for (const selection of dto.selections) {
+      const market = await this.manualMarketService.findForBet(brandId, selection.marketId);
+      if (!market) {
+        continue;
+      }
+
+      if (market.maxStakeCents !== null && dto.stakeCents > market.maxStakeCents) {
+        throw new BadRequestException(
+          `Stake exceeds the maximum allowed for ${market.name} (max €${formatEuros(market.maxStakeCents)})`,
+        );
+      }
+
+      const legLiabilityCents = Math.round(dto.stakeCents * (selection.odds - 1));
+      if (
+        market.maxLiabilityCents !== null &&
+        market.currentLiabilityCents + legLiabilityCents > market.maxLiabilityCents
+      ) {
+        throw new BadRequestException(
+          `This bet would exceed the maximum liability allowed for ${market.name} (max €${formatEuros(market.maxLiabilityCents)})`,
+        );
+      }
+
+      toRecord.push({ marketId: market.id, liabilityCents: legLiabilityCents });
+    }
+
+    return toRecord;
+  }
+
   async placeBet(userId: string, dto: PlaceBetDto) {
     const { brandId } = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -123,6 +168,10 @@ export class PamService {
     const potentialPayoutCents = Math.round(dto.stakeCents * combinedOdds);
 
     await this.assertWithinStakeLimits(brandId, dto, matchesById, potentialPayoutCents);
+    const manualMarketLiabilityToRecord = await this.assertWithinManualMarketLimitsAndCollectLiability(
+      brandId,
+      dto,
+    );
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
@@ -150,7 +199,7 @@ export class PamService {
         data: { balanceCents: { decrement: dto.stakeCents } },
       });
 
-      return tx.bet.create({
+      const bet = await tx.bet.create({
         data: {
           userId,
           brandId: user.brandId,
@@ -172,6 +221,15 @@ export class PamService {
         },
         include: { selections: true },
       });
+
+      for (const { marketId, liabilityCents } of manualMarketLiabilityToRecord) {
+        await tx.manualMarket.update({
+          where: { id: marketId },
+          data: { currentLiabilityCents: { increment: liabilityCents } },
+        });
+      }
+
+      return bet;
     });
   }
 

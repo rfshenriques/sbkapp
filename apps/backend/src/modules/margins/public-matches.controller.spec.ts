@@ -1,12 +1,14 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import type { Match } from '@sportsbook/shared';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ANONYMOUS_VIEWER } from '../audience/audience';
 import { BoostService } from '../boosts/boost.service';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsOverrideService } from '../odds-override/odds-override.service';
 import { MarginPricingService } from './margin-pricing.service';
 import { OddsEngineClient } from './odds-engine-client';
 import { PublicMatchesController } from './public-matches.controller';
+import { ViewerResolverService } from './viewer-resolver.service';
 
 const rawMatch: Match = {
   id: 'match-1',
@@ -41,6 +43,7 @@ describe('PublicMatchesController', () => {
   let manualMarketService: { mergeIntoMatches: ReturnType<typeof vi.fn> };
   let oddsOverrideService: { applyOverrides: ReturnType<typeof vi.fn> };
   let boostService: { applyBoosts: ReturnType<typeof vi.fn> };
+  let viewerResolverService: { resolve: ReturnType<typeof vi.fn> };
 
   beforeEach(async () => {
     oddsEngineClient = {
@@ -59,6 +62,9 @@ describe('PublicMatchesController', () => {
     boostService = {
       applyBoosts: vi.fn().mockResolvedValue([boostedMatch]),
     };
+    viewerResolverService = {
+      resolve: vi.fn().mockResolvedValue(ANONYMOUS_VIEWER),
+    };
 
     const moduleRef: TestingModule = await Test.createTestingModule({
       controllers: [PublicMatchesController],
@@ -68,6 +74,7 @@ describe('PublicMatchesController', () => {
         { provide: ManualMarketService, useValue: manualMarketService },
         { provide: OddsOverrideService, useValue: oddsOverrideService },
         { provide: BoostService, useValue: boostService },
+        { provide: ViewerResolverService, useValue: viewerResolverService },
       ],
     }).compile();
 
@@ -79,7 +86,7 @@ describe('PublicMatchesController', () => {
 
     expect(oddsEngineClient.fetchMatches).toHaveBeenCalled();
     expect(marginPricingService.applyMarginToMatches).toHaveBeenCalledWith('brand-1', [rawMatch]);
-    expect(manualMarketService.mergeIntoMatches).toHaveBeenCalledWith('brand-1', [pricedMatch]);
+    expect(manualMarketService.mergeIntoMatches).toHaveBeenCalledWith('brand-1', [pricedMatch], ANONYMOUS_VIEWER);
     expect(oddsOverrideService.applyOverrides).toHaveBeenCalledWith('brand-1', [withManualMarketsMatch]);
     expect(boostService.applyBoosts).toHaveBeenCalledWith('brand-1', [overriddenMatch]);
     expect(result).toEqual([boostedMatch]);
@@ -90,9 +97,15 @@ describe('PublicMatchesController', () => {
 
     expect(oddsEngineClient.fetchMatchById).toHaveBeenCalledWith('match-1');
     expect(marginPricingService.applyMarginToMatches).toHaveBeenCalledWith('brand-1', [rawMatch]);
-    expect(manualMarketService.mergeIntoMatches).toHaveBeenCalledWith('brand-1', [pricedMatch]);
+    expect(manualMarketService.mergeIntoMatches).toHaveBeenCalledWith('brand-1', [pricedMatch], ANONYMOUS_VIEWER);
     expect(oddsOverrideService.applyOverrides).toHaveBeenCalledWith('brand-1', [withManualMarketsMatch]);
     expect(boostService.applyBoosts).toHaveBeenCalledWith('brand-1', [overriddenMatch]);
     expect(result).toEqual(boostedMatch);
+  });
+
+  it("resolves the viewer from the request's Authorization header", async () => {
+    await controller.listForBrand('brand-1', 'Bearer some-token');
+
+    expect(viewerResolverService.resolve).toHaveBeenCalledWith('Bearer some-token');
   });
 });

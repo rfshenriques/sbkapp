@@ -223,5 +223,129 @@ describe('ManualMarketService', () => {
 
       expect(result).toEqual(match);
     });
+
+    it('marks a manual market with isSpecial so the player app can group it under Specials', async () => {
+      await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      const match = buildMatch();
+
+      const [result] = await service.mergeIntoMatches(brandAId, [match]);
+
+      expect(result?.markets[1]?.isSpecial).toBe(true);
+    });
+
+    it('hides a LOGGED_IN-only market from an anonymous viewer', async () => {
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      await service.setLimits(brandAId, market.id, { audienceMode: 'LOGGED_IN' }, TEST_ACTOR);
+      const match = buildMatch();
+
+      const [result] = await service.mergeIntoMatches(brandAId, [match]);
+
+      expect(result?.markets).toHaveLength(1);
+    });
+
+    it('shows a LOGGED_IN-only market to a logged-in viewer', async () => {
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      await service.setLimits(brandAId, market.id, { audienceMode: 'LOGGED_IN' }, TEST_ACTOR);
+      const match = buildMatch();
+
+      const [result] = await service.mergeIntoMatches(brandAId, [match], { isLoggedIn: true, segmentIds: [] });
+
+      expect(result?.markets).toHaveLength(2);
+    });
+
+    it('shows a SEGMENTS-targeted market only to a viewer in one of its segments', async () => {
+      const segmentA = await prisma.playerSegment.create({ data: { brandId: brandAId, name: 'Segment A' } });
+      const segmentB = await prisma.playerSegment.create({ data: { brandId: brandAId, name: 'Segment B' } });
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      await service.setLimits(
+        brandAId,
+        market.id,
+        { audienceMode: 'SEGMENTS', segmentIds: [segmentA.id] },
+        TEST_ACTOR,
+      );
+      const match = buildMatch();
+
+      const [hidden] = await service.mergeIntoMatches(brandAId, [match], {
+        isLoggedIn: true,
+        segmentIds: [segmentB.id],
+      });
+      const [shown] = await service.mergeIntoMatches(brandAId, [match], {
+        isLoggedIn: true,
+        segmentIds: [segmentA.id],
+      });
+
+      expect(hidden?.markets).toHaveLength(1);
+      expect(shown?.markets).toHaveLength(2);
+
+      await prisma.playerSegment.deleteMany({ where: { id: { in: [segmentA.id, segmentB.id] } } });
+    });
+  });
+
+  describe('setLimits', () => {
+    it('sets max stake and max liability, leaving other fields unchanged', async () => {
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+
+      const updated = await service.setLimits(
+        brandAId,
+        market.id,
+        { maxStakeCents: 5_000, maxLiabilityCents: 20_000 },
+        TEST_ACTOR,
+      );
+
+      expect(updated.maxStakeCents).toBe(5_000);
+      expect(updated.maxLiabilityCents).toBe(20_000);
+      expect(updated.name).toBe('Novelty');
+    });
+
+    it('clears a cap by setting it to null', async () => {
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      await service.setLimits(brandAId, market.id, { maxStakeCents: 5_000 }, TEST_ACTOR);
+
+      const cleared = await service.setLimits(brandAId, market.id, { maxStakeCents: null }, TEST_ACTOR);
+
+      expect(cleared.maxStakeCents).toBeNull();
+    });
+
+    it("a brand can never set limits on another brand's market, even by guessing its id", async () => {
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+
+      await expect(
+        service.setLimits(brandBId, market.id, { maxStakeCents: 1 }, OTHER_BRAND_ACTOR),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('records an audit entry', async () => {
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      await service.setLimits(brandAId, market.id, { maxStakeCents: 5_000 }, TEST_ACTOR);
+
+      const entries = await prisma.auditLogEntry.findMany({
+        where: { actorUsername: TEST_ACTOR.username, action: 'MANUAL_MARKET_LIMITS_SET' },
+      });
+      expect(entries).toHaveLength(1);
+    });
+  });
+
+  describe('findForBet + recordLiability', () => {
+    it('returns the market when it belongs to the given brand', async () => {
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+
+      expect(await service.findForBet(brandAId, market.id)).toMatchObject({ id: market.id });
+    });
+
+    it('returns null for a market belonging to another brand', async () => {
+      const market = await service.createMarket(brandBId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], OTHER_BRAND_ACTOR);
+
+      expect(await service.findForBet(brandAId, market.id)).toBeNull();
+    });
+
+    it('recordLiability increments the running total', async () => {
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+
+      await service.recordLiability(market.id, 1_000);
+      await service.recordLiability(market.id, 500);
+
+      const updated = await service.findForBet(brandAId, market.id);
+      expect(updated?.currentLiabilityCents).toBe(1_500);
+    });
   });
 });

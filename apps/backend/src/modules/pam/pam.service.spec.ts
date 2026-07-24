@@ -6,6 +6,7 @@ import type { Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AccaBoostService } from '../acca-boost/acca-boost.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { CompetitionSuspensionService } from './competition-suspension.service';
 import { MarketSuspensionService } from './market-suspension.service';
@@ -48,6 +49,7 @@ describe('PamService', () => {
   let marketSuspensionService: MarketSuspensionService;
   let competitionSuspensionService: CompetitionSuspensionService;
   let accaBoostService: AccaBoostService;
+  let manualMarketService: ManualMarketService;
   let prisma: PrismaService;
   let setupPrisma: PrismaService;
   let testBrandId: string;
@@ -84,6 +86,7 @@ describe('PamService', () => {
         MarketSuspensionService,
         CompetitionSuspensionService,
         AccaBoostService,
+        ManualMarketService,
         {
           provide: OddsEngineClient,
           useValue: { fetchMatchById: vi.fn(async (matchId: string) => fakeMatch(matchId)) },
@@ -96,6 +99,7 @@ describe('PamService', () => {
     marketSuspensionService = moduleRef.get(MarketSuspensionService);
     competitionSuspensionService = moduleRef.get(CompetitionSuspensionService);
     accaBoostService = moduleRef.get(AccaBoostService);
+    manualMarketService = moduleRef.get(ManualMarketService);
     prisma = moduleRef.get(PrismaService);
   });
 
@@ -104,6 +108,7 @@ describe('PamService', () => {
     await prisma.competitionSuspension.deleteMany({ where: { competition: DEFAULT_TEST_COMPETITION } });
     await prisma.accaBoostConfig.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.stakeLimit.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
+    await prisma.manualMarket.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     if (createdUserIds.length > 0) {
       await prisma.auditLogEntry.deleteMany({ where: { actorUsername: TEST_ACTOR.username } });
       await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
@@ -344,6 +349,92 @@ describe('PamService', () => {
 
       const bet = await pamService.placeBet(userId, {
         selections: [buildSelection()],
+        stakeCents: 50_000,
+      });
+
+      expect(bet.stakeCents).toBe(50_000);
+    });
+  });
+
+  describe('manual market limits', () => {
+    it('places a bet normally on a manual market with no limits configured', async () => {
+      const market = await manualMarketService.createMarket(testBrandId, 'match-1', 'Novelty', [
+        { name: 'Yes', odds: 2.1 },
+      ], TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ marketId: market.id })],
+        stakeCents: 5_000,
+      });
+
+      expect(bet.stakeCents).toBe(5_000);
+    });
+
+    it('rejects a stake over the market\'s own max stake', async () => {
+      const market = await manualMarketService.createMarket(testBrandId, 'match-1', 'Novelty', [
+        { name: 'Yes', odds: 2.1 },
+      ], TEST_ACTOR);
+      await manualMarketService.setLimits(testBrandId, market.id, { maxStakeCents: 1_000 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [buildSelection({ marketId: market.id })],
+          stakeCents: 2_000,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects a bet that would push the market past its max liability', async () => {
+      const market = await manualMarketService.createMarket(testBrandId, 'match-1', 'Novelty', [
+        { name: 'Yes', odds: 2.1 },
+      ], TEST_ACTOR);
+      await manualMarketService.setLimits(testBrandId, market.id, { maxLiabilityCents: 1_000 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      // odds 2.1, stake 2000 -> leg liability 2200 > 1000.
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [buildSelection({ marketId: market.id, odds: 2.1 })],
+          stakeCents: 2_000,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("accumulates liability across bets and rejects once further bets would exceed the cap", async () => {
+      const market = await manualMarketService.createMarket(testBrandId, 'match-1', 'Novelty', [
+        { name: 'Yes', odds: 2.0 },
+      ], TEST_ACTOR);
+      await manualMarketService.setLimits(testBrandId, market.id, { maxLiabilityCents: 1_500 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      // First bet: stake 1000 @ odds 2.0 -> liability 1000, within cap.
+      await pamService.placeBet(userId, {
+        selections: [buildSelection({ marketId: market.id, odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      // Second bet would add another 1000 liability -> 2000 total > 1500 cap.
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [buildSelection({ marketId: market.id, odds: 2.0 })],
+          stakeCents: 1_000,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('never applies another brand\'s manual market limits', async () => {
+      const market = await manualMarketService.createMarket(otherBrandId, 'match-1', 'Novelty', [
+        { name: 'Yes', odds: 2.1 },
+      ], TEST_ACTOR);
+      await manualMarketService.setLimits(otherBrandId, market.id, { maxStakeCents: 100 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        // Same marketId as the other brand's manual market, but this bet's own brand has no such market -
+        // findForBet returns null, so no limit applies at all.
+        selections: [buildSelection({ marketId: market.id })],
         stakeCents: 50_000,
       });
 

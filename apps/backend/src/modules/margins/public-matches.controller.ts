@@ -1,9 +1,10 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Headers, Param } from '@nestjs/common';
 import { BoostService } from '../boosts/boost.service';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsOverrideService } from '../odds-override/odds-override.service';
 import { MarginPricingService } from './margin-pricing.service';
 import { OddsEngineClient } from './odds-engine-client';
+import { ViewerResolverService } from './viewer-resolver.service';
 
 /**
  * Unauthenticated, player-facing - apps/frontend fetches matches/odds from
@@ -26,22 +27,29 @@ export class PublicMatchesController {
     private readonly manualMarketService: ManualMarketService,
     private readonly oddsOverrideService: OddsOverrideService,
     private readonly boostService: BoostService,
+    private readonly viewerResolverService: ViewerResolverService,
   ) {}
 
   @Get(':brandId')
-  async listForBrand(@Param('brandId') brandId: string) {
+  async listForBrand(@Param('brandId') brandId: string, @Headers('authorization') authorization?: string) {
+    const viewer = await this.viewerResolverService.resolve(authorization);
     const matches = await this.oddsEngineClient.fetchMatches();
     const priced = await this.marginPricingService.applyMarginToMatches(brandId, matches);
-    const withManualMarkets = await this.manualMarketService.mergeIntoMatches(brandId, priced);
+    const withManualMarkets = await this.manualMarketService.mergeIntoMatches(brandId, priced, viewer);
     const overridden = await this.oddsOverrideService.applyOverrides(brandId, withManualMarkets);
     return this.boostService.applyBoosts(brandId, overridden);
   }
 
   @Get(':brandId/:matchId')
-  async getForBrand(@Param('brandId') brandId: string, @Param('matchId') matchId: string) {
+  async getForBrand(
+    @Param('brandId') brandId: string,
+    @Param('matchId') matchId: string,
+    @Headers('authorization') authorization?: string,
+  ) {
+    const viewer = await this.viewerResolverService.resolve(authorization);
     const match = await this.oddsEngineClient.fetchMatchById(matchId);
     const [priced] = await this.marginPricingService.applyMarginToMatches(brandId, [match]);
-    const [withManualMarkets] = await this.manualMarketService.mergeIntoMatches(brandId, [priced!]);
+    const [withManualMarkets] = await this.manualMarketService.mergeIntoMatches(brandId, [priced!], viewer);
     const [overridden] = await this.oddsOverrideService.applyOverrides(brandId, [withManualMarkets!]);
     const [boosted] = await this.boostService.applyBoosts(brandId, [overridden!]);
     return boosted;

@@ -5,6 +5,7 @@ import type { Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AccaBoostService } from '../acca-boost/acca-boost.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { CompetitionSuspensionService } from '../pam/competition-suspension.service';
 import { MarketSuspensionService } from '../pam/market-suspension.service';
@@ -62,6 +63,7 @@ describe('ReportsService', () => {
         MarketSuspensionService,
         CompetitionSuspensionService,
         AccaBoostService,
+        ManualMarketService,
         {
           provide: OddsEngineClient,
           useValue: {

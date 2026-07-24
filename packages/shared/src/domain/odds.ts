@@ -11,6 +11,8 @@ export interface Market {
   id: string;
   name: string;
   selections: Selection[];
+  /** True for a trader-created manual market with no feed equivalent - the player app groups every such market under one "Specials" heading rather than interspersing them with real markets. */
+  isSpecial?: boolean;
 }
 
 export interface Match {

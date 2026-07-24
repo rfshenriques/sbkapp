@@ -4,6 +4,7 @@ import { RolesGuard } from '../admin/roles.guard';
 import { StaffJwtAuthGuard } from '../admin/staff-jwt-auth.guard';
 import type { StaffJwtPayload } from '../admin/staff-jwt.strategy';
 import { CreateManualMarketDto } from './dto/create-manual-market.dto';
+import { SetManualMarketLimitsDto } from './dto/set-manual-market-limits.dto';
 import { UpdateManualMarketDto } from './dto/update-manual-market.dto';
 import { ManualMarketService } from './manual-market.service';
 
@@ -43,6 +44,19 @@ export class ManualMarketAdminController {
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: AuthenticatedStaffRequest) {
     return this.manualMarketService.removeMarket(req.user.brandId, id, {
+      id: req.user.sub,
+      username: req.user.username,
+      brandId: req.user.brandId,
+    });
+  }
+
+  @Patch(':id/limits')
+  setLimits(
+    @Param('id') id: string,
+    @Body() dto: SetManualMarketLimitsDto,
+    @Req() req: AuthenticatedStaffRequest,
+  ) {
+    return this.manualMarketService.setLimits(req.user.brandId, id, dto, {
       id: req.user.sub,
       username: req.user.username,
       brandId: req.user.brandId,

@@ -594,6 +594,8 @@ model ManualMarket {
    * total liability past the cap is rejected outright.
    */
   maxLiabilityCents Int?
+  /** Running total of potential payout across bets placed on this market so far - see PamService's liability tracking. */
+  currentLiabilityCents Int @default(0)
   /** Who can see this market at all - see AudienceMode. Defaults to everyone, same as before this field existed. */
   audienceMode AudienceMode @default(ALL)
 
