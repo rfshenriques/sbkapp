@@ -3,11 +3,9 @@ import { Link } from 'react-router-dom';
 import type { BoostedSelectionSummary } from '@sportsbook/shared';
 import { BackButton } from '../components/ui/BackButton';
 import { Card } from '../components/ui/Card';
-import { LockIcon } from '../components/ui/LockIcon';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { SportIcon } from '../components/ui/SportIcon';
-import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
-import { useMarketSuspensions } from '../features/bet-slip/useMarketSuspensions';
+import { BoostedOddsRow } from '../features/bet-slip/BoostedOddsRow';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { useBoosts } from '../features/odds-board/useBoosts';
 import { MatchListSkeleton } from '../features/odds-board/MatchListSkeleton';
@@ -31,19 +29,8 @@ function groupBySport(items: BoostedSelectionSummary[]): SportGroup[] {
   return Array.from(groups.entries()).map(([sport, sportItems]) => ({ sport, items: sportItems }));
 }
 
-function BoostedSelectionRow({ item }: { item: BoostedSelectionSummary }) {
+function BoostedSelectionCard({ item }: { item: BoostedSelectionSummary }) {
   const displayName = useDisplayNames();
-  const toggleSelection = useBetSlipStore((state) => state.toggleSelection);
-  const selectedSelectionId = useBetSlipStore(
-    (state) =>
-      state.selections.find((selection) => selection.matchId === item.matchId && selection.marketId === item.marketId)
-        ?.selectionId,
-  );
-  const { isSuspended, isCompetitionSuspended } = useMarketSuspensions();
-  const suspended =
-    isCompetitionSuspended(item.competition) || isSuspended(item.matchId, item.marketId, item.selectionId);
-  const isSelected = selectedSelectionId === item.selectionId;
-
   const homeTeamLabel = displayName('TEAM', item.homeTeam);
   const awayTeamLabel = displayName('TEAM', item.awayTeam);
   const matchLabel = `${homeTeamLabel} vs ${awayTeamLabel}`;
@@ -58,59 +45,18 @@ function BoostedSelectionRow({ item }: { item: BoostedSelectionSummary }) {
       <Link to={`/matches/${item.matchId}`} className="mb-3 block font-semibold">
         {matchLabel}
       </Link>
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="truncate text-sm text-text-secondary">
-            {displayName('MARKET', item.marketName)}: {displayName('SELECTION', item.selectionName)}
-          </p>
-          {item.maxStakeCents !== undefined && (
-            <p className="text-[11px] text-text-secondary">
-              Max stake for boosted price: €{(item.maxStakeCents / 100).toFixed(2)}
-            </p>
-          )}
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="text-sm text-text-secondary line-through decoration-1">
-            {item.previousOdds.toFixed(2)}
-          </span>
-          <span className="text-text-secondary" aria-hidden="true">
-            &rarr;
-          </span>
-          <button
-            type="button"
-            disabled={suspended}
-            aria-label={
-              suspended
-                ? `${item.selectionName} suspended`
-                : `${item.selectionName} boosted to ${item.odds.toFixed(2)}, was ${item.previousOdds.toFixed(2)}${
-                    item.maxStakeCents !== undefined
-                      ? `, max stake €${(item.maxStakeCents / 100).toFixed(2)}`
-                      : ''
-                  }`
-            }
-            className={`odd-btn${isSelected ? ' selected' : ''}${suspended ? ' suspended' : ''}`}
-            onClick={() =>
-              toggleSelection({
-                matchId: item.matchId,
-                marketId: item.marketId,
-                selectionId: item.selectionId,
-                matchLabel,
-                marketName: displayName('MARKET', item.marketName),
-                selectionName: displayName('SELECTION', item.selectionName),
-                odds: item.odds,
-                originalOdds: item.previousOdds,
-                maxStakeCents: item.maxStakeCents,
-              })
-            }
-          >
-            {suspended ? (
-              <LockIcon className="h-4 w-4" aria-hidden="true" />
-            ) : (
-              <span className="odd-value text-highlight">{item.odds.toFixed(2)}</span>
-            )}
-          </button>
-        </div>
-      </div>
+      <BoostedOddsRow
+        matchId={item.matchId}
+        matchLabel={matchLabel}
+        competition={item.competition}
+        marketId={item.marketId}
+        marketName={item.marketName}
+        selectionId={item.selectionId}
+        selectionName={item.selectionName}
+        odds={item.odds}
+        previousOdds={item.previousOdds}
+        maxStakeCents={item.maxStakeCents}
+      />
     </Card>
   );
 }
@@ -154,7 +100,7 @@ export default function BoostsPage() {
             </div>
             <div className="space-y-3">
               {group.items.map((item) => (
-                <BoostedSelectionRow key={`${item.matchId}-${item.marketId}-${item.selectionId}`} item={item} />
+                <BoostedSelectionCard key={`${item.matchId}-${item.marketId}-${item.selectionId}`} item={item} />
               ))}
             </div>
           </div>

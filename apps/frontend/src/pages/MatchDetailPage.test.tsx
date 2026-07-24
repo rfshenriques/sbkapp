@@ -152,6 +152,56 @@ describe('MatchDetailPage', () => {
     expect(screen.queryByRole('heading', { name: 'To Win Both Halves' })).not.toBeInTheDocument();
   });
 
+  it('shows a Boosts section above Match Result, listing every boosted selection on the match', async () => {
+    stubOddsEngineFetch([
+      {
+        id: 'match-9',
+        sport: 'Football',
+        country: 'England',
+        competition: 'Some Small League',
+        homeTeam: 'Home Team',
+        awayTeam: 'Away Team',
+        kickoff: '2026-07-20T15:00:00Z',
+        isLive: false,
+        markets: [
+          {
+            id: 'match-result',
+            name: 'Match Result',
+            selections: [
+              { id: 'home', name: 'Home', odds: 2.4, originalOdds: 1.85, maxStakeCents: 5000 },
+              { id: 'away', name: 'Away', odds: 3.2 },
+            ],
+          },
+        ],
+      },
+    ]);
+
+    renderAt('match-9');
+
+    const boostsHeading = await screen.findByRole('heading', { name: 'Boosts' });
+    expect(boostsHeading).toBeInTheDocument();
+    // The Boosts section sits above the Match Result heading in document order.
+    const matchResultHeading = await screen.findByRole('heading', { name: 'Match Result' });
+    expect(
+      boostsHeading.compareDocumentPosition(matchResultHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // The boosted selection also still appears in its normal Match Result
+    // row below (same rule as the player Boosts page vs. the match page),
+    // so scope to the Boosts section itself rather than the whole page.
+    const boostsSection = boostsHeading.closest('div')!.parentElement!;
+    expect(within(boostsSection).getByText('Max stake for boosted price: €50.00')).toBeInTheDocument();
+    expect(
+      within(boostsSection).getByRole('button', { name: /Home boosted to 2.40, was 1.85, max stake €50.00/ }),
+    ).toBeInTheDocument();
+  });
+
+  it('does not show a Boosts section when nothing on the match is boosted', async () => {
+    renderAt('match-1');
+    await screen.findByRole('heading', { name: 'Arsenal vs Chelsea' });
+
+    expect(screen.queryByRole('heading', { name: 'Boosts' })).not.toBeInTheDocument();
+  });
+
   it('shows the live match tracker for a live match once its live state loads', async () => {
     const liveState: LiveMatchState = {
       matchId: 'match-3',

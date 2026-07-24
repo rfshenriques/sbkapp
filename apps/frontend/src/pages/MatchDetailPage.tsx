@@ -1,9 +1,11 @@
 import { useParams } from 'react-router-dom';
 import { BackButton } from '../components/ui/BackButton';
 import { Breadcrumb, type BreadcrumbSegment } from '../components/ui/Breadcrumb';
+import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { TeamColorAccent } from '../components/ui/TeamColorAccent';
+import { BoostedOddsRow } from '../features/bet-slip/BoostedOddsRow';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { LiveMatchTracker } from '../features/match-detail/LiveMatchTracker';
@@ -75,6 +77,15 @@ export default function MatchDetailPage() {
   // as SpecialsPage - the rest keep their own section below Match Result.
   const otherMarkets = match.markets.filter((market) => market.id !== 'match-result' && !market.isSpecial);
   const specialMarkets = match.markets.filter((market) => market.id !== 'match-result' && market.isSpecial);
+  // originalOdds is only ever set when a boost actually changed the price
+  // (see BoostService.applyBoosts) - flattened here the same way the
+  // Boosts page flattens BoostedSelectionSummary, so this match's boosted
+  // prices get their own section above everything else, per the same rule.
+  const boostedSelections = match.markets.flatMap((market) =>
+    market.selections
+      .filter((selection) => selection.originalOdds !== undefined)
+      .map((selection) => ({ market, selection })),
+  );
   const homeTeamLabel = displayName('TEAM', match.homeTeam);
   const awayTeamLabel = displayName('TEAM', match.awayTeam);
   const matchLabel = `${homeTeamLabel} vs ${awayTeamLabel}`;
@@ -159,6 +170,37 @@ export default function MatchDetailPage() {
       {match.isLive && liveState && (
         <div className="mt-6">
           <LiveMatchTracker state={liveState} homeTeam={homeTeamLabel} awayTeam={awayTeamLabel} />
+        </div>
+      )}
+
+      {boostedSelections.length > 0 && (
+        <div className="mt-6">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="brand-flag" aria-hidden="true">
+              <i></i>
+              <i></i>
+              <i></i>
+            </span>
+            <h2 className="font-display text-lg">Boosts</h2>
+          </div>
+          <div className="space-y-3">
+            {boostedSelections.map(({ market, selection }) => (
+              <Card key={`${market.id}-${selection.id}`} className="bg-surface-2">
+                <BoostedOddsRow
+                  matchId={match.id}
+                  matchLabel={matchLabel}
+                  competition={match.competition}
+                  marketId={market.id}
+                  marketName={market.name}
+                  selectionId={selection.id}
+                  selectionName={selection.name}
+                  odds={selection.odds}
+                  previousOdds={selection.originalOdds!}
+                  maxStakeCents={selection.maxStakeCents}
+                />
+              </Card>
+            ))}
+          </div>
         </div>
       )}
 
