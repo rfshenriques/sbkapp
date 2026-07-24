@@ -146,6 +146,9 @@ enum AuditAction {
   BOOST_SET
   BOOST_CLEARED
   ACCA_BOOST_CONFIG_SET
+  STAKE_LIMIT_SET
+  STAKE_LIMIT_REMOVED
+  STAKE_LIMITS_BULK_IMPORTED
 }
 
 /**
@@ -189,6 +192,49 @@ model CompetitionTier {
   @@unique([brandId, competition])
   @@index([brandId])
   @@map("competition_tiers")
+}
+
+enum LimitScope {
+  GLOBAL
+  SPORT
+  COUNTRY
+  LEAGUE
+  MARKET
+}
+
+/**
+ * Max stake / max liability for one (scope, scopeValue) pairing, optionally
+ * narrowed to one CompetitionTier tier (0 = applies regardless of tier).
+ * scopeValue is "" for GLOBAL (the brand-wide default) and otherwise the
+ * raw feed sport/country/competition/market name, same convention as
+ * CompetitionTier/CompetitionRanking - matches are never persisted, so
+ * there's no id to key on.
+ *
+ * A bet resolves its effective cap per field (maxStakeCents,
+ * maxLiabilityCents) independently by walking MARKET -> LEAGUE -> COUNTRY
+ * -> SPORT -> GLOBAL, tier-specific before tier-agnostic at each level, and
+ * taking the first non-null value found - the same "most specific wins"
+ * cascade a CSS rule uses (see resolveLegLimit in stake-limits.ts). An
+ * accumulator resolves every leg's own cap this way, then uses the
+ * smallest one across all legs (resolveBetLimit) - a book's real exposure
+ * on an accumulator is bounded by whichever leg is most restrictive, not
+ * an average or a sum.
+ */
+model StakeLimit {
+  id                String     @id @default(uuid())
+  brandId           String
+  brand             Brand      @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  scope             LimitScope
+  scopeValue        String     @default("")
+  tier              Int        @default(0)
+  maxStakeCents     Int?
+  maxLiabilityCents Int?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@unique([brandId, scope, scopeValue, tier])
+  @@index([brandId])
+  @@map("stake_limits")
 }
 
 /**
@@ -646,6 +692,7 @@ model Brand {
   oddsLadderRungs        OddsLadderRung[]
   boosts                 Boost[]
   accaBoostConfig        AccaBoostConfig?
+  stakeLimits            StakeLimit[]
 
   @@map("brands")
 }

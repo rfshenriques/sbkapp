@@ -103,6 +103,7 @@ describe('PamService', () => {
     await prisma.marketSuspension.deleteMany({ where: { matchId: { startsWith: 'match-' } } });
     await prisma.competitionSuspension.deleteMany({ where: { competition: DEFAULT_TEST_COMPETITION } });
     await prisma.accaBoostConfig.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
+    await prisma.stakeLimit.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     if (createdUserIds.length > 0) {
       await prisma.auditLogEntry.deleteMany({ where: { actorUsername: TEST_ACTOR.username } });
       await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
@@ -250,6 +251,103 @@ describe('PamService', () => {
       expect(settled!.status).toBe('WON');
       // Same 9.2 boosted odds recomputed at settlement from the legs' own odds + the locked-in 15% boost.
       expect(settled!.settledPayoutCents).toBe(9_200);
+    });
+  });
+
+  describe('stake limits', () => {
+    it('places a bet normally when the brand has no stake limits configured', async () => {
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection()],
+        stakeCents: 50_000,
+      });
+
+      expect(bet.stakeCents).toBe(50_000);
+    });
+
+    it('rejects a stake over the applicable max stake', async () => {
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'SPORT', scopeValue: 'Football', tier: 0, maxStakeCents: 1_000 },
+      });
+      const userId = await createTestUser(100_000);
+
+      await expect(
+        pamService.placeBet(userId, { selections: [buildSelection()], stakeCents: 2_000 }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('allows a stake at or under the applicable max stake', async () => {
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'SPORT', scopeValue: 'Football', tier: 0, maxStakeCents: 1_000 },
+      });
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection()],
+        stakeCents: 1_000,
+      });
+
+      expect(bet.stakeCents).toBe(1_000);
+    });
+
+    it('rejects a bet whose potential liability exceeds the applicable max liability', async () => {
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'GLOBAL', scopeValue: '', tier: 0, maxLiabilityCents: 1_000 },
+      });
+      const userId = await createTestUser(100_000);
+
+      // odds 2.1, stake 2000 -> payout 4200, liability 2200 > 1000.
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [buildSelection({ odds: 2.1 })],
+          stakeCents: 2_000,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('an accumulator uses the smallest cap across its legs, not the largest', async () => {
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'MARKET', scopeValue: 'Match Result', tier: 0, maxStakeCents: 100_000 },
+      });
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'MARKET', scopeValue: 'Both Teams to Score', tier: 0, maxStakeCents: 40_000 },
+      });
+      const userId = await createTestUser(100_000);
+
+      // 40 EUR is the smaller of the two legs' own caps (400 EUR vs 1000 EUR) -> 401 EUR rejected, 400 EUR allowed.
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [
+            buildSelection({ matchId: 'match-1', marketName: 'Match Result' }),
+            buildSelection({ matchId: 'match-2', selectionId: 'yes', marketName: 'Both Teams to Score' }),
+          ],
+          stakeCents: 40_001,
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', marketName: 'Match Result' }),
+          buildSelection({ matchId: 'match-2', selectionId: 'yes', marketName: 'Both Teams to Score' }),
+        ],
+        stakeCents: 40_000,
+      });
+      expect(bet.stakeCents).toBe(40_000);
+    });
+
+    it('never applies another brand\'s stake limits', async () => {
+      await prisma.stakeLimit.create({
+        data: { brandId: otherBrandId, scope: 'SPORT', scopeValue: 'Football', tier: 0, maxStakeCents: 100 },
+      });
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection()],
+        stakeCents: 50_000,
+      });
+
+      expect(bet.stakeCents).toBe(50_000);
     });
   });
 

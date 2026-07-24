@@ -1,14 +1,20 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import type { BetStatus, SelectionStatus } from '@prisma/client';
+import type { Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AccaBoostService } from '../acca-boost/acca-boost.service';
 import { calculateAccaBoost } from '../acca-boost/acca-boost';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { resolveBetLimit, type LegContext } from '../limits/stake-limits';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { computeBetOutcome } from './bet-settlement';
 import { CompetitionSuspensionService } from './competition-suspension.service';
 import type { PlaceBetDto } from './dto/place-bet.dto';
 import { MarketSuspensionService } from './market-suspension.service';
+
+function formatEuros(cents: number): string {
+  return (cents / 100).toFixed(2);
+}
 
 @Injectable()
 export class PamService {
@@ -27,21 +33,76 @@ export class PamService {
   }
 
   /**
-   * Competition suspension needs each selection's match looked up from
-   * odds-engine (competitions are never persisted) - deliberately done
-   * before the DB transaction opens, so a slow/failed HTTP call never
-   * holds a Postgres transaction open.
+   * Every selection's match, looked up from odds-engine (competitions are
+   * never persisted) - deliberately done before the DB transaction opens,
+   * so a slow/failed HTTP call never holds a Postgres transaction open.
+   * Shared by the competition-suspension check and the stake-limit
+   * resolution below, so a bet with N selections costs at most N distinct
+   * odds-engine calls, not 2N.
    */
-  private async assertNoCompetitionSuspended(brandId: string, dto: PlaceBetDto): Promise<void> {
+  private async fetchMatchesByMatchId(dto: PlaceBetDto): Promise<Map<string, Match>> {
     const uniqueMatchIds = [...new Set(dto.selections.map((selection) => selection.matchId))];
     const matches = await Promise.all(
       uniqueMatchIds.map((matchId) => this.oddsEngineClient.fetchMatchById(matchId)),
     );
+    return new Map(uniqueMatchIds.map((matchId, index) => [matchId, matches[index]!]));
+  }
 
-    for (const match of matches) {
+  private async assertNoCompetitionSuspended(brandId: string, matchesById: Map<string, Match>): Promise<void> {
+    for (const match of matchesById.values()) {
       if (await this.competitionSuspensionService.isSuspended(brandId, match.competition)) {
         throw new BadRequestException(`Competition is suspended: ${match.competition}`);
       }
+    }
+  }
+
+  /**
+   * Resolves each leg's own max stake/liability (see resolveBetLimit -
+   * an accumulator's effective cap is the smallest one across its legs)
+   * and rejects the bet if it exceeds either. A brand with no StakeLimit
+   * rows at all skips the DB round-trip entirely - most brands never
+   * configure this, same "nothing fabricated" pattern the rest of the
+   * trading tools use.
+   */
+  private async assertWithinStakeLimits(
+    brandId: string,
+    dto: PlaceBetDto,
+    matchesById: Map<string, Match>,
+    potentialPayoutCents: number,
+  ): Promise<void> {
+    const limitRows = await this.prisma.stakeLimit.findMany({ where: { brandId } });
+    if (limitRows.length === 0) {
+      return;
+    }
+
+    const tiers = await this.prisma.competitionTier.findMany({ where: { brandId } });
+    const tierByCompetition = new Map(tiers.map((row) => [row.competition, row.tier]));
+
+    const legs: LegContext[] = dto.selections.map((selection) => {
+      const match = matchesById.get(selection.matchId);
+      if (!match) {
+        throw new NotFoundException('Match not found');
+      }
+      return {
+        sport: match.sport,
+        country: match.country,
+        competition: match.competition,
+        marketName: selection.marketName,
+        tier: tierByCompetition.get(match.competition),
+      };
+    });
+
+    const limit = resolveBetLimit(limitRows, legs);
+    if (limit.maxStakeCents !== null && dto.stakeCents > limit.maxStakeCents) {
+      throw new BadRequestException(
+        `Stake exceeds the maximum allowed for this bet (max €${formatEuros(limit.maxStakeCents)})`,
+      );
+    }
+    const liabilityCents = potentialPayoutCents - dto.stakeCents;
+    if (limit.maxLiabilityCents !== null && liabilityCents > limit.maxLiabilityCents) {
+      throw new BadRequestException(
+        `Potential liability exceeds the maximum allowed for this bet (max €${formatEuros(limit.maxLiabilityCents)})`,
+      );
     }
   }
 
@@ -50,7 +111,8 @@ export class PamService {
       where: { id: userId },
       select: { brandId: true },
     });
-    await this.assertNoCompetitionSuspended(brandId, dto);
+    const matchesById = await this.fetchMatchesByMatchId(dto);
+    await this.assertNoCompetitionSuspended(brandId, matchesById);
 
     const accaBoostConfig = await this.accaBoostService.getConfig(brandId);
     const boost = calculateAccaBoost(
@@ -59,6 +121,8 @@ export class PamService {
     );
     const combinedOdds = boost.boostedCombinedOdds;
     const potentialPayoutCents = Math.round(dto.stakeCents * combinedOdds);
+
+    await this.assertWithinStakeLimits(brandId, dto, matchesById, potentialPayoutCents);
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
