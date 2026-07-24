@@ -544,6 +544,45 @@ describe('PamService', () => {
     });
   });
 
+  describe('same-event accumulators', () => {
+    it('rejects two selections from different markets on the same event combined in an accumulator', async () => {
+      const userId = await createTestUser(100_000);
+
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [
+            buildSelection({ matchId: 'match-1', marketId: 'match-result', selectionId: 'home' }),
+            buildSelection({ matchId: 'match-1', marketId: 'total-goals', selectionId: 'over' }),
+          ],
+          stakeCents: 1_000,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('allows a same-event market as the only selection', async () => {
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'match-1', marketId: 'total-goals', selectionId: 'over' })],
+        stakeCents: 1_000,
+      });
+      expect(bet.stakeCents).toBe(1_000);
+    });
+
+    it('allows an accumulator across different events', async () => {
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', marketId: 'match-result', selectionId: 'home' }),
+          buildSelection({ matchId: 'match-2', marketId: 'match-result', selectionId: 'away' }),
+        ],
+        stakeCents: 1_000,
+      });
+      expect(bet.stakeCents).toBe(1_000);
+    });
+  });
+
   describe('manual market limits', () => {
     it('places a bet normally on a manual market with no limits configured', async () => {
       const market = await manualMarketService.createMarket(testBrandId, 'match-1', 'Novelty', [

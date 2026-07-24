@@ -14,6 +14,10 @@ export function invalidAccumulatorReason(selections: BetSlipSelection[]): string
     return null;
   }
 
+  if (hasSameEventSelections(selections)) {
+    return "Selections from the same event can't be combined yet - this will be available soon through Bet Builder.";
+  }
+
   const boostedCount = selections.filter((selection) => selection.originalOdds !== undefined).length;
   if (boostedCount > 1) {
     return 'Only one boosted selection can be combined in an accumulator.';
@@ -25,6 +29,19 @@ export function invalidAccumulatorReason(selections: BetSlipSelection[]): string
   }
 
   return null;
+}
+
+/**
+ * Mirrors PamService's assertNoSameEventAccumulator - two selections from
+ * different markets on the same event are correlated in a way a plain
+ * product-of-odds accumulator doesn't price for, so combining them is only
+ * safe once a dedicated bet builder exists. Exported separately (not just
+ * folded into invalidAccumulatorReason's string) so BetSlipPanel can react
+ * to the boolean directly, e.g. to force the tab back to Singles.
+ */
+export function hasSameEventSelections(selections: BetSlipSelection[]): boolean {
+  const matchIds = selections.map((selection) => selection.matchId);
+  return new Set(matchIds).size !== matchIds.length;
 }
 
 /**

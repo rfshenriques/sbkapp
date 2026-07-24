@@ -20,7 +20,7 @@ import { useAccaRollbackConfig } from './useAccaRollbackConfig';
 import { calculateInsuredPayout } from './insuranceBet';
 import { useInsuranceBetConfig } from './useInsuranceBetConfig';
 import { useStakeLimitPreview } from './useStakeLimitPreview';
-import { hasInsuranceIneligibleSelection, invalidAccumulatorReason } from './accumulatorValidity';
+import { hasInsuranceIneligibleSelection, hasSameEventSelections, invalidAccumulatorReason } from './accumulatorValidity';
 import { useBetSlipStore, type BetSlipSelection } from './betSlipStore';
 import type { StakeLimitPreview } from '../../lib/backendApi';
 
@@ -463,23 +463,36 @@ export function BetSlipPanel({
   const [confirmation, setConfirmation] = useState<string | null>(null);
   const [panelView, setPanelView] = useState<PanelView>('slip');
   // Fresh per mount (the mobile drawer remounts this on every open), so a
-  // slip with 2+ selections always opens straight to Accumulator, and the
-  // user can still switch tabs manually afterward.
+  // slip with 2+ selections always opens straight to Accumulator - unless
+  // those selections can't actually be combined (same event, different
+  // markets - see hasSameEventSelections), in which case Singles is the
+  // only tab that makes sense.
   const [activeTab, setActiveTab] = useState<BetSlipTab>(() =>
-    selections.length >= 2 ? 'accumulator' : 'singles',
+    selections.length >= 2 && !hasSameEventSelections(selections) ? 'accumulator' : 'singles',
   );
   // Desktop mounts this once and keeps it mounted (no per-open remount like
   // the mobile drawer), so the initializer above only fires once - jump to
   // Accumulator specifically on the 1->2+ transition instead, without
-  // fighting a manual switch back to Singles once already at 2+.
+  // fighting a manual switch back to Singles once already at 2+. Similarly,
+  // jump back to Singles the instant a same-event conflict newly appears
+  // (e.g. the player just added a second market on a match already in the
+  // slip) - but only on that transition, not on every render, so the player
+  // can still manually flip back to Accumulator afterward to see why Place
+  // Bet is disabled there (see accumulatorInvalidReason in the footer).
   const hadMultipleSelectionsRef = useRef(selections.length >= 2);
+  const hadSameEventConflictRef = useRef(hasSameEventSelections(selections));
   useEffect(() => {
     const hasMultipleNow = selections.length >= 2;
-    if (hasMultipleNow && !hadMultipleSelectionsRef.current) {
+    const sameEventConflictNow = hasSameEventSelections(selections);
+    if (hasMultipleNow && !hadMultipleSelectionsRef.current && !sameEventConflictNow) {
       setActiveTab('accumulator');
     }
+    if (sameEventConflictNow && !hadSameEventConflictRef.current) {
+      setActiveTab('singles');
+    }
     hadMultipleSelectionsRef.current = hasMultipleNow;
-  }, [selections.length]);
+    hadSameEventConflictRef.current = sameEventConflictNow;
+  }, [selections]);
   // A freebet is a single token that funds exactly one bet - it can't cover
   // several simultaneous single bets at once (see placeSinglesMutation),
   // so switching to Singles with 2+ selections while in freebet mode falls

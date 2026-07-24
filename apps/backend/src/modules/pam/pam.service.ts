@@ -346,11 +346,32 @@ export class PamService {
     }
   }
 
+  /**
+   * Two selections from different markets on the same event are correlated
+   * in a way a plain product-of-odds accumulator price doesn't account for
+   * (e.g. Over 2.5 Goals + Home Win) - pricing that correctly is the whole
+   * point of a dedicated bet builder, not something this simple accumulator
+   * can safely offer yet. Singles are unaffected since each is priced and
+   * settled independently.
+   */
+  private assertNoSameEventAccumulator(dto: PlaceBetDto): void {
+    if (dto.selections.length < 2) {
+      return;
+    }
+    const matchIds = dto.selections.map((selection) => selection.matchId);
+    if (new Set(matchIds).size !== matchIds.length) {
+      throw new BadRequestException(
+        "Selections from the same event can't be combined into an accumulator yet - this will be available soon through Bet Builder",
+      );
+    }
+  }
+
   async placeBet(userId: string, dto: PlaceBetDto) {
     const { brandId } = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { brandId: true },
     });
+    this.assertNoSameEventAccumulator(dto);
     const matchesById = await this.fetchMatchesByMatchId(dto.selections);
     await this.assertNoCompetitionSuspended(brandId, matchesById);
 

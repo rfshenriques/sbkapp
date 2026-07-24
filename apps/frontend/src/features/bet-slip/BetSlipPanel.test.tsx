@@ -310,6 +310,29 @@ describe('BetSlipPanel', () => {
 
       expect(screen.queryByText(/Only one boosted selection/)).not.toBeInTheDocument();
     });
+
+    it('auto-selects the Singles tab and warns for two selections from the same event', async () => {
+      const totalGoalsSelection = {
+        ...homeSelection,
+        marketId: 'total-goals',
+        marketName: 'Total Goals',
+        selectionId: 'over',
+        selectionName: 'Over 2.5',
+      };
+      useBetSlipStore.setState({ selections: [homeSelection, totalGoalsSelection] });
+      renderPanel();
+
+      expect(await screen.findByRole('tab', { name: /Singles/, selected: true })).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('tab', { name: /Accumulator/ }));
+
+      expect(
+        screen.getByText(
+          "Selections from the same event can't be combined yet - this will be available soon through Bet Builder.",
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Log in to place a bet' })).toBeInTheDocument();
+    });
   });
 
   describe('insurance bet toggle', () => {
