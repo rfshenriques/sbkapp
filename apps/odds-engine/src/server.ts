@@ -190,12 +190,17 @@ if (require.main === module) {
   config();
 
   const port = process.env.PORT ? Number(process.env.PORT) : 4001;
-  const apiKey = process.env.THE_ODDS_API_KEY;
+  // Comma-separated so a quota-exhausted key doesn't take the board down -
+  // see client.ts's fetchWithKeyFallback for the try-next-key behavior.
+  const apiKeys = (process.env.THE_ODDS_API_KEY ?? '')
+    .split(',')
+    .map((key) => key.trim())
+    .filter((key) => key.length > 0);
   const apiSportsKey = process.env.API_SPORTS_KEY;
 
   let eventsService: EventsService | undefined;
-  if (apiKey) {
-    const theOddsApiClient = createTheOddsApiClient({ apiKey });
+  if (apiKeys.length > 0) {
+    const theOddsApiClient = createTheOddsApiClient({ apiKeys });
     eventsService = createEventsService({ client: theOddsApiClient });
     void verifySportKeys(theOddsApiClient, RELEVANT_SPORT_KEYS);
   } else {

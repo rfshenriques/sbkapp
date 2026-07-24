@@ -3,7 +3,16 @@ import type { TheOddsApiEventOdds, TheOddsApiSport } from './types';
 const BASE_URL = 'https://api.the-odds-api.com/v4';
 
 export interface TheOddsApiClientOptions {
-  apiKey: string;
+  /**
+   * One or more keys, tried in order - the free tier's 500 requests/month
+   * cap means a single key running dry shouldn't take the board down. On
+   * any failure (bad/exhausted key, network error) the client moves to the
+   * next key; only once every key has failed does the call actually throw,
+   * so callers (see events-service.ts's per-sport-key Promise.allSettled,
+   * and server.ts's route .catch handlers) still get one clear error
+   * message rather than a crash.
+   */
+  apiKeys: string[];
   fetchImpl?: typeof fetch;
 }
 
@@ -47,18 +56,59 @@ async function errorFromResponse(response: Response, label: string): Promise<Err
   );
 }
 
+/** Last 4 characters only - enough to tell keys apart in logs without printing the whole secret. */
+function keyLabel(apiKey: string): string {
+  return `...${apiKey.slice(-4)}`;
+}
+
 export function createTheOddsApiClient(options: TheOddsApiClientOptions): TheOddsApiClient {
+  if (options.apiKeys.length === 0) {
+    throw new Error('createTheOddsApiClient requires at least one API key');
+  }
   const fetchImpl = options.fetchImpl ?? fetch;
 
-  async function getSports(): Promise<TheOddsApiSport[]> {
-    const url = new URL(`${BASE_URL}/sports`);
-    url.searchParams.set('apiKey', options.apiKey);
+  /**
+   * Tries `buildUrl`'s request with each configured key in turn, returning
+   * the first ok response. A non-ok response or a thrown network error both
+   * count as "this key failed" and move on to the next one; the error from
+   * the *last* key tried is what gets thrown once they're all exhausted, so
+   * the final message reflects the most recent real failure rather than a
+   * stale first one.
+   */
+  async function fetchWithKeyFallback(buildUrl: (apiKey: string) => URL, label: string): Promise<Response> {
+    let lastError: unknown;
+    for (const [index, apiKey] of options.apiKeys.entries()) {
+      try {
+        const response = await fetchImpl(buildUrl(apiKey).toString());
+        logQuota(response, label);
+        if (response.ok) {
+          return response;
+        }
+        lastError = await errorFromResponse(response, label);
+      } catch (error) {
+        lastError = error;
+      }
 
-    const response = await fetchImpl(url.toString());
-    logQuota(response, 'GET /sports');
-    if (!response.ok) {
-      throw await errorFromResponse(response, 'GET /sports');
+      const isLastKey = index === options.apiKeys.length - 1;
+      const message = lastError instanceof Error ? lastError.message : String(lastError);
+      if (isLastKey) {
+        console.error(`${label}: key ${keyLabel(apiKey)} failed and no keys remain: ${message}`);
+      } else {
+        console.warn(`${label}: key ${keyLabel(apiKey)} failed (${message}), trying next key`);
+      }
     }
+
+    throw lastError instanceof Error
+      ? new Error(`${label} failed on all ${options.apiKeys.length} configured key(s): ${lastError.message}`)
+      : new Error(`${label} failed on all ${options.apiKeys.length} configured key(s)`);
+  }
+
+  async function getSports(): Promise<TheOddsApiSport[]> {
+    const response = await fetchWithKeyFallback((apiKey) => {
+      const url = new URL(`${BASE_URL}/sports`);
+      url.searchParams.set('apiKey', apiKey);
+      return url;
+    }, 'GET /sports');
     return (await response.json()) as TheOddsApiSport[];
   }
 
@@ -68,19 +118,17 @@ export function createTheOddsApiClient(options: TheOddsApiClientOptions): TheOdd
     // we checked. Also keeps request cost down (cost scales with region
     // count) since we only need the one region.
     const { sportKey, regions = 'uk', markets = 'h2h', oddsFormat = 'decimal' } = params;
-    const url = new URL(`${BASE_URL}/sports/${sportKey}/odds`);
-    url.searchParams.set('apiKey', options.apiKey);
-    url.searchParams.set('regions', regions);
-    url.searchParams.set('markets', markets);
-    url.searchParams.set('oddsFormat', oddsFormat);
-    url.searchParams.set('dateFormat', 'iso');
-
-    const response = await fetchImpl(url.toString());
     const label = `GET /sports/${sportKey}/odds`;
-    logQuota(response, label);
-    if (!response.ok) {
-      throw await errorFromResponse(response, label);
-    }
+
+    const response = await fetchWithKeyFallback((apiKey) => {
+      const url = new URL(`${BASE_URL}/sports/${sportKey}/odds`);
+      url.searchParams.set('apiKey', apiKey);
+      url.searchParams.set('regions', regions);
+      url.searchParams.set('markets', markets);
+      url.searchParams.set('oddsFormat', oddsFormat);
+      url.searchParams.set('dateFormat', 'iso');
+      return url;
+    }, label);
     return (await response.json()) as TheOddsApiEventOdds[];
   }
 
