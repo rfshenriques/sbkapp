@@ -46,7 +46,10 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: 'CRM',
-    items: [{ to: '/player-segments', label: 'Player segments', roles: ['ADMIN', 'CRM'] }],
+    items: [
+      { to: '/player-segments', label: 'Player segments', roles: ['ADMIN', 'CRM'] },
+      { to: '/freebets', label: 'Freebets', roles: ['ADMIN', 'CRM'] },
+    ],
   },
   {
     label: 'Customization',

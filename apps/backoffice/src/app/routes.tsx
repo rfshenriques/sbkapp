@@ -8,6 +8,7 @@ import CmsSponsorsPage from '../pages/CmsSponsorsPage';
 import CompetitionRankingPage from '../pages/CompetitionRankingPage';
 import CompetitionTiersPage from '../pages/CompetitionTiersPage';
 import DisplayNamesPage from '../pages/DisplayNamesPage';
+import FreebetsPage from '../pages/FreebetsPage';
 import ManualMarketsPage from '../pages/ManualMarketsPage';
 import MarginsPage from '../pages/MarginsPage';
 import MarketingSpendPage from '../pages/MarketingSpendPage';
@@ -217,6 +218,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'CRM']}>
               <PlayerSegmentsPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'freebets',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'CRM']}>
+              <FreebetsPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

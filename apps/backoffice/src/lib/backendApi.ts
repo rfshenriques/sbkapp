@@ -1064,3 +1064,51 @@ export async function removePlayerSegmentMember(segmentId: string, userId: strin
     throw new Error(`Failed to remove player from segment: ${response.status}`);
   }
 }
+
+export type FreebetStatus = 'ACTIVE' | 'SPENT' | 'VOIDED';
+export type FreebetSource = 'MANUAL' | 'ACCA_ROLLBACK' | 'INSURANCE_BET';
+
+export interface FreebetGrant {
+  id: string;
+  userId: string;
+  brandId: string;
+  amountCents: number;
+  source: FreebetSource;
+  note: string | null;
+  status: FreebetStatus;
+  expiresAt: string | null;
+  spentAt: string | null;
+  spentOnBetId: string | null;
+  voidedAt: string | null;
+  createdByStaffUserId: string | null;
+  createdByUsername: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GrantFreebetPayload {
+  identifier: string;
+  amountCents: number;
+  note?: string;
+  expiresAt?: string;
+}
+
+/** `identifier` is the player's email or username - whichever staff has on hand. */
+export async function listFreebets(identifier: string): Promise<FreebetGrant[]> {
+  const response = await authenticatedFetch(`/admin/freebets/${encodeURIComponent(identifier)}`);
+  return parseJsonOrThrow(response, `Failed to load freebets: ${response.status}`);
+}
+
+export async function grantFreebet(payload: GrantFreebetPayload): Promise<FreebetGrant> {
+  const response = await authenticatedFetch('/admin/freebets', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to grant freebet: ${response.status}`);
+}
+
+export async function voidFreebet(id: string): Promise<FreebetGrant> {
+  const response = await authenticatedFetch(`/admin/freebets/${id}`, { method: 'DELETE' });
+  return parseJsonOrThrow(response, `Failed to void freebet: ${response.status}`);
+}
