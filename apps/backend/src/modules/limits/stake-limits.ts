@@ -74,9 +74,26 @@ export function resolveLegLimit(
   };
 }
 
-function minIgnoringNull(values: (number | null)[]): number | null {
+export function minIgnoringNull(values: (number | null)[]): number | null {
   const real = values.filter((value): value is number => value !== null);
   return real.length === 0 ? null : Math.min(...real);
+}
+
+/**
+ * Reverses a liability cap into the stake it corresponds to, for a bet
+ * whose combined odds are `combinedOdds` - the same relationship
+ * PamService.assertWithinStakeLimits checks in the other direction
+ * (liabilityCents = potentialPayoutCents - stakeCents = stakeCents *
+ * (combinedOdds - 1)). Floors down, so the returned stake never itself
+ * exceeds the liability cap once rounded. `null` (no liability cap, or
+ * combinedOdds <= 1 - never happens for real odds but guards div-by-zero)
+ * means this constraint doesn't limit the stake at all.
+ */
+export function maxStakeFromLiability(maxLiabilityCents: number | null, combinedOdds: number): number | null {
+  if (maxLiabilityCents === null || combinedOdds <= 1) {
+    return null;
+  }
+  return Math.floor(maxLiabilityCents / (combinedOdds - 1));
 }
 
 /** What a player already has riding on their currently-unsettled (PENDING) bets, before this new one - see PamService. */

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AccaBoostModule } from '../acca-boost/acca-boost.module';
 import { AccaRollbackModule } from '../acca-rollback/acca-rollback.module';
 import { AdminModule } from '../admin/admin.module';
+import { AuthModule } from '../auth/auth.module';
 import { BoostsModule } from '../boosts/boosts.module';
 import { FreebetModule } from '../freebets/freebet.module';
 import { InsuranceBetModule } from '../insurance-bet/insurance-bet.module';
@@ -17,10 +18,12 @@ import { PamController } from './pam.controller';
 import { PamService } from './pam.service';
 import { PublicCompetitionSuspensionController } from './public-competition-suspension.controller';
 import { PublicMarketSuspensionController } from './public-market-suspension.controller';
+import { PublicStakeLimitPreviewController } from './public-stake-limit-preview.controller';
 
 @Module({
   imports: [
     AdminModule,
+    AuthModule,
     AccaBoostModule,
     AccaRollbackModule,
     InsuranceBetModule,
@@ -36,6 +39,7 @@ import { PublicMarketSuspensionController } from './public-market-suspension.con
     PublicMarketSuspensionController,
     CompetitionSuspensionAdminController,
     PublicCompetitionSuspensionController,
+    PublicStakeLimitPreviewController,
   ],
   providers: [PamService, MarketSuspensionService, CompetitionSuspensionService, OddsEngineClient],
 })

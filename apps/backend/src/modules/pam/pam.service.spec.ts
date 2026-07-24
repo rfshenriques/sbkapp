@@ -449,6 +449,76 @@ describe('PamService', () => {
     });
   });
 
+  describe('previewStakeLimit', () => {
+    it('returns all-null when the brand has no stake limits configured', async () => {
+      const preview = await pamService.previewStakeLimit(null, testBrandId, [buildSelection()]);
+      expect(preview).toEqual({ maxStakeCents: null, maxLiabilityCents: null, effectiveMaxStakeCents: null });
+    });
+
+    it('reflects a plain stake cap from the cascade', async () => {
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'SPORT', scopeValue: 'Football', tier: 0, maxStakeCents: 5_000 },
+      });
+
+      const preview = await pamService.previewStakeLimit(null, testBrandId, [buildSelection()]);
+      expect(preview.maxStakeCents).toBe(5_000);
+      expect(preview.effectiveMaxStakeCents).toBe(5_000);
+    });
+
+    it('reverses a liability cap into stake terms using the bet\'s own combined odds', async () => {
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'GLOBAL', scopeValue: '', tier: 0, maxLiabilityCents: 2_000 },
+      });
+
+      // odds 3 -> combinedOdds 3 -> maxStake = floor(2000 / (3 - 1)) = 1000.
+      const preview = await pamService.previewStakeLimit(null, testBrandId, [buildSelection({ odds: 3 })]);
+      expect(preview.maxLiabilityCents).toBe(2_000);
+      expect(preview.maxStakeCents).toBeNull();
+      expect(preview.effectiveMaxStakeCents).toBe(1_000);
+    });
+
+    it('effectiveMaxStakeCents is the smaller of the stake cap and the liability-derived cap', async () => {
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'GLOBAL', scopeValue: '', tier: 0, maxStakeCents: 900, maxLiabilityCents: 2_000 },
+      });
+
+      // Liability-derived cap (1000) is larger than the plain stake cap (900), so 900 wins.
+      const preview = await pamService.previewStakeLimit(null, testBrandId, [buildSelection({ odds: 3 })]);
+      expect(preview.effectiveMaxStakeCents).toBe(900);
+    });
+
+    it('a PLAYER row is applied when a userId is supplied', async () => {
+      const userId = await createTestUser(100_000);
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'PLAYER', scopeValue: userId, tier: 0, maxStakeCents: 2_500 },
+      });
+
+      const preview = await pamService.previewStakeLimit(userId, testBrandId, [buildSelection()]);
+      expect(preview.maxStakeCents).toBe(2_500);
+    });
+
+    it('a PLAYER row never applies for an anonymous (null userId) preview', async () => {
+      const userId = await createTestUser(100_000);
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'PLAYER', scopeValue: userId, tier: 0, maxStakeCents: 2_500 },
+      });
+
+      const preview = await pamService.previewStakeLimit(null, testBrandId, [buildSelection()]);
+      expect(preview).toEqual({ maxStakeCents: null, maxLiabilityCents: null, effectiveMaxStakeCents: null });
+    });
+
+    it('a player\'s existing PENDING exposure reduces the previewed headroom', async () => {
+      const userId = await createTestUser(100_000);
+      await prisma.stakeLimit.create({
+        data: { brandId: testBrandId, scope: 'PLAYER', scopeValue: userId, tier: 0, maxStakeCents: 10_000 },
+      });
+      await pamService.placeBet(userId, { selections: [buildSelection()], stakeCents: 4_000 });
+
+      const preview = await pamService.previewStakeLimit(userId, testBrandId, [buildSelection()]);
+      expect(preview.maxStakeCents).toBe(6_000);
+    });
+  });
+
   describe('manual market limits', () => {
     it('places a bet normally on a manual market with no limits configured', async () => {
       const market = await manualMarketService.createMarket(testBrandId, 'match-1', 'Novelty', [

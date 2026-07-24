@@ -11,12 +11,18 @@ import { BoostService } from '../boosts/boost.service';
 import { FreebetService } from '../freebets/freebet.service';
 import { InsuranceBetService } from '../insurance-bet/insurance-bet.service';
 import { calculateInsuredPayout } from '../insurance-bet/insurance-bet';
-import { resolveBetLimit, type LegContext, type PlayerExposure } from '../limits/stake-limits';
+import {
+  maxStakeFromLiability,
+  minIgnoringNull,
+  resolveBetLimit,
+  type LegContext,
+  type PlayerExposure,
+} from '../limits/stake-limits';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { computeBetOutcome } from './bet-settlement';
 import { CompetitionSuspensionService } from './competition-suspension.service';
-import type { PlaceBetDto } from './dto/place-bet.dto';
+import type { BetSelectionDto, PlaceBetDto } from './dto/place-bet.dto';
 import { MarketSuspensionService } from './market-suspension.service';
 
 function formatEuros(cents: number): string {
@@ -61,8 +67,8 @@ export class PamService {
    * resolution below, so a bet with N selections costs at most N distinct
    * odds-engine calls, not 2N.
    */
-  private async fetchMatchesByMatchId(dto: PlaceBetDto): Promise<Map<string, Match>> {
-    const uniqueMatchIds = [...new Set(dto.selections.map((selection) => selection.matchId))];
+  private async fetchMatchesByMatchId(selections: BetSelectionDto[]): Promise<Map<string, Match>> {
+    const uniqueMatchIds = [...new Set(selections.map((selection) => selection.matchId))];
     const matches = await Promise.all(
       uniqueMatchIds.map((matchId) => this.oddsEngineClient.fetchMatchById(matchId)),
     );
@@ -78,29 +84,28 @@ export class PamService {
   }
 
   /**
-   * Resolves each leg's own max stake/liability (see resolveBetLimit -
-   * an accumulator's effective cap is the smallest one across its legs)
-   * and rejects the bet if it exceeds either. A brand with no StakeLimit
-   * rows at all skips the DB round-trip entirely - most brands never
-   * configure this, same "nothing fabricated" pattern the rest of the
-   * trading tools use.
+   * Resolves each leg's own max stake/liability (see resolveBetLimit - an
+   * accumulator's effective cap is the smallest one across its legs),
+   * player-override-aware. Shared by the placement-time enforcement below
+   * and the bet-slip preview endpoint, so both always agree on what the
+   * cap actually is. A brand with no StakeLimit rows at all skips the DB
+   * round-trip entirely - most brands never configure this.
    */
-  private async assertWithinStakeLimits(
-    userId: string,
+  private async resolveStakeLimit(
+    userId: string | null,
     brandId: string,
-    dto: PlaceBetDto,
+    selections: BetSelectionDto[],
     matchesById: Map<string, Match>,
-    potentialPayoutCents: number,
-  ): Promise<void> {
+  ): Promise<{ maxStakeCents: number | null; maxLiabilityCents: number | null }> {
     const limitRows = await this.prisma.stakeLimit.findMany({ where: { brandId } });
     if (limitRows.length === 0) {
-      return;
+      return { maxStakeCents: null, maxLiabilityCents: null };
     }
 
     const tiers = await this.prisma.competitionTier.findMany({ where: { brandId } });
     const tierByCompetition = new Map(tiers.map((row) => [row.competition, row.tier]));
 
-    const legs: LegContext[] = dto.selections.map((selection) => {
+    const legs: LegContext[] = selections.map((selection) => {
       const match = matchesById.get(selection.matchId);
       if (!match) {
         throw new NotFoundException('Match not found');
@@ -116,11 +121,27 @@ export class PamService {
 
     // Only worth the extra round-trip when this player actually has a
     // PLAYER-scoped row - most bets never touch it.
-    const player = limitRows.some((row) => row.scope === 'PLAYER' && row.scopeValue === userId)
-      ? await this.buildPlayerExposure(userId)
-      : undefined;
+    const player =
+      userId && limitRows.some((row) => row.scope === 'PLAYER' && row.scopeValue === userId)
+        ? await this.buildPlayerExposure(userId)
+        : undefined;
 
-    const limit = resolveBetLimit(limitRows, legs, player);
+    return resolveBetLimit(limitRows, legs, player);
+  }
+
+  /**
+   * Resolves each leg's own max stake/liability and rejects the bet if it
+   * exceeds either - see resolveStakeLimit for how the cap itself is
+   * computed.
+   */
+  private async assertWithinStakeLimits(
+    userId: string,
+    brandId: string,
+    dto: PlaceBetDto,
+    matchesById: Map<string, Match>,
+    potentialPayoutCents: number,
+  ): Promise<void> {
+    const limit = await this.resolveStakeLimit(userId, brandId, dto.selections, matchesById);
     if (limit.maxStakeCents !== null && dto.stakeCents > limit.maxStakeCents) {
       throw new BadRequestException(
         `Stake exceeds the maximum allowed for this bet (max €${formatEuros(limit.maxStakeCents)})`,
@@ -132,6 +153,39 @@ export class PamService {
         `Potential liability exceeds the maximum allowed for this bet (max €${formatEuros(limit.maxLiabilityCents)})`,
       );
     }
+  }
+
+  /**
+   * The bet-slip's own preview of what resolveStakeLimit would allow, so
+   * the frontend can warn the player before they try to place a bet that
+   * would just get rejected. `maxLiabilityCents` is converted into stake
+   * terms via the bet's own combined odds (see maxStakeFromLiability) so
+   * the frontend has one number to compare a typed stake against;
+   * `maxStakeCents`/`maxLiabilityCents` are also returned raw so the UI can
+   * say *why* a cap applies. `userId` is null for a logged-out browser - a
+   * PLAYER-scoped override, being player-specific, simply can't apply yet.
+   */
+  async previewStakeLimit(
+    userId: string | null,
+    brandId: string,
+    selections: BetSelectionDto[],
+  ): Promise<{ maxStakeCents: number | null; maxLiabilityCents: number | null; effectiveMaxStakeCents: number | null }> {
+    const matchesById = await this.fetchMatchesByMatchId(selections);
+    const limit = await this.resolveStakeLimit(userId, brandId, selections, matchesById);
+
+    const accaBoostConfig = await this.accaBoostService.getConfig(brandId);
+    const { boostedCombinedOdds } = calculateAccaBoost(
+      selections.map((selection) => selection.odds),
+      accaBoostConfig,
+    );
+
+    return {
+      ...limit,
+      effectiveMaxStakeCents: minIgnoringNull([
+        limit.maxStakeCents,
+        maxStakeFromLiability(limit.maxLiabilityCents, boostedCombinedOdds),
+      ]),
+    };
   }
 
   /** What a player already has riding on their own currently-PENDING bets - see PlayerExposure in stake-limits.ts. */
@@ -256,7 +310,7 @@ export class PamService {
       where: { id: userId },
       select: { brandId: true },
     });
-    const matchesById = await this.fetchMatchesByMatchId(dto);
+    const matchesById = await this.fetchMatchesByMatchId(dto.selections);
     await this.assertNoCompetitionSuspended(brandId, matchesById);
 
     // A freebet is atomic - the stake must equal the grant's own value

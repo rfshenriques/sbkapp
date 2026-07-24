@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  maxStakeFromLiability,
   resolveBetLimit,
   resolveLegLimit,
   type LegContext,
@@ -165,5 +166,25 @@ describe('resolveBetLimit', () => {
       const player: PlayerExposure = { userId: 'user-1', existingStakedCents: 0, existingLiabilityCents: 0 };
       expect(resolveBetLimit(rows, [leg], player)).toEqual({ maxStakeCents: 50_000, maxLiabilityCents: 200_000 });
     });
+  });
+});
+
+describe('maxStakeFromLiability', () => {
+  it('reverses a liability cap into the stake that would produce it, floored', () => {
+    // stake * (2.5 - 1) = 1000 -> stake = 666.66 -> floored to 666.
+    expect(maxStakeFromLiability(1_000, 2.5)).toBe(666);
+  });
+
+  it('an unlimited liability cap (null) means the stake is unconstrained by liability', () => {
+    expect(maxStakeFromLiability(null, 2.5)).toBeNull();
+  });
+
+  it('combinedOdds of 1 or less never limits the stake (guards div-by-zero)', () => {
+    expect(maxStakeFromLiability(1_000, 1)).toBeNull();
+    expect(maxStakeFromLiability(1_000, 0.5)).toBeNull();
+  });
+
+  it('divides evenly when the liability cap is an exact multiple', () => {
+    expect(maxStakeFromLiability(3_000, 4)).toBe(1_000);
   });
 });
