@@ -157,6 +157,7 @@ enum AuditAction {
   PLAYER_SEGMENT_REMOVED
   PLAYER_SEGMENT_MEMBER_ADDED
   PLAYER_SEGMENT_MEMBER_REMOVED
+  PLAYER_SEGMENT_COLOR_SET
   MANUAL_MARKET_LIMITS_SET
   BOOST_LIMITS_SET
   BOOST_AUTO_DISABLED
@@ -301,6 +302,8 @@ model PlayerSegment {
   brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
   name        String
   description String?
+  /** Staff-set swatch (e.g. "#EF0107") so the backoffice can show a colored circle next to each segment - purely a CRM organizing aid, no player-facing effect. Null until a staff member sets one. */
+  colorHex    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

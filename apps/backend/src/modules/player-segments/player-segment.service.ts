@@ -114,6 +114,26 @@ export class PlayerSegmentService {
     return member;
   }
 
+  /** `brandId` must match the segment's own brand, same as removeSegment. `colorHex` is a purely organizational CRM aid (see PlayerSegment.colorHex) - null clears a previously-set color. */
+  async setColor(brandId: string, id: string, colorHex: string | null, actor: AuditActor) {
+    const existing = await this.prisma.playerSegment.findUnique({ where: { id } });
+    if (!existing || existing.brandId !== brandId) {
+      throw new NotFoundException('Segment not found');
+    }
+
+    const segment = await this.prisma.playerSegment.update({ where: { id }, data: { colorHex } });
+
+    await this.auditLogService.record({
+      actor,
+      action: 'PLAYER_SEGMENT_COLOR_SET',
+      targetType: 'PlayerSegment',
+      targetId: segment.id,
+      metadata: { name: segment.name, colorHex },
+    });
+
+    return segment;
+  }
+
   /** Used by audience resolution at bet-facing endpoints - which segments (of this brand or any) a logged-in player belongs to. */
   async resolveSegmentIdsForUser(userId: string): Promise<string[]> {
     const memberships = await this.prisma.playerSegmentMember.findMany({

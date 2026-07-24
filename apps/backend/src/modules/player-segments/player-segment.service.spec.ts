@@ -97,6 +97,39 @@ describe('PlayerSegmentService', () => {
     );
   });
 
+  it('sets a color on a segment', async () => {
+    const segment = await service.createSegment(brandAId, 'High rollers', undefined, TEST_ACTOR);
+
+    const updated = await service.setColor(brandAId, segment.id, '#EF0107', TEST_ACTOR);
+
+    expect(updated.colorHex).toBe('#EF0107');
+  });
+
+  it('clears a color by setting it to null', async () => {
+    const segment = await service.createSegment(brandAId, 'High rollers', undefined, TEST_ACTOR);
+    await service.setColor(brandAId, segment.id, '#EF0107', TEST_ACTOR);
+
+    const cleared = await service.setColor(brandAId, segment.id, null, TEST_ACTOR);
+
+    expect(cleared.colorHex).toBeNull();
+  });
+
+  it("a brand can never set another brand's segment color, even by guessing its id", async () => {
+    const segment = await service.createSegment(brandAId, 'High rollers', undefined, TEST_ACTOR);
+
+    await expect(service.setColor(brandBId, segment.id, '#EF0107', TEST_ACTOR)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
+  });
+
+  it('records an audit entry for setColor', async () => {
+    const segment = await service.createSegment(brandAId, 'High rollers', undefined, TEST_ACTOR);
+    await service.setColor(brandAId, segment.id, '#EF0107', TEST_ACTOR);
+
+    const entries = await prisma.auditLogEntry.findMany({ where: { actorUsername: TEST_ACTOR.username } });
+    expect(entries.map((entry) => entry.action)).toContain('PLAYER_SEGMENT_COLOR_SET');
+  });
+
   it('adds a player to a segment by email or username, idempotently', async () => {
     const segment = await service.createSegment(brandAId, 'High rollers', undefined, TEST_ACTOR);
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });

@@ -1,10 +1,11 @@
-import { Body, Controller, Delete, Get, Param, Post, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { Roles } from '../admin/roles.decorator';
 import { RolesGuard } from '../admin/roles.guard';
 import { StaffJwtAuthGuard } from '../admin/staff-jwt-auth.guard';
 import type { StaffJwtPayload } from '../admin/staff-jwt.strategy';
 import { AddSegmentMemberDto } from './dto/add-segment-member.dto';
 import { CreatePlayerSegmentDto } from './dto/create-player-segment.dto';
+import { SetPlayerSegmentColorDto } from './dto/set-player-segment-color.dto';
 import { PlayerSegmentService } from './player-segment.service';
 
 interface AuthenticatedStaffRequest {
@@ -25,6 +26,23 @@ export class PlayerSegmentController {
   @Post()
   create(@Body() dto: CreatePlayerSegmentDto, @Req() req: AuthenticatedStaffRequest) {
     return this.playerSegmentService.createSegment(req.user.brandId, dto.name, dto.description, {
+      id: req.user.sub,
+      username: req.user.username,
+      brandId: req.user.brandId,
+    });
+  }
+
+  @Patch(':id/color')
+  setColor(
+    @Param('id') id: string,
+    @Body() dto: SetPlayerSegmentColorDto,
+    @Req() req: AuthenticatedStaffRequest,
+  ) {
+    if (dto.colorHex === undefined) {
+      throw new BadRequestException('colorHex is required');
+    }
+
+    return this.playerSegmentService.setColor(req.user.brandId, id, dto.colorHex, {
       id: req.user.sub,
       username: req.user.username,
       brandId: req.user.brandId,
