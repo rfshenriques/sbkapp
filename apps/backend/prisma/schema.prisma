@@ -48,6 +48,7 @@ model User {
   refreshTokens RefreshToken[]
   bets          Bet[]
   segments      PlayerSegmentMember[]
+  freebetGrants FreebetGrant[]
 
   @@index([brandId])
   @@map("users")
@@ -159,6 +160,64 @@ enum AuditAction {
   MANUAL_MARKET_LIMITS_SET
   BOOST_LIMITS_SET
   BOOST_AUTO_DISABLED
+  FREEBET_GRANTED
+  FREEBET_VOIDED
+}
+
+enum FreebetStatus {
+  ACTIVE
+  SPENT
+  VOIDED
+}
+
+/**
+ * Where a freebet grant came from - MANUAL is a staff-initiated grant (see
+ * FreebetService.grant / the backoffice freebets page); ACCA_ROLLBACK and
+ * INSURANCE_BET are reserved for the system-granted rewards those
+ * promotions issue on a qualifying loss (see docs/PROJECT_BRIEF.md) - not
+ * wired up yet, but the value exists now so granting one later doesn't need
+ * its own migration.
+ */
+enum FreebetSource {
+  MANUAL
+  ACCA_ROLLBACK
+  INSURANCE_BET
+}
+
+/**
+ * One freebet token - stake-not-returned, single-use, atomic (a bet placed
+ * with a freebet must stake exactly this grant's amountCents, not a partial
+ * amount - same as how real sportsbook free bets work; the player picks
+ * which token to use, not a "balance" they draw down arbitrarily).
+ * `status` only ever changes via an explicit actor action (FreebetService.
+ * spend on bet placement, .void by staff) - expiry is a read-time
+ * condition on expiresAt, not a swept status, since there's no background
+ * job infrastructure in this codebase to transition it otherwise.
+ */
+model FreebetGrant {
+  id            String        @id @default(uuid())
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brandId       String
+  brand         Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  amountCents   Int
+  source        FreebetSource
+  /** Staff-entered free text for a MANUAL grant, e.g. "Goodwill gesture - support ticket #482". Null for system-granted sources. */
+  note          String?
+  status        FreebetStatus @default(ACTIVE)
+  expiresAt     DateTime?
+  spentAt       DateTime?
+  spentOnBetId  String?
+  voidedAt      DateTime?
+  /** Denormalized actor snapshot, same pattern as AuditLogEntry - null for a system-granted (non-MANUAL) source. */
+  createdByStaffUserId String?
+  createdByUsername    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId, status])
+  @@index([brandId])
+  @@map("freebet_grants")
 }
 
 /**
@@ -835,6 +894,7 @@ model Brand {
   stakeLimits            StakeLimit[]
   competitionQuicklinks  CompetitionQuicklink[]
   playerSegments         PlayerSegment[]
+  freebetGrants          FreebetGrant[]
 
   @@map("brands")
 }
