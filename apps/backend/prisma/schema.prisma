@@ -47,6 +47,7 @@ model User {
 
   refreshTokens RefreshToken[]
   bets          Bet[]
+  segments      PlayerSegmentMember[]
 
   @@index([brandId])
   @@map("users")
@@ -151,6 +152,13 @@ enum AuditAction {
   STAKE_LIMITS_BULK_IMPORTED
   COMPETITION_QUICKLINK_SET
   COMPETITION_QUICKLINK_REMOVED
+  PLAYER_SEGMENT_CREATED
+  PLAYER_SEGMENT_REMOVED
+  PLAYER_SEGMENT_MEMBER_ADDED
+  PLAYER_SEGMENT_MEMBER_REMOVED
+  MANUAL_MARKET_LIMITS_SET
+  BOOST_LIMITS_SET
+  BOOST_AUTO_DISABLED
 }
 
 /**
@@ -196,6 +204,59 @@ model CompetitionQuicklink {
   @@unique([brandId, competition])
   @@index([brandId])
   @@map("competition_quicklinks")
+}
+
+/**
+ * Which "who can see this" rule a targeted piece of content (manual
+ * market, boost, CMS content) uses. SEGMENTS means the viewer must belong
+ * to at least one of the content's assigned PlayerSegments - see
+ * audience.ts's resolveAudience for the actual check. LOGGED_OUT/
+ * LOGGED_IN read the viewer's auth state, resolved softly (no login
+ * required to browse) by OptionalPlayerAuthService.
+ */
+enum AudienceMode {
+  ALL
+  LOGGED_OUT
+  LOGGED_IN
+  SEGMENTS
+}
+
+/**
+ * Staff-curated player groupings for targeting manual markets, boosts,
+ * and (future) CMS content to a subset of players - the "CRM segment"
+ * referenced throughout trading/CMS tooling. Membership is manual for
+ * now (add/remove a player by email or username in the backoffice); rule-
+ * based/automatic membership is a later CRM-module concern, not built here.
+ */
+model PlayerSegment {
+  id          String   @id @default(uuid())
+  brandId     String
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members       PlayerSegmentMember[]
+  manualMarkets ManualMarketSegment[]
+  boosts        BoostSegment[]
+
+  @@unique([brandId, name])
+  @@index([brandId])
+  @@map("player_segments")
+}
+
+model PlayerSegmentMember {
+  id        String        @id @default(uuid())
+  segmentId String
+  segment   PlayerSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  addedAt   DateTime      @default(now())
+
+  @@unique([segmentId, userId])
+  @@index([userId])
+  @@map("player_segment_members")
 }
 
 /**
@@ -524,10 +585,34 @@ model ManualMarket {
   name      String
   createdAt DateTime @default(now())
 
-  selections ManualMarketSelection[]
+  /** Per-bet cap on a single selection in this market; a bet over this amount is rejected, not silently capped. */
+  maxStakeCents Int?
+  /**
+   * Cap on total exposure across all bets placed on this market. Unlike a
+   * boost's maxLiabilityCents, hitting this doesn't remove the market -
+   * it's enforced the same way as maxStakeCents: a bet that would push
+   * total liability past the cap is rejected outright.
+   */
+  maxLiabilityCents Int?
+  /** Who can see this market at all - see AudienceMode. Defaults to everyone, same as before this field existed. */
+  audienceMode AudienceMode @default(ALL)
+
+  selections       ManualMarketSelection[]
+  audienceSegments ManualMarketSegment[]
 
   @@index([brandId, matchId])
   @@map("manual_markets")
+}
+
+model ManualMarketSegment {
+  id             String        @id @default(uuid())
+  manualMarketId String
+  manualMarket   ManualMarket  @relation(fields: [manualMarketId], references: [id], onDelete: Cascade)
+  segmentId      String
+  segment        PlayerSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@unique([manualMarketId, segmentId])
+  @@map("manual_market_segments")
 }
 
 model ManualMarketSelection {
@@ -583,9 +668,33 @@ model Boost {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  /** Per-bet cap on the boosted selection - shown to players alongside the boosted price, enforced (rejected, not capped) at placement. */
+  maxStakeCents Int?
+  /** Total extra payout (boosted odds minus original odds, times stake) this boost may give away before it auto-disables. Null means unlimited. */
+  maxLiabilityCents Int?
+  /** Running total of extra payout given away by bets placed at the boosted price so far - see PamService's liability tracking. */
+  currentLiabilityCents Int @default(0)
+  /** Set once currentLiabilityCents reaches maxLiabilityCents - applyBoosts skips a disabled boost, same as if it never existed. Not deleted, so the exposure history stays on the row. */
+  disabledAt DateTime?
+  /** Who can see this boosted price at all - see AudienceMode. Defaults to everyone, same as before this field existed. */
+  audienceMode AudienceMode @default(ALL)
+
+  audienceSegments BoostSegment[]
+
   @@unique([brandId, matchId, marketId, selectionId])
   @@index([brandId, matchId])
   @@map("boosts")
+}
+
+model BoostSegment {
+  id        String        @id @default(uuid())
+  boostId   String
+  boost     Boost         @relation(fields: [boostId], references: [id], onDelete: Cascade)
+  segmentId String
+  segment   PlayerSegment @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@unique([boostId, segmentId])
+  @@map("boost_segments")
 }
 
 /**
@@ -723,6 +832,7 @@ model Brand {
   accaBoostConfig        AccaBoostConfig?
   stakeLimits            StakeLimit[]
   competitionQuicklinks  CompetitionQuicklink[]
+  playerSegments         PlayerSegment[]
 
   @@map("brands")
 }
