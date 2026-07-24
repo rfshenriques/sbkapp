@@ -7,6 +7,8 @@ import * as backendApi from '../lib/backendApi';
 
 const segmentsQueryKey = ['player-segments'] as const;
 
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+
 function NewSegmentForm() {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
@@ -57,6 +59,46 @@ function NewSegmentForm() {
   );
 }
 
+/** Always-visible dot showing the segment's current color (or an empty ring when unset), plus the editable hex input + Save button, matching TeamColorRow's identical swatch/input/Save pattern. */
+function SegmentColorPicker({ segment }: { segment: backendApi.PlayerSegment }) {
+  const queryClient = useQueryClient();
+  const [draft, setDraft] = useState(segment.colorHex ?? '');
+
+  const setColorMutation = useMutation({
+    mutationFn: (colorHex: string | null) => backendApi.setPlayerSegmentColor(segment.id, colorHex),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: segmentsQueryKey }),
+  });
+
+  const isValid = draft === '' || HEX_COLOR_PATTERN.test(draft);
+  const isDirty = draft !== (segment.colorHex ?? '');
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span
+        className="h-5 w-5 shrink-0 rounded-full border border-border"
+        style={{ backgroundColor: HEX_COLOR_PATTERN.test(draft) ? draft : 'transparent' }}
+        aria-hidden="true"
+      />
+      <input
+        type="text"
+        aria-label={`${segment.name} color hex`}
+        placeholder="#EF0107"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        className="w-28 rounded-md border border-border bg-surface px-2 py-1 text-sm text-text-primary"
+      />
+      {!isValid && <span className="text-xs text-danger">Invalid hex</span>}
+      <Button
+        variant="secondary"
+        disabled={!isValid || !isDirty || setColorMutation.isPending}
+        onClick={() => setColorMutation.mutate(draft === '' ? null : draft)}
+      >
+        Save
+      </Button>
+    </div>
+  );
+}
+
 function SegmentCard({ segment }: { segment: backendApi.PlayerSegment }) {
   const queryClient = useQueryClient();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -91,17 +133,26 @@ function SegmentCard({ segment }: { segment: backendApi.PlayerSegment }) {
         onClick={() => setIsExpanded((value) => !value)}
         className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
       >
-        <span>
-          <span className="text-sm font-semibold">
-            {segment.name} <span className="text-text-muted">({segment.members.length})</span>
+        <span className="flex items-center gap-2">
+          <span
+            className="h-3 w-3 shrink-0 rounded-full border border-border"
+            style={{ backgroundColor: segment.colorHex ?? 'transparent' }}
+            aria-label={segment.colorHex ? `${segment.name} color` : `${segment.name} has no color set`}
+          />
+          <span>
+            <span className="text-sm font-semibold">
+              {segment.name} <span className="text-text-muted">({segment.members.length})</span>
+            </span>
+            {segment.description && <span className="block text-xs text-text-secondary">{segment.description}</span>}
           </span>
-          {segment.description && <span className="block text-xs text-text-secondary">{segment.description}</span>}
         </span>
         <ChevronIcon className={`h-4 w-4 shrink-0 text-text-muted ${isExpanded ? 'rotate-180' : ''}`} />
       </button>
 
       {isExpanded && (
         <div className="space-y-3 border-t border-border p-4 pt-3">
+          <SegmentColorPicker segment={segment} />
+
           {segment.members.length === 0 && (
             <p className="text-sm text-text-secondary">No players in this segment yet.</p>
           )}

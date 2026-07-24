@@ -1067,6 +1067,7 @@ export interface PlayerSegment {
   brandId: string;
   name: string;
   description: string | null;
+  colorHex: string | null;
   createdAt: string;
   updatedAt: string;
   members: PlayerSegmentMember[];
@@ -1084,6 +1085,16 @@ export async function createPlayerSegment(name: string, description?: string): P
     body: JSON.stringify({ name, description }),
   });
   return parseJsonOrThrow(response, `Failed to create player segment: ${response.status}`);
+}
+
+/** Pass null to clear a previously-set color. Purely a CRM organizing aid - see PlayerSegment.colorHex. */
+export async function setPlayerSegmentColor(id: string, colorHex: string | null): Promise<PlayerSegment> {
+  const response = await authenticatedFetch(`/admin/player-segments/${id}/color`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ colorHex }),
+  });
+  return parseJsonOrThrow(response, `Failed to set segment color: ${response.status}`);
 }
 
 export async function removePlayerSegment(id: string): Promise<void> {

@@ -11,6 +11,7 @@ const highRollers: PlayerSegment = {
   brandId: 'brand-1',
   name: 'High rollers',
   description: 'Big stakes',
+  colorHex: null,
   createdAt: '2026-07-24T00:00:00Z',
   updatedAt: '2026-07-24T00:00:00Z',
   members: [
@@ -62,6 +63,75 @@ describe('PlayerSegmentsPage', () => {
     expect(await screen.findByText(/High rollers/)).toBeInTheDocument();
     expect(screen.getByText('(1)')).toBeInTheDocument();
     expect(screen.queryByText('alice@example.com', { exact: false })).not.toBeInTheDocument();
+  });
+
+  it('shows a colored circle in the collapsed header when colorHex is set', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/backend/admin/player-segments') {
+          return new Response(JSON.stringify([{ ...highRollers, colorHex: '#EF0107' }]), { status: 200 });
+        }
+        return new Response(null, { status: 404 });
+      }),
+    );
+
+    renderPage();
+    await screen.findByText(/High rollers/);
+
+    expect(screen.getByLabelText('High rollers color')).toBeInTheDocument();
+  });
+
+  it('shows an unset indicator in the collapsed header when colorHex is null', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/backend/admin/player-segments') {
+          return new Response(JSON.stringify([highRollers]), { status: 200 });
+        }
+        return new Response(null, { status: 404 });
+      }),
+    );
+
+    renderPage();
+    await screen.findByText(/High rollers/);
+
+    expect(screen.getByLabelText('High rollers has no color set')).toBeInTheDocument();
+  });
+
+  it('setting a segment color sends the right request and disables Save until a change is made', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+      if (method === 'GET' && url === '/backend/admin/player-segments') {
+        return new Response(JSON.stringify([highRollers]), { status: 200 });
+      }
+      if (method === 'PATCH' && url === '/backend/admin/player-segments/segment-1/color') {
+        expect(JSON.parse(init!.body as string)).toEqual({ colorHex: '#EF0107' });
+        return new Response(JSON.stringify({ ...highRollers, colorHex: '#EF0107' }), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: /High rollers/ }));
+
+    const saveButton = screen.getByRole('button', { name: 'Save' });
+    expect(saveButton).toBeDisabled();
+
+    const input = screen.getByLabelText('High rollers color hex');
+    await userEvent.type(input, '#EF0107');
+    expect(saveButton).toBeEnabled();
+
+    await userEvent.click(saveButton);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/player-segments/segment-1/color',
+      expect.objectContaining({ method: 'PATCH' }),
+    );
   });
 
   it('expanding a segment shows its members and lets staff add another by identifier', async () => {
