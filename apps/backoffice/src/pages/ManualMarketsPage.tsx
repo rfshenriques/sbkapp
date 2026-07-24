@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Match } from '@sportsbook/shared';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { ChevronIcon } from '../components/ui/ChevronIcon';
 import { MatchDrilldown } from '../components/MatchDrilldown';
 import { LimitsAudienceEditor } from '../components/LimitsAudienceEditor';
 import type { CompetitionNode } from '../lib/matchTree';
@@ -127,6 +128,145 @@ function MarketForm({ matchId, market, onSaved, onCancel }: MarketFormProps) {
   );
 }
 
+/**
+ * One configured market's display row (name, selections, limits/audience
+ * editor, edit/remove actions), or its MarketForm in place of all that
+ * while editing - self-contained so both MatchRow's drilldown listing and
+ * the page-level "currently configured" overview can render the exact same
+ * thing without sharing external edit-mode state.
+ */
+function ManualMarketEntry({
+  matchId,
+  market,
+  removeMutation,
+}: {
+  matchId: string;
+  market: backendApi.ManualMarket;
+  removeMutation: ReturnType<typeof useMutation<void, Error, string>>;
+}) {
+  const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = useState(false);
+
+  const setLimitsMutation = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: backendApi.SetLimitsInput }) =>
+      backendApi.setManualMarketLimits(id, input),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: manualMarketsQueryKey }),
+  });
+
+  if (isEditing) {
+    return (
+      <MarketForm
+        matchId={matchId}
+        market={market}
+        onSaved={() => setIsEditing(false)}
+        onCancel={() => setIsEditing(false)}
+      />
+    );
+  }
+
+  return (
+    <div className="rounded-md bg-background px-3 py-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium">{market.name}</span>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" onClick={() => setIsEditing(true)}>
+            Edit
+          </Button>
+          <Button
+            variant="danger"
+            disabled={removeMutation.isPending}
+            onClick={() => removeMutation.mutate(market.id)}
+          >
+            Remove market
+          </Button>
+        </div>
+      </div>
+      <div className="mt-1.5 space-y-1 text-sm text-text-secondary">
+        {market.selections.map((selection) => (
+          <div key={selection.id} className="flex items-center justify-between">
+            <span>{selection.name}</span>
+            <span className="text-text-muted">{selection.odds.toFixed(2)}</span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2">
+        <LimitsAudienceEditor
+          idPrefix={`${market.name} limits`}
+          maxStakeCents={market.maxStakeCents}
+          maxLiabilityCents={market.maxLiabilityCents}
+          audienceMode={market.audienceMode}
+          audienceSegmentIds={market.audienceSegments.map((segment) => segment.segmentId)}
+          isSaving={setLimitsMutation.isPending}
+          onSave={(input) => setLimitsMutation.mutate({ id: market.id, input })}
+        />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Every currently-configured manual market, flat and collapsed by default -
+ * lets a trader jump straight to editing one without re-walking the sport >
+ * country > league > match drilldown they used to create it in the first
+ * place.
+ */
+function ManualMarketsOverview({
+  manualMarkets,
+  matches,
+  removeMutation,
+}: {
+  manualMarkets: backendApi.ManualMarket[];
+  matches: Match[] | undefined;
+  removeMutation: ReturnType<typeof useMutation<void, Error, string>>;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [openMarketId, setOpenMarketId] = useState<string | null>(null);
+
+  if (manualMarkets.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card className="mt-4">
+      <button
+        type="button"
+        onClick={() => setIsExpanded((previous) => !previous)}
+        className="flex items-center gap-1 text-left text-sm font-medium hover:underline"
+      >
+        <ChevronIcon className={`h-4 w-4 shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        Currently configured manual markets ({manualMarkets.length})
+      </button>
+
+      {isExpanded && (
+        <div className="mt-3 space-y-2 border-t border-border pt-3">
+          {manualMarkets.map((market) => {
+            const match = matches?.find((candidate) => candidate.id === market.matchId);
+            const isOpen = openMarketId === market.id;
+            const label = match ? `${market.name} — ${match.homeTeam} vs ${match.awayTeam}` : `${market.name} — ${market.matchId}`;
+
+            return (
+              <div key={market.id} className="rounded-md bg-background px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => setOpenMarketId(isOpen ? null : market.id)}
+                  className="text-left text-sm hover:underline"
+                >
+                  {label}
+                </button>
+                {isOpen && (
+                  <div className="mt-2 border-t border-border pt-2">
+                    <ManualMarketEntry matchId={market.matchId} market={market} removeMutation={removeMutation} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 function MatchRow({
   match,
   manualMarkets,
@@ -136,16 +276,8 @@ function MatchRow({
   manualMarkets: backendApi.ManualMarket[];
   removeMutation: ReturnType<typeof useMutation<void, Error, string>>;
 }) {
-  const queryClient = useQueryClient();
   const [isExpanded, setIsExpanded] = useState(false);
-  const [editingMarketId, setEditingMarketId] = useState<string | null>(null);
   const existing = manualMarkets.filter((market) => market.matchId === match.id);
-
-  const setLimitsMutation = useMutation({
-    mutationFn: ({ id, input }: { id: string; input: backendApi.SetLimitsInput }) =>
-      backendApi.setManualMarketLimits(id, input),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: manualMarketsQueryKey }),
-  });
 
   return (
     <Card>
@@ -166,54 +298,9 @@ function MatchRow({
 
       {isExpanded && (
         <div className="mt-3 space-y-3 border-t border-border pt-3">
-          {existing.map((market) =>
-            editingMarketId === market.id ? (
-              <MarketForm
-                key={market.id}
-                matchId={match.id}
-                market={market}
-                onSaved={() => setEditingMarketId(null)}
-                onCancel={() => setEditingMarketId(null)}
-              />
-            ) : (
-              <div key={market.id} className="rounded-md bg-background px-3 py-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium">{market.name}</span>
-                  <div className="flex items-center gap-2">
-                    <Button variant="secondary" onClick={() => setEditingMarketId(market.id)}>
-                      Edit
-                    </Button>
-                    <Button
-                      variant="danger"
-                      disabled={removeMutation.isPending}
-                      onClick={() => removeMutation.mutate(market.id)}
-                    >
-                      Remove market
-                    </Button>
-                  </div>
-                </div>
-                <div className="mt-1.5 space-y-1 text-sm text-text-secondary">
-                  {market.selections.map((selection) => (
-                    <div key={selection.id} className="flex items-center justify-between">
-                      <span>{selection.name}</span>
-                      <span className="text-text-muted">{selection.odds.toFixed(2)}</span>
-                    </div>
-                  ))}
-                </div>
-                <div className="mt-2">
-                  <LimitsAudienceEditor
-                    idPrefix={`${market.name} limits`}
-                    maxStakeCents={market.maxStakeCents}
-                    maxLiabilityCents={market.maxLiabilityCents}
-                    audienceMode={market.audienceMode}
-                    audienceSegmentIds={market.audienceSegments.map((segment) => segment.segmentId)}
-                    isSaving={setLimitsMutation.isPending}
-                    onSave={(input) => setLimitsMutation.mutate({ id: market.id, input })}
-                  />
-                </div>
-              </div>
-            ),
-          )}
+          {existing.map((market) => (
+            <ManualMarketEntry key={market.id} matchId={match.id} market={market} removeMutation={removeMutation} />
+          ))}
 
           <MarketForm matchId={match.id} />
         </div>
@@ -249,6 +336,8 @@ export default function ManualMarketsPage() {
         the feed's own markets, priced exactly as entered here. Navigate sport &gt; country &gt; league
         &gt; match to find the match you're adding a market to.
       </p>
+
+      <ManualMarketsOverview manualMarkets={manualMarkets ?? []} matches={matches} removeMutation={removeMutation} />
 
       <div className="mt-4">
         <MatchDrilldown

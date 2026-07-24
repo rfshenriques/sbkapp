@@ -295,4 +295,61 @@ describe('BoostsPage', () => {
       expect.objectContaining({ method: 'PATCH' }),
     );
   });
+
+  it('shows a collapsed "currently configured" overview that expands to edit a boost without drilling down', async () => {
+    const boosts: Boost[] = [
+      {
+        id: 'boost-1',
+        matchId: 'match-1',
+        marketId: 'match-result',
+        selectionId: 'home',
+        ticks: 2,
+        reason: null,
+        createdAt: '2026-07-18T00:00:00Z',
+        updatedAt: '2026-07-18T00:00:00Z',
+        maxStakeCents: null,
+        maxLiabilityCents: null,
+        currentLiabilityCents: 0,
+        disabledAt: null,
+        audienceMode: 'ALL',
+        audienceSegments: [],
+      },
+    ];
+    // Unlike the other tests above, the list endpoint here returns full
+    // markets too (matching the real odds-engine, which serves the same
+    // cached Match objects from both /events and /events/:id) since the
+    // overview resolves match/market/selection names straight from the
+    // already-fetched list, with no per-match detail fetch.
+    stubFetch2([matchWithMarkets], boosts);
+
+    renderBoostsPage();
+
+    const overviewToggle = await screen.findByRole('button', { name: /Currently configured boosts \(1\)/ });
+    expect(screen.queryByText(/Arsenal vs Chelsea — Match Result: Home/)).not.toBeInTheDocument();
+
+    await userEvent.click(overviewToggle);
+    const boostRow = await screen.findByRole('button', { name: /Arsenal vs Chelsea — Match Result: Home/ });
+    expect(boostRow).toBeInTheDocument();
+
+    await userEvent.click(boostRow);
+    expect(await screen.findByLabelText('Ticks for home')).toHaveValue('2');
+  });
 });
+
+function stubFetch2(matches: Match[], boosts: Boost[]) {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url === '/api/events') {
+      return new Response(JSON.stringify(matches), { status: 200 });
+    }
+    if (url === '/backend/admin/boosts') {
+      return new Response(JSON.stringify(boosts), { status: 200 });
+    }
+    if (url === '/backend/admin/odds-ladder') {
+      return new Response(JSON.stringify(ladderRungs), { status: 200 });
+    }
+    return new Response(null, { status: 404 });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}

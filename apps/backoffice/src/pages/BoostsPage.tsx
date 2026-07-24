@@ -211,6 +211,83 @@ function MarketDisclosure({
   );
 }
 
+/**
+ * Every currently-configured boost, flat and collapsed by default - lets a
+ * trader jump straight to editing one without re-walking the sport >
+ * country > league > match drilldown they used to set it up in the first
+ * place. Reuses BoostCell as-is (same feedOdds/ladder/existing contract),
+ * so editing here and editing via the drilldown below are identical.
+ */
+function BoostsOverview({ boosts, matches, ladder }: { boosts: backendApi.Boost[]; matches: Match[] | undefined; ladder: number[] }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [openBoostId, setOpenBoostId] = useState<string | null>(null);
+
+  if (boosts.length === 0) {
+    return null;
+  }
+
+  return (
+    <Card className="mt-4">
+      <button
+        type="button"
+        onClick={() => setIsExpanded((previous) => !previous)}
+        className="flex items-center gap-1 text-left text-sm font-medium hover:underline"
+      >
+        <ChevronIcon className={`h-4 w-4 shrink-0 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        Currently configured boosts ({boosts.length})
+      </button>
+
+      {isExpanded && (
+        <div className="mt-3 space-y-2 border-t border-border pt-3">
+          {boosts.map((boost) => {
+            const match = matches?.find((candidate) => candidate.id === boost.matchId);
+            const market = match?.markets.find((candidate) => candidate.id === boost.marketId);
+            const selection = market?.selections.find((candidate) => candidate.id === boost.selectionId);
+            const isOpen = openBoostId === boost.id;
+            const label = match
+              ? `${match.homeTeam} vs ${match.awayTeam} — ${market?.name ?? boost.marketId}: ${selection?.name ?? boost.selectionId}`
+              : `${boost.matchId} — ${boost.marketId}: ${boost.selectionId}`;
+
+            return (
+              <div key={boost.id} className="rounded-md bg-background px-3 py-2">
+                <button
+                  type="button"
+                  onClick={() => setOpenBoostId(isOpen ? null : boost.id)}
+                  className="flex w-full items-center justify-between gap-2 text-left text-sm hover:underline"
+                >
+                  <span>{label}</span>
+                  <span className="flex shrink-0 items-center gap-2 text-xs text-text-secondary">
+                    {boost.ticks} ticks
+                    {boost.disabledAt && <span className="rounded bg-danger/20 px-2 py-0.5 text-danger">Auto-disabled</span>}
+                  </span>
+                </button>
+                {isOpen && (
+                  <div className="mt-2 border-t border-border pt-2">
+                    {selection ? (
+                      <BoostCell
+                        matchId={boost.matchId}
+                        marketId={boost.marketId}
+                        selectionId={boost.selectionId}
+                        feedOdds={selection.odds}
+                        ladder={ladder}
+                        existing={boost}
+                      />
+                    ) : (
+                      <p className="text-sm text-text-secondary">
+                        This match/selection is no longer in the feed - clear it from the drilldown below.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function BoostsPage() {
   const {
     data: matches,
@@ -238,6 +315,8 @@ export default function BoostsPage() {
           </span>
         )}
       </p>
+
+      <BoostsOverview boosts={boosts ?? []} matches={matches} ladder={ladder} />
 
       <div className="mt-4">
         <MatchDrilldown

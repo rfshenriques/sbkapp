@@ -350,4 +350,34 @@ describe('ManualMarketsPage', () => {
       expect.objectContaining({ method: 'PATCH' }),
     );
   });
+
+  it('shows a collapsed "currently configured" overview that expands to edit a market without drilling down', async () => {
+    stubFetch([
+      {
+        id: 'market-1',
+        matchId: 'match-1',
+        name: 'To Win Both Halves',
+        createdAt: '2026-07-18T00:00:00Z',
+        maxStakeCents: null,
+        maxLiabilityCents: null,
+        currentLiabilityCents: 0,
+        audienceMode: 'ALL',
+        audienceSegments: [],
+        selections: [{ id: 'sel-1', name: 'Yes', odds: 3.5 }],
+      },
+    ]);
+    renderManualMarketsPage();
+
+    const overviewToggle = await screen.findByRole('button', {
+      name: /Currently configured manual markets \(1\)/,
+    });
+    expect(screen.queryByText('Remove market')).not.toBeInTheDocument();
+
+    await userEvent.click(overviewToggle);
+    const marketRow = await screen.findByRole('button', { name: /To Win Both Halves — Arsenal vs Chelsea/ });
+    await userEvent.click(marketRow);
+
+    expect(await screen.findByText('Yes')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove market' })).toBeInTheDocument();
+  });
 });
