@@ -4,6 +4,7 @@ import type { Match } from '@sportsbook/shared';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { MatchDrilldown } from '../components/MatchDrilldown';
+import { LimitsAudienceEditor } from '../components/LimitsAudienceEditor';
 import type { CompetitionNode } from '../lib/matchTree';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
@@ -135,9 +136,16 @@ function MatchRow({
   manualMarkets: backendApi.ManualMarket[];
   removeMutation: ReturnType<typeof useMutation<void, Error, string>>;
 }) {
+  const queryClient = useQueryClient();
   const [isExpanded, setIsExpanded] = useState(false);
   const [editingMarketId, setEditingMarketId] = useState<string | null>(null);
   const existing = manualMarkets.filter((market) => market.matchId === match.id);
+
+  const setLimitsMutation = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: backendApi.SetLimitsInput }) =>
+      backendApi.setManualMarketLimits(id, input),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: manualMarketsQueryKey }),
+  });
 
   return (
     <Card>
@@ -191,6 +199,17 @@ function MatchRow({
                       <span className="text-text-muted">{selection.odds.toFixed(2)}</span>
                     </div>
                   ))}
+                </div>
+                <div className="mt-2">
+                  <LimitsAudienceEditor
+                    idPrefix={`${market.name} limits`}
+                    maxStakeCents={market.maxStakeCents}
+                    maxLiabilityCents={market.maxLiabilityCents}
+                    audienceMode={market.audienceMode}
+                    audienceSegmentIds={market.audienceSegments.map((segment) => segment.segmentId)}
+                    isSaving={setLimitsMutation.isPending}
+                    onSave={(input) => setLimitsMutation.mutate({ id: market.id, input })}
+                  />
                 </div>
               </div>
             ),

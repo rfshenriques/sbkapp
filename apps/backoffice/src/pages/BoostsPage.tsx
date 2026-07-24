@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import { MatchDrilldown } from '../components/MatchDrilldown';
+import { LimitsAudienceEditor } from '../components/LimitsAudienceEditor';
 import type { CompetitionNode } from '../lib/matchTree';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
@@ -40,6 +41,11 @@ function BoostCell({
     mutationFn: (id: string) => backendApi.clearBoost(id),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: boostsQueryKey }),
   });
+  const setLimitsMutation = useMutation({
+    mutationFn: ({ id, input }: { id: string; input: backendApi.SetLimitsInput }) =>
+      backendApi.setBoostLimits(id, input),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: boostsQueryKey }),
+  });
 
   const parsed = draft === '' ? null : Number(draft);
   const isValid = parsed !== null && Number.isInteger(parsed) && parsed >= 1;
@@ -48,42 +54,61 @@ function BoostCell({
   const preview = isValid ? previewBoostedPrice(ladder, feedOdds, parsed as number) : null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <span className="text-xs text-text-muted">Feed {feedOdds.toFixed(2)}</span>
-      <input
-        type="text"
-        inputMode="numeric"
-        aria-label={`Ticks for ${selectionId}`}
-        placeholder="—"
-        value={draft}
-        onChange={(event) => setDraft(event.target.value)}
-        className="w-14 rounded-md border border-border bg-surface px-2 py-1 text-center text-sm text-text-primary"
-      />
-      <span className="text-xs text-text-muted">ticks</span>
-      {preview !== null && <span className="text-xs text-highlight">→ {preview.toFixed(2)}</span>}
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs text-text-muted">Feed {feedOdds.toFixed(2)}</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          aria-label={`Ticks for ${selectionId}`}
+          placeholder="—"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          className="w-14 rounded-md border border-border bg-surface px-2 py-1 text-center text-sm text-text-primary"
+        />
+        <span className="text-xs text-text-muted">ticks</span>
+        {preview !== null && <span className="text-xs text-highlight">→ {preview.toFixed(2)}</span>}
+        {existing && !existing.disabledAt && (
+          <span className="rounded bg-highlight/20 px-2 py-0.5 text-xs text-highlight">Boosted</span>
+        )}
+        {existing?.disabledAt && (
+          <span className="rounded bg-danger/20 px-2 py-0.5 text-xs text-danger">
+            Auto-disabled (liability cap reached)
+          </span>
+        )}
+        {isDirty && draft !== '' && (
+          <Button
+            variant="secondary"
+            disabled={!isValid || isPending}
+            onClick={() => setMutation.mutate(parsed as number)}
+          >
+            Set
+          </Button>
+        )}
+        {existing && (
+          <Button
+            variant="danger"
+            disabled={isPending}
+            onClick={() => {
+              setDraft('');
+              clearMutation.mutate(existing.id);
+            }}
+          >
+            Clear
+          </Button>
+        )}
+      </div>
       {existing && (
-        <span className="rounded bg-highlight/20 px-2 py-0.5 text-xs text-highlight">Boosted</span>
-      )}
-      {isDirty && draft !== '' && (
-        <Button
-          variant="secondary"
-          disabled={!isValid || isPending}
-          onClick={() => setMutation.mutate(parsed as number)}
-        >
-          Set
-        </Button>
-      )}
-      {existing && (
-        <Button
-          variant="danger"
-          disabled={isPending}
-          onClick={() => {
-            setDraft('');
-            clearMutation.mutate(existing.id);
-          }}
-        >
-          Clear
-        </Button>
+        <LimitsAudienceEditor
+          idPrefix={`Boost ${selectionId} limits`}
+          maxStakeCents={existing.maxStakeCents}
+          maxLiabilityCents={existing.maxLiabilityCents}
+          currentLiabilityCents={existing.currentLiabilityCents}
+          audienceMode={existing.audienceMode}
+          audienceSegmentIds={existing.audienceSegments.map((segment) => segment.segmentId)}
+          isSaving={setLimitsMutation.isPending}
+          onSave={(input) => setLimitsMutation.mutate({ id: existing.id, input })}
+        />
       )}
     </div>
   );

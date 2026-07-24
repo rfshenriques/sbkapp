@@ -82,12 +82,28 @@ export interface ManualMarketSelection {
   odds: number;
 }
 
+export interface AudienceSegmentRef {
+  segmentId: string;
+}
+
+export interface SetLimitsInput {
+  maxStakeCents?: number | null;
+  maxLiabilityCents?: number | null;
+  audienceMode?: AudienceMode;
+  segmentIds?: string[];
+}
+
 export interface ManualMarket {
   id: string;
   matchId: string;
   name: string;
   createdAt: string;
   selections: ManualMarketSelection[];
+  maxStakeCents: number | null;
+  maxLiabilityCents: number | null;
+  currentLiabilityCents: number;
+  audienceMode: AudienceMode;
+  audienceSegments: AudienceSegmentRef[];
 }
 
 export interface ManualMarketSelectionInput {
@@ -110,6 +126,12 @@ export interface Boost {
   reason: string | null;
   createdAt: string;
   updatedAt: string;
+  maxStakeCents: number | null;
+  maxLiabilityCents: number | null;
+  currentLiabilityCents: number;
+  disabledAt: string | null;
+  audienceMode: AudienceMode;
+  audienceSegments: AudienceSegmentRef[];
 }
 
 export interface TeamColor {
@@ -442,6 +464,15 @@ export async function removeManualMarket(id: string): Promise<void> {
   }
 }
 
+export async function setManualMarketLimits(id: string, input: SetLimitsInput): Promise<ManualMarket> {
+  const response = await authenticatedFetch(`/admin/manual-markets/${id}/limits`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return parseJsonOrThrow(response, `Failed to set manual market limits: ${response.status}`);
+}
+
 export async function listOddsLadderRungs(): Promise<OddsLadderRung[]> {
   const response = await authenticatedFetch('/admin/odds-ladder');
   return parseJsonOrThrow(response, `Failed to load odds ladder: ${response.status}`);
@@ -493,6 +524,15 @@ export async function clearBoost(id: string): Promise<void> {
   if (!response.ok) {
     throw new Error(`Failed to clear boost: ${response.status}`);
   }
+}
+
+export async function setBoostLimits(id: string, input: SetLimitsInput): Promise<Boost> {
+  const response = await authenticatedFetch(`/admin/boosts/${id}/limits`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return parseJsonOrThrow(response, `Failed to set boost limits: ${response.status}`);
 }
 
 export async function getAccaBoostConfig(): Promise<AccaBoostConfig> {

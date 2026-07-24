@@ -90,6 +90,11 @@ describe('ManualMarketsPage', () => {
         matchId: 'match-1',
         name: 'To Win Both Halves',
         createdAt: '2026-07-18T00:00:00Z',
+        maxStakeCents: null,
+        maxLiabilityCents: null,
+        currentLiabilityCents: 0,
+        audienceMode: 'ALL',
+        audienceSegments: [],
         selections: [
           { id: 'sel-1', name: 'Yes', odds: 3.5 },
           { id: 'sel-2', name: 'No', odds: 1.25 },
@@ -134,6 +139,11 @@ describe('ManualMarketsPage', () => {
             matchId: 'match-1',
             name: 'Novelty Market',
             createdAt: '2026-07-18T00:00:00Z',
+            maxStakeCents: null,
+            maxLiabilityCents: null,
+            currentLiabilityCents: 0,
+            audienceMode: 'ALL',
+            audienceSegments: [],
             selections: [
               { id: 'sel-a', name: 'Yes', odds: 2.5 },
               { id: 'sel-b', name: 'No', odds: 1.5 },
@@ -167,6 +177,11 @@ describe('ManualMarketsPage', () => {
         matchId: 'match-1',
         name: 'To Win Both Halves',
         createdAt: '2026-07-18T00:00:00Z',
+        maxStakeCents: null,
+        maxLiabilityCents: null,
+        currentLiabilityCents: 0,
+        audienceMode: 'ALL',
+        audienceSegments: [],
         selections: [
           { id: 'sel-1', name: 'Yes', odds: 3.5 },
           { id: 'sel-2', name: 'No', odds: 1.25 },
@@ -222,6 +237,11 @@ describe('ManualMarketsPage', () => {
         matchId: 'match-1',
         name: 'To Win Both Halves',
         createdAt: '2026-07-18T00:00:00Z',
+        maxStakeCents: null,
+        maxLiabilityCents: null,
+        currentLiabilityCents: 0,
+        audienceMode: 'ALL',
+        audienceSegments: [],
         selections: [{ id: 'sel-1', name: 'Yes', odds: 3.5 }],
       },
     ]);
@@ -243,6 +263,11 @@ describe('ManualMarketsPage', () => {
         matchId: 'match-1',
         name: 'To Win Both Halves',
         createdAt: '2026-07-18T00:00:00Z',
+        maxStakeCents: null,
+        maxLiabilityCents: null,
+        currentLiabilityCents: 0,
+        audienceMode: 'ALL',
+        audienceSegments: [],
         selections: [{ id: 'sel-1', name: 'Yes', odds: 3.5 }],
       },
     ];
@@ -272,6 +297,57 @@ describe('ManualMarketsPage', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       '/backend/admin/manual-markets/market-1',
       expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+
+  it('saving max stake/liability sends a PATCH to the limits endpoint', async () => {
+    const manualMarkets: ManualMarket[] = [
+      {
+        id: 'market-1',
+        matchId: 'match-1',
+        name: 'To Win Both Halves',
+        createdAt: '2026-07-18T00:00:00Z',
+        maxStakeCents: null,
+        maxLiabilityCents: null,
+        currentLiabilityCents: 0,
+        audienceMode: 'ALL',
+        audienceSegments: [],
+        selections: [{ id: 'sel-1', name: 'Yes', odds: 3.5 }],
+      },
+    ];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/api/events') {
+        return new Response(JSON.stringify([liveMatch]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/manual-markets') {
+        return new Response(JSON.stringify(manualMarkets), { status: 200 });
+      }
+      if (method === 'PATCH' && url === '/backend/admin/manual-markets/market-1/limits') {
+        expect(JSON.parse(init!.body as string)).toEqual({
+          maxStakeCents: 10_000,
+          maxLiabilityCents: null,
+          audienceMode: 'ALL',
+          segmentIds: [],
+        });
+        return new Response(JSON.stringify(manualMarkets[0]), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderManualMarketsPage();
+    await drillToLeague();
+    await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
+
+    await userEvent.type(await screen.findByLabelText('To Win Both Halves limits max stake'), '100');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/manual-markets/market-1/limits',
+      expect.objectContaining({ method: 'PATCH' }),
     );
   });
 });

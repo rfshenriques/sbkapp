@@ -147,6 +147,12 @@ describe('BoostsPage', () => {
             reason: null,
             createdAt: '2026-07-18T00:00:00Z',
             updatedAt: '2026-07-18T00:00:00Z',
+            maxStakeCents: null,
+            maxLiabilityCents: null,
+            currentLiabilityCents: 0,
+            disabledAt: null,
+            audienceMode: 'ALL',
+            audienceSegments: [],
           },
         ];
         return new Response(JSON.stringify(boosts[0]), { status: 201 });
@@ -182,6 +188,12 @@ describe('BoostsPage', () => {
         reason: null,
         createdAt: '2026-07-18T00:00:00Z',
         updatedAt: '2026-07-18T00:00:00Z',
+        maxStakeCents: null,
+        maxLiabilityCents: null,
+        currentLiabilityCents: 0,
+        disabledAt: null,
+        audienceMode: 'ALL',
+        audienceSegments: [],
       },
     ];
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -219,6 +231,68 @@ describe('BoostsPage', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       '/backend/admin/boosts/boost-1',
       expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+
+  it('saving max stake/liability sends a PATCH to the limits endpoint', async () => {
+    const boosts: Boost[] = [
+      {
+        id: 'boost-1',
+        matchId: 'match-1',
+        marketId: 'match-result',
+        selectionId: 'home',
+        ticks: 2,
+        reason: null,
+        createdAt: '2026-07-18T00:00:00Z',
+        updatedAt: '2026-07-18T00:00:00Z',
+        maxStakeCents: null,
+        maxLiabilityCents: null,
+        currentLiabilityCents: 0,
+        disabledAt: null,
+        audienceMode: 'ALL',
+        audienceSegments: [],
+      },
+    ];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/api/events') {
+        return new Response(JSON.stringify([liveMatch]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/api/events/match-1') {
+        return new Response(JSON.stringify(matchWithMarkets), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/boosts') {
+        return new Response(JSON.stringify(boosts), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/odds-ladder') {
+        return new Response(JSON.stringify(ladderRungs), { status: 200 });
+      }
+      if (method === 'PATCH' && url === '/backend/admin/boosts/boost-1/limits') {
+        expect(JSON.parse(init!.body as string)).toEqual({
+          maxStakeCents: 10_000,
+          maxLiabilityCents: null,
+          audienceMode: 'ALL',
+          segmentIds: [],
+        });
+        return new Response(JSON.stringify(boosts[0]), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderBoostsPage();
+    await drillToLeague();
+    await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
+    await userEvent.click(await screen.findByText('Match Result'));
+
+    await userEvent.type(await screen.findByLabelText('Boost home limits max stake'), '100');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/boosts/boost-1/limits',
+      expect.objectContaining({ method: 'PATCH' }),
     );
   });
 });
