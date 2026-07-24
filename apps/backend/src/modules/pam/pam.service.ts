@@ -5,6 +5,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AccaBoostService } from '../acca-boost/acca-boost.service';
 import { calculateAccaBoost } from '../acca-boost/acca-boost';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { BoostService } from '../boosts/boost.service';
 import { resolveBetLimit, type LegContext } from '../limits/stake-limits';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
@@ -27,6 +28,7 @@ export class PamService {
     private readonly oddsEngineClient: OddsEngineClient,
     private readonly accaBoostService: AccaBoostService,
     private readonly manualMarketService: ManualMarketService,
+    private readonly boostService: BoostService,
   ) {}
 
   async getWallet(userId: string): Promise<{ balanceCents: number }> {
@@ -151,6 +153,51 @@ export class PamService {
     return toRecord;
   }
 
+  /**
+   * A boost's own stake/liability caps (see BoostService), separate from
+   * the brand-wide StakeLimit system above. A leg's liability is judged
+   * on its own (boosted) odds, same simplification as manual markets -
+   * see assertWithinManualMarketLimitsAndCollectLiability.
+   */
+  private async assertWithinBoostLimitsAndCollectLiability(
+    brandId: string,
+    dto: PlaceBetDto,
+  ): Promise<{ boostId: string; liabilityCents: number }[]> {
+    const toRecord: { boostId: string; liabilityCents: number }[] = [];
+
+    for (const selection of dto.selections) {
+      const boost = await this.boostService.findActiveForBet(
+        brandId,
+        selection.matchId,
+        selection.marketId,
+        selection.selectionId,
+      );
+      if (!boost) {
+        continue;
+      }
+
+      if (boost.maxStakeCents !== null && dto.stakeCents > boost.maxStakeCents) {
+        throw new BadRequestException(
+          `Stake exceeds the maximum allowed for this boosted price (max €${formatEuros(boost.maxStakeCents)})`,
+        );
+      }
+
+      const legLiabilityCents = Math.round(dto.stakeCents * (selection.odds - 1));
+      if (
+        boost.maxLiabilityCents !== null &&
+        boost.currentLiabilityCents + legLiabilityCents > boost.maxLiabilityCents
+      ) {
+        throw new BadRequestException(
+          `This bet would exceed the maximum liability allowed for this boosted price (max €${formatEuros(boost.maxLiabilityCents)})`,
+        );
+      }
+
+      toRecord.push({ boostId: boost.id, liabilityCents: legLiabilityCents });
+    }
+
+    return toRecord;
+  }
+
   async placeBet(userId: string, dto: PlaceBetDto) {
     const { brandId } = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -172,6 +219,7 @@ export class PamService {
       brandId,
       dto,
     );
+    const boostLiabilityToRecord = await this.assertWithinBoostLimitsAndCollectLiability(brandId, dto);
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
@@ -227,6 +275,16 @@ export class PamService {
           where: { id: marketId },
           data: { currentLiabilityCents: { increment: liabilityCents } },
         });
+      }
+
+      for (const { boostId, liabilityCents } of boostLiabilityToRecord) {
+        // No staff member triggered a possible auto-disable here - the liability cap itself did, as this bet's own placement pushed it over.
+        await this.boostService.recordLiabilityAndMaybeDisable(
+          boostId,
+          liabilityCents,
+          { id: 'system', username: 'system:boost-auto-disable', brandId: user.brandId },
+          tx,
+        );
       }
 
       return bet;

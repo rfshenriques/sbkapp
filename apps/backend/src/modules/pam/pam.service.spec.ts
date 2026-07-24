@@ -6,6 +6,8 @@ import type { Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AccaBoostService } from '../acca-boost/acca-boost.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { BoostService } from '../boosts/boost.service';
+import { OddsLadderService } from '../boosts/odds-ladder.service';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { CompetitionSuspensionService } from './competition-suspension.service';
@@ -50,6 +52,7 @@ describe('PamService', () => {
   let competitionSuspensionService: CompetitionSuspensionService;
   let accaBoostService: AccaBoostService;
   let manualMarketService: ManualMarketService;
+  let boostService: BoostService;
   let prisma: PrismaService;
   let setupPrisma: PrismaService;
   let testBrandId: string;
@@ -87,6 +90,8 @@ describe('PamService', () => {
         CompetitionSuspensionService,
         AccaBoostService,
         ManualMarketService,
+        BoostService,
+        OddsLadderService,
         {
           provide: OddsEngineClient,
           useValue: { fetchMatchById: vi.fn(async (matchId: string) => fakeMatch(matchId)) },
@@ -100,6 +105,7 @@ describe('PamService', () => {
     competitionSuspensionService = moduleRef.get(CompetitionSuspensionService);
     accaBoostService = moduleRef.get(AccaBoostService);
     manualMarketService = moduleRef.get(ManualMarketService);
+    boostService = moduleRef.get(BoostService);
     prisma = moduleRef.get(PrismaService);
   });
 
@@ -109,8 +115,11 @@ describe('PamService', () => {
     await prisma.accaBoostConfig.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.stakeLimit.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.manualMarket.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
+    await prisma.boost.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
+    await prisma.auditLogEntry.deleteMany({
+      where: { actorUsername: { in: [TEST_ACTOR.username, 'system:boost-auto-disable'] } },
+    });
     if (createdUserIds.length > 0) {
-      await prisma.auditLogEntry.deleteMany({ where: { actorUsername: TEST_ACTOR.username } });
       await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
       createdUserIds.length = 0;
     }
@@ -435,6 +444,90 @@ describe('PamService', () => {
         // Same marketId as the other brand's manual market, but this bet's own brand has no such market -
         // findForBet returns null, so no limit applies at all.
         selections: [buildSelection({ marketId: market.id })],
+        stakeCents: 50_000,
+      });
+
+      expect(bet.stakeCents).toBe(50_000);
+    });
+  });
+
+  describe('boost limits', () => {
+    it('places a bet normally on a boosted selection with no limits configured', async () => {
+      await boostService.setBoost(testBrandId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'match-1', marketId: 'match-result', selectionId: 'home' })],
+        stakeCents: 5_000,
+      });
+
+      expect(bet.stakeCents).toBe(5_000);
+    });
+
+    it("rejects a stake over the boost's own max stake", async () => {
+      const boost = await boostService.setBoost(testBrandId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await boostService.setLimits(testBrandId, boost.id, { maxStakeCents: 1_000 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [buildSelection({ matchId: 'match-1', marketId: 'match-result', selectionId: 'home' })],
+          stakeCents: 2_000,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects a bet that would push the boost past its max liability', async () => {
+      const boost = await boostService.setBoost(testBrandId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await boostService.setLimits(testBrandId, boost.id, { maxLiabilityCents: 1_000 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      // odds 2.1, stake 2000 -> leg liability 2200 > 1000.
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [
+            buildSelection({ matchId: 'match-1', marketId: 'match-result', selectionId: 'home', odds: 2.1 }),
+          ],
+          stakeCents: 2_000,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('auto-disables the boost once accumulated liability reaches the cap, and stops applying its limits to further bets', async () => {
+      const boost = await boostService.setBoost(testBrandId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await boostService.setLimits(testBrandId, boost.id, { maxLiabilityCents: 1_000 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      // stake 1000 @ odds 2.0 -> liability 1000, exactly the cap - allowed, and disables the boost afterwards.
+      await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', marketId: 'match-result', selectionId: 'home', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+      });
+
+      const disabled = await prisma.boost.findUniqueOrThrow({ where: { id: boost.id } });
+      expect(disabled.disabledAt).not.toBeNull();
+
+      // The boost is now disabled, so findActiveForBet no longer finds it - a further bet on the same selection places normally, uncapped.
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', marketId: 'match-result', selectionId: 'home', odds: 2.0 }),
+        ],
+        stakeCents: 50_000,
+      });
+      expect(bet.stakeCents).toBe(50_000);
+    });
+
+    it("never applies another brand's boost limits", async () => {
+      const boost = await boostService.setBoost(otherBrandId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await boostService.setLimits(otherBrandId, boost.id, { maxStakeCents: 100 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        // Same natural key as the other brand's boost, but this bet's own brand has no such boost -
+        // findActiveForBet returns null, so no limit applies at all.
+        selections: [buildSelection({ matchId: 'match-1', marketId: 'match-result', selectionId: 'home' })],
         stakeCents: 50_000,
       });
 

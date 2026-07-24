@@ -194,5 +194,123 @@ describe('BoostService', () => {
 
       expect(result).toEqual(match);
     });
+
+    it('skips a disabled boost entirely', async () => {
+      await ladderService.regenerateStandard(brandAId, TEST_ACTOR);
+      const boost = await service.setBoost(brandAId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await prisma.boost.update({ where: { id: boost.id }, data: { disabledAt: new Date() } });
+      const match = buildMatch();
+
+      const [result] = await service.applyBoosts(brandAId, [match]);
+
+      expect(result?.markets[0]?.selections[0]?.originalOdds).toBeUndefined();
+    });
+
+    it('hides a LOGGED_IN-only boost from an anonymous viewer', async () => {
+      await ladderService.regenerateStandard(brandAId, TEST_ACTOR);
+      const boost = await service.setBoost(brandAId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await service.setLimits(brandAId, boost.id, { audienceMode: 'LOGGED_IN' }, TEST_ACTOR);
+      const match = buildMatch();
+
+      const [result] = await service.applyBoosts(brandAId, [match]);
+
+      expect(result?.markets[0]?.selections[0]?.originalOdds).toBeUndefined();
+    });
+
+    it('shows a LOGGED_IN-only boost to a logged-in viewer', async () => {
+      await ladderService.regenerateStandard(brandAId, TEST_ACTOR);
+      const boost = await service.setBoost(brandAId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await service.setLimits(brandAId, boost.id, { audienceMode: 'LOGGED_IN' }, TEST_ACTOR);
+      const match = buildMatch();
+
+      const [result] = await service.applyBoosts(brandAId, [match], { isLoggedIn: true, segmentIds: [] });
+
+      expect(result?.markets[0]?.selections[0]?.originalOdds).toBe(2.0);
+    });
+
+    it("attaches maxStakeCents to the boosted selection so players can see it", async () => {
+      await ladderService.regenerateStandard(brandAId, TEST_ACTOR);
+      const boost = await service.setBoost(brandAId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await service.setLimits(brandAId, boost.id, { maxStakeCents: 5_000 }, TEST_ACTOR);
+      const match = buildMatch();
+
+      const [result] = await service.applyBoosts(brandAId, [match]);
+
+      expect(result?.markets[0]?.selections[0]?.maxStakeCents).toBe(5_000);
+    });
+  });
+
+  describe('setLimits', () => {
+    it('sets max stake and max liability, leaving ticks/reason unchanged', async () => {
+      const boost = await service.setBoost(brandAId, 'match-1', 'match-result', 'home', 6, 'promo', TEST_ACTOR);
+
+      const updated = await service.setLimits(
+        brandAId,
+        boost.id,
+        { maxStakeCents: 5_000, maxLiabilityCents: 20_000 },
+        TEST_ACTOR,
+      );
+
+      expect(updated.maxStakeCents).toBe(5_000);
+      expect(updated.maxLiabilityCents).toBe(20_000);
+      expect(updated.ticks).toBe(6);
+    });
+
+    it("a brand can never set limits on another brand's boost, even by guessing its id", async () => {
+      const boost = await service.setBoost(brandAId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+
+      await expect(
+        service.setLimits(brandBId, boost.id, { maxStakeCents: 1 }, OTHER_BRAND_ACTOR),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
+
+  describe('findActiveForBet', () => {
+    it('returns the boost when active and belonging to the given brand', async () => {
+      const boost = await service.setBoost(brandAId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+
+      expect(await service.findActiveForBet(brandAId, 'match-1', 'match-result', 'home')).toMatchObject({
+        id: boost.id,
+      });
+    });
+
+    it('returns null for a disabled boost', async () => {
+      const boost = await service.setBoost(brandAId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await prisma.boost.update({ where: { id: boost.id }, data: { disabledAt: new Date() } });
+
+      expect(await service.findActiveForBet(brandAId, 'match-1', 'match-result', 'home')).toBeNull();
+    });
+
+    it("returns null for another brand's boost", async () => {
+      await service.setBoost(brandBId, 'match-1', 'match-result', 'home', 6, undefined, OTHER_BRAND_ACTOR);
+
+      expect(await service.findActiveForBet(brandAId, 'match-1', 'match-result', 'home')).toBeNull();
+    });
+  });
+
+  describe('recordLiabilityAndMaybeDisable', () => {
+    it('increments the running total without disabling when under the cap', async () => {
+      const boost = await service.setBoost(brandAId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await service.setLimits(brandAId, boost.id, { maxLiabilityCents: 10_000 }, TEST_ACTOR);
+
+      await service.recordLiabilityAndMaybeDisable(boost.id, 5_000, TEST_ACTOR);
+
+      const updated = await service.findActiveForBet(brandAId, 'match-1', 'match-result', 'home');
+      expect(updated?.currentLiabilityCents).toBe(5_000);
+      expect(updated).not.toBeNull();
+    });
+
+    it('auto-disables the boost once the running total reaches the cap, with an audit entry', async () => {
+      const boost = await service.setBoost(brandAId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await service.setLimits(brandAId, boost.id, { maxLiabilityCents: 10_000 }, TEST_ACTOR);
+
+      await service.recordLiabilityAndMaybeDisable(boost.id, 10_000, TEST_ACTOR);
+
+      expect(await service.findActiveForBet(brandAId, 'match-1', 'match-result', 'home')).toBeNull();
+      const entries = await prisma.auditLogEntry.findMany({
+        where: { actorUsername: TEST_ACTOR.username, action: 'BOOST_AUTO_DISABLED' },
+      });
+      expect(entries).toHaveLength(1);
+    });
   });
 });

@@ -5,6 +5,8 @@ export interface Selection {
   odds: number;
   /** Present only when a trader-configured boost bumped this selection's price up the odds ladder - the price a player would have seen without it. */
   originalOdds?: number;
+  /** Present only alongside originalOdds when the boost has a per-bet stake cap - shown to players so they know the boosted price only applies up to this stake. In cents. */
+  maxStakeCents?: number;
 }
 
 export interface Market {

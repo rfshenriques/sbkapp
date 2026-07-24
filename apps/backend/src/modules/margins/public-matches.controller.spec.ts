@@ -88,7 +88,7 @@ describe('PublicMatchesController', () => {
     expect(marginPricingService.applyMarginToMatches).toHaveBeenCalledWith('brand-1', [rawMatch]);
     expect(manualMarketService.mergeIntoMatches).toHaveBeenCalledWith('brand-1', [pricedMatch], ANONYMOUS_VIEWER);
     expect(oddsOverrideService.applyOverrides).toHaveBeenCalledWith('brand-1', [withManualMarketsMatch]);
-    expect(boostService.applyBoosts).toHaveBeenCalledWith('brand-1', [overriddenMatch]);
+    expect(boostService.applyBoosts).toHaveBeenCalledWith('brand-1', [overriddenMatch], ANONYMOUS_VIEWER);
     expect(result).toEqual([boostedMatch]);
   });
 
@@ -99,7 +99,7 @@ describe('PublicMatchesController', () => {
     expect(marginPricingService.applyMarginToMatches).toHaveBeenCalledWith('brand-1', [rawMatch]);
     expect(manualMarketService.mergeIntoMatches).toHaveBeenCalledWith('brand-1', [pricedMatch], ANONYMOUS_VIEWER);
     expect(oddsOverrideService.applyOverrides).toHaveBeenCalledWith('brand-1', [withManualMarketsMatch]);
-    expect(boostService.applyBoosts).toHaveBeenCalledWith('brand-1', [overriddenMatch]);
+    expect(boostService.applyBoosts).toHaveBeenCalledWith('brand-1', [overriddenMatch], ANONYMOUS_VIEWER);
     expect(result).toEqual(boostedMatch);
   });
 

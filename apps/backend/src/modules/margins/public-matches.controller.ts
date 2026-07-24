@@ -37,7 +37,7 @@ export class PublicMatchesController {
     const priced = await this.marginPricingService.applyMarginToMatches(brandId, matches);
     const withManualMarkets = await this.manualMarketService.mergeIntoMatches(brandId, priced, viewer);
     const overridden = await this.oddsOverrideService.applyOverrides(brandId, withManualMarkets);
-    return this.boostService.applyBoosts(brandId, overridden);
+    return this.boostService.applyBoosts(brandId, overridden, viewer);
   }
 
   @Get(':brandId/:matchId')
@@ -51,7 +51,7 @@ export class PublicMatchesController {
     const [priced] = await this.marginPricingService.applyMarginToMatches(brandId, [match]);
     const [withManualMarkets] = await this.manualMarketService.mergeIntoMatches(brandId, [priced!], viewer);
     const [overridden] = await this.oddsOverrideService.applyOverrides(brandId, [withManualMarkets!]);
-    const [boosted] = await this.boostService.applyBoosts(brandId, [overridden!]);
+    const [boosted] = await this.boostService.applyBoosts(brandId, [overridden!], viewer);
     return boosted;
   }
 }
