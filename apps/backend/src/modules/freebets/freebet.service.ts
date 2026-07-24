@@ -22,6 +22,8 @@ export interface SystemGrantFreebetInput {
   source: Exclude<FreebetSource, 'MANUAL'>;
   /** The bet that triggered this reward, e.g. the losing accumulator an ACCA_ROLLBACK refunds - also the idempotency key callers should check via findBySourceBet before granting. */
   sourceBetId: string;
+  /** Only meaningful for BET_AND_GET - which campaign granted this, so BetAndGetCampaignService can count a player's redemptions of that specific campaign. */
+  sourceCampaignId?: string;
 }
 
 /**
@@ -98,6 +100,7 @@ export class FreebetService {
         amountCents: input.amountCents,
         source: input.source,
         sourceBetId: input.sourceBetId,
+        sourceCampaignId: input.sourceCampaignId,
       },
     });
 
@@ -107,7 +110,12 @@ export class FreebetService {
         action: 'FREEBET_GRANTED',
         targetType: 'FreebetGrant',
         targetId: grant.id,
-        metadata: { amountCents: input.amountCents, source: input.source, sourceBetId: input.sourceBetId },
+        metadata: {
+          amountCents: input.amountCents,
+          source: input.source,
+          sourceBetId: input.sourceBetId,
+          sourceCampaignId: input.sourceCampaignId,
+        },
       },
       client,
     );

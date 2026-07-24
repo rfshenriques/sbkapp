@@ -166,6 +166,13 @@ enum AuditAction {
   FREEBET_VOIDED
   ACCA_ROLLBACK_CONFIG_SET
   INSURANCE_BET_CONFIG_SET
+  BET_AND_GET_CAMPAIGN_CREATED
+  BET_AND_GET_CAMPAIGN_UPDATED
+  BET_AND_GET_CAMPAIGN_REMOVED
+  BET_AND_GET_CAMPAIGN_SCOPES_SET
+  PROMO_CARD_ADDED
+  PROMO_CARD_REMOVED
+  PROMO_CARD_REORDERED
 }
 
 enum FreebetStatus {
@@ -177,15 +184,15 @@ enum FreebetStatus {
 /**
  * Where a freebet grant came from - MANUAL is a staff-initiated grant (see
  * FreebetService.grant / the backoffice freebets page); ACCA_ROLLBACK and
- * INSURANCE_BET are reserved for the system-granted rewards those
- * promotions issue on a qualifying loss (see docs/PROJECT_BRIEF.md) - not
- * wired up yet, but the value exists now so granting one later doesn't need
- * its own migration.
+ * INSURANCE_BET are the system-granted rewards those promotions issue on a
+ * qualifying loss; BET_AND_GET is a BetAndGetCampaign reward (see
+ * FreebetGrant.sourceCampaignId for which one).
  */
 enum FreebetSource {
   MANUAL
   ACCA_ROLLBACK
   INSURANCE_BET
+  BET_AND_GET
 }
 
 /**
@@ -214,6 +221,8 @@ model FreebetGrant {
   spentOnBetId  String?
   /** The bet that triggered a system grant (e.g. the losing accumulator an ACCA_ROLLBACK reward refunds) - null for MANUAL grants. Also doubles as the idempotency key so re-settling a bet never grants the reward twice. */
   sourceBetId   String?
+  /** Which BetAndGetCampaign granted this - only set when source is BET_AND_GET, used to count a player's redemptions of that specific campaign against its maxRedemptionsPerPlayer. */
+  sourceCampaignId String?
   voidedAt      DateTime?
   /** Denormalized actor snapshot, same pattern as AuditLogEntry - null for a system-granted (non-MANUAL) source. */
   createdByStaffUserId String?
@@ -226,6 +235,7 @@ model FreebetGrant {
   @@index([userId, status])
   @@index([brandId])
   @@index([sourceBetId])
+  @@index([sourceCampaignId])
   @@map("freebet_grants")
 }
 
@@ -567,10 +577,15 @@ model Bet {
   freebetGrantId String?       @unique
   freebetGrant   FreebetGrant? @relation(fields: [freebetGrantId], references: [id], onDelete: SetNull)
 
+  /** The single BetAndGetCampaign this bet qualified for, resolved once at placement time from the live match/odds data then reused unchanged at settlement (see PamService) - never re-derived later, so a scope/condition change never retroactively relabels an already-placed bet. Null when no campaign applied. */
+  betAndGetCampaignId String?
+  betAndGetCampaign   BetAndGetCampaign? @relation(fields: [betAndGetCampaignId], references: [id], onDelete: SetNull)
+
   selections BetSelection[]
 
   @@index([userId])
   @@index([brandId])
+  @@index([betAndGetCampaignId])
   @@map("bets")
 }
 
@@ -848,6 +863,120 @@ model InsuranceBetConfig {
   @@map("insurance_bet_configs")
 }
 
+/** When the reward fires - immediately when a qualifying bet is placed, or once it settles (see the three triggerOnX flags on BetAndGetCampaign for which settlement outcomes count). */
+enum BetAndGetTrigger {
+  PLACEMENT
+  SETTLEMENT
+}
+
+enum BetAndGetBetType {
+  SINGLES_ONLY
+  ACCUMULATOR_ONLY
+  EITHER
+}
+
+/** What kind of thing a BetAndGetCampaignScope entry names - see BetAndGetCampaignScope.scopeValue for what's stored per type. */
+enum BetAndGetScopeType {
+  SPORT
+  COMPETITION
+  MATCH
+}
+
+/**
+ * "Bet & Get" fixed-amount campaign - a trader-scoped promo (one or more
+ * sports/competitions/matches, see BetAndGetCampaignScope) that grants a
+ * flat freebet to a player whose bet meets the configured conditions.
+ * Deliberately just the fixed-amount variant for now - percentage-of-stake
+ * and accumulated-across-bets variants are a later, separate build, not
+ * fields on this model.
+ */
+model BetAndGetCampaign {
+  id          String   @id @default(uuid())
+  brandId     String
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  enabled     Boolean  @default(false)
+
+  rewardAmountCents Int
+
+  trigger BetAndGetTrigger @default(PLACEMENT)
+  /** Only meaningful when trigger is SETTLEMENT - at least one should be true, checked by the service layer, not the DB. */
+  triggerOnWon  Boolean @default(false)
+  triggerOnLost Boolean @default(false)
+  triggerOnVoid Boolean @default(false)
+
+  /** All four qualifying-condition fields are optional independently - null means that condition doesn't restrict anything. */
+  minStakeCents Int?
+  /** Every leg's own odds must be at least this - same convention as AccaBoostConfig.minOddsPerLeg. */
+  minOddsPerLeg Float?
+  betType       BetAndGetBetType @default(EITHER)
+  /** Only checked when the bet is an accumulator (2+ selections). */
+  minSelections Int?
+
+  /** false = at most one redemption ever per player for this campaign. When true, maxRedemptionsPerPlayer caps it further (null = unlimited). */
+  allowMultipleRedemptions Boolean @default(false)
+  maxRedemptionsPerPlayer  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  scopes     BetAndGetCampaignScope[]
+  bets       Bet[]
+  /** CMS-managed cards (homepage/Promotions page) that link to this campaign - see PromoCard. A campaign can have zero, one, or several pointing at it. */
+  promoCards PromoCard[]
+
+  @@index([brandId])
+  @@map("bet_and_get_campaigns")
+}
+
+/**
+ * One eligibility entry for a campaign - a campaign's full match scope is
+ * the union of every one of its scope rows (e.g. "all of Sport X" OR "all
+ * of Competition Y" OR "this one specific Match Z"). scopeValue holds the
+ * raw feed sport/competition name for those two types, or a matchId for
+ * MATCH - matches are never persisted, so there's no id to join on the way
+ * CompetitionTier/StakeLimit already work by raw name.
+ */
+model BetAndGetCampaignScope {
+  id         String             @id @default(uuid())
+  campaignId String
+  campaign   BetAndGetCampaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  scopeType  BetAndGetScopeType
+  scopeValue String
+
+  @@index([campaignId])
+  @@map("bet_and_get_campaign_scopes")
+}
+
+/**
+ * A CMS-managed promotional card - shown on the homepage and/or the
+ * Promotions page (apps/frontend), byte-stored like BrandImage. Optionally
+ * links to a BetAndGetCampaign so clicking the card takes the player
+ * straight to that campaign's scoped matches (a single match if the scope
+ * resolves to exactly one, otherwise a listing) - a card with no link is
+ * purely decorative. sortOrder is staff-controlled, same drag-reorder
+ * convention as BrandImageListItem/CompetitionRanking.
+ */
+model PromoCard {
+  id        String   @id @default(uuid())
+  brandId   String
+  brand     Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  data      Bytes
+  mimeType  String
+  title     String?
+  subtitle  String?
+  sortOrder Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  betAndGetCampaignId String?
+  betAndGetCampaign   BetAndGetCampaign? @relation(fields: [betAndGetCampaignId], references: [id], onDelete: SetNull)
+
+  @@index([brandId, sortOrder])
+  @@map("promo_cards")
+}
+
 /**
  * A snapshot of what was picked at bet time - not a live reference to the
  * odds feed, which has no persistence of its own and can reshuffle/expire.
@@ -965,6 +1094,8 @@ model Brand {
   competitionQuicklinks  CompetitionQuicklink[]
   playerSegments         PlayerSegment[]
   freebetGrants          FreebetGrant[]
+  betAndGetCampaigns     BetAndGetCampaign[]
+  promoCards             PromoCard[]
 
   @@map("brands")
 }

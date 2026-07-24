@@ -7,6 +7,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AccaBoostService } from '../acca-boost/acca-boost.service';
 import { AccaRollbackService } from '../acca-rollback/acca-rollback.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
 import { BoostService } from '../boosts/boost.service';
 import { OddsLadderService } from '../boosts/odds-ladder.service';
 import { FreebetService } from '../freebets/freebet.service';
@@ -60,6 +61,7 @@ describe('PamService', () => {
   let manualMarketService: ManualMarketService;
   let boostService: BoostService;
   let freebetService: FreebetService;
+  let betAndGetCampaignService: BetAndGetCampaignService;
   let prisma: PrismaService;
   let setupPrisma: PrismaService;
   let testBrandId: string;
@@ -102,6 +104,7 @@ describe('PamService', () => {
         BoostService,
         OddsLadderService,
         FreebetService,
+        BetAndGetCampaignService,
         {
           provide: OddsEngineClient,
           useValue: { fetchMatchById: vi.fn(async (matchId: string) => fakeMatch(matchId)) },
@@ -120,6 +123,7 @@ describe('PamService', () => {
     manualMarketService = moduleRef.get(ManualMarketService);
     boostService = moduleRef.get(BoostService);
     freebetService = moduleRef.get(FreebetService);
+    betAndGetCampaignService = moduleRef.get(BetAndGetCampaignService);
     prisma = moduleRef.get(PrismaService);
   });
 
@@ -132,6 +136,7 @@ describe('PamService', () => {
     await prisma.stakeLimit.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.manualMarket.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.boost.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
+    await prisma.betAndGetCampaign.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.auditLogEntry.deleteMany({
       where: {
         actorUsername: {
@@ -952,6 +957,120 @@ describe('PamService', () => {
           freebetGrantId: grant.id,
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('bet & get', () => {
+    async function createEnabledCampaign(
+      overrides: Partial<Parameters<typeof betAndGetCampaignService.create>[1]> = {},
+    ) {
+      const campaign = await betAndGetCampaignService.create(
+        testBrandId,
+        { name: 'CL Bet & Get', rewardAmountCents: 500, ...overrides },
+        TEST_ACTOR,
+      );
+      await betAndGetCampaignService.setScopes(
+        testBrandId,
+        campaign.id,
+        [{ scopeType: 'SPORT', scopeValue: 'Football' }],
+        TEST_ACTOR,
+      );
+      return betAndGetCampaignService.update(testBrandId, campaign.id, { enabled: true }, TEST_ACTOR);
+    }
+
+    it('grants the reward immediately at placement for a PLACEMENT-trigger campaign', async () => {
+      const campaign = await createEnabledCampaign({ trigger: 'PLACEMENT' });
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      expect(bet.betAndGetCampaignId).toBe(campaign.id);
+      const grant = await prisma.freebetGrant.findFirstOrThrow({ where: { sourceBetId: bet.id, source: 'BET_AND_GET' } });
+      expect(grant.amountCents).toBe(500);
+      expect(grant.sourceCampaignId).toBe(campaign.id);
+      expect(grant.userId).toBe(userId);
+    });
+
+    it('defers the reward to settlement for a SETTLEMENT-trigger campaign, granting only on the configured outcome', async () => {
+      const campaign = await createEnabledCampaign({ trigger: 'SETTLEMENT', triggerOnLost: true });
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      expect(bet.betAndGetCampaignId).toBe(campaign.id);
+      expect(await prisma.freebetGrant.findFirst({ where: { sourceBetId: bet.id, source: 'BET_AND_GET' } })).toBeNull();
+
+      const settled = await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'LOST', TEST_ACTOR);
+
+      expect(settled.status).toBe('LOST');
+      const grant = await prisma.freebetGrant.findFirstOrThrow({ where: { sourceBetId: bet.id, source: 'BET_AND_GET' } });
+      expect(grant.amountCents).toBe(500);
+      expect(grant.sourceCampaignId).toBe(campaign.id);
+    });
+
+    it('never grants a SETTLEMENT-trigger campaign on an outcome its flags do not cover', async () => {
+      await createEnabledCampaign({ trigger: 'SETTLEMENT', triggerOnLost: true });
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+
+      expect(await prisma.freebetGrant.findFirst({ where: { sourceBetId: bet.id, source: 'BET_AND_GET' } })).toBeNull();
+    });
+
+    it('never links a bet to a campaign once the player has exhausted their redemptions', async () => {
+      const campaign = await createEnabledCampaign({ trigger: 'PLACEMENT' });
+      const userId = await createTestUser(100_000);
+      await prisma.freebetGrant.create({
+        data: {
+          userId,
+          brandId: testBrandId,
+          amountCents: 500,
+          source: 'BET_AND_GET',
+          sourceCampaignId: campaign.id,
+        },
+      });
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      expect(bet.betAndGetCampaignId).toBeNull();
+      expect(await prisma.freebetGrant.findFirst({ where: { sourceBetId: bet.id, source: 'BET_AND_GET' } })).toBeNull();
+    });
+
+    it('never links a bet whose selections fall outside every enabled campaign\'s scope', async () => {
+      await createEnabledCampaign({ trigger: 'PLACEMENT' });
+      const userId = await createTestUser(100_000);
+
+      // fakeMatch always returns sport: 'Football', so use a second leg on a
+      // different match id but still Football - swap the scope to Basketball
+      // instead so this bet falls outside it.
+      const campaign = await betAndGetCampaignService.list(testBrandId);
+      await betAndGetCampaignService.setScopes(
+        testBrandId,
+        campaign[0]!.id,
+        [{ scopeType: 'SPORT', scopeValue: 'Basketball' }],
+        TEST_ACTOR,
+      );
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      expect(bet.betAndGetCampaignId).toBeNull();
     });
   });
 

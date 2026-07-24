@@ -7,6 +7,7 @@ import { calculateAccaBoost } from '../acca-boost/acca-boost';
 import { AccaRollbackService } from '../acca-rollback/acca-rollback.service';
 import { calculateAccaRollbackReward } from '../acca-rollback/acca-rollback';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
 import { BoostService } from '../boosts/boost.service';
 import { FreebetService } from '../freebets/freebet.service';
 import { InsuranceBetService } from '../insurance-bet/insurance-bet.service';
@@ -43,6 +44,7 @@ export class PamService {
     private readonly boostService: BoostService,
     private readonly freebetService: FreebetService,
     private readonly insuranceBetService: InsuranceBetService,
+    private readonly betAndGetCampaignService: BetAndGetCampaignService,
   ) {}
 
   async getWallet(userId: string): Promise<{ balanceCents: number }> {
@@ -430,6 +432,25 @@ export class PamService {
     );
     const boostLiabilityToRecord = await this.assertWithinBoostLimitsAndCollectLiability(brandId, dto, matchesById);
 
+    // Resolved once here from live match data (every selection's match must
+    // fall within the campaign's scope, not just one leg) and snapshotted on
+    // the bet below - never re-derived at settlement, so a later scope or
+    // condition change never retroactively relabels an already-placed bet.
+    // A player who's already exhausted their redemptions for this campaign
+    // simply doesn't link to it at all, same as not qualifying by scope.
+    const applicableCampaign = await this.betAndGetCampaignService.resolveApplicableCampaign(
+      brandId,
+      dto.selections.map((selection) => {
+        const match = matchesById.get(selection.matchId)!;
+        return { sport: match.sport, competition: match.competition, matchId: selection.matchId };
+      }),
+      { stakeCents: dto.stakeCents, legOdds: dto.selections.map((selection) => selection.odds) },
+    );
+    const betAndGetCampaign =
+      applicableCampaign && (await this.betAndGetCampaignService.canRedeem(applicableCampaign, userId))
+        ? applicableCampaign
+        : null;
+
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       if (!freebetGrant && user.balanceCents < dto.stakeCents) {
@@ -468,6 +489,7 @@ export class PamService {
           accaBoostPercent: boost.boostPercent,
           insuranceCostPercent: insurancePricing.costPercent,
           freebetGrantId: freebetGrant?.id,
+          betAndGetCampaignId: betAndGetCampaign?.id,
           selections: {
             create: dto.selections.map((selection) => ({
               matchId: selection.matchId,
@@ -485,6 +507,23 @@ export class PamService {
 
       if (freebetGrant) {
         await this.freebetService.spend(freebetGrant.id, userId, bet.id, tx);
+      }
+
+      // A SETTLEMENT-triggered campaign already has its reward deferred by
+      // simply not granting here - settleSelection checks betAndGetCampaignId
+      // once the bet's outcome is known.
+      if (betAndGetCampaign && betAndGetCampaign.trigger === 'PLACEMENT') {
+        await this.freebetService.grantSystem(
+          {
+            userId,
+            brandId: user.brandId,
+            amountCents: betAndGetCampaign.rewardAmountCents,
+            source: 'BET_AND_GET',
+            sourceBetId: bet.id,
+            sourceCampaignId: betAndGetCampaign.id,
+          },
+          tx,
+        );
       }
 
       for (const { marketId, liabilityCents } of manualMarketLiabilityToRecord) {
@@ -640,6 +679,34 @@ export class PamService {
           },
           tx,
         );
+      }
+
+      // Only ever set when this bet linked to a SETTLEMENT-triggered
+      // campaign at placement time (see placeBet) - a PLACEMENT-triggered
+      // one already granted its reward there. Like insurance, a LOST
+      // outcome is final the instant one leg loses and doesn't need every
+      // leg terminal; WON/VOID only ever come back from computeBetOutcome
+      // once every leg already is, so no extra check is needed for those.
+      if (updatedBet.betAndGetCampaignId) {
+        const campaign = await tx.betAndGetCampaign.findUnique({ where: { id: updatedBet.betAndGetCampaignId } });
+        const outcomeTriggersCampaign =
+          campaign?.trigger === 'SETTLEMENT' &&
+          ((outcome.overallStatus === 'WON' && campaign.triggerOnWon) ||
+            (outcome.overallStatus === 'LOST' && campaign.triggerOnLost) ||
+            (outcome.overallStatus === 'VOID' && campaign.triggerOnVoid));
+        if (campaign && outcomeTriggersCampaign) {
+          await this.freebetService.grantSystem(
+            {
+              userId: updatedBet.userId,
+              brandId,
+              amountCents: campaign.rewardAmountCents,
+              source: 'BET_AND_GET',
+              sourceBetId: betId,
+              sourceCampaignId: campaign.id,
+            },
+            tx,
+          );
+        }
       }
 
       const previousCredited = updatedBet.settledPayoutCents ?? 0;

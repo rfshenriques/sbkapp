@@ -3,6 +3,7 @@ import { AccaBoostModule } from '../acca-boost/acca-boost.module';
 import { AccaRollbackModule } from '../acca-rollback/acca-rollback.module';
 import { AdminModule } from '../admin/admin.module';
 import { AuthModule } from '../auth/auth.module';
+import { BetAndGetModule } from '../bet-and-get/bet-and-get.module';
 import { BoostsModule } from '../boosts/boosts.module';
 import { FreebetModule } from '../freebets/freebet.module';
 import { InsuranceBetModule } from '../insurance-bet/insurance-bet.module';
@@ -31,6 +32,7 @@ import { PublicStakeLimitPreviewController } from './public-stake-limit-preview.
     ManualMarketModule,
     BoostsModule,
     FreebetModule,
+    BetAndGetModule,
   ],
   controllers: [
     PamController,
