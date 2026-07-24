@@ -222,7 +222,10 @@ export function AppShell() {
 
       <Footer />
 
-      {selections.length > 0 && (
+      {/* Hidden while the sports nav drawer is open - it's z-30 (above the
+          drawer's z-20, so the bottom nav stays reachable above it) and was
+          poking a rounded corner up over the drawer's own bottom edge. */}
+      {selections.length > 0 && !isNavOpen && (
         <button
           type="button"
           onClick={() => setIsSlipOpen(true)}
@@ -347,15 +350,24 @@ export function AppShell() {
           header and bottom nav like its own page, rather than a partial
           drawer with the rest of the app visible behind it - sm:hidden
           keeps it from ever coexisting with the persistent desktop aside
-          above. Bounded to top-16/bottom (not inset-0) so the header and
-          bottom nav stay visible and on top, the same as every other page -
-          a plain inset-0 used to cover both entirely, making this feel like
-          it had left the app rather than being part of it. No explicit
-          close button - tapping Search again or any other bottom-nav tab
-          closes it, same as switching between any other pair of pages. */}
+          above. Bottom is bounded (not inset-0) so the bottom nav stays
+          visible and on top - a plain inset-0 used to cover it entirely,
+          making this feel like it had left the app rather than being part
+          of it. No explicit close button - tapping Search again or any
+          other bottom-nav tab closes it, same as switching between any
+          other pair of pages.
+
+          Extends up to top-0, behind the header (header is z-30, this is
+          z-20, so it still renders on top) rather than starting at top-16 -
+          the header's bg-background/90 + backdrop-blur is only ~90% opaque
+          by design (it's meant to blur the page scrolling underneath it),
+          so stopping the drawer right at the header's bottom edge left the
+          still-mounted page behind it (not this drawer) showing dimly
+          blurred through that translucent strip. Extra pt-20 keeps the
+          drawer's own content starting below the header as before. */}
       {isNavOpen && (
         <div
-          className="slide-in-down scrollbar-hide fixed inset-x-0 top-16 z-20 flex flex-col overflow-y-auto bg-background p-4 sm:hidden"
+          className="slide-in-down scrollbar-hide fixed inset-x-0 top-0 z-20 flex flex-col overflow-y-auto bg-background p-4 pt-20 sm:hidden"
           style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
         >
           <h2 className="mb-3 font-display text-lg">Sports</h2>
