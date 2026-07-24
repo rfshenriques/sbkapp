@@ -25,6 +25,7 @@ export class MarginConfigController {
   set(@Body() dto: SetMarginConfigDto, @Req() req: AuthenticatedStaffRequest) {
     return this.marginConfigService.setMargin(
       req.user.brandId,
+      dto.sport,
       dto.marketName,
       dto.tier,
       dto.marginPercent,

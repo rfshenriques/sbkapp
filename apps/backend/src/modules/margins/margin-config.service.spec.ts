@@ -56,29 +56,40 @@ describe('MarginConfigService', () => {
   });
 
   it('sets a margin and lists it back', async () => {
-    await service.setMargin(brandAId, 'Match Result', 1, 20, TEST_ACTOR);
-    await service.setMargin(brandAId, 'Match Result', 2, 15, TEST_ACTOR);
+    await service.setMargin(brandAId, 'Football', 'Match Result', 1, 20, TEST_ACTOR);
+    await service.setMargin(brandAId, 'Football', 'Match Result', 2, 15, TEST_ACTOR);
 
     const rows = await service.listMargins(brandAId);
-    expect(rows.map((row) => [row.marketName, row.tier, row.marginPercent])).toEqual([
-      ['Match Result', 1, 20],
-      ['Match Result', 2, 15],
+    expect(rows.map((row) => [row.sport, row.marketName, row.tier, row.marginPercent])).toEqual([
+      ['Football', 'Match Result', 1, 20],
+      ['Football', 'Match Result', 2, 15],
     ]);
   });
 
-  it('is idempotent - setting a margin for an already-configured (marketName, tier) pair updates it', async () => {
-    await service.setMargin(brandAId, 'Match Result', 1, 20, TEST_ACTOR);
-    await service.setMargin(brandAId, 'Match Result', 1, 25, TEST_ACTOR);
+  it('is idempotent - setting a margin for an already-configured (sport, marketName, tier) triple updates it', async () => {
+    await service.setMargin(brandAId, 'Football', 'Match Result', 1, 20, TEST_ACTOR);
+    await service.setMargin(brandAId, 'Football', 'Match Result', 1, 25, TEST_ACTOR);
 
     const rows = await prisma.marginConfig.findMany({
-      where: { brandId: brandAId, marketName: 'Match Result', tier: 1 },
+      where: { brandId: brandAId, sport: 'Football', marketName: 'Match Result', tier: 1 },
     });
     expect(rows).toHaveLength(1);
     expect(rows[0]?.marginPercent).toBe(25);
   });
 
+  it('the same market/tier can carry a different margin per sport', async () => {
+    await service.setMargin(brandAId, 'Football', 'Match Result', 1, 20, TEST_ACTOR);
+    await service.setMargin(brandAId, 'Tennis', 'Match Result', 1, 5, TEST_ACTOR);
+
+    const rows = await service.listMargins(brandAId);
+    expect(rows.map((row) => [row.sport, row.marginPercent])).toEqual([
+      ['Football', 20],
+      ['Tennis', 5],
+    ]);
+  });
+
   it('removing a margin config deletes it', async () => {
-    const row = await service.setMargin(brandAId, 'Match Result', 1, 20, TEST_ACTOR);
+    const row = await service.setMargin(brandAId, 'Football', 'Match Result', 1, 20, TEST_ACTOR);
     await service.removeMargin(brandAId, row.id, TEST_ACTOR);
 
     expect(await service.listMargins(brandAId)).toEqual([]);
@@ -91,7 +102,7 @@ describe('MarginConfigService', () => {
   });
 
   it('records audit entries for set and remove', async () => {
-    const row = await service.setMargin(brandAId, 'Match Result', 1, 20, TEST_ACTOR);
+    const row = await service.setMargin(brandAId, 'Football', 'Match Result', 1, 20, TEST_ACTOR);
     await service.removeMargin(brandAId, row.id, TEST_ACTOR);
 
     const entries = await prisma.auditLogEntry.findMany({
@@ -99,18 +110,23 @@ describe('MarginConfigService', () => {
       orderBy: { createdAt: 'asc' },
     });
     expect(entries.map((entry) => entry.action)).toEqual(['MARGIN_CONFIG_SET', 'MARGIN_CONFIG_REMOVED']);
-    expect(entries[0]?.metadata).toMatchObject({ marketName: 'Match Result', tier: 1, marginPercent: 20 });
+    expect(entries[0]?.metadata).toMatchObject({
+      sport: 'Football',
+      marketName: 'Match Result',
+      tier: 1,
+      marginPercent: 20,
+    });
   });
 
   it('is isolated per brand', async () => {
-    await service.setMargin(brandAId, 'Match Result', 1, 20, TEST_ACTOR);
+    await service.setMargin(brandAId, 'Football', 'Match Result', 1, 20, TEST_ACTOR);
 
     expect(await service.listMargins(brandAId)).toHaveLength(1);
     expect(await service.listMargins(brandBId)).toHaveLength(0);
   });
 
   it("a brand can never remove another brand's margin config, even by guessing its id", async () => {
-    const row = await service.setMargin(brandAId, 'Match Result', 1, 20, TEST_ACTOR);
+    const row = await service.setMargin(brandAId, 'Football', 'Match Result', 1, 20, TEST_ACTOR);
 
     await expect(service.removeMargin(brandBId, row.id, OTHER_BRAND_ACTOR)).rejects.toBeInstanceOf(
       NotFoundException,

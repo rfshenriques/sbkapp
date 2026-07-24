@@ -23,7 +23,7 @@ export function applyMargin(oddsFeed: number, marginPercent: number): number {
   return Math.round(adjustedOdds * 100) / 100;
 }
 
-/** Composite key for looking up a MarginConfig row by (tier, marketName) in a Map. */
-export function marginConfigKey(tier: number, marketName: string): string {
-  return `${tier}:${marketName}`;
+/** Composite key for looking up a MarginConfig row by (sport, tier, marketName) in a Map. */
+export function marginConfigKey(sport: string, tier: number, marketName: string): string {
+  return `${sport}:${tier}:${marketName}`;
 }

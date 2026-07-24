@@ -21,7 +21,9 @@ export class MarginPricingService {
     ]);
 
     const tierByCompetition = new Map(tiers.map((row) => [row.competition, row.tier]));
-    const marginByKey = new Map(marginConfigs.map((row) => [marginConfigKey(row.tier, row.marketName), row.marginPercent]));
+    const marginByKey = new Map(
+      marginConfigs.map((row) => [marginConfigKey(row.sport, row.tier, row.marketName), row.marginPercent]),
+    );
 
     return matches.map((match) => {
       const tier = tierByCompetition.get(match.competition);
@@ -31,7 +33,7 @@ export class MarginPricingService {
       return {
         ...match,
         markets: match.markets.map((market) => {
-          const marginPercent = marginByKey.get(marginConfigKey(tier, market.name));
+          const marginPercent = marginByKey.get(marginConfigKey(match.sport, tier, market.name));
           if (marginPercent === undefined) {
             return market;
           }

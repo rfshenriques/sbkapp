@@ -36,8 +36,12 @@ describe('applyMargin', () => {
 });
 
 describe('marginConfigKey', () => {
-  it('composes a stable key from tier and market name', () => {
-    expect(marginConfigKey(1, 'Match Result')).toBe('1:Match Result');
-    expect(marginConfigKey(2, 'Match Result')).not.toBe(marginConfigKey(1, 'Match Result'));
+  it('composes a stable key from sport, tier, and market name', () => {
+    expect(marginConfigKey('Football', 1, 'Match Result')).toBe('Football:1:Match Result');
+    expect(marginConfigKey('Football', 2, 'Match Result')).not.toBe(marginConfigKey('Football', 1, 'Match Result'));
+  });
+
+  it('distinguishes the same market/tier across different sports', () => {
+    expect(marginConfigKey('Football', 1, 'Match Result')).not.toBe(marginConfigKey('Tennis', 1, 'Match Result'));
   });
 });

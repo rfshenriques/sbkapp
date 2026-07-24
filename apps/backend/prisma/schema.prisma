@@ -239,22 +239,26 @@ model StakeLimit {
 
 /**
  * Margin percent for a given raw feed market name (e.g. "Match Result") at
- * a given tier (1-4), per brand. Applied to every match whose competition
- * is assigned that tier (see CompetitionTier) - a (tier, marketName) pair
- * with no row here means no margin is applied to that market, same
- * "nothing fabricated" rule as CompetitionTier.
+ * a given tier (1-4) within a given sport, per brand. Applied to every
+ * match whose competition is assigned that tier (see CompetitionTier) and
+ * whose sport matches - the same market name at the same tier can carry a
+ * different margin per sport (e.g. Football's Match Result vs Tennis's),
+ * since "Match Result" isn't a single fungible market across sports. A
+ * (sport, tier, marketName) triple with no row here means no margin is
+ * applied to that market, same "nothing fabricated" rule as CompetitionTier.
  */
 model MarginConfig {
   id            String   @id @default(uuid())
   brandId       String
   brand         Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  sport         String
   marketName    String
   tier          Int
   marginPercent Float
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@unique([brandId, marketName, tier])
+  @@unique([brandId, sport, marketName, tier])
   @@index([brandId])
   @@map("margin_configs")
 }

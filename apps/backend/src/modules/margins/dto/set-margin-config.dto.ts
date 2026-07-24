@@ -1,6 +1,11 @@
 import { IsIn, IsNumber, IsString, Max, Min, MinLength } from 'class-validator';
 
 export class SetMarginConfigDto {
+  /** Raw feed sport (e.g. "Football") - must match Match.sport verbatim. */
+  @IsString()
+  @MinLength(1)
+  sport!: string;
+
   /** Raw feed market name (e.g. "Match Result") - must match Market.name verbatim. */
   @IsString()
   @MinLength(1)

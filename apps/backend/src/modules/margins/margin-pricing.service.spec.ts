@@ -86,7 +86,7 @@ describe('MarginPricingService', () => {
   it('applies the configured margin to every selection in a tiered competition + configured market', async () => {
     await prisma.competitionTier.create({ data: { brandId, competition: 'EPL', tier: 1 } });
     await prisma.marginConfig.create({
-      data: { brandId, marketName: 'Match Result', tier: 1, marginPercent: 20 },
+      data: { brandId, sport: 'Football', marketName: 'Match Result', tier: 1, marginPercent: 20 },
     });
     const match = buildMatch();
 
@@ -102,7 +102,7 @@ describe('MarginPricingService', () => {
   it('only adjusts markets matching the configured market name, leaving other markets on the same match untouched', async () => {
     await prisma.competitionTier.create({ data: { brandId, competition: 'EPL', tier: 1 } });
     await prisma.marginConfig.create({
-      data: { brandId, marketName: 'Match Result', tier: 1, marginPercent: 20 },
+      data: { brandId, sport: 'Football', marketName: 'Match Result', tier: 1, marginPercent: 20 },
     });
     const match = buildMatch({
       markets: [
@@ -116,13 +116,31 @@ describe('MarginPricingService', () => {
     expect(result?.markets[1]?.selections[0]?.odds).toBe(1.9);
   });
 
+  it('only applies a margin configured for the matching sport, leaving a different sport at the same tier/market untouched', async () => {
+    await prisma.competitionTier.create({ data: { brandId, competition: 'EPL', tier: 1 } });
+    await prisma.competitionTier.create({ data: { brandId, competition: 'ATP Finals', tier: 1 } });
+    await prisma.marginConfig.create({
+      data: { brandId, sport: 'Football', marketName: 'Match Result', tier: 1, marginPercent: 20 },
+    });
+    const footballMatch = buildMatch();
+    const tennisMatch = buildMatch({ id: 'match-2', sport: 'Tennis', competition: 'ATP Finals' });
+
+    const [footballResult, tennisResult] = await service.applyMarginToMatches(brandId, [
+      footballMatch,
+      tennisMatch,
+    ]);
+
+    expect(footballResult?.markets[0]?.selections.find((s) => s.id === 'home')?.odds).toBeCloseTo(1.43, 2);
+    expect(tennisResult).toEqual(tennisMatch);
+  });
+
   it('is isolated per brand', async () => {
     const otherBrand = await prisma.brand.create({
       data: { name: 'Other margin brand', slug: `other-margin-brand-${randomUUID()}` },
     });
     await prisma.competitionTier.create({ data: { brandId: otherBrand.id, competition: 'EPL', tier: 1 } });
     await prisma.marginConfig.create({
-      data: { brandId: otherBrand.id, marketName: 'Match Result', tier: 1, marginPercent: 20 },
+      data: { brandId: otherBrand.id, sport: 'Football', marketName: 'Match Result', tier: 1, marginPercent: 20 },
     });
     const match = buildMatch();
 

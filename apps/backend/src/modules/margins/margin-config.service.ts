@@ -9,11 +9,18 @@ export class MarginConfigService {
     private readonly auditLogService: AuditLogService,
   ) {}
 
-  /** Idempotent - setting a margin for an already-configured (marketName, tier) pair just updates it. */
-  async setMargin(brandId: string, marketName: string, tier: number, marginPercent: number, actor: AuditActor) {
+  /** Idempotent - setting a margin for an already-configured (sport, marketName, tier) triple just updates it. */
+  async setMargin(
+    brandId: string,
+    sport: string,
+    marketName: string,
+    tier: number,
+    marginPercent: number,
+    actor: AuditActor,
+  ) {
     const row = await this.prisma.marginConfig.upsert({
-      where: { brandId_marketName_tier: { brandId, marketName, tier } },
-      create: { brandId, marketName, tier, marginPercent },
+      where: { brandId_sport_marketName_tier: { brandId, sport, marketName, tier } },
+      create: { brandId, sport, marketName, tier, marginPercent },
       update: { marginPercent },
     });
 
@@ -22,7 +29,7 @@ export class MarginConfigService {
       action: 'MARGIN_CONFIG_SET',
       targetType: 'MarginConfig',
       targetId: row.id,
-      metadata: { marketName, tier, marginPercent },
+      metadata: { sport, marketName, tier, marginPercent },
     });
 
     return row;
@@ -42,7 +49,7 @@ export class MarginConfigService {
       action: 'MARGIN_CONFIG_REMOVED',
       targetType: 'MarginConfig',
       targetId: row.id,
-      metadata: { marketName: row.marketName, tier: row.tier },
+      metadata: { sport: row.sport, marketName: row.marketName, tier: row.tier },
     });
 
     return row;
@@ -51,7 +58,7 @@ export class MarginConfigService {
   async listMargins(brandId: string) {
     return this.prisma.marginConfig.findMany({
       where: { brandId },
-      orderBy: [{ marketName: 'asc' }, { tier: 'asc' }],
+      orderBy: [{ sport: 'asc' }, { marketName: 'asc' }, { tier: 'asc' }],
     });
   }
 }
