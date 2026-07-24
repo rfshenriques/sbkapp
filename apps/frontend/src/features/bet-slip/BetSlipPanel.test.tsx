@@ -84,24 +84,22 @@ describe('BetSlipPanel', () => {
     expect(screen.getByText('5.25')).toBeInTheDocument();
   });
 
-  it('shows a Boost badge and the struck-through original price for a boosted selection, and the payout uses the boosted price', () => {
+  it('shows the struck-through original price for a boosted selection, and the payout uses the boosted price', () => {
     const boostedHome = { ...homeSelection, odds: 2.5, originalOdds: 2.1 };
     useBetSlipStore.setState({ selections: [boostedHome] });
     renderPanel();
 
-    expect(screen.getByText('Boost')).toBeInTheDocument();
     expect(screen.getByText('2.10')).toBeInTheDocument();
     expect(screen.getAllByText('2.50').length).toBeGreaterThan(0);
   });
 
-  it('shows the Boost badge on every boosted accumulator row, not on unboosted ones', () => {
+  it('shows the struck-through original price on every boosted accumulator row, not on unboosted ones', () => {
     const boostedHome = { ...homeSelection, odds: 2.5, originalOdds: 2.1 };
     useBetSlipStore.setState({ selections: [boostedHome, awaySelection] });
     renderPanel();
 
     // Accumulator is the default tab once there are 2+ selections.
-    expect(screen.getAllByText('Boost')).toHaveLength(1);
-    expect(screen.getByText('2.10')).toBeInTheDocument();
+    expect(screen.getAllByText('2.10')).toHaveLength(1);
   });
 
   describe('acca boost bar', () => {
@@ -219,6 +217,55 @@ describe('BetSlipPanel', () => {
     });
   });
 
+  describe('insurance opt-in excludes acca boost and acca rollback', () => {
+    function stubAllThreeConfigs(config: { costPercent: number }) {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          if (url === '/backend/public/acca-boost-config/brand-1') {
+            return new Response(
+              JSON.stringify({ boostPercentPerLeg: 5, minSelections: 3, minOddsPerLeg: 1.2, enabled: true }),
+              { status: 200 },
+            );
+          }
+          if (url === '/backend/public/acca-rollback-config/brand-1') {
+            return new Response(
+              JSON.stringify({ minSelections: 3, lossThreshold: 1, rewardPercent: 100, enabled: true }),
+              { status: 200 },
+            );
+          }
+          if (url === '/backend/public/insurance-bet-config/brand-1') {
+            return new Response(JSON.stringify({ costPercent: config.costPercent, enabled: true }), { status: 200 });
+          }
+          return new Response(null, { status: 404 });
+        }),
+      );
+    }
+
+    it('hides the Acca Boost and Acca Rollback bars once insurance is toggled on, and un-boosts the odds', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubAllThreeConfigs({ costPercent: 10 });
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection, drawSelection] });
+      renderPanel();
+
+      expect(await screen.findByText('🚀 Acca Boost +15%')).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          '🛡️ Will qualify for Acca Rollback - get 100% back as a freebet if it loses by no more than 1 selection',
+        ),
+      ).toBeInTheDocument();
+
+      const toggle = await screen.findByRole('switch', { name: /Insure this bet/ });
+      await userEvent.click(toggle);
+
+      expect(screen.queryByText(/Acca Boost/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Acca Rollback/)).not.toBeInTheDocument();
+      // Boost no longer applies once insured - combined odds falls back to the base 10.50.
+      expect(screen.getByText('10.50')).toBeInTheDocument();
+    });
+  });
+
   describe('insurance bet toggle', () => {
     function stubInsuranceBetConfig(config: { costPercent: number; enabled: boolean }) {
       vi.stubGlobal(
@@ -248,7 +295,7 @@ describe('BetSlipPanel', () => {
       useBetSlipStore.setState({ selections: [homeSelection] });
       renderPanel();
 
-      const toggle = await screen.findByRole('checkbox', { name: /Insure this bet/ });
+      const toggle = await screen.findByRole('switch', { name: /Insure this bet/ });
       expect(toggle).not.toBeChecked();
       // Stake 10.00 * odds 2.1 = 21.00 uninsured.
       expect(screen.getByText('21.00')).toBeInTheDocument();

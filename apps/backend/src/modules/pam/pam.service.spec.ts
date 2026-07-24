@@ -296,6 +296,31 @@ describe('PamService', () => {
       // Same 9.2 boosted odds recomputed at settlement from the legs' own odds + the locked-in 15% boost.
       expect(settled!.settledPayoutCents).toBe(9_200);
     });
+
+    it('never boosts a bet the player insured, to avoid double-bonusing', async () => {
+      await accaBoostService.setConfig(
+        testBrandId,
+        { boostPercentPerLeg: 5, minSelections: 3, minOddsPerLeg: 1.2, enabled: true },
+        TEST_ACTOR,
+      );
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', odds: 2.0 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2.0 }),
+          buildSelection({ matchId: 'match-3', selectionId: 'away', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+        insuranceOptIn: true,
+      });
+
+      expect(bet.accaBoostPercent).toBe(0);
+      expect(Number(bet.combinedOdds)).toBeCloseTo(8);
+      // Base payout 8_000, un-boosted -> then 10% insurance cost -> 7_200.
+      expect(bet.potentialPayoutCents).toBe(7_200);
+    });
   });
 
   describe('stake limits', () => {
@@ -1420,6 +1445,41 @@ describe('PamService', () => {
 
       const rollbackGrant = await prisma.freebetGrant.findFirst({ where: { sourceBetId: bet.id } });
       expect(rollbackGrant).toBeNull();
+    });
+
+    it('does not grant a rollback reward for an insured accumulator, to avoid double-bonusing', async () => {
+      await accaRollbackService.setConfig(
+        testBrandId,
+        { minSelections: 3, lossThreshold: 1, rewardPercent: 100, enabled: true },
+        TEST_ACTOR,
+      );
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', odds: 2.0 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2.0 }),
+          buildSelection({ matchId: 'match-3', selectionId: 'away', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+        insuranceOptIn: true,
+      });
+
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[1]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[2]!.id, 'LOST', TEST_ACTOR);
+
+      // Insurance itself still refunds the stake as a freebet (source
+      // INSURANCE_BET) - only the rollback reward (source ACCA_ROLLBACK)
+      // is the one that must never additionally fire.
+      const rollbackGrant = await prisma.freebetGrant.findFirst({
+        where: { sourceBetId: bet.id, source: 'ACCA_ROLLBACK' },
+      });
+      expect(rollbackGrant).toBeNull();
+      const insuranceGrant = await prisma.freebetGrant.findFirstOrThrow({
+        where: { sourceBetId: bet.id, source: 'INSURANCE_BET' },
+      });
+      expect(insuranceGrant.amountCents).toBe(1_000);
     });
 
     it('is idempotent - re-settling the same losing leg never grants the reward twice', async () => {

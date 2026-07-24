@@ -331,26 +331,30 @@ export class PamService {
       }
     }
 
+    // Insurance is priced per-bet (no minimum leg count) and, like acca
+    // boost, never applies on a freebet-funded bet - the premium would
+    // reduce a payout the player never paid cash for in the first place.
+    // Fetched before acca boost below since a bet insured against loss
+    // never also gets boosted odds - stacking a guaranteed-stake-back
+    // reward with a price boost would be double-bonusing the same bet,
+    // same rule that already keeps freebets and acca boost apart.
+    const insuranceBetConfig = await this.insuranceBetService.getConfig(brandId);
+    const insuranceOptedIn = Boolean(dto.insuranceOptIn) && !freebetGrant;
+    const insuranceApplies = insuranceOptedIn && insuranceBetConfig.enabled;
+
     const accaBoostConfig = await this.accaBoostService.getConfig(brandId);
     const rawBoost = calculateAccaBoost(
       dto.selections.map((selection) => selection.odds),
       accaBoostConfig,
     );
-    const boost = freebetGrant
-      ? { boostedCombinedOdds: rawBoost.baseCombinedOdds, boostPercent: 0 }
-      : rawBoost;
+    const boost =
+      freebetGrant || insuranceApplies
+        ? { boostedCombinedOdds: rawBoost.baseCombinedOdds, boostPercent: 0 }
+        : rawBoost;
     const combinedOdds = boost.boostedCombinedOdds;
     const rawPotentialPayoutCents = Math.round(dto.stakeCents * combinedOdds);
 
-    // Insurance is priced per-bet (no minimum leg count) and, like acca
-    // boost, never applies on a freebet-funded bet - the premium would
-    // reduce a payout the player never paid cash for in the first place.
-    const insuranceBetConfig = await this.insuranceBetService.getConfig(brandId);
-    const insurancePricing = calculateInsuredPayout(
-      rawPotentialPayoutCents,
-      Boolean(dto.insuranceOptIn) && !freebetGrant,
-      insuranceBetConfig,
-    );
+    const insurancePricing = calculateInsuredPayout(rawPotentialPayoutCents, insuranceOptedIn, insuranceBetConfig);
     const potentialPayoutCents = insurancePricing.insuredPayoutCents;
 
     await this.assertWithinStakeLimits(userId, brandId, dto, matchesById, potentialPayoutCents);
@@ -523,11 +527,17 @@ export class PamService {
       // even while siblings are still OPEN - so the losing-leg count isn't
       // final until every leg has a terminal status. Evaluating rollback
       // eligibility any earlier could grant a reward before all the facts
-      // (how many legs actually lost) are in. Freebet-funded bets never
-      // qualify either - refunding a reward on top of a bet that was
-      // already a reward is the same double-bonusing acca boost avoids.
+      // (how many legs actually lost) are in. Freebet-funded and
+      // insured bets never qualify either - refunding a reward on top of a
+      // bet that already carries one is the same double-bonusing acca
+      // boost avoids (see placeBet's insuranceApplies gate).
       const allLegsTerminal = updatedBet.selections.every((selection) => selection.status !== 'OPEN');
-      if (outcome.overallStatus === 'LOST' && allLegsTerminal && updatedBet.freebetGrantId === null) {
+      if (
+        outcome.overallStatus === 'LOST' &&
+        allLegsTerminal &&
+        updatedBet.freebetGrantId === null &&
+        updatedBet.insuranceCostPercent === 0
+      ) {
         const rollbackConfig = await this.accaRollbackService.getConfig(brandId);
         const lostLegCount = updatedBet.selections.filter((selection) => selection.status === 'LOST').length;
         const reward = calculateAccaRollbackReward(

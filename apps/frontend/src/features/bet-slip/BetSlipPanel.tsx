@@ -4,6 +4,7 @@ import type { Freebet } from '../../lib/backendApi';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
 import { placeBet } from '../../lib/backendApi';
 import { useAuth } from '../auth/useAuth';
@@ -51,18 +52,24 @@ function selectionKey(selection: BetSlipSelection): string {
   return `${selection.matchId}-${selection.marketId}`;
 }
 
-/** Plain odds, or - when originalOdds is set (see BoostService.applyBoosts) - a Boost tag plus the struck-through original next to the boosted price. */
+/**
+ * Plain odds, or - when originalOdds is set (see BoostService.applyBoosts) -
+ * the struck-through original price, an arrow, then the boosted price. Same
+ * strikethrough/arrow/highlight-value visual as BoostedOddsRow (the Boosts
+ * page and match detail page's Boosts section), so a boosted selection
+ * reads identically wherever it appears.
+ */
 function SelectionOdds({ selection }: { selection: BetSlipSelection }) {
   if (selection.originalOdds === undefined) {
     return <span className="font-semibold">{selection.odds.toFixed(2)}</span>;
   }
   return (
-    <span className="flex items-center gap-1.5">
-      <span className="rounded-full bg-highlight px-1.5 py-px text-[9px] font-extrabold tracking-wide text-black uppercase">
-        Boost
-      </span>
+    <span className="flex items-center gap-2">
       <span className="prev-odds text-xs font-semibold line-through decoration-1">
         {selection.originalOdds.toFixed(2)}
+      </span>
+      <span className="text-text-secondary" aria-hidden="true">
+        &rarr;
       </span>
       <span className="font-semibold text-highlight">{selection.odds.toFixed(2)}</span>
     </span>
@@ -535,12 +542,14 @@ export function BetSlipPanel({
     selections.map((selection) => selection.odds),
     accaBoostConfig,
   );
-  // Freebets never combine with acca boost, to avoid double-bonusing the
-  // same bet - force it off regardless of whether this accumulator would
-  // otherwise qualify (see calculateAccaBoost).
-  const accaBoost = isFreebetMode
-    ? { qualifies: false, boostPercent: 0, baseCombinedOdds: rawAccaBoost.baseCombinedOdds, boostedCombinedOdds: rawAccaBoost.baseCombinedOdds }
-    : rawAccaBoost;
+  // Freebets and an insured bet never combine with acca boost, to avoid
+  // double-bonusing the same bet - force it off regardless of whether this
+  // accumulator would otherwise qualify (see calculateAccaBoost). Mirrors
+  // PamService.placeBet's insuranceApplies gate.
+  const accaBoost =
+    isFreebetMode || (insuranceOptIn && insuranceBetConfig.enabled)
+      ? { qualifies: false, boostPercent: 0, baseCombinedOdds: rawAccaBoost.baseCombinedOdds, boostedCombinedOdds: rawAccaBoost.baseCombinedOdds }
+      : rawAccaBoost;
   // The un-boosted product passes straight through when the accumulator doesn't qualify (see calculateAccaBoost).
   const combinedOdds = accaBoost.boostedCombinedOdds;
   const stakeCents = isFreebetMode ? (selectedFreebet?.amountCents ?? 0) : Math.round(Number(stake) * 100);
@@ -723,10 +732,10 @@ export function BetSlipPanel({
       : null;
     footer = (
       <div className="mt-3 shrink-0 space-y-2 border-t border-border pt-3">
-        {tab === 'accumulator' && !isFreebetMode && (
+        {tab === 'accumulator' && !isFreebetMode && !insuranceOptIn && (
           <AccaBoostBar legOdds={selections.map((selection) => selection.odds)} config={accaBoostConfig} />
         )}
-        {tab === 'accumulator' && !isFreebetMode && (
+        {tab === 'accumulator' && !isFreebetMode && !insuranceOptIn && (
           <AccaRollbackBar selectionCount={selections.length} config={accaRollbackConfig} />
         )}
         {tab === 'accumulator' &&
@@ -763,17 +772,13 @@ export function BetSlipPanel({
             </>
           ))}
         {!isFreebetMode && insuranceBetConfig.enabled && selections.length > 0 && (
-          <label className="flex items-center justify-between gap-2 rounded-xl border border-border bg-surface-2 p-2.5 text-xs">
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-surface-2 p-2.5 text-xs">
             <span className="text-text-secondary">
               Insure this bet - pay {insuranceBetConfig.costPercent}% for your stake back as a freebet if
               it loses
             </span>
-            <input
-              type="checkbox"
-              checked={insuranceOptIn}
-              onChange={(event) => setInsuranceOptIn(event.target.checked)}
-            />
-          </label>
+            <Switch checked={insuranceOptIn} onChange={setInsuranceOptIn} ariaLabel="Insure this bet" />
+          </div>
         )}
         <div className="flex items-center justify-between text-sm text-text-secondary">
           <span>{isFreebetMode ? 'Potential winnings' : 'Potential payout'}</span>
