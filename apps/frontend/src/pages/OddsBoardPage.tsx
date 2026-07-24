@@ -224,8 +224,16 @@ export default function OddsBoardPage() {
   const [selectedSport, setSelectedSport] = useState<string | undefined>(undefined);
 
   const sorted = matches ? sortMatches(matches, 'time') : undefined;
-  const featured = sorted?.[0];
-  const rest = sorted?.slice(1) ?? [];
+  // The earliest-kickoff match only becomes "featured" if it actually has a
+  // match-result market to show odds for - a match with only special/manual
+  // markets (or one odds-engine hasn't priced yet) falls through to the
+  // next-earliest one instead. Finding the index (rather than always taking
+  // [0]) matters just as much for `rest`: excluding a fixed [0] regardless
+  // of whether the featured card actually renders was silently dropping
+  // that match everywhere, including from the plain Upcoming list.
+  const featuredIndex = sorted?.findIndex((match) => match.markets.some((market) => market.id === 'match-result')) ?? -1;
+  const featured = featuredIndex >= 0 ? sorted![featuredIndex] : undefined;
+  const rest = sorted ? sorted.filter((_, index) => index !== featuredIndex) : [];
   const featuredMatchResult = featured?.markets.find((market) => market.id === 'match-result');
 
   const liveMatches = rest.filter((match) => match.isLive);

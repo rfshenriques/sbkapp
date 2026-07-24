@@ -4,6 +4,7 @@ import { BottomSheet } from '../components/ui/BottomSheet';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { BetSlipPanel } from '../features/bet-slip/BetSlipPanel';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
+import { invalidAccumulatorReason } from '../features/bet-slip/accumulatorValidity';
 import { useBrandTheme } from '../features/brand/useBrandTheme';
 import { Footer } from '../features/footer/Footer';
 import { useAuth } from '../features/auth/useAuth';
@@ -43,6 +44,11 @@ export function AppShell() {
 
   const brandName = brandQuery.data?.name ?? 'Sportsbook';
   const combinedOdds = selections.reduce((total, selection) => total * selection.odds, 1);
+  // Mirrors BetSlipPanel's own accumulatorInvalidReason gate - the unopened
+  // floating pill is the player's first look at what's in the slip, so it
+  // shouldn't advertise a combined price (or the Accumulator label) for a
+  // combination the bet slip itself would immediately reject.
+  const accumulatorInvalidReason = selections.length > 1 ? invalidAccumulatorReason(selections) : null;
 
   // Force the login sheet on the first load of a fresh session so promos
   // shown after login stay meaningful - only once per app open. Opens as a
@@ -285,11 +291,15 @@ export function AppShell() {
               {selections.length}
             </span>
             <span className="font-display text-base">
-              {selections.length === 1 ? 'Single' : 'Accumulator'}
+              {selections.length === 1 ? 'Single' : accumulatorInvalidReason ? 'Singles' : 'Accumulator'}
             </span>
           </span>
           <span className="font-display text-base">
-            {selections.length === 1 ? selections[0]?.odds.toFixed(2) : combinedOdds.toFixed(2)}
+            {selections.length === 1
+              ? selections[0]?.odds.toFixed(2)
+              : accumulatorInvalidReason
+                ? '/'
+                : combinedOdds.toFixed(2)}
           </span>
         </button>
       )}

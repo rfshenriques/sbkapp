@@ -118,6 +118,23 @@ describe('AppShell', () => {
     expect(floatingBar).toHaveTextContent('5.25');
   });
 
+  it('the mobile floating bar reads "Singles" with a slash for two selections from the same event', () => {
+    const totalGoalsSelection = {
+      ...homeSelection,
+      marketId: 'total-goals',
+      marketName: 'Total Goals',
+      selectionId: 'over',
+      selectionName: 'Over 2.5',
+    };
+    useBetSlipStore.setState({ selections: [homeSelection, totalGoalsSelection] });
+    renderShell();
+
+    const floatingBar = screen.getByRole('button', { name: /Singles/ });
+    expect(floatingBar).toHaveTextContent('Singles');
+    expect(floatingBar).toHaveTextContent('/');
+    expect(floatingBar).not.toHaveTextContent('Accumulator');
+  });
+
   it('clicking the mobile floating bar opens the bet slip modal', async () => {
     useBetSlipStore.setState({ selections: [homeSelection] });
     renderShell();

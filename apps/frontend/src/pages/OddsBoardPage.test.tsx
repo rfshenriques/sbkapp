@@ -146,6 +146,42 @@ describe('OddsBoardPage', () => {
     expect(markers[1]).toHaveStyle({ backgroundColor: '#FEBE10' });
   });
 
+  it('features the next-earliest match with a match-result market, without dropping the earliest one that lacks it', async () => {
+    const noOddsYet = buildMatch({
+      id: 'no-odds-yet',
+      homeTeam: 'No Odds Home',
+      awayTeam: 'No Odds Away',
+      kickoff: '2026-07-19T08:00:00Z',
+      markets: [{ id: 'anytime-assist', name: 'Anytime Assist', selections: [{ id: 'yes', name: 'Yes', odds: 2.1 }] }],
+    });
+    const hasOdds = buildMatch({
+      id: 'has-odds',
+      homeTeam: 'Has Odds Home',
+      awayTeam: 'Has Odds Away',
+      kickoff: '2026-07-19T09:00:00Z',
+      markets: [
+        {
+          id: 'match-result',
+          name: 'Match Result',
+          selections: [
+            { id: 'home', name: 'Home', odds: 1.9 },
+            { id: 'away', name: 'Away', odds: 3.5 },
+          ],
+        },
+      ],
+    });
+    stubOddsEngineFetch([noOddsYet, hasOdds]);
+
+    renderPage();
+
+    // The earlier-kickoff match without a match-result market never becomes
+    // "featured" (see FeaturedMatchCard's odds requirement) - it must still
+    // show up in the plain Upcoming list rather than vanishing entirely.
+    expect(await screen.findByRole('link', { name: 'No Odds Home vs No Odds Away' })).toBeInTheDocument();
+    // The next match, which does have odds, becomes the featured card.
+    expect(await screen.findAllByRole('heading', { name: 'Has Odds Home vs Has Odds Away' })).toHaveLength(2);
+  });
+
   it('caps the Upcoming list at 10 and shows a Load more link to the sport page', async () => {
     stubOddsEngineFetch(buildManySportsMatches());
     renderPage();
