@@ -69,47 +69,47 @@ function BoostedSelectionRow({ item }: { item: BoostedSelectionSummary }) {
             </p>
           )}
         </div>
-        <button
-          type="button"
-          disabled={suspended}
-          aria-label={
-            suspended
-              ? `${item.selectionName} suspended`
-              : `${item.selectionName} boosted to ${item.odds.toFixed(2)}, was ${item.previousOdds.toFixed(2)}${
-                  item.maxStakeCents !== undefined
-                    ? `, max stake €${(item.maxStakeCents / 100).toFixed(2)}`
-                    : ''
-                }`
-          }
-          className={`odd-btn shrink-0${isSelected ? ' selected' : ''}${suspended ? ' suspended' : ''}`}
-          onClick={() =>
-            toggleSelection({
-              matchId: item.matchId,
-              marketId: item.marketId,
-              selectionId: item.selectionId,
-              matchLabel,
-              marketName: displayName('MARKET', item.marketName),
-              selectionName: displayName('SELECTION', item.selectionName),
-              odds: item.odds,
-              originalOdds: item.previousOdds,
-              maxStakeCents: item.maxStakeCents,
-            })
-          }
-        >
-          <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-highlight px-1.5 py-px text-[8px] font-extrabold tracking-wide text-black uppercase">
-            Boost
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="text-sm text-text-secondary line-through decoration-1">
+            {item.previousOdds.toFixed(2)}
           </span>
-          {suspended ? (
-            <LockIcon className="h-4 w-4" aria-hidden="true" />
-          ) : (
-            <span className="flex flex-col items-center leading-none">
-              <span className="text-[11px] text-text-secondary line-through decoration-1">
-                {item.previousOdds.toFixed(2)}
-              </span>
+          <span className="text-text-secondary" aria-hidden="true">
+            &rarr;
+          </span>
+          <button
+            type="button"
+            disabled={suspended}
+            aria-label={
+              suspended
+                ? `${item.selectionName} suspended`
+                : `${item.selectionName} boosted to ${item.odds.toFixed(2)}, was ${item.previousOdds.toFixed(2)}${
+                    item.maxStakeCents !== undefined
+                      ? `, max stake €${(item.maxStakeCents / 100).toFixed(2)}`
+                      : ''
+                  }`
+            }
+            className={`odd-btn${isSelected ? ' selected' : ''}${suspended ? ' suspended' : ''}`}
+            onClick={() =>
+              toggleSelection({
+                matchId: item.matchId,
+                marketId: item.marketId,
+                selectionId: item.selectionId,
+                matchLabel,
+                marketName: displayName('MARKET', item.marketName),
+                selectionName: displayName('SELECTION', item.selectionName),
+                odds: item.odds,
+                originalOdds: item.previousOdds,
+                maxStakeCents: item.maxStakeCents,
+              })
+            }
+          >
+            {suspended ? (
+              <LockIcon className="h-4 w-4" aria-hidden="true" />
+            ) : (
               <span className="odd-value text-highlight">{item.odds.toFixed(2)}</span>
-            </span>
-          )}
-        </button>
+            )}
+          </button>
+        </div>
       </div>
     </Card>
   );
