@@ -83,10 +83,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
+async function drillToLeague() {
+  await userEvent.click(await screen.findByRole('button', { name: /Football/ }));
+  await userEvent.click(screen.getByRole('button', { name: /England/ }));
+  await userEvent.click(screen.getByRole('button', { name: /Premier League/ }));
+}
+
 describe('BoostsPage', () => {
-  it('lists live matches from the odds-engine', async () => {
+  it('lists live matches from the odds-engine once drilled into their league', async () => {
     stubFetch([]);
     renderBoostsPage();
+    await drillToLeague();
 
     expect(await screen.findByText(/Arsenal vs Chelsea/)).toBeInTheDocument();
   });
@@ -94,6 +101,7 @@ describe('BoostsPage', () => {
   it('expanding a match then a market shows each selection with its feed odds and a ticks input', async () => {
     stubFetch([]);
     renderBoostsPage();
+    await drillToLeague();
 
     await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
     await userEvent.click(await screen.findByText('Match Result'));
@@ -148,6 +156,7 @@ describe('BoostsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderBoostsPage();
+    await drillToLeague();
     await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
     await userEvent.click(await screen.findByText('Match Result'));
 
@@ -200,6 +209,7 @@ describe('BoostsPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderBoostsPage();
+    await drillToLeague();
     await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
     await userEvent.click(await screen.findByText('Match Result'));
 
