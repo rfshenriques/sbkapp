@@ -104,6 +104,8 @@ export interface SetLimitsInput {
   audienceMode?: AudienceMode;
   segmentIds?: string[];
   staysLiveDuringInplay?: boolean;
+  /** Manual markets only - a bet with 2+ selections that includes this market is rejected. */
+  singlesOnly?: boolean;
 }
 
 export interface ManualMarket {
@@ -117,6 +119,7 @@ export interface ManualMarket {
   currentLiabilityCents: number;
   disabledAt: string | null;
   staysLiveDuringInplay: boolean;
+  singlesOnly: boolean;
   audienceMode: AudienceMode;
   audienceSegments: AudienceSegmentRef[];
 }

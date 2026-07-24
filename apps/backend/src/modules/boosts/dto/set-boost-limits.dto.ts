@@ -1,4 +1,4 @@
-import { IsArray, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import type { AudienceMode } from '@prisma/client';
 
 const AUDIENCE_MODES: AudienceMode[] = ['ALL', 'LOGGED_OUT', 'LOGGED_IN', 'SEGMENTS'];
@@ -25,4 +25,8 @@ export class SetBoostLimitsDto {
   @IsArray()
   @IsString({ each: true })
   segmentIds?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  staysLiveDuringInplay?: boolean;
 }

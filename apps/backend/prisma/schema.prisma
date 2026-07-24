@@ -677,6 +677,8 @@ model ManualMarket {
   disabledAt DateTime?
   /** A manually-priced market has no live re-pricing feed behind it, so it auto-suspends the moment its match goes in-play unless a trader explicitly marks it safe to keep offering live. Defaults to false (auto-suspend), same as every market before this field existed. */
   staysLiveDuringInplay Boolean @default(false)
+  /** A novelty/special market a trader doesn't want combined into an accumulator with other legs (correlation risk a manual price can't account for) - a bet with 2+ selections that includes one of these is rejected outright, same enforcement PamService already gives boosts. Defaults to false - unrestricted, same as every market before this field existed. */
+  singlesOnly Boolean @default(false)
 
   selections       ManualMarketSelection[]
   audienceSegments ManualMarketSegment[]

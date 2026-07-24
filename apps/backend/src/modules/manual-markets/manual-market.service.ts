@@ -18,6 +18,7 @@ export interface SetManualMarketLimitsInput {
   audienceMode?: AudienceMode;
   segmentIds?: string[];
   staysLiveDuringInplay?: boolean;
+  singlesOnly?: boolean;
 }
 
 /**
@@ -158,6 +159,7 @@ export class ManualMarketService {
         ...(input.staysLiveDuringInplay !== undefined
           ? { staysLiveDuringInplay: input.staysLiveDuringInplay }
           : {}),
+        ...(input.singlesOnly !== undefined ? { singlesOnly: input.singlesOnly } : {}),
       },
       include: { selections: true, audienceSegments: true },
     });

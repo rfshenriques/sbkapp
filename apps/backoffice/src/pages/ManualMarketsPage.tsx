@@ -205,6 +205,7 @@ function ManualMarketEntry({
           audienceMode={market.audienceMode}
           audienceSegmentIds={market.audienceSegments.map((segment) => segment.segmentId)}
           staysLiveDuringInplay={market.staysLiveDuringInplay}
+          singlesOnly={market.singlesOnly}
           isSaving={setLimitsMutation.isPending}
           onSave={(input) => setLimitsMutation.mutate({ id: market.id, input })}
         />

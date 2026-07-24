@@ -95,6 +95,7 @@ describe('ManualMarketsPage', () => {
         currentLiabilityCents: 0,
         disabledAt: null,
         staysLiveDuringInplay: false,
+        singlesOnly: false,
         audienceMode: 'ALL',
         audienceSegments: [],
         selections: [
@@ -146,6 +147,7 @@ describe('ManualMarketsPage', () => {
             currentLiabilityCents: 0,
             disabledAt: null,
             staysLiveDuringInplay: false,
+            singlesOnly: false,
             audienceMode: 'ALL',
             audienceSegments: [],
             selections: [
@@ -186,6 +188,7 @@ describe('ManualMarketsPage', () => {
         currentLiabilityCents: 0,
         disabledAt: null,
         staysLiveDuringInplay: false,
+        singlesOnly: false,
         audienceMode: 'ALL',
         audienceSegments: [],
         selections: [
@@ -248,6 +251,7 @@ describe('ManualMarketsPage', () => {
         currentLiabilityCents: 0,
         disabledAt: null,
         staysLiveDuringInplay: false,
+        singlesOnly: false,
         audienceMode: 'ALL',
         audienceSegments: [],
         selections: [{ id: 'sel-1', name: 'Yes', odds: 3.5 }],
@@ -276,6 +280,7 @@ describe('ManualMarketsPage', () => {
         currentLiabilityCents: 0,
         disabledAt: null,
         staysLiveDuringInplay: false,
+        singlesOnly: false,
         audienceMode: 'ALL',
         audienceSegments: [],
         selections: [{ id: 'sel-1', name: 'Yes', odds: 3.5 }],
@@ -322,6 +327,7 @@ describe('ManualMarketsPage', () => {
         currentLiabilityCents: 0,
         disabledAt: null,
         staysLiveDuringInplay: false,
+        singlesOnly: false,
         audienceMode: 'ALL',
         audienceSegments: [],
         selections: [{ id: 'sel-1', name: 'Yes', odds: 3.5 }],
@@ -344,6 +350,7 @@ describe('ManualMarketsPage', () => {
           audienceMode: 'ALL',
           segmentIds: [],
           staysLiveDuringInplay: false,
+          singlesOnly: false,
         });
         return new Response(JSON.stringify(manualMarkets[0]), { status: 200 });
       }
@@ -376,6 +383,7 @@ describe('ManualMarketsPage', () => {
         currentLiabilityCents: 5_000,
         disabledAt: null,
         staysLiveDuringInplay: false,
+        singlesOnly: false,
         audienceMode: 'ALL',
         audienceSegments: [],
         selections: [{ id: 'sel-1', name: 'Yes', odds: 3.5 }],
@@ -403,6 +411,7 @@ describe('ManualMarketsPage', () => {
         currentLiabilityCents: 0,
         disabledAt: null,
         staysLiveDuringInplay: false,
+        singlesOnly: false,
         audienceMode: 'ALL',
         audienceSegments: [],
         selections: [{ id: 'sel-1', name: 'Yes', odds: 3.5 }],
@@ -425,6 +434,7 @@ describe('ManualMarketsPage', () => {
           audienceMode: 'ALL',
           segmentIds: [],
           staysLiveDuringInplay: true,
+          singlesOnly: false,
         });
         return new Response(JSON.stringify({ ...manualMarkets[0], staysLiveDuringInplay: true }), {
           status: 200,
@@ -447,6 +457,64 @@ describe('ManualMarketsPage', () => {
     );
   });
 
+  it('checking "Singles only" sends singlesOnly: true to the limits endpoint', async () => {
+    const manualMarkets: ManualMarket[] = [
+      {
+        id: 'market-1',
+        matchId: 'match-1',
+        name: 'To Win Both Halves',
+        createdAt: '2026-07-18T00:00:00Z',
+        maxStakeCents: null,
+        maxLiabilityCents: null,
+        currentLiabilityCents: 0,
+        disabledAt: null,
+        staysLiveDuringInplay: false,
+        singlesOnly: false,
+        audienceMode: 'ALL',
+        audienceSegments: [],
+        selections: [{ id: 'sel-1', name: 'Yes', odds: 3.5 }],
+      },
+    ];
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/api/events') {
+        return new Response(JSON.stringify([liveMatch]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/manual-markets') {
+        return new Response(JSON.stringify(manualMarkets), { status: 200 });
+      }
+      if (method === 'PATCH' && url === '/backend/admin/manual-markets/market-1/limits') {
+        expect(JSON.parse(init!.body as string)).toEqual({
+          maxStakeCents: null,
+          maxLiabilityCents: null,
+          audienceMode: 'ALL',
+          segmentIds: [],
+          staysLiveDuringInplay: false,
+          singlesOnly: true,
+        });
+        return new Response(JSON.stringify({ ...manualMarkets[0], singlesOnly: true }), {
+          status: 200,
+        });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderManualMarketsPage();
+    await drillToLeague();
+    await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
+
+    await userEvent.click(await screen.findByLabelText('To Win Both Halves limits singles only'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/manual-markets/market-1/limits',
+      expect.objectContaining({ method: 'PATCH' }),
+    );
+  });
+
   it('shows a collapsed "currently configured" overview that expands to edit a market without drilling down', async () => {
     stubFetch([
       {
@@ -459,6 +527,7 @@ describe('ManualMarketsPage', () => {
         currentLiabilityCents: 0,
         disabledAt: null,
         staysLiveDuringInplay: false,
+        singlesOnly: false,
         audienceMode: 'ALL',
         audienceSegments: [],
         selections: [{ id: 'sel-1', name: 'Yes', odds: 3.5 }],

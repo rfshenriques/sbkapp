@@ -44,6 +44,8 @@ export interface LimitsAudienceEditorProps {
   audienceSegmentIds: string[];
   /** Whether this stays open once its match goes in-play - both boosts and manual markets auto-suspend in-play by default (see PamService), since neither has a live re-pricing feed behind it. */
   staysLiveDuringInplay: boolean;
+  /** Manual markets only - omit for boosts, which have no such flag. When present, renders the "Singles only" checkbox and includes it in the save payload. */
+  singlesOnly?: boolean;
   onSave: (input: SetLimitsInput) => void;
   isSaving: boolean;
   idPrefix: string;
@@ -56,6 +58,7 @@ export function LimitsAudienceEditor({
   audienceMode,
   audienceSegmentIds,
   staysLiveDuringInplay,
+  singlesOnly,
   onSave,
   isSaving,
   idPrefix,
@@ -65,6 +68,7 @@ export function LimitsAudienceEditor({
   const [mode, setMode] = useState<AudienceMode>(audienceMode);
   const [segmentIds, setSegmentIds] = useState<string[]>(audienceSegmentIds);
   const [staysLive, setStaysLive] = useState(staysLiveDuringInplay);
+  const [singlesOnlyState, setSinglesOnlyState] = useState(singlesOnly ?? false);
 
   const { data: segments } = useQuery({
     queryKey: segmentsQueryKey,
@@ -90,6 +94,7 @@ export function LimitsAudienceEditor({
       audienceMode: mode,
       segmentIds: mode === 'SEGMENTS' ? segmentIds : [],
       staysLiveDuringInplay: staysLive,
+      ...(singlesOnly !== undefined ? { singlesOnly: singlesOnlyState } : {}),
     });
   }
 
@@ -149,6 +154,17 @@ export function LimitsAudienceEditor({
           />
           Will be live (stays open once the match goes in-play)
         </label>
+        {singlesOnly !== undefined && (
+          <label className="flex items-center gap-1.5 text-sm text-text-secondary">
+            <input
+              type="checkbox"
+              aria-label={`${idPrefix} singles only`}
+              checked={singlesOnlyState}
+              onChange={(event) => setSinglesOnlyState(event.target.checked)}
+            />
+            Singles only (can't be combined in an accumulator)
+          </label>
+        )}
         <Button variant="secondary" disabled={!canSave || isSaving} onClick={handleSave}>
           Save
         </Button>

@@ -677,6 +677,38 @@ describe('PamService', () => {
 
       expect(bet.stakeCents).toBe(50_000);
     });
+
+    it('rejects a singles-only manual market combined with another selection in an accumulator', async () => {
+      const market = await manualMarketService.createMarket(testBrandId, 'match-1', 'Novelty', [
+        { name: 'Yes', odds: 2.1 },
+      ], TEST_ACTOR);
+      await manualMarketService.setLimits(testBrandId, market.id, { singlesOnly: true }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [
+            buildSelection({ matchId: 'match-1', marketId: market.id }),
+            buildSelection({ matchId: 'match-2', selectionId: 'away' }),
+          ],
+          stakeCents: 1_000,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('allows a singles-only manual market as a lone selection', async () => {
+      const market = await manualMarketService.createMarket(testBrandId, 'match-1', 'Novelty', [
+        { name: 'Yes', odds: 2.1 },
+      ], TEST_ACTOR);
+      await manualMarketService.setLimits(testBrandId, market.id, { singlesOnly: true }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'match-1', marketId: market.id })],
+        stakeCents: 1_000,
+      });
+      expect(bet.stakeCents).toBe(1_000);
+    });
   });
 
   describe('boost limits', () => {
@@ -785,6 +817,36 @@ describe('PamService', () => {
       });
 
       expect(bet.stakeCents).toBe(50_000);
+    });
+
+    it('rejects an accumulator that combines two boosted selections', async () => {
+      await boostService.setBoost(testBrandId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await boostService.setBoost(testBrandId, 'match-2', 'match-result', 'away', 6, undefined, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [
+            buildSelection({ matchId: 'match-1', marketId: 'match-result', selectionId: 'home', odds: 6 }),
+            buildSelection({ matchId: 'match-2', marketId: 'match-result', selectionId: 'away', odds: 6 }),
+          ],
+          stakeCents: 1_000,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('allows an accumulator that combines one boosted selection with unboosted ones', async () => {
+      await boostService.setBoost(testBrandId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', marketId: 'match-result', selectionId: 'home', odds: 6 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2 }),
+        ],
+        stakeCents: 1_000,
+      });
+      expect(bet.stakeCents).toBe(1_000);
     });
   });
 

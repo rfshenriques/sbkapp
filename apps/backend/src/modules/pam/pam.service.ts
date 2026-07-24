@@ -231,6 +231,13 @@ export class PamService {
         throw new BadRequestException(`${market.name} is no longer available now that this match is in-play`);
       }
 
+      // A trader can mark a novelty/special market singles-only when its
+      // price can't account for correlation with other legs - reject the
+      // whole bet rather than silently drop the leg.
+      if (market.singlesOnly && dto.selections.length > 1) {
+        throw new BadRequestException(`${market.name} can only be bet as a single, not combined in an accumulator`);
+      }
+
       if (market.maxStakeCents !== null && dto.stakeCents > market.maxStakeCents) {
         throw new BadRequestException(
           `Stake exceeds the maximum allowed for ${market.name} (max €${formatEuros(market.maxStakeCents)})`,
@@ -300,6 +307,14 @@ export class PamService {
       }
 
       toRecord.push({ boostId: boost.id, liabilityCents: legLiabilityCents });
+    }
+
+    // A boosted price is priced in isolation, without accounting for
+    // correlation with another leg's own boosted price - combining two in
+    // one accumulator would understate the book's real exposure, so only
+    // one boosted selection is ever allowed per bet.
+    if (dto.selections.length > 1 && toRecord.length > 1) {
+      throw new BadRequestException('Only one boosted selection can be combined in an accumulator');
     }
 
     return toRecord;
