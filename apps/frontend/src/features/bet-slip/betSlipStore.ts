@@ -10,6 +10,8 @@ export interface BetSlipSelection {
   odds: number;
   /** Present only when a trader-configured boost bumped this selection's price - the price it would otherwise show, for the "before/after" display. */
   originalOdds?: number;
+  /** Present only alongside originalOdds when the boost has a per-bet stake cap - shown so the player knows the boosted price only applies up to this stake. In cents. */
+  maxStakeCents?: number;
 }
 
 interface BetSlipState {

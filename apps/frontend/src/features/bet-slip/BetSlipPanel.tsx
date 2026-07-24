@@ -51,9 +51,23 @@ function SelectionOdds({ selection }: { selection: BetSlipSelection }) {
       <span className="rounded-full bg-highlight px-1.5 py-px text-[9px] font-extrabold tracking-wide text-black uppercase">
         Boost
       </span>
-      <span className="text-xs text-text-muted line-through">{selection.originalOdds.toFixed(2)}</span>
+      <span className="text-xs text-text-secondary line-through decoration-1">
+        {selection.originalOdds.toFixed(2)}
+      </span>
       <span className="font-semibold text-highlight">{selection.odds.toFixed(2)}</span>
     </span>
+  );
+}
+
+/** Only rendered when a boost has a per-bet stake cap (see BoostService.applyBoosts) - the boosted price above only applies up to this stake. */
+function MaxStakeNote({ selection }: { selection: BetSlipSelection }) {
+  if (selection.maxStakeCents === undefined) {
+    return null;
+  }
+  return (
+    <p className="text-[11px] text-text-secondary">
+      Max stake for boosted price: €{(selection.maxStakeCents / 100).toFixed(2)}
+    </p>
   );
 }
 
@@ -158,7 +172,9 @@ function StakeField({ stakeId, stake, onStakeChange, odds, hideOdds, previousOdd
           <span className="odd-label">Odds</span>
           {previousOdds !== undefined ? (
             <span className="flex items-center gap-1.5">
-              <span className="text-xs text-text-muted line-through">{previousOdds.toFixed(2)}</span>
+              <span className="text-xs text-text-secondary line-through decoration-1">
+                {previousOdds.toFixed(2)}
+              </span>
               <span className="odd-value text-highlight">{odds.toFixed(2)}</span>
             </span>
           ) : (
@@ -217,6 +233,8 @@ function SingleBetRow({ selection, stake, onStakeChange, showStake }: SingleBetR
           </button>
         </div>
       </div>
+
+      <MaxStakeNote selection={selection} />
 
       {showStake && (
         <StakeField
@@ -455,6 +473,7 @@ export function BetSlipPanel({
                   <p className="text-sm font-medium">
                     {selection.marketName}: {selection.selectionName}
                   </p>
+                  <MaxStakeNote selection={selection} />
                 </div>
                 <div className="flex items-center gap-2">
                   <SelectionOdds selection={selection} />

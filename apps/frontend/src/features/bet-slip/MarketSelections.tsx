@@ -35,7 +35,11 @@ function SelectionButton({ selection, label, isSelected, isSuspended, onSelect }
         isSuspended
           ? `${label} suspended`
           : isBoosted
-            ? `${label} boosted to ${selection.odds.toFixed(2)}, was ${selection.originalOdds!.toFixed(2)}`
+            ? `${label} boosted to ${selection.odds.toFixed(2)}, was ${selection.originalOdds!.toFixed(2)}${
+                selection.maxStakeCents !== undefined
+                  ? `, max stake €${(selection.maxStakeCents / 100).toFixed(2)}`
+                  : ''
+              }`
             : undefined
       }
       className={`odd-btn${isSelected ? ' selected' : ''}${isSuspended ? ' suspended' : ''}${flash ? ` flash-${flash}` : ''}`}
@@ -59,7 +63,9 @@ function SelectionButton({ selection, label, isSelected, isSuspended, onSelect }
         // homepage's featured/hero card) only have ~60px per column, too
         // tight to fit a struck-through price and the new one on one line.
         <span className="flex flex-col items-center leading-none">
-          <span className="text-[9px] text-text-muted line-through">{selection.originalOdds!.toFixed(2)}</span>
+          <span className="text-[11px] text-text-secondary line-through decoration-1">
+            {selection.originalOdds!.toFixed(2)}
+          </span>
           <span className="odd-value text-highlight">{selection.odds.toFixed(2)}</span>
         </span>
       ) : (
@@ -107,6 +113,7 @@ export function MarketSelections({ matchId, matchLabel, competition, market }: M
                 selectionName: selectionLabel,
                 odds: selection.odds,
                 originalOdds: selection.originalOdds,
+                maxStakeCents: selection.maxStakeCents,
               })
             }
           />
