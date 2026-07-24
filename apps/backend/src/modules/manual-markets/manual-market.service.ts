@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { AudienceMode } from '@prisma/client';
+import type { AudienceMode, Prisma } from '@prisma/client';
 import type { Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { ANONYMOUS_VIEWER, resolveAudience, type AudienceViewer } from '../audience/audience';
+
+type PrismaClientLike = PrismaService | Prisma.TransactionClient;
 
 export interface ManualMarketSelectionInput {
   name: string;
@@ -15,6 +17,7 @@ export interface SetManualMarketLimitsInput {
   maxLiabilityCents?: number | null;
   audienceMode?: AudienceMode;
   segmentIds?: string[];
+  staysLiveDuringInplay?: boolean;
 }
 
 /**
@@ -152,6 +155,9 @@ export class ManualMarketService {
               },
             }
           : {}),
+        ...(input.staysLiveDuringInplay !== undefined
+          ? { staysLiveDuringInplay: input.staysLiveDuringInplay }
+          : {}),
       },
       include: { selections: true, audienceSegments: true },
     });
@@ -167,32 +173,72 @@ export class ManualMarketService {
     return market;
   }
 
-  /** Used by PamService at bet placement to check stake/liability caps - brandId-scoped, same as every other lookup here. */
+  /** Used by PamService at bet placement to check stake/liability caps - brandId-scoped, same as every other lookup here. A disabled market (liability cap hit) is treated as not found, same as Boost.findActiveForBet. */
   async findForBet(brandId: string, id: string) {
     const market = await this.prisma.manualMarket.findUnique({ where: { id } });
-    return market && market.brandId === brandId ? market : null;
+    return market && market.brandId === brandId && market.disabledAt === null ? market : null;
   }
 
-  /** Adds to the market's running exposure after a bet is accepted - see PamService. */
-  async recordLiability(id: string, liabilityCents: number) {
-    await this.prisma.manualMarket.update({
+  /**
+   * Adds to the market's running exposure after a bet is accepted, then
+   * auto-disables it if that pushes currentLiabilityCents past
+   * maxLiabilityCents - mirrors BoostService.recordLiabilityAndMaybeDisable.
+   * Accepts an optional transaction client so PamService can run this
+   * atomically alongside the bet it belongs to.
+   */
+  async recordLiabilityAndMaybeDisable(
+    id: string,
+    liabilityCents: number,
+    actor: AuditActor,
+    client: PrismaClientLike = this.prisma,
+  ) {
+    const market = await client.manualMarket.update({
       where: { id },
       data: { currentLiabilityCents: { increment: liabilityCents } },
     });
+
+    if (market.maxLiabilityCents !== null && market.currentLiabilityCents >= market.maxLiabilityCents) {
+      const disabled = await client.manualMarket.update({
+        where: { id },
+        data: { disabledAt: new Date() },
+      });
+      await this.auditLogService.record(
+        {
+          actor,
+          action: 'MANUAL_MARKET_AUTO_DISABLED',
+          targetType: 'ManualMarket',
+          targetId: disabled.id,
+          metadata: {
+            currentLiabilityCents: disabled.currentLiabilityCents,
+            maxLiabilityCents: disabled.maxLiabilityCents,
+          },
+        },
+        client,
+      );
+    }
   }
 
-  /** Appends each match's manual markets (if any) onto its markets array, filtered to whatever this viewer's audience can see; matches with none visible pass through unchanged. */
+  /**
+   * Appends each match's manual markets (if any) onto its markets array,
+   * filtered to whatever this viewer's audience can see and, since a
+   * manually-priced market has no live re-pricing feed behind it,
+   * suppressed once its match goes in-play unless staysLiveDuringInplay was
+   * explicitly set - matches with none visible pass through unchanged.
+   */
   async mergeIntoMatches(brandId: string, matches: Match[], viewer: AudienceViewer = ANONYMOUS_VIEWER): Promise<Match[]> {
     const manualMarkets = await this.prisma.manualMarket.findMany({
-      where: { brandId, matchId: { in: matches.map((match) => match.id) } },
+      where: { brandId, matchId: { in: matches.map((match) => match.id) }, disabledAt: null },
       include: { selections: true, audienceSegments: true },
     });
-    const visibleMarkets = manualMarkets.filter((manualMarket) =>
-      resolveAudience(
-        manualMarket.audienceMode,
-        manualMarket.audienceSegments.map((segment) => segment.segmentId),
-        viewer,
-      ),
+    const isLiveByMatchId = new Map(matches.map((match) => [match.id, match.isLive]));
+    const visibleMarkets = manualMarkets.filter(
+      (manualMarket) =>
+        (manualMarket.staysLiveDuringInplay || !isLiveByMatchId.get(manualMarket.matchId)) &&
+        resolveAudience(
+          manualMarket.audienceMode,
+          manualMarket.audienceSegments.map((segment) => segment.segmentId),
+          viewer,
+        ),
     );
     if (visibleMarkets.length === 0) {
       return matches;

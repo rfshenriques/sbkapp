@@ -51,6 +51,7 @@ function fakeMatch(matchId: string): Match {
 describe('PamService', () => {
   let moduleRef: TestingModule;
   let pamService: PamService;
+  let oddsEngineClient: OddsEngineClient;
   let marketSuspensionService: MarketSuspensionService;
   let competitionSuspensionService: CompetitionSuspensionService;
   let accaBoostService: AccaBoostService;
@@ -110,6 +111,7 @@ describe('PamService', () => {
     await moduleRef.init();
 
     pamService = moduleRef.get(PamService);
+    oddsEngineClient = moduleRef.get(OddsEngineClient);
     marketSuspensionService = moduleRef.get(MarketSuspensionService);
     competitionSuspensionService = moduleRef.get(CompetitionSuspensionService);
     accaBoostService = moduleRef.get(AccaBoostService);
@@ -461,6 +463,55 @@ describe('PamService', () => {
       ).rejects.toThrow(BadRequestException);
     });
 
+    it('auto-disables the market once accumulated liability reaches the cap, and stops applying its limits to further bets', async () => {
+      const market = await manualMarketService.createMarket(testBrandId, 'match-1', 'Novelty', [
+        { name: 'Yes', odds: 2.0 },
+      ], TEST_ACTOR);
+      await manualMarketService.setLimits(testBrandId, market.id, { maxLiabilityCents: 1_000 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      // stake 1000 @ odds 2.0 -> liability 1000, exactly the cap - allowed, and disables the market afterwards.
+      await pamService.placeBet(userId, {
+        selections: [buildSelection({ marketId: market.id, odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      const disabled = await prisma.manualMarket.findUniqueOrThrow({ where: { id: market.id } });
+      expect(disabled.disabledAt).not.toBeNull();
+
+      // The market is now disabled, so findForBet no longer finds it - a further bet on the same market places normally, uncapped.
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ marketId: market.id, odds: 2.0 })],
+        stakeCents: 50_000,
+      });
+      expect(bet.stakeCents).toBe(50_000);
+    });
+
+    it('rejects a bet on a manual market once its match is in-play, unless staysLiveDuringInplay is set', async () => {
+      const market = await manualMarketService.createMarket(testBrandId, 'live-match', 'Novelty', [
+        { name: 'Yes', odds: 2.1 },
+      ], TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+      vi.mocked(oddsEngineClient.fetchMatchById).mockImplementation(async (matchId: string) => ({
+        ...fakeMatch(matchId),
+        isLive: matchId === 'live-match',
+      }));
+
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [buildSelection({ matchId: 'live-match', marketId: market.id })],
+          stakeCents: 1_000,
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      await manualMarketService.setLimits(testBrandId, market.id, { staysLiveDuringInplay: true }, TEST_ACTOR);
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'live-match', marketId: market.id })],
+        stakeCents: 1_000,
+      });
+      expect(bet.stakeCents).toBe(1_000);
+    });
+
     it('never applies another brand\'s manual market limits', async () => {
       const market = await manualMarketService.createMarket(otherBrandId, 'match-1', 'Novelty', [
         { name: 'Yes', odds: 2.1 },
@@ -545,6 +596,31 @@ describe('PamService', () => {
         stakeCents: 50_000,
       });
       expect(bet.stakeCents).toBe(50_000);
+    });
+
+    it('rejects a bet on a boosted price once its match is in-play, unless staysLiveDuringInplay is set', async () => {
+      const boost = await boostService.setBoost(testBrandId, 'live-match', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+      vi.mocked(oddsEngineClient.fetchMatchById).mockImplementation(async (matchId: string) => ({
+        ...fakeMatch(matchId),
+        isLive: matchId === 'live-match',
+      }));
+
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [
+            buildSelection({ matchId: 'live-match', marketId: 'match-result', selectionId: 'home' }),
+          ],
+          stakeCents: 1_000,
+        }),
+      ).rejects.toThrow(BadRequestException);
+
+      await boostService.setLimits(testBrandId, boost.id, { staysLiveDuringInplay: true }, TEST_ACTOR);
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'live-match', marketId: 'match-result', selectionId: 'home' })],
+        stakeCents: 1_000,
+      });
+      expect(bet.stakeCents).toBe(1_000);
     });
 
     it("never applies another brand's boost limits", async () => {

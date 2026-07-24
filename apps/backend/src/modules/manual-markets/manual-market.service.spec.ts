@@ -298,6 +298,35 @@ describe('ManualMarketService', () => {
 
       await prisma.playerSegment.deleteMany({ where: { id: { in: [segmentA.id, segmentB.id] } } });
     });
+
+    it('skips a disabled market entirely', async () => {
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      await prisma.manualMarket.update({ where: { id: market.id }, data: { disabledAt: new Date() } });
+      const match = buildMatch();
+
+      const [result] = await service.mergeIntoMatches(brandAId, [match]);
+
+      expect(result?.markets).toHaveLength(1);
+    });
+
+    it('suppresses a market once its match is in-play, since it has no live re-pricing feed', async () => {
+      await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      const liveMatch = buildMatch({ isLive: true });
+
+      const [result] = await service.mergeIntoMatches(brandAId, [liveMatch]);
+
+      expect(result?.markets).toHaveLength(1);
+    });
+
+    it('keeps offering an in-play market when staysLiveDuringInplay is set', async () => {
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      await service.setLimits(brandAId, market.id, { staysLiveDuringInplay: true }, TEST_ACTOR);
+      const liveMatch = buildMatch({ isLive: true });
+
+      const [result] = await service.mergeIntoMatches(brandAId, [liveMatch]);
+
+      expect(result?.markets).toHaveLength(2);
+    });
   });
 
   describe('setLimits', () => {
@@ -344,7 +373,7 @@ describe('ManualMarketService', () => {
     });
   });
 
-  describe('findForBet + recordLiability', () => {
+  describe('findForBet', () => {
     it('returns the market when it belongs to the given brand', async () => {
       const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
 
@@ -357,14 +386,37 @@ describe('ManualMarketService', () => {
       expect(await service.findForBet(brandAId, market.id)).toBeNull();
     });
 
-    it('recordLiability increments the running total', async () => {
+    it('returns null for a disabled market', async () => {
       const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      await prisma.manualMarket.update({ where: { id: market.id }, data: { disabledAt: new Date() } });
 
-      await service.recordLiability(market.id, 1_000);
-      await service.recordLiability(market.id, 500);
+      expect(await service.findForBet(brandAId, market.id)).toBeNull();
+    });
+  });
+
+  describe('recordLiabilityAndMaybeDisable', () => {
+    it('increments the running total without disabling when under the cap', async () => {
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      await service.setLimits(brandAId, market.id, { maxLiabilityCents: 10_000 }, TEST_ACTOR);
+
+      await service.recordLiabilityAndMaybeDisable(market.id, 5_000, TEST_ACTOR);
 
       const updated = await service.findForBet(brandAId, market.id);
-      expect(updated?.currentLiabilityCents).toBe(1_500);
+      expect(updated?.currentLiabilityCents).toBe(5_000);
+      expect(updated).not.toBeNull();
+    });
+
+    it('auto-disables the market once the running total reaches the cap, with an audit entry', async () => {
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      await service.setLimits(brandAId, market.id, { maxLiabilityCents: 10_000 }, TEST_ACTOR);
+
+      await service.recordLiabilityAndMaybeDisable(market.id, 10_000, TEST_ACTOR);
+
+      expect(await service.findForBet(brandAId, market.id)).toBeNull();
+      const entries = await prisma.auditLogEntry.findMany({
+        where: { actorUsername: TEST_ACTOR.username, action: 'MANUAL_MARKET_AUTO_DISABLED' },
+      });
+      expect(entries).toHaveLength(1);
     });
   });
 });

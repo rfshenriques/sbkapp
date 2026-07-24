@@ -238,6 +238,27 @@ describe('BoostService', () => {
 
       expect(result?.markets[0]?.selections[0]?.maxStakeCents).toBe(5_000);
     });
+
+    it('suppresses a boosted price once its match is in-play, since it has no live re-pricing behind it', async () => {
+      await ladderService.regenerateStandard(brandAId, TEST_ACTOR);
+      await service.setBoost(brandAId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      const liveMatch = buildMatch({ isLive: true });
+
+      const [result] = await service.applyBoosts(brandAId, [liveMatch]);
+
+      expect(result?.markets[0]?.selections[0]?.originalOdds).toBeUndefined();
+    });
+
+    it('keeps boosting an in-play selection when staysLiveDuringInplay is set', async () => {
+      await ladderService.regenerateStandard(brandAId, TEST_ACTOR);
+      const boost = await service.setBoost(brandAId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await service.setLimits(brandAId, boost.id, { staysLiveDuringInplay: true }, TEST_ACTOR);
+      const liveMatch = buildMatch({ isLive: true });
+
+      const [result] = await service.applyBoosts(brandAId, [liveMatch]);
+
+      expect(result?.markets[0]?.selections[0]?.originalOdds).toBe(2.0);
+    });
   });
 
   describe('setLimits', () => {

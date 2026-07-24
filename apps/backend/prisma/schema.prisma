@@ -160,6 +160,7 @@ enum AuditAction {
   MANUAL_MARKET_LIMITS_SET
   BOOST_LIMITS_SET
   BOOST_AUTO_DISABLED
+  MANUAL_MARKET_AUTO_DISABLED
   FREEBET_GRANTED
   FREEBET_VOIDED
   ACCA_ROLLBACK_CONFIG_SET
@@ -670,6 +671,10 @@ model ManualMarket {
   currentLiabilityCents Int @default(0)
   /** Who can see this market at all - see AudienceMode. Defaults to everyone, same as before this field existed. */
   audienceMode AudienceMode @default(ALL)
+  /** Set once currentLiabilityCents reaches maxLiabilityCents - mergeIntoMatches skips a disabled market, same as if it never existed. Not deleted, so the exposure history stays on the row. */
+  disabledAt DateTime?
+  /** A manually-priced market has no live re-pricing feed behind it, so it auto-suspends the moment its match goes in-play unless a trader explicitly marks it safe to keep offering live. Defaults to false (auto-suspend), same as every market before this field existed. */
+  staysLiveDuringInplay Boolean @default(false)
 
   selections       ManualMarketSelection[]
   audienceSegments ManualMarketSegment[]
@@ -752,6 +757,8 @@ model Boost {
   disabledAt DateTime?
   /** Who can see this boosted price at all - see AudienceMode. Defaults to everyone, same as before this field existed. */
   audienceMode AudienceMode @default(ALL)
+  /** A boosted price has no live re-pricing behind the boost itself, so it auto-suspends the moment its match goes in-play unless a trader explicitly marks it safe to keep offering live. Defaults to false (auto-suspend), same as every boost before this field existed. */
+  staysLiveDuringInplay Boolean @default(false)
 
   audienceSegments BoostSegment[]
 

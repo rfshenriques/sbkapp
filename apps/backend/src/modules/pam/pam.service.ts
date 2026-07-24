@@ -139,6 +139,7 @@ export class PamService {
   private async assertWithinManualMarketLimitsAndCollectLiability(
     brandId: string,
     dto: PlaceBetDto,
+    matchesById: Map<string, Match>,
   ): Promise<{ marketId: string; liabilityCents: number }[]> {
     const toRecord: { marketId: string; liabilityCents: number }[] = [];
 
@@ -146,6 +147,14 @@ export class PamService {
       const market = await this.manualMarketService.findForBet(brandId, selection.marketId);
       if (!market) {
         continue;
+      }
+
+      // A manually-priced market has no live re-pricing feed behind it - it
+      // shouldn't have been shown to the player once the match went
+      // in-play, but check again here as defense in depth (same rationale
+      // as the market suspension check above).
+      if (matchesById.get(selection.matchId)?.isLive && !market.staysLiveDuringInplay) {
+        throw new BadRequestException(`${market.name} is no longer available now that this match is in-play`);
       }
 
       if (market.maxStakeCents !== null && dto.stakeCents > market.maxStakeCents) {
@@ -179,6 +188,7 @@ export class PamService {
   private async assertWithinBoostLimitsAndCollectLiability(
     brandId: string,
     dto: PlaceBetDto,
+    matchesById: Map<string, Match>,
   ): Promise<{ boostId: string; liabilityCents: number }[]> {
     const toRecord: { boostId: string; liabilityCents: number }[] = [];
 
@@ -191,6 +201,12 @@ export class PamService {
       );
       if (!boost) {
         continue;
+      }
+
+      // A boosted price has no live re-pricing behind the boost itself -
+      // defense in depth, same rationale as the manual market check above.
+      if (matchesById.get(selection.matchId)?.isLive && !boost.staysLiveDuringInplay) {
+        throw new BadRequestException('This boosted price is no longer available now that this match is in-play');
       }
 
       if (boost.maxStakeCents !== null && dto.stakeCents > boost.maxStakeCents) {
@@ -267,8 +283,9 @@ export class PamService {
     const manualMarketLiabilityToRecord = await this.assertWithinManualMarketLimitsAndCollectLiability(
       brandId,
       dto,
+      matchesById,
     );
-    const boostLiabilityToRecord = await this.assertWithinBoostLimitsAndCollectLiability(brandId, dto);
+    const boostLiabilityToRecord = await this.assertWithinBoostLimitsAndCollectLiability(brandId, dto, matchesById);
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
@@ -328,10 +345,13 @@ export class PamService {
       }
 
       for (const { marketId, liabilityCents } of manualMarketLiabilityToRecord) {
-        await tx.manualMarket.update({
-          where: { id: marketId },
-          data: { currentLiabilityCents: { increment: liabilityCents } },
-        });
+        // No staff member triggered a possible auto-disable here - the liability cap itself did, as this bet's own placement pushed it over.
+        await this.manualMarketService.recordLiabilityAndMaybeDisable(
+          marketId,
+          liabilityCents,
+          { id: 'system', username: 'system:manual-market-auto-disable', brandId: user.brandId },
+          tx,
+        );
       }
 
       for (const { boostId, liabilityCents } of boostLiabilityToRecord) {

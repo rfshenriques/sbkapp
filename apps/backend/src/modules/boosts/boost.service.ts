@@ -18,6 +18,7 @@ export interface SetBoostLimitsInput {
   maxLiabilityCents?: number | null;
   audienceMode?: AudienceMode;
   segmentIds?: string[];
+  staysLiveDuringInplay?: boolean;
 }
 
 /**
@@ -116,6 +117,9 @@ export class BoostService {
               },
             }
           : {}),
+        ...(input.staysLiveDuringInplay !== undefined
+          ? { staysLiveDuringInplay: input.staysLiveDuringInplay }
+          : {}),
       },
       include: { audienceSegments: true },
     });
@@ -184,21 +188,26 @@ export class BoostService {
    * a selection would otherwise show (margin + manual markets + overrides
    * already applied), climbs it up the brand's odds ladder, and records
    * the pre-boost price as originalOdds so the player UI can show both.
-   * A disabled boost (liability cap hit) or one this viewer's audience
-   * doesn't cover is skipped entirely, same as if it never existed.
-   * Matches with no boosted selection pass through unchanged.
+   * A disabled boost (liability cap hit), one this viewer's audience
+   * doesn't cover, or one whose match has gone in-play without
+   * staysLiveDuringInplay set (a boosted price has no live re-pricing
+   * behind it) is skipped entirely, same as if it never existed. Matches
+   * with no boosted selection pass through unchanged.
    */
   async applyBoosts(brandId: string, matches: Match[], viewer: AudienceViewer = ANONYMOUS_VIEWER): Promise<Match[]> {
     const boosts = await this.prisma.boost.findMany({
       where: { brandId, disabledAt: null },
       include: { audienceSegments: true },
     });
-    const visibleBoosts = boosts.filter((boost) =>
-      resolveAudience(
-        boost.audienceMode,
-        boost.audienceSegments.map((segment) => segment.segmentId),
-        viewer,
-      ),
+    const isLiveByMatchId = new Map(matches.map((match) => [match.id, match.isLive]));
+    const visibleBoosts = boosts.filter(
+      (boost) =>
+        (boost.staysLiveDuringInplay || !isLiveByMatchId.get(boost.matchId)) &&
+        resolveAudience(
+          boost.audienceMode,
+          boost.audienceSegments.map((segment) => segment.segmentId),
+          viewer,
+        ),
     );
     if (visibleBoosts.length === 0) {
       return matches;
