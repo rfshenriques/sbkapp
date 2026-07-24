@@ -34,6 +34,6 @@ import { ViewerResolverService } from './viewer-resolver.service';
     PricedMatchesService,
     ViewerResolverService,
   ],
-  exports: [MarginPricingService, ViewerResolverService],
+  exports: [MarginPricingService, ViewerResolverService, PricedMatchesService],
 })
 export class MarginsModule {}
