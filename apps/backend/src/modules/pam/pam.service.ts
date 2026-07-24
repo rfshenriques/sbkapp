@@ -1,11 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { BetStatus, SelectionStatus } from '@prisma/client';
+import type { BetStatus, FreebetGrant, SelectionStatus } from '@prisma/client';
 import type { Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AccaBoostService } from '../acca-boost/acca-boost.service';
 import { calculateAccaBoost } from '../acca-boost/acca-boost';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { BoostService } from '../boosts/boost.service';
+import { FreebetService } from '../freebets/freebet.service';
 import { resolveBetLimit, type LegContext } from '../limits/stake-limits';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
@@ -29,6 +30,7 @@ export class PamService {
     private readonly accaBoostService: AccaBoostService,
     private readonly manualMarketService: ManualMarketService,
     private readonly boostService: BoostService,
+    private readonly freebetService: FreebetService,
   ) {}
 
   async getWallet(userId: string): Promise<{ balanceCents: number }> {
@@ -206,11 +208,32 @@ export class PamService {
     const matchesById = await this.fetchMatchesByMatchId(dto);
     await this.assertNoCompetitionSuspended(brandId, matchesById);
 
+    // A freebet is atomic - the stake must equal the grant's own value
+    // exactly, not a partial amount - and never combines with acca boost,
+    // to avoid double-bonusing the same bet (same rule will apply once
+    // acca rollback/insurance bet are wired in).
+    let freebetGrant: FreebetGrant | null = null;
+    if (dto.freebetGrantId) {
+      const active = await this.freebetService.listActive(userId, brandId);
+      freebetGrant = active.find((grant) => grant.id === dto.freebetGrantId) ?? null;
+      if (!freebetGrant) {
+        throw new BadRequestException('Freebet not found or no longer active');
+      }
+      if (freebetGrant.amountCents !== dto.stakeCents) {
+        throw new BadRequestException(
+          `Stake must equal the freebet's value (€${formatEuros(freebetGrant.amountCents)})`,
+        );
+      }
+    }
+
     const accaBoostConfig = await this.accaBoostService.getConfig(brandId);
-    const boost = calculateAccaBoost(
+    const rawBoost = calculateAccaBoost(
       dto.selections.map((selection) => selection.odds),
       accaBoostConfig,
     );
+    const boost = freebetGrant
+      ? { boostedCombinedOdds: rawBoost.baseCombinedOdds, boostPercent: 0 }
+      : rawBoost;
     const combinedOdds = boost.boostedCombinedOdds;
     const potentialPayoutCents = Math.round(dto.stakeCents * combinedOdds);
 
@@ -223,7 +246,7 @@ export class PamService {
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
-      if (user.balanceCents < dto.stakeCents) {
+      if (!freebetGrant && user.balanceCents < dto.stakeCents) {
         throw new BadRequestException('Insufficient balance');
       }
 
@@ -242,10 +265,12 @@ export class PamService {
         }
       }
 
-      await tx.user.update({
-        where: { id: userId },
-        data: { balanceCents: { decrement: dto.stakeCents } },
-      });
+      if (!freebetGrant) {
+        await tx.user.update({
+          where: { id: userId },
+          data: { balanceCents: { decrement: dto.stakeCents } },
+        });
+      }
 
       const bet = await tx.bet.create({
         data: {
@@ -255,6 +280,7 @@ export class PamService {
           combinedOdds,
           potentialPayoutCents,
           accaBoostPercent: boost.boostPercent,
+          freebetGrantId: freebetGrant?.id,
           selections: {
             create: dto.selections.map((selection) => ({
               matchId: selection.matchId,
@@ -269,6 +295,10 @@ export class PamService {
         },
         include: { selections: true },
       });
+
+      if (freebetGrant) {
+        await this.freebetService.spend(freebetGrant.id, userId, bet.id, tx);
+      }
 
       for (const { marketId, liabilityCents } of manualMarketLiabilityToRecord) {
         await tx.manualMarket.update({
@@ -369,7 +399,12 @@ export class PamService {
       );
 
       const previousCredited = updatedBet.settledPayoutCents ?? 0;
-      const newCredited = outcome.overallStatus === 'PENDING' ? 0 : outcome.payoutCents;
+      const rawCredited = outcome.overallStatus === 'PENDING' ? 0 : outcome.payoutCents;
+      // A freebet-funded bet never returns its stake, even on a win or a
+      // full void (see FreebetGrant) - only whatever's left after the
+      // stake is real cash the player actually receives.
+      const newCredited =
+        updatedBet.freebetGrantId !== null ? Math.max(0, rawCredited - updatedBet.stakeCents) : rawCredited;
       const delta = newCredited - previousCredited;
 
       if (delta !== 0) {
@@ -383,7 +418,7 @@ export class PamService {
         where: { id: betId },
         data: {
           status: outcome.overallStatus,
-          settledPayoutCents: outcome.overallStatus === 'PENDING' ? null : outcome.payoutCents,
+          settledPayoutCents: outcome.overallStatus === 'PENDING' ? null : newCredited,
           settledAt: outcome.overallStatus === 'PENDING' ? null : new Date(),
         },
         include: { selections: true },

@@ -4,6 +4,7 @@ import {
   IsArray,
   IsInt,
   IsNumber,
+  IsOptional,
   IsPositive,
   IsString,
   Min,
@@ -45,4 +46,14 @@ export class PlaceBetDto {
   @IsInt()
   @Min(1)
   stakeCents!: number;
+
+  /**
+   * When set, this bet is funded by that freebet grant instead of the
+   * player's cash balance - stakeCents must equal the grant's own
+   * amountCents exactly (a freebet is atomic, see FreebetService), and acca
+   * boost never applies (see PamService.placeBet) to avoid double-bonusing.
+   */
+  @IsOptional()
+  @IsString()
+  freebetGrantId?: string;
 }

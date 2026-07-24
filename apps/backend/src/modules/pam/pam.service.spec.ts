@@ -8,6 +8,7 @@ import { AccaBoostService } from '../acca-boost/acca-boost.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { BoostService } from '../boosts/boost.service';
 import { OddsLadderService } from '../boosts/odds-ladder.service';
+import { FreebetService } from '../freebets/freebet.service';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { CompetitionSuspensionService } from './competition-suspension.service';
@@ -53,6 +54,7 @@ describe('PamService', () => {
   let accaBoostService: AccaBoostService;
   let manualMarketService: ManualMarketService;
   let boostService: BoostService;
+  let freebetService: FreebetService;
   let prisma: PrismaService;
   let setupPrisma: PrismaService;
   let testBrandId: string;
@@ -92,6 +94,7 @@ describe('PamService', () => {
         ManualMarketService,
         BoostService,
         OddsLadderService,
+        FreebetService,
         {
           provide: OddsEngineClient,
           useValue: { fetchMatchById: vi.fn(async (matchId: string) => fakeMatch(matchId)) },
@@ -106,6 +109,7 @@ describe('PamService', () => {
     accaBoostService = moduleRef.get(AccaBoostService);
     manualMarketService = moduleRef.get(ManualMarketService);
     boostService = moduleRef.get(BoostService);
+    freebetService = moduleRef.get(FreebetService);
     prisma = moduleRef.get(PrismaService);
   });
 
@@ -535,6 +539,72 @@ describe('PamService', () => {
     });
   });
 
+  describe('freebets', () => {
+    it('funds a bet with a freebet instead of the cash balance, and disables acca boost', async () => {
+      await accaBoostService.setConfig(
+        testBrandId,
+        { boostPercentPerLeg: 5, minSelections: 2, minOddsPerLeg: 1.2, enabled: true },
+        TEST_ACTOR,
+      );
+      const userId = await createTestUser(100_000);
+      const grant = await freebetService.grant(
+        testBrandId,
+        { identifier: (await prisma.user.findUniqueOrThrow({ where: { id: userId } })).username, amountCents: 1_000 },
+        TEST_ACTOR,
+      );
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', odds: 2.1 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 1.5 }),
+        ],
+        stakeCents: 1_000,
+        freebetGrantId: grant.id,
+      });
+
+      // Cash balance untouched - the freebet funded the stake, not the player's own money.
+      const wallet = await pamService.getWallet(userId);
+      expect(wallet.balanceCents).toBe(100_000);
+
+      // Acca boost never applies to a freebet-funded bet, even though this accumulator qualifies.
+      expect(bet.accaBoostPercent).toBe(0);
+      expect(Number(bet.combinedOdds)).toBeCloseTo(3.15);
+
+      const spentGrant = await prisma.freebetGrant.findUniqueOrThrow({ where: { id: grant.id } });
+      expect(spentGrant.status).toBe('SPENT');
+      expect(spentGrant.spentOnBetId).toBe(bet.id);
+    });
+
+    it("rejects a stake that doesn't exactly match the freebet's value", async () => {
+      const userId = await createTestUser(100_000);
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      const grant = await freebetService.grant(testBrandId, { identifier: user.username, amountCents: 1_000 }, TEST_ACTOR);
+
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [buildSelection()],
+          stakeCents: 500,
+          freebetGrantId: grant.id,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rejects a freebet that is no longer active', async () => {
+      const userId = await createTestUser(100_000);
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      const grant = await freebetService.grant(testBrandId, { identifier: user.username, amountCents: 1_000 }, TEST_ACTOR);
+      await freebetService.void(testBrandId, grant.id, TEST_ACTOR);
+
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [buildSelection()],
+          stakeCents: 1_000,
+          freebetGrantId: grant.id,
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
   it('rejects placing a bet on a suspended match', async () => {
     const userId = await createTestUser(100_000);
     await marketSuspensionService.suspend(
@@ -721,6 +791,78 @@ describe('PamService', () => {
       expect(settled.status).toBe('VOID');
       expect(settled.settledPayoutCents).toBe(1_000);
 
+      const wallet = await pamService.getWallet(userId);
+      expect(wallet.balanceCents).toBe(100_000);
+    });
+
+    it('a freebet-funded bet that WINs credits only the profit, not the stake', async () => {
+      const userId = await createTestUser(100_000);
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      const grant = await freebetService.grant(testBrandId, { identifier: user.username, amountCents: 1_000 }, TEST_ACTOR);
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.1 })],
+        stakeCents: 1_000,
+        freebetGrantId: grant.id,
+      });
+
+      const settled = await pamService.settleSelection(
+        testBrandId,
+        bet.id,
+        bet.selections[0]!.id,
+        'WON',
+        TEST_ACTOR,
+      );
+
+      // Raw payout would be 2_100 (stake * odds) - a freebet never returns
+      // the stake, only the 1_100 profit on top of it.
+      expect(settled.settledPayoutCents).toBe(1_100);
+      const wallet = await pamService.getWallet(userId);
+      // Balance was never debited at placement (freebet-funded), so it only ever gains the profit.
+      expect(wallet.balanceCents).toBe(101_100);
+    });
+
+    it('a freebet-funded bet that LOSEs credits nothing and never touched the cash balance', async () => {
+      const userId = await createTestUser(100_000);
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      const grant = await freebetService.grant(testBrandId, { identifier: user.username, amountCents: 1_000 }, TEST_ACTOR);
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.1 })],
+        stakeCents: 1_000,
+        freebetGrantId: grant.id,
+      });
+
+      const settled = await pamService.settleSelection(
+        testBrandId,
+        bet.id,
+        bet.selections[0]!.id,
+        'LOST',
+        TEST_ACTOR,
+      );
+
+      expect(settled.settledPayoutCents).toBe(0);
+      const wallet = await pamService.getWallet(userId);
+      expect(wallet.balanceCents).toBe(100_000);
+    });
+
+    it('a freebet-funded bet that VOIDs credits nothing - the stake was never the player’s own cash', async () => {
+      const userId = await createTestUser(100_000);
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      const grant = await freebetService.grant(testBrandId, { identifier: user.username, amountCents: 1_000 }, TEST_ACTOR);
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.1 })],
+        stakeCents: 1_000,
+        freebetGrantId: grant.id,
+      });
+
+      const settled = await pamService.settleSelection(
+        testBrandId,
+        bet.id,
+        bet.selections[0]!.id,
+        'VOID',
+        TEST_ACTOR,
+      );
+
+      expect(settled.settledPayoutCents).toBe(0);
       const wallet = await pamService.getWallet(userId);
       expect(wallet.balanceCents).toBe(100_000);
     });

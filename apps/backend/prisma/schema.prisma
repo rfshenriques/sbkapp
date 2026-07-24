@@ -215,6 +215,8 @@ model FreebetGrant {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
+  fundedBet Bet?
+
   @@index([userId, status])
   @@index([brandId])
   @@map("freebet_grants")
@@ -547,6 +549,10 @@ model Bet {
    */
   settledPayoutCents Int?
   settledAt          DateTime?
+
+  /** Set only when this bet was funded by a freebet instead of cash (see FreebetService.spend) - stakeCents always equals that grant's amountCents. Settlement never returns the stake for a freebet-funded bet, only the profit (see PamService.settleSelection). */
+  freebetGrantId String?       @unique
+  freebetGrant   FreebetGrant? @relation(fields: [freebetGrantId], references: [id], onDelete: SetNull)
 
   selections BetSelection[]
 
