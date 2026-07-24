@@ -205,6 +205,7 @@ export class ManualMarketService {
         id: manualMarket.id,
         name: manualMarket.name,
         isSpecial: true,
+        maxStakeCents: manualMarket.maxStakeCents ?? undefined,
         selections: manualMarket.selections.map((selection) => ({
           id: selection.id,
           name: selection.name,

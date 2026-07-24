@@ -59,14 +59,20 @@ function SelectionOdds({ selection }: { selection: BetSlipSelection }) {
   );
 }
 
-/** Only rendered when a boost has a per-bet stake cap (see BoostService.applyBoosts) - the boosted price above only applies up to this stake. */
+/**
+ * Only rendered when a per-bet stake cap applies - either a boost's price cap
+ * (see BoostService.applyBoosts) or a manual market's own trader-configured
+ * cap (see ManualMarketService). Wording distinguishes the two since only one
+ * involves a boosted price.
+ */
 function MaxStakeNote({ selection }: { selection: BetSlipSelection }) {
   if (selection.maxStakeCents === undefined) {
     return null;
   }
+  const label = selection.originalOdds !== undefined ? 'Max stake for boosted price' : 'Max stake';
   return (
     <p className="text-[11px] text-text-secondary">
-      Max stake for boosted price: €{(selection.maxStakeCents / 100).toFixed(2)}
+      {label}: €{(selection.maxStakeCents / 100).toFixed(2)}
     </p>
   );
 }

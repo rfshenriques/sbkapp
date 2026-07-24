@@ -233,6 +233,25 @@ describe('ManualMarketService', () => {
       expect(result?.markets[1]?.isSpecial).toBe(true);
     });
 
+    it('exposes a configured max stake cap on the merged market so players can see it', async () => {
+      const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      await service.setLimits(brandAId, market.id, { maxStakeCents: 5_000 }, TEST_ACTOR);
+      const match = buildMatch();
+
+      const [result] = await service.mergeIntoMatches(brandAId, [match]);
+
+      expect(result?.markets[1]?.maxStakeCents).toBe(5_000);
+    });
+
+    it('omits maxStakeCents on a merged market with no cap configured', async () => {
+      await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
+      const match = buildMatch();
+
+      const [result] = await service.mergeIntoMatches(brandAId, [match]);
+
+      expect(result?.markets[1]?.maxStakeCents).toBeUndefined();
+    });
+
     it('hides a LOGGED_IN-only market from an anonymous viewer', async () => {
       const market = await service.createMarket(brandAId, 'match-1', 'Novelty', [{ name: 'Yes', odds: 2 }], TEST_ACTOR);
       await service.setLimits(brandAId, market.id, { audienceMode: 'LOGGED_IN' }, TEST_ACTOR);

@@ -15,6 +15,8 @@ export interface Market {
   selections: Selection[];
   /** True for a trader-created manual market with no feed equivalent - the player app groups every such market under one "Specials" heading rather than interspersing them with real markets. */
   isSpecial?: boolean;
+  /** Present only for manual markets with a trader-configured per-bet stake cap - applies to any selection within this market. In cents. */
+  maxStakeCents?: number;
 }
 
 export interface Match {

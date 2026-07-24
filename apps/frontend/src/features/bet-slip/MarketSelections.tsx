@@ -113,7 +113,7 @@ export function MarketSelections({ matchId, matchLabel, competition, market }: M
                 selectionName: selectionLabel,
                 odds: selection.odds,
                 originalOdds: selection.originalOdds,
-                maxStakeCents: selection.maxStakeCents,
+                maxStakeCents: selection.maxStakeCents ?? market.maxStakeCents,
               })
             }
           />

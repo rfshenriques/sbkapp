@@ -224,6 +224,11 @@ export default function MatchDetailPage() {
                   competition={match.competition}
                   market={market}
                 />
+                {market.maxStakeCents !== undefined && (
+                  <p className="mt-1.5 text-[11px] text-text-secondary">
+                    Max stake: €{(market.maxStakeCents / 100).toFixed(2)}
+                  </p>
+                )}
               </div>
             ))}
           </div>
