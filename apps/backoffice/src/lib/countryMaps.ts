@@ -48,3 +48,14 @@ export function competitionCountryMap(matches: Match[]): Map<string, string> {
   }
   return map;
 }
+
+/** competition -> sport, same reasoning as competitionCountryMap - a competition genuinely belongs to one sport. */
+export function competitionSportMap(matches: Match[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const match of matches) {
+    if (!map.has(match.competition)) {
+      map.set(match.competition, match.sport);
+    }
+  }
+  return map;
+}

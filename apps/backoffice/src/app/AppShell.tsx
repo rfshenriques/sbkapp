@@ -23,12 +23,7 @@ const NAV_GROUPS: NavGroup[] = [
     label: 'Trading',
     items: [
       { to: '/', label: 'Settlement' },
-      { to: '/markets', label: 'Suspensions', roles: ['ADMIN', 'TRADING'] },
-      {
-        to: '/competition-suspensions',
-        label: 'Competition suspensions',
-        roles: ['ADMIN', 'TRADING'],
-      },
+      { to: '/trading', label: 'Suspensions', roles: ['ADMIN', 'TRADING'] },
       { to: '/competition-tiers', label: 'Competition tiers', roles: ['ADMIN', 'TRADING'] },
       { to: '/margins', label: 'Margins', roles: ['ADMIN', 'TRADING'] },
       { to: '/odds-overrides', label: 'Odds management', roles: ['ADMIN', 'TRADING'] },

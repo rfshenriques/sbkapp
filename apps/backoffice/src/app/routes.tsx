@@ -3,13 +3,11 @@ import AccaBoostPage from '../pages/AccaBoostPage';
 import AuditLogPage from '../pages/AuditLogPage';
 import CmsImagesPage from '../pages/CmsImagesPage';
 import CompetitionRankingPage from '../pages/CompetitionRankingPage';
-import CompetitionSuspensionsPage from '../pages/CompetitionSuspensionsPage';
 import CompetitionTiersPage from '../pages/CompetitionTiersPage';
 import DisplayNamesPage from '../pages/DisplayNamesPage';
 import ManualMarketsPage from '../pages/ManualMarketsPage';
 import MarginsPage from '../pages/MarginsPage';
 import MarketingSpendPage from '../pages/MarketingSpendPage';
-import MarketsPage from '../pages/MarketsPage';
 import NotFoundPage from '../pages/NotFoundPage';
 import BoostsPage from '../pages/BoostsPage';
 import OddsLadderPage from '../pages/OddsLadderPage';
@@ -19,6 +17,7 @@ import ReportsPage from '../pages/ReportsPage';
 import SettlementPage from '../pages/SettlementPage';
 import StakeLimitsPage from '../pages/StakeLimitsPage';
 import StaffLoginPage from '../pages/StaffLoginPage';
+import TradingPage from '../pages/TradingPage';
 import StaffUsersPage from '../pages/StaffUsersPage';
 import TeamColorsPage from '../pages/TeamColorsPage';
 import { AppShell } from './AppShell';
@@ -39,21 +38,11 @@ export const routes: RouteObject[] = [
         ),
       },
       {
-        path: 'markets',
+        path: 'trading',
         element: (
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'TRADING']}>
-              <MarketsPage />
-            </RequireRoles>
-          </RequireStaffAuth>
-        ),
-      },
-      {
-        path: 'competition-suspensions',
-        element: (
-          <RequireStaffAuth>
-            <RequireRoles roles={['ADMIN', 'TRADING']}>
-              <CompetitionSuspensionsPage />
+              <TradingPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),
