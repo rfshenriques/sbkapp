@@ -320,6 +320,32 @@ export class PamService {
     return toRecord;
   }
 
+  /**
+   * A boosted price already prices in extra risk the book chose to eat, and
+   * a singles-only market's price already assumes no correlation cushion -
+   * insuring either on top would stack a guaranteed-stake-back reward onto
+   * a price that's already subsidized, the same double-bonusing rationale
+   * that keeps insurance apart from freebets and acca boost.
+   */
+  private async assertInsuranceEligible(brandId: string, dto: PlaceBetDto): Promise<void> {
+    for (const selection of dto.selections) {
+      const boost = await this.boostService.findActiveForBet(
+        brandId,
+        selection.matchId,
+        selection.marketId,
+        selection.selectionId,
+      );
+      if (boost) {
+        throw new BadRequestException('Insurance is not available on a boosted selection');
+      }
+
+      const market = await this.manualMarketService.findForBet(brandId, selection.marketId);
+      if (market?.singlesOnly) {
+        throw new BadRequestException(`Insurance is not available on ${market.name}`);
+      }
+    }
+  }
+
   async placeBet(userId: string, dto: PlaceBetDto) {
     const { brandId } = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
@@ -356,6 +382,9 @@ export class PamService {
     const insuranceBetConfig = await this.insuranceBetService.getConfig(brandId);
     const insuranceOptedIn = Boolean(dto.insuranceOptIn) && !freebetGrant;
     const insuranceApplies = insuranceOptedIn && insuranceBetConfig.enabled;
+    if (insuranceApplies) {
+      await this.assertInsuranceEligible(brandId, dto);
+    }
 
     const accaBoostConfig = await this.accaBoostService.getConfig(brandId);
     const rawBoost = calculateAccaBoost(

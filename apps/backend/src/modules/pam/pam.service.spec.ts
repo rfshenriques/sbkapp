@@ -1630,6 +1630,50 @@ describe('PamService', () => {
       expect(bet.potentialPayoutCents).toBe(2_000);
     });
 
+    it('rejects insurance opt-in on a boosted selection', async () => {
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await boostService.setBoost(testBrandId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [buildSelection({ matchId: 'match-1', marketId: 'match-result', selectionId: 'home' })],
+          stakeCents: 1_000,
+          insuranceOptIn: true,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects insurance opt-in on a singles-only manual market', async () => {
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      const market = await manualMarketService.createMarket(testBrandId, 'match-1', 'Novelty', [
+        { name: 'Yes', odds: 2.1 },
+      ], TEST_ACTOR);
+      await manualMarketService.setLimits(testBrandId, market.id, { singlesOnly: true }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [buildSelection({ matchId: 'match-1', marketId: market.id })],
+          stakeCents: 1_000,
+          insuranceOptIn: true,
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('allows insurance opt-in on an ordinary (non-boosted, non-singles-only) selection', async () => {
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+        insuranceOptIn: true,
+      });
+
+      expect(bet.insuranceCostPercent).toBe(10);
+    });
+
     it('refunds the stake as a freebet when an insured bet loses', async () => {
       await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
       const userId = await createTestUser(100_000);

@@ -144,6 +144,16 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
 
     matches.sort((a, b) => a.kickoff.localeCompare(b.kickoff));
 
+    // Every sport key failed (e.g. the API key was invalid/exhausted at the
+    // moment this call happened) - caching an empty result here would latch
+    // the whole service onto "no matches" for the full TTL even after the
+    // underlying problem is fixed, requiring a process restart to clear.
+    // Leave the cache untouched so the next call retries against the API
+    // instead of serving this transient empty result for hours.
+    if (sportKeys.length > 0 && failedSportKeys === sportKeys.length) {
+      return matches;
+    }
+
     eventsCache = { value: matches, expiresAt: currentTime + EVENTS_CACHE_TTL_MS };
     return matches;
   }

@@ -20,7 +20,7 @@ import { useAccaRollbackConfig } from './useAccaRollbackConfig';
 import { calculateInsuredPayout } from './insuranceBet';
 import { useInsuranceBetConfig } from './useInsuranceBetConfig';
 import { useStakeLimitPreview } from './useStakeLimitPreview';
-import { invalidAccumulatorReason } from './accumulatorValidity';
+import { hasInsuranceIneligibleSelection, invalidAccumulatorReason } from './accumulatorValidity';
 import { useBetSlipStore, type BetSlipSelection } from './betSlipStore';
 import type { StakeLimitPreview } from '../../lib/backendApi';
 
@@ -78,6 +78,26 @@ function SelectionOdds({ selection }: { selection: BetSlipSelection }) {
 }
 
 /**
+ * Struck-through previous amount, an arrow, then the new highlighted
+ * amount - same visual language as SelectionOdds, reused for any
+ * before/after money figure (acca boost's and insurance's potential
+ * winnings).
+ */
+function MoneyBeforeAfter({ beforeCents, afterCents }: { beforeCents: number; afterCents: number }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="text-xs text-text-secondary line-through decoration-1">
+        €{(beforeCents / 100).toFixed(2)}
+      </span>
+      <span className="text-text-secondary" aria-hidden="true">
+        &rarr;
+      </span>
+      <span className="font-semibold text-highlight">€{(afterCents / 100).toFixed(2)}</span>
+    </span>
+  );
+}
+
+/**
  * Only rendered when a per-bet stake cap applies - either a boost's price cap
  * (see BoostService.applyBoosts) or a manual market's own trader-configured
  * cap (see ManualMarketService). Wording distinguishes the two since only one
@@ -100,9 +120,18 @@ function MaxStakeNote({ selection }: { selection: BetSlipSelection }) {
  * calculateAccaBoost's minSelections gate). Three states: not enough
  * selections yet (progress bar toward the threshold), enough selections but
  * a leg's price is too short to qualify, or qualifying (bar full, shows the
- * live boost % and what one more selection would add).
+ * live boost % and, once a stake is typed in, what that boost is actually
+ * worth - the previous vs. boosted potential winnings, not just the percent).
  */
-function AccaBoostBar({ legOdds, config }: { legOdds: number[]; config: AccaBoostConfig }) {
+function AccaBoostBar({
+  legOdds,
+  config,
+  stakeCents,
+}: {
+  legOdds: number[];
+  config: AccaBoostConfig;
+  stakeCents: number;
+}) {
   if (!config.enabled) {
     return null;
   }
@@ -116,6 +145,15 @@ function AccaBoostBar({ legOdds, config }: { legOdds: number[]; config: AccaBoos
           <span className="text-highlight">🚀 Acca Boost +{result.boostPercent}%</span>
           <span className="text-text-muted">+{config.boostPercentPerLeg}% for 1 more selection</span>
         </div>
+        {stakeCents > 0 && (
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-text-secondary">Potential winnings</span>
+            <MoneyBeforeAfter
+              beforeCents={Math.round(stakeCents * result.baseCombinedOdds)}
+              afterCents={Math.round(stakeCents * result.boostedCombinedOdds)}
+            />
+          </div>
+        )}
         <div className="h-1.5 overflow-hidden rounded-full bg-surface">
           <div className="h-full w-full rounded-full bg-highlight" />
         </div>
@@ -461,6 +499,16 @@ export function BetSlipPanel({
       setInsuranceOptIn(false);
     }
   }, [payMethod, insuranceOptIn]);
+  // A boosted price or a singles-only special is already priced with its
+  // own subsidy/no-correlation assumption (see PamService.assertInsuranceEligible) -
+  // drop insurance the moment such a selection enters the slip, same as the
+  // freebet-mode reset above.
+  const insuranceIneligible = hasInsuranceIneligibleSelection(selections);
+  useEffect(() => {
+    if (insuranceIneligible && insuranceOptIn) {
+      setInsuranceOptIn(false);
+    }
+  }, [insuranceIneligible, insuranceOptIn]);
   const stakeId = useId();
 
   function getSingleStake(selection: BetSlipSelection): string {
@@ -472,6 +520,7 @@ export function BetSlipPanel({
 
   const isFreebetMode = payMethod === 'freebet';
   const selectedFreebet = freebets?.find((freebet) => freebet.id === selectedFreebetId) ?? null;
+  const insuranceApplies = insuranceOptIn && insuranceBetConfig.enabled;
 
   function resetPayMethod() {
     setPayMethod('cash');
@@ -551,7 +600,7 @@ export function BetSlipPanel({
   // accumulator would otherwise qualify (see calculateAccaBoost). Mirrors
   // PamService.placeBet's insuranceApplies gate.
   const accaBoost =
-    isFreebetMode || (insuranceOptIn && insuranceBetConfig.enabled)
+    isFreebetMode || insuranceApplies
       ? { qualifies: false, boostPercent: 0, baseCombinedOdds: rawAccaBoost.baseCombinedOdds, boostedCombinedOdds: rawAccaBoost.baseCombinedOdds }
       : rawAccaBoost;
   // The un-boosted product passes straight through when the accumulator doesn't qualify (see calculateAccaBoost).
@@ -595,6 +644,47 @@ export function BetSlipPanel({
           }, 0) / 100
         ).toFixed(2)
       : '—';
+  // Uninsured total, for the "previous" side of the before/after display -
+  // same shape as totalSinglesPayout's reduce but without the insurance
+  // discount, and always computed (not gated on insuranceOptIn) so the
+  // insurance toggle's own explanation can quote it before it's even on.
+  const totalSinglesRawPayoutCents = allSinglesValid
+    ? selections.reduce((total, selection) => {
+        const stakeCentsForSelection = Math.round(Number(getSingleStake(selection)) * 100);
+        return total + stakeCentsForSelection * selection.odds;
+      }, 0)
+    : 0;
+  // What the singles total would be if insurance were opted into right now,
+  // regardless of the actual toggle state - lets the toggle's explanation
+  // quote a real number before the player switches it on.
+  const totalSinglesInsuredPreviewCents = allSinglesValid
+    ? selections.reduce((total, selection) => {
+        const stakeCentsForSelection = Math.round(Number(getSingleStake(selection)) * 100);
+        const rawCents = stakeCentsForSelection * selection.odds;
+        return total + calculateInsuredPayout(rawCents, true, insuranceBetConfig).insuredPayoutCents;
+      }, 0)
+    : 0;
+  // Same freebet-adjusted figure the actual payout is derived from (see
+  // insurancePricing above), but always previewed as if insurance were on -
+  // used both for the toggle's explanatory copy and the before/after display.
+  const accumulatorInsurancePreviewCents = calculateInsuredPayout(
+    freebetAdjustedPotentialCents,
+    true,
+    insuranceBetConfig,
+  ).insuredPayoutCents;
+  const isCurrentTabValid = tab === 'accumulator' ? isStakeValid : allSinglesValid;
+  const currentTabRawPayoutCents = tab === 'accumulator' ? freebetAdjustedPotentialCents : totalSinglesRawPayoutCents;
+  const currentTabInsurancePreviewCents =
+    tab === 'accumulator' ? accumulatorInsurancePreviewCents : totalSinglesInsuredPreviewCents;
+  // A discounted price purely for display - insurance doesn't change the
+  // actual market odds, only the payout, but showing it as an "effective"
+  // odds figure (mirroring how a boost shows previous -> new) makes the
+  // -X% cost legible right where the player is already looking at odds.
+  const insuranceEffectiveCombinedOdds = insuranceApplies
+    ? combinedOdds * (1 - insuranceBetConfig.costPercent / 100)
+    : undefined;
+  const insuranceEffectiveSingleOdds =
+    insuranceApplies && singleSelection ? singleSelection.odds * (1 - insuranceBetConfig.costPercent / 100) : undefined;
 
   let mainContent: ReactNode;
   // Stake/payout/CTA lives outside the scrollable region (see the `footer`
@@ -742,7 +832,11 @@ export function BetSlipPanel({
           </p>
         )}
         {tab === 'accumulator' && !isFreebetMode && !insuranceOptIn && (
-          <AccaBoostBar legOdds={selections.map((selection) => selection.odds)} config={accaBoostConfig} />
+          <AccaBoostBar
+            legOdds={selections.map((selection) => selection.odds)}
+            config={accaBoostConfig}
+            stakeCents={stakeCents}
+          />
         )}
         {tab === 'accumulator' && !isFreebetMode && !insuranceOptIn && (
           <AccaRollbackBar selectionCount={selections.length} config={accaRollbackConfig} />
@@ -756,8 +850,14 @@ export function BetSlipPanel({
                 stakeId={stakeId}
                 stake={stake}
                 onStakeChange={setStake}
-                odds={combinedOdds}
-                previousOdds={accaBoost.qualifies ? accaBoost.baseCombinedOdds : undefined}
+                odds={insuranceEffectiveCombinedOdds ?? combinedOdds}
+                previousOdds={
+                  accaBoost.qualifies
+                    ? accaBoost.baseCombinedOdds
+                    : insuranceApplies
+                      ? combinedOdds
+                      : undefined
+                }
               />
               <StakeLimitAlert stakeCents={stakeCents} preview={accumulatorStakeLimitPreview} />
             </>
@@ -771,8 +871,9 @@ export function BetSlipPanel({
                 stakeId={stakeId}
                 stake={getSingleStake(singleSelection)}
                 onStakeChange={(value) => setSingleStake(singleSelection, value)}
-                odds={singleSelection.odds}
-                hideOdds
+                odds={insuranceEffectiveSingleOdds ?? singleSelection.odds}
+                hideOdds={!insuranceApplies}
+                previousOdds={insuranceApplies ? singleSelection.odds : undefined}
               />
               <StakeLimitAlert
                 stakeCents={Math.round(Number(getSingleStake(singleSelection)) * 100)}
@@ -780,20 +881,37 @@ export function BetSlipPanel({
               />
             </>
           ))}
-        {!isFreebetMode && insuranceBetConfig.enabled && selections.length > 0 && (
-          <div className="flex items-center justify-between gap-2 rounded-xl border border-border bg-surface-2 p-2.5 text-xs">
-            <span className="text-text-secondary">
-              Insure this bet - pay {insuranceBetConfig.costPercent}% for your stake back as a freebet if
-              it loses
-            </span>
-            <Switch checked={insuranceOptIn} onChange={setInsuranceOptIn} ariaLabel="Insure this bet" />
+        {!isFreebetMode && insuranceBetConfig.enabled && selections.length > 0 && !insuranceIneligible && (
+          <div className="space-y-1.5 rounded-xl border border-border bg-surface-2 p-2.5 text-xs">
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-text-secondary">Insure this bet</span>
+              <Switch checked={insuranceOptIn} onChange={setInsuranceOptIn} ariaLabel="Insure this bet" />
+            </div>
+            <p className="text-text-secondary">
+              {isCurrentTabValid && currentTabRawPayoutCents > 0 ? (
+                <>
+                  If it wins, you'd get €{(currentTabInsurancePreviewCents / 100).toFixed(2)} instead of €
+                  {(currentTabRawPayoutCents / 100).toFixed(2)} ({insuranceBetConfig.costPercent}% less). If it
+                  loses, your full stake is returned as a freebet.
+                </>
+              ) : (
+                <>
+                  Pay {insuranceBetConfig.costPercent}% less in winnings to be protected - if this bet loses,
+                  your full stake is returned as a freebet.
+                </>
+              )}
+            </p>
           </div>
         )}
         <div className="flex items-center justify-between text-sm text-text-secondary">
           <span>{isFreebetMode ? 'Potential winnings' : 'Potential payout'}</span>
-          <span className="font-semibold text-text-primary">
-            {tab === 'accumulator' ? potentialPayout : totalSinglesPayout}
-          </span>
+          {insuranceApplies && isCurrentTabValid ? (
+            <MoneyBeforeAfter beforeCents={currentTabRawPayoutCents} afterCents={currentTabInsurancePreviewCents} />
+          ) : (
+            <span className="font-semibold text-text-primary">
+              {tab === 'accumulator' ? potentialPayout : totalSinglesPayout}
+            </span>
+          )}
         </div>
         {error && <p className="text-xs text-danger">{error}</p>}
         {isAuthenticated ? (

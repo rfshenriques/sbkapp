@@ -23,6 +23,13 @@ export interface BottomSheetProps {
    * side by side instead of stacking the way mobile does.
    */
   desktopSize?: 'default' | 'wide';
+  /**
+   * Mobile-only sheet height (dvh unit class, e.g. 'h-[80dvh]') - the bet
+   * slip opts into a taller sheet since its alerts/promo bars (stake-limit
+   * warnings, acca boost/rollback bars, insurance toggle) eat into the
+   * visible scroll area more than login/register's plain form fields do.
+   */
+  mobileHeightClassName?: string;
 }
 
 const desktopMaxWidth: Record<NonNullable<BottomSheetProps['desktopSize']>, string> = {
@@ -47,6 +54,7 @@ export function BottomSheet({
   children,
   bodyClassName,
   desktopSize = 'default',
+  mobileHeightClassName = 'h-[80dvh]',
 }: BottomSheetProps) {
   // A background page tall enough to scroll would otherwise keep scrolling
   // underneath the sheet once the sheet's own content hits its scroll
@@ -70,7 +78,8 @@ export function BottomSheet({
           dialog should size to its content, not always fill 80% of screen. */}
       <div
         className={cn(
-          'sheet-slide-up relative flex h-[80dvh] w-full flex-col overflow-hidden rounded-t-3xl border border-border bg-surface sm:h-auto sm:max-h-[85vh] sm:rounded-3xl',
+          'sheet-slide-up relative flex w-full flex-col overflow-hidden rounded-t-3xl border border-border bg-surface sm:h-auto sm:max-h-[85vh] sm:rounded-3xl',
+          mobileHeightClassName,
           desktopMaxWidth[desktopSize],
         )}
       >

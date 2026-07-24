@@ -26,3 +26,14 @@ export function invalidAccumulatorReason(selections: BetSlipSelection[]): string
 
   return null;
 }
+
+/**
+ * Mirrors PamService's assertInsuranceEligible - a boosted price or a
+ * singles-only special is already priced with its own subsidy/no-correlation
+ * assumption, so insurance never applies on top of either. Used to hide the
+ * insurance toggle before the player can even opt in, not just to explain a
+ * rejection after the fact.
+ */
+export function hasInsuranceIneligibleSelection(selections: BetSlipSelection[]): boolean {
+  return selections.some((selection) => selection.originalOdds !== undefined || selection.marketSinglesOnly);
+}

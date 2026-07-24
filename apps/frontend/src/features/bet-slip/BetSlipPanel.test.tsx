@@ -151,6 +151,9 @@ describe('BetSlipPanel', () => {
       // Combined odds shows both the pre-boost and boosted figures, not just the end result.
       expect(screen.getByText('10.50')).toBeInTheDocument();
       expect(screen.getByText('12.08')).toBeInTheDocument();
+      // Default stake 10.00: base potential winnings 105.00, boosted 120.80.
+      expect(screen.getByText('€105.00')).toBeInTheDocument();
+      expect(screen.getByText('€120.80')).toBeInTheDocument();
     });
 
     it('shows a disqualified message when a leg is under the minimum odds, even with enough selections', async () => {
@@ -345,8 +348,31 @@ describe('BetSlipPanel', () => {
 
       await userEvent.click(toggle);
 
-      // 21.00 - 10% cost -> 18.90.
-      expect(await screen.findByText('18.90')).toBeInTheDocument();
+      // 21.00 - 10% cost -> 18.90, shown as a before/after (€21.00 -> €18.90).
+      expect(await screen.findByText('€18.90')).toBeInTheDocument();
+      expect(screen.getByText('€21.00')).toBeInTheDocument();
+    });
+
+    it('hides the toggle entirely for a boosted selection', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubInsuranceBetConfig({ costPercent: 10, enabled: true });
+      const boostedHome = { ...homeSelection, odds: 2.5, originalOdds: 2.1 };
+      useBetSlipStore.setState({ selections: [boostedHome] });
+      renderPanel();
+
+      await screen.findByText('2.50');
+      expect(screen.queryByText(/Insure this bet/)).not.toBeInTheDocument();
+    });
+
+    it('hides the toggle entirely for a singles-only manual market selection', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubInsuranceBetConfig({ costPercent: 10, enabled: true });
+      const noveltySelection = { ...homeSelection, marketName: 'Novelty Market', marketSinglesOnly: true };
+      useBetSlipStore.setState({ selections: [noveltySelection] });
+      renderPanel();
+
+      await screen.findByText('Novelty Market: Home');
+      expect(screen.queryByText(/Insure this bet/)).not.toBeInTheDocument();
     });
   });
 

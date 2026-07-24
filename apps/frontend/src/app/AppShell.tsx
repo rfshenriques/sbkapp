@@ -236,7 +236,7 @@ export function AppShell() {
             the sport/country/competition tree and Top Competitions list
             need more room to stay readable than the compact bet slip does. */}
         <aside className="hidden sm:block sm:w-96 sm:shrink-0">
-          <div className="scrollbar-hide sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto rounded-2xl border border-border bg-surface p-4">
+          <div className="scrollbar-hide sticky top-16 max-h-[calc(100vh-4.5rem)] overflow-y-auto rounded-2xl border border-border bg-surface p-4">
             <Sidebar />
           </div>
         </aside>
@@ -258,7 +258,7 @@ export function AppShell() {
             payout calculator fixed at the bottom - this wrapper just gives
             it a bounded height to work within, no overflow of its own. */}
         <aside className="hidden sm:block sm:w-80 sm:shrink-0">
-          <div className="sticky top-20 flex h-[calc(100vh-6rem)] flex-col rounded-2xl border border-border bg-surface p-4">
+          <div className="sticky top-16 flex h-[calc(100vh-4.5rem)] flex-col rounded-2xl border border-border bg-surface p-4">
             <BetSlipPanel showHistoryTab emptyStateVariant="promotional" />
           </div>
         </aside>
@@ -364,6 +364,11 @@ export function AppShell() {
             onClose={() => setIsSlipOpen(false)}
             closeLabel="Close bet slip"
             bodyClassName="min-h-0 flex-1 p-4"
+            // Taller than the default 80dvh - stake-limit alerts, acca
+            // boost/rollback bars and the insurance toggle stack up under
+            // the selections and otherwise leave very little of the actual
+            // selection list visible before the fixed footer starts.
+            mobileHeightClassName="h-[92dvh]"
             headerExtra={
               // Header's own balance display is sm:inline-only (hidden on
               // mobile), so this is the only place a mobile player can see

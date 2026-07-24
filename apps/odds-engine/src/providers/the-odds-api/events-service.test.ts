@@ -91,6 +91,21 @@ describe('createEventsService', () => {
     expect(getOdds).toHaveBeenCalledTimes(2);
   });
 
+  it('does not cache an empty result when every sport key request fails - retries on the very next call', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const getOdds = vi.fn().mockRejectedValue(new Error('the-odds-api GET /sports/soccer_epl/odds failed: 401'));
+    const client = buildClient({ getOdds });
+    const service = createEventsService({ client, sportKeys: ['soccer_epl'] });
+
+    const first = await service.listMatches();
+    expect(first).toEqual([]);
+    const second = await service.listMatches();
+    expect(second).toEqual([]);
+
+    expect(getOdds).toHaveBeenCalledTimes(2);
+    errorSpy.mockRestore();
+  });
+
   it('looks up a single match from the cached list without an extra request', async () => {
     const getOdds = vi.fn().mockResolvedValue([buildEventOdds({ id: 'e1' })]);
     const client = buildClient({ getOdds });
