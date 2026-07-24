@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AccaBoostModule } from '../acca-boost/acca-boost.module';
+import { AccaRollbackModule } from '../acca-rollback/acca-rollback.module';
 import { AdminModule } from '../admin/admin.module';
 import { BoostsModule } from '../boosts/boosts.module';
 import { FreebetModule } from '../freebets/freebet.module';
@@ -17,7 +18,15 @@ import { PublicCompetitionSuspensionController } from './public-competition-susp
 import { PublicMarketSuspensionController } from './public-market-suspension.controller';
 
 @Module({
-  imports: [AdminModule, AccaBoostModule, LimitsModule, ManualMarketModule, BoostsModule, FreebetModule],
+  imports: [
+    AdminModule,
+    AccaBoostModule,
+    AccaRollbackModule,
+    LimitsModule,
+    ManualMarketModule,
+    BoostsModule,
+    FreebetModule,
+  ],
   controllers: [
     PamController,
     PamAdminController,

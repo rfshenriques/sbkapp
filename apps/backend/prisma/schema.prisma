@@ -162,6 +162,7 @@ enum AuditAction {
   BOOST_AUTO_DISABLED
   FREEBET_GRANTED
   FREEBET_VOIDED
+  ACCA_ROLLBACK_CONFIG_SET
 }
 
 enum FreebetStatus {
@@ -787,6 +788,27 @@ model AccaBoostConfig {
 }
 
 /**
+ * A brand's accumulator-rollback settings - a single row per brand (same
+ * "no row = feature off" default pattern as AccaBoostConfig). When a
+ * qualifying accumulator (>= minSelections legs) loses by no more than
+ * lossThreshold legs, rewardPercent of the stake is refunded as a freebet
+ * (FreebetSource.ACCA_ROLLBACK). Evaluated at settlement time once every
+ * leg is terminal - see PamService.settleSelection.
+ */
+model AccaRollbackConfig {
+  id            String   @id @default(uuid())
+  brandId       String   @unique
+  brand         Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  minSelections Int      @default(3)
+  lossThreshold Int      @default(1)
+  rewardPercent Float    @default(100)
+  enabled       Boolean  @default(false)
+  updatedAt     DateTime @updatedAt
+
+  @@map("acca_rollback_configs")
+}
+
+/**
  * A snapshot of what was picked at bet time - not a live reference to the
  * odds feed, which has no persistence of its own and can reshuffle/expire.
  */
@@ -897,6 +919,7 @@ model Brand {
   oddsLadderRungs        OddsLadderRung[]
   boosts                 Boost[]
   accaBoostConfig        AccaBoostConfig?
+  accaRollbackConfig     AccaRollbackConfig?
   stakeLimits            StakeLimit[]
   competitionQuicklinks  CompetitionQuicklink[]
   playerSegments         PlayerSegment[]
