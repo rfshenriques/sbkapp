@@ -152,6 +152,40 @@ describe('MatchDetailPage', () => {
     expect(screen.queryByRole('heading', { name: 'To Win Both Halves' })).not.toBeInTheDocument();
   });
 
+  it("shows 'Singles only' alongside the max stake for a singles-only special market", async () => {
+    stubOddsEngineFetch([
+      {
+        id: 'match-8b',
+        sport: 'Football',
+        country: 'England',
+        competition: 'Some Small League',
+        homeTeam: 'Home Team',
+        awayTeam: 'Away Team',
+        kickoff: '2026-07-20T15:00:00Z',
+        isLive: false,
+        markets: [
+          {
+            id: 'match-result',
+            name: 'Match Result',
+            selections: [{ id: 'home', name: 'Home', odds: 1.5 }],
+          },
+          {
+            id: 'manual-1',
+            name: 'To Win Both Halves',
+            isSpecial: true,
+            singlesOnly: true,
+            maxStakeCents: 1_500,
+            selections: [{ id: 'yes', name: 'Yes', odds: 3.5 }],
+          },
+        ],
+      },
+    ]);
+
+    renderAt('match-8b');
+
+    expect(await screen.findByText('Max stake: €15.00 · Singles only')).toBeInTheDocument();
+  });
+
   it('shows a Boosts section above Match Result, listing every boosted selection on the match', async () => {
     stubOddsEngineFetch([
       {

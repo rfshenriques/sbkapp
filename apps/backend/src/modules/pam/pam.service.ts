@@ -361,7 +361,7 @@ export class PamService {
     const matchIds = dto.selections.map((selection) => selection.matchId);
     if (new Set(matchIds).size !== matchIds.length) {
       throw new BadRequestException(
-        "Selections from the same event can't be combined into an accumulator yet - this will be available soon through Bet Builder",
+        "Selections from the same event can't be combined into an accumulator",
       );
     }
   }

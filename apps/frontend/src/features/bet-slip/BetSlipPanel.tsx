@@ -104,15 +104,18 @@ function MoneyBeforeAfter({ beforeCents, afterCents }: { beforeCents: number; af
  * involves a boosted price.
  */
 function MaxStakeNote({ selection }: { selection: BetSlipSelection }) {
-  if (selection.maxStakeCents === undefined) {
+  if (selection.maxStakeCents === undefined && !selection.marketSinglesOnly) {
     return null;
   }
   const label = selection.originalOdds !== undefined ? 'Max stake for boosted price' : 'Max stake';
-  return (
-    <p className="text-[11px] text-text-secondary">
-      {label}: €{(selection.maxStakeCents / 100).toFixed(2)}
-    </p>
-  );
+  const parts: string[] = [];
+  if (selection.maxStakeCents !== undefined) {
+    parts.push(`${label}: €${(selection.maxStakeCents / 100).toFixed(2)}`);
+  }
+  if (selection.marketSinglesOnly) {
+    parts.push('Singles only');
+  }
+  return <p className="text-[11px] text-text-secondary">{parts.join(' · ')}</p>;
 }
 
 /**
@@ -296,6 +299,14 @@ interface StakeFieldProps {
   hideOdds?: boolean;
   /** Set to the pre-boost combined odds when the accumulator qualifies for Acca Boost, so the player sees what changed, not just the end result. */
   previousOdds?: number;
+  /**
+   * Set when accumulatorInvalidReason applies (e.g. two selections from the
+   * same event) - a "combined odds" figure would still be arithmetically
+   * computable here, but showing a real number implies a price that will
+   * never actually be offered. A slash reads as "not a real price" rather
+   * than a wrong one, and takes priority over previousOdds.
+   */
+  invalid?: boolean;
 }
 
 /**
@@ -306,7 +317,7 @@ interface StakeFieldProps {
  * singles share a single payout total in the footer instead of repeating a
  * payout line under every row - see the two `footer` branches below.
  */
-function StakeField({ stakeId, stake, onStakeChange, odds, hideOdds, previousOdds }: StakeFieldProps) {
+function StakeField({ stakeId, stake, onStakeChange, odds, hideOdds, previousOdds, invalid }: StakeFieldProps) {
   return (
     <div className="flex items-end gap-2">
       <div className="min-w-0 flex-1">
@@ -326,7 +337,11 @@ function StakeField({ stakeId, stake, onStakeChange, odds, hideOdds, previousOdd
       {!hideOdds && (
         <span className="odd-btn shrink-0">
           <span className="odd-label">Odds</span>
-          {previousOdds !== undefined ? (
+          {invalid ? (
+            <span className="odd-value text-text-muted" aria-label="Odds not combinable">
+              /
+            </span>
+          ) : previousOdds !== undefined ? (
             <span className="flex items-center gap-1.5">
               <span className="text-xs text-text-secondary line-through decoration-1">
                 {previousOdds.toFixed(2)}
@@ -837,6 +852,10 @@ export function BetSlipPanel({
         ? activeMutation.error.message
         : 'Failed to place bet'
       : null;
+    // Logging in wouldn't make this specific combination placeable - "Log in
+    // to place a bet" would be a false promise here, so drop the second half.
+    const isAccumulatorUncombinable = tab === 'accumulator' && Boolean(accumulatorInvalidReason);
+    const loginCtaLabel = isAccumulatorUncombinable ? 'Log in' : 'Log in to place a bet';
     footer = (
       <div className="mt-3 shrink-0 space-y-2 border-t border-border pt-3">
         {tab === 'accumulator' && accumulatorInvalidReason && (
@@ -844,14 +863,14 @@ export function BetSlipPanel({
             {accumulatorInvalidReason}
           </p>
         )}
-        {tab === 'accumulator' && !isFreebetMode && !insuranceOptIn && (
+        {tab === 'accumulator' && !isFreebetMode && !insuranceOptIn && !accumulatorInvalidReason && (
           <AccaBoostBar
             legOdds={selections.map((selection) => selection.odds)}
             config={accaBoostConfig}
             stakeCents={stakeCents}
           />
         )}
-        {tab === 'accumulator' && !isFreebetMode && !insuranceOptIn && (
+        {tab === 'accumulator' && !isFreebetMode && !insuranceOptIn && !accumulatorInvalidReason && (
           <AccaRollbackBar selectionCount={selections.length} config={accaRollbackConfig} />
         )}
         {tab === 'accumulator' &&
@@ -871,6 +890,7 @@ export function BetSlipPanel({
                       ? combinedOdds
                       : undefined
                 }
+                invalid={Boolean(accumulatorInvalidReason)}
               />
               <StakeLimitAlert stakeCents={stakeCents} preview={accumulatorStakeLimitPreview} />
             </>
@@ -918,7 +938,11 @@ export function BetSlipPanel({
         )}
         <div className="flex items-center justify-between text-sm text-text-secondary">
           <span>{isFreebetMode ? 'Potential winnings' : 'Potential payout'}</span>
-          {insuranceApplies && isCurrentTabValid ? (
+          {tab === 'accumulator' && accumulatorInvalidReason ? (
+            <span className="font-semibold text-text-muted" aria-label="Payout not combinable">
+              /
+            </span>
+          ) : insuranceApplies && isCurrentTabValid ? (
             <MoneyBeforeAfter beforeCents={currentTabRawPayoutCents} afterCents={currentTabInsurancePreviewCents} />
           ) : (
             <span className="font-semibold text-text-primary">
@@ -954,7 +978,7 @@ export function BetSlipPanel({
             onClick={() => openAuthModal('login')}
             className="btn-primary block w-full text-center"
           >
-            Log in to place a bet
+            {loginCtaLabel}
           </button>
         )}
       </div>

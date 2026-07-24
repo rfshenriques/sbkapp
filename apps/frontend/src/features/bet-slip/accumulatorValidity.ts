@@ -15,7 +15,7 @@ export function invalidAccumulatorReason(selections: BetSlipSelection[]): string
   }
 
   if (hasSameEventSelections(selections)) {
-    return "Selections from the same event can't be combined yet - this will be available soon through Bet Builder.";
+    return "Selections from the same event can't be combined into an accumulator.";
   }
 
   const boostedCount = selections.filter((selection) => selection.originalOdds !== undefined).length;

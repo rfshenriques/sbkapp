@@ -97,9 +97,16 @@ export default function SpecialsPage() {
                             competition={match.competition}
                             market={market}
                           />
-                          {market.maxStakeCents !== undefined && (
+                          {(market.maxStakeCents !== undefined || market.singlesOnly) && (
                             <p className="mt-1.5 text-[11px] text-text-secondary">
-                              Max stake: €{(market.maxStakeCents / 100).toFixed(2)}
+                              {[
+                                market.maxStakeCents !== undefined
+                                  ? `Max stake: €${(market.maxStakeCents / 100).toFixed(2)}`
+                                  : null,
+                                market.singlesOnly ? 'Singles only' : null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ')}
                             </p>
                           )}
                         </div>

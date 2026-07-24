@@ -102,6 +102,27 @@ describe('BetSlipPanel', () => {
     expect(screen.getAllByText('2.10')).toHaveLength(1);
   });
 
+  it("shows a 'Singles only' note for a singles-only manual market selection, alongside its max stake", () => {
+    const noveltySelection = {
+      ...homeSelection,
+      marketName: 'Novelty Market',
+      marketSinglesOnly: true,
+      maxStakeCents: 2_000,
+    };
+    useBetSlipStore.setState({ selections: [noveltySelection] });
+    renderPanel();
+
+    expect(screen.getByText('Max stake: €20.00 · Singles only')).toBeInTheDocument();
+  });
+
+  it("shows just 'Singles only' when a singles-only manual market has no configured max stake", () => {
+    const noveltySelection = { ...homeSelection, marketName: 'Novelty Market', marketSinglesOnly: true };
+    useBetSlipStore.setState({ selections: [noveltySelection] });
+    renderPanel();
+
+    expect(screen.getByText('Singles only')).toBeInTheDocument();
+  });
+
   describe('acca boost bar', () => {
     function stubAccaBoostConfig(config: {
       boostPercentPerLeg: number;
@@ -287,7 +308,7 @@ describe('BetSlipPanel', () => {
       expect(
         screen.getByText('Only one boosted selection can be combined in an accumulator.'),
       ).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Log in to place a bet' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Log in' })).toBeInTheDocument();
     });
 
     it('warns when a singles-only manual market is combined with another selection', () => {
@@ -327,11 +348,65 @@ describe('BetSlipPanel', () => {
       await userEvent.click(screen.getByRole('tab', { name: /Accumulator/ }));
 
       expect(
-        screen.getByText(
-          "Selections from the same event can't be combined yet - this will be available soon through Bet Builder.",
-        ),
+        screen.getByText("Selections from the same event can't be combined into an accumulator."),
       ).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Log in to place a bet' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Log in' })).toBeInTheDocument();
+    });
+
+    it('hides Acca Boost/Rollback and shows a slash for odds and payout for a same-event conflict', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          if (url === '/backend/public/acca-boost-config/brand-1') {
+            return new Response(
+              JSON.stringify({ boostPercentPerLeg: 5, minSelections: 2, minOddsPerLeg: 1.2, enabled: true }),
+              { status: 200 },
+            );
+          }
+          if (url === '/backend/public/acca-rollback-config/brand-1') {
+            return new Response(
+              JSON.stringify({ minSelections: 2, lossThreshold: 1, rewardPercent: 100, enabled: true }),
+              { status: 200 },
+            );
+          }
+          return new Response(null, { status: 404 });
+        }),
+      );
+      const totalGoalsSelection = {
+        ...homeSelection,
+        marketId: 'total-goals',
+        marketName: 'Total Goals',
+        selectionId: 'over',
+        selectionName: 'Over 2.5',
+      };
+      useBetSlipStore.setState({ selections: [homeSelection, totalGoalsSelection] });
+      renderPanel();
+
+      await userEvent.click(await screen.findByRole('tab', { name: /Accumulator/ }));
+
+      expect(screen.queryByText(/Acca Boost/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Acca Rollback/)).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Odds not combinable')).toHaveTextContent('/');
+      expect(screen.getByLabelText('Payout not combinable')).toHaveTextContent('/');
+    });
+
+    it('disables Place Bet (not just hides it) for a logged-in player with a same-event conflict', async () => {
+      useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+      const totalGoalsSelection = {
+        ...homeSelection,
+        marketId: 'total-goals',
+        marketName: 'Total Goals',
+        selectionId: 'over',
+        selectionName: 'Over 2.5',
+      };
+      useBetSlipStore.setState({ selections: [homeSelection, totalGoalsSelection] });
+      renderPanel();
+
+      await userEvent.click(await screen.findByRole('tab', { name: /Accumulator/ }));
+
+      expect(screen.getByRole('button', { name: 'Place Bet' })).toBeDisabled();
     });
   });
 

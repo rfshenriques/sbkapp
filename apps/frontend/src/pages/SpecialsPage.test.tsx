@@ -82,4 +82,24 @@ describe('SpecialsPage', () => {
 
     expect(await screen.findByText('No specials available right now.')).toBeInTheDocument();
   });
+
+  it("shows 'Singles only' alongside the max stake for a singles-only manual market", async () => {
+    stubFetch([
+      buildSpecialMatch({
+        markets: [
+          {
+            id: 'manual-1',
+            name: 'Anytime Assist',
+            isSpecial: true,
+            singlesOnly: true,
+            maxStakeCents: 2_500,
+            selections: [{ id: 'sel-1', name: 'Saka', odds: 3.5 }],
+          },
+        ],
+      }),
+    ]);
+    renderSpecialsPage();
+
+    expect(await screen.findByText('Max stake: €25.00 · Singles only')).toBeInTheDocument();
+  });
 });
