@@ -7,6 +7,7 @@ import { KycModule } from './modules/kyc/kyc.module';
 import { PamModule } from './modules/pam/pam.module';
 import { CompetitionRankingModule } from './modules/competition-ranking/competition-ranking.module';
 import { CompetitionQuicklinkModule } from './modules/competition-quicklinks/competition-quicklink.module';
+import { PlayerSegmentModule } from './modules/player-segments/player-segment.module';
 import { WalletPaymentsModule } from './modules/wallet-payments/wallet-payments.module';
 import { PromotionsBonusModule } from './modules/promotions-bonus/promotions-bonus.module';
 import { RiskModule } from './modules/risk/risk.module';
@@ -36,6 +37,7 @@ import { MarketingSpendModule } from './modules/marketing-spend/marketing-spend.
     PamModule,
     CompetitionRankingModule,
     CompetitionQuicklinkModule,
+    PlayerSegmentModule,
     WalletPaymentsModule,
     PromotionsBonusModule,
     RiskModule,
