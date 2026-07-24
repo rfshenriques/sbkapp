@@ -30,3 +30,25 @@ export interface Match {
   isLive: boolean;
   markets: Market[];
 }
+
+/** One boosted selection, flattened out of its match/market for the player-facing Boosts page - see GET /public/boosts/:brandId. */
+export interface BoostedSelectionSummary {
+  matchId: string;
+  sport: string;
+  country: string;
+  competition: string;
+  homeTeam: string;
+  awayTeam: string;
+  kickoff: string;
+  isLive: boolean;
+  marketId: string;
+  marketName: string;
+  selectionId: string;
+  selectionName: string;
+  /** The price a player would have seen without the boost. */
+  previousOdds: number;
+  /** The boosted price. */
+  odds: number;
+  /** In cents - present only when the boost has a per-bet stake cap. */
+  maxStakeCents?: number;
+}
