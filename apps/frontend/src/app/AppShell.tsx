@@ -153,6 +153,50 @@ export function AppShell() {
             </span>
           </NavLink>
 
+          {/* Desktop only - mirrors the mobile bottom nav's destinations
+              (minus Search, which desktop already has via the persistent
+              Sidebar's own search bar) so the same pages are reachable
+              without needing the bottom nav's icon strip. */}
+          <nav aria-label="Desktop app navigation" className="ml-6 hidden items-center gap-5 sm:flex">
+            <NavLink
+              to="/"
+              end
+              className={({ isActive }) =>
+                `flex items-center gap-1.5 text-sm font-semibold ${isActive ? 'text-highlight' : 'text-text-secondary hover:text-text-primary'}`
+              }
+            >
+              <HomeIcon width={16} height={16} />
+              Home
+            </NavLink>
+            <NavLink
+              to="/live"
+              className={({ isActive }) =>
+                `flex items-center gap-1.5 text-sm font-semibold ${isActive ? 'text-highlight' : 'text-text-secondary hover:text-text-primary'}`
+              }
+            >
+              <LiveIcon width={16} height={16} />
+              Live
+            </NavLink>
+            <NavLink
+              to="/my-bets"
+              className={({ isActive }) =>
+                `flex items-center gap-1.5 text-sm font-semibold ${isActive ? 'text-highlight' : 'text-text-secondary hover:text-text-primary'}`
+              }
+            >
+              <MyBetsIcon width={16} height={16} />
+              My Bets
+            </NavLink>
+            <NavLink
+              to="/promotions"
+              className={({ isActive }) =>
+                `flex items-center gap-1.5 text-sm font-semibold ${isActive ? 'text-highlight' : 'text-text-secondary hover:text-text-primary'}`
+              }
+            >
+              <PromotionsIcon width={16} height={16} />
+              Promotions
+            </NavLink>
+          </nav>
+
           <div className="ml-auto flex items-center gap-2">
             {isInitialized && isAuthenticated ? (
               <>
