@@ -37,7 +37,12 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: 'CMS',
-    items: [{ to: '/cms-images', label: 'CMS images', roles: ['ADMIN', 'CMS'] }],
+    items: [
+      { to: '/cms-images', label: 'Images', roles: ['ADMIN', 'CMS'] },
+      { to: '/cms-sponsors', label: 'Sponsors', roles: ['ADMIN', 'CMS'] },
+      { to: '/cms-payments', label: 'Payments', roles: ['ADMIN', 'CMS'] },
+      { to: '/cms-quicklinks', label: 'Quicklinks', roles: ['ADMIN', 'CMS'] },
+    ],
   },
   {
     label: 'CRM',

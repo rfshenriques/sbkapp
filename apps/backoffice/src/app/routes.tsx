@@ -2,6 +2,9 @@ import type { RouteObject } from 'react-router-dom';
 import AccaBoostPage from '../pages/AccaBoostPage';
 import AuditLogPage from '../pages/AuditLogPage';
 import CmsImagesPage from '../pages/CmsImagesPage';
+import CmsPaymentsPage from '../pages/CmsPaymentsPage';
+import CmsQuicklinksPage from '../pages/CmsQuicklinksPage';
+import CmsSponsorsPage from '../pages/CmsSponsorsPage';
 import CompetitionRankingPage from '../pages/CompetitionRankingPage';
 import CompetitionTiersPage from '../pages/CompetitionTiersPage';
 import DisplayNamesPage from '../pages/DisplayNamesPage';
@@ -224,6 +227,36 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'CMS']}>
               <CmsImagesPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'cms-sponsors',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'CMS']}>
+              <CmsSponsorsPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'cms-payments',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'CMS']}>
+              <CmsPaymentsPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'cms-quicklinks',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'CMS']}>
+              <CmsQuicklinksPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),
