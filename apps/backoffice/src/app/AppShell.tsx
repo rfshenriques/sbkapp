@@ -37,6 +37,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Campaigns',
     items: [
+      { to: '/bet-and-get', label: 'Bet & Get', roles: ['ADMIN', 'TRADING'] },
       { to: '/acca-boost', label: 'Acca boost', roles: ['ADMIN', 'TRADING'] },
       { to: '/acca-rollback', label: 'Acca rollback', roles: ['ADMIN', 'TRADING'] },
       { to: '/insurance-bet', label: 'Insurance bet', roles: ['ADMIN', 'TRADING'] },

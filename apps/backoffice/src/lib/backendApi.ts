@@ -1170,3 +1170,90 @@ export async function voidFreebet(id: string): Promise<FreebetGrant> {
   const response = await authenticatedFetch(`/admin/freebets/${id}`, { method: 'DELETE' });
   return parseJsonOrThrow(response, `Failed to void freebet: ${response.status}`);
 }
+
+export type BetAndGetTrigger = 'PLACEMENT' | 'SETTLEMENT';
+export type BetAndGetBetType = 'SINGLES_ONLY' | 'ACCUMULATOR_ONLY' | 'EITHER';
+export type BetAndGetScopeType = 'SPORT' | 'COMPETITION' | 'MATCH';
+
+export interface BetAndGetCampaignScope {
+  id: string;
+  scopeType: BetAndGetScopeType;
+  scopeValue: string;
+}
+
+export interface BetAndGetCampaign {
+  id: string;
+  brandId: string;
+  name: string;
+  description: string | null;
+  enabled: boolean;
+  rewardAmountCents: number;
+  trigger: BetAndGetTrigger;
+  triggerOnWon: boolean;
+  triggerOnLost: boolean;
+  triggerOnVoid: boolean;
+  minStakeCents: number | null;
+  minOddsPerLeg: number | null;
+  betType: BetAndGetBetType;
+  minSelections: number | null;
+  allowMultipleRedemptions: boolean;
+  maxRedemptionsPerPlayer: number | null;
+  createdAt: string;
+  updatedAt: string;
+  scopes: BetAndGetCampaignScope[];
+}
+
+export interface CreateBetAndGetCampaignPayload {
+  name: string;
+  description?: string;
+  rewardAmountCents: number;
+}
+
+export type UpdateBetAndGetCampaignPayload = Partial<
+  Omit<BetAndGetCampaign, 'id' | 'brandId' | 'createdAt' | 'updatedAt' | 'scopes'>
+>;
+
+export async function listBetAndGetCampaigns(): Promise<BetAndGetCampaign[]> {
+  const response = await authenticatedFetch('/admin/bet-and-get-campaigns');
+  return parseJsonOrThrow(response, `Failed to load Bet & Get campaigns: ${response.status}`);
+}
+
+export async function createBetAndGetCampaign(payload: CreateBetAndGetCampaignPayload): Promise<BetAndGetCampaign> {
+  const response = await authenticatedFetch('/admin/bet-and-get-campaigns', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to create Bet & Get campaign: ${response.status}`);
+}
+
+export async function updateBetAndGetCampaign(
+  id: string,
+  payload: UpdateBetAndGetCampaignPayload,
+): Promise<BetAndGetCampaign> {
+  const response = await authenticatedFetch(`/admin/bet-and-get-campaigns/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to update Bet & Get campaign: ${response.status}`);
+}
+
+export async function removeBetAndGetCampaign(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/bet-and-get-campaigns/${id}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(`Failed to remove Bet & Get campaign: ${response.status}`);
+  }
+}
+
+export async function setBetAndGetCampaignScopes(
+  id: string,
+  scopes: { scopeType: BetAndGetScopeType; scopeValue: string }[],
+): Promise<BetAndGetCampaign> {
+  const response = await authenticatedFetch(`/admin/bet-and-get-campaigns/${id}/scopes`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scopes }),
+  });
+  return parseJsonOrThrow(response, `Failed to set Bet & Get campaign scope: ${response.status}`);
+}
