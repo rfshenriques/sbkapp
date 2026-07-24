@@ -178,7 +178,7 @@ describe('DisplayNamesPage', () => {
     expect(await screen.findByText('Arsenal')).toBeInTheDocument();
   });
 
-  it('has a Markets and a Selections tab, syncing raw market/selection names from every match', async () => {
+  it('has one Markets/Selections tab where expanding a market reveals its own selections, not every selection ever seen', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
       const method = init?.method ?? 'GET';
@@ -197,6 +197,16 @@ describe('DisplayNamesPage', () => {
           { status: 200 },
         );
       }
+      if (method === 'GET' && url === '/backend/admin/display-names?entityType=SELECTION') {
+        return new Response(
+          JSON.stringify([
+            { id: 'dn-sel-home', entityType: 'SELECTION', rawName: 'Home', displayName: null, createdAt: '', updatedAt: '' },
+            { id: 'dn-sel-draw', entityType: 'SELECTION', rawName: 'Draw', displayName: null, createdAt: '', updatedAt: '' },
+            { id: 'dn-sel-away', entityType: 'SELECTION', rawName: 'Away', displayName: null, createdAt: '', updatedAt: '' },
+          ]),
+          { status: 200 },
+        );
+      }
       if (method === 'GET' && url.startsWith('/backend/admin/display-names?entityType=')) {
         return new Response(JSON.stringify([]), { status: 200 });
       }
@@ -205,12 +215,17 @@ describe('DisplayNamesPage', () => {
     vi.stubGlobal('fetch', fetchMock);
 
     renderPage();
-    await screen.findByRole('button', { name: 'Markets' });
-    expect(screen.getByRole('button', { name: 'Selections' })).toBeInTheDocument();
+    await userEvent.click(await screen.findByRole('button', { name: 'Markets/Selections' }));
 
-    await userEvent.click(screen.getByRole('button', { name: 'Markets' }));
+    const marketRow = await screen.findByRole('button', { name: /^Match Result \(3\)/ });
+    expect(screen.queryByLabelText('Home display name')).not.toBeInTheDocument();
 
-    expect(await screen.findByText('Match Result')).toBeInTheDocument();
+    await userEvent.click(marketRow);
+
+    expect(await screen.findByLabelText('Match Result display name')).toBeInTheDocument();
+    expect(screen.getByLabelText('Home display name')).toBeInTheDocument();
+    expect(screen.getByLabelText('Draw display name')).toBeInTheDocument();
+    expect(screen.getByLabelText('Away display name')).toBeInTheDocument();
   });
 
   it('groups the Competitions tab by country, one group at a time, but leaves other tabs flat', async () => {

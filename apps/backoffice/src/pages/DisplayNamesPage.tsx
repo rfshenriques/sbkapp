@@ -10,13 +10,16 @@ import * as oddsEngineApi from '../lib/oddsEngineApi';
 const matchesQueryKey = ['live-matches'] as const;
 const displayNamesQueryKey = (entityType: backendApi.DisplayNameEntityType) => ['display-names', entityType];
 
-const ENTITY_TYPES: { value: backendApi.DisplayNameEntityType; label: string }[] = [
+/** A 5th tab alongside the 4 plain entity types - MARKET and SELECTION are edited together here instead of as two separate flat lists, so it's clear which market a selection belongs to. */
+const MARKETS_SELECTIONS = 'MARKETS_SELECTIONS' as const;
+type TabValue = backendApi.DisplayNameEntityType | typeof MARKETS_SELECTIONS;
+
+const TABS: { value: TabValue; label: string }[] = [
   { value: 'SPORT', label: 'Sports' },
   { value: 'COUNTRY', label: 'Countries' },
   { value: 'COMPETITION', label: 'Competitions' },
   { value: 'TEAM', label: 'Teams' },
-  { value: 'MARKET', label: 'Markets' },
-  { value: 'SELECTION', label: 'Selections' },
+  { value: MARKETS_SELECTIONS, label: 'Markets/Selections' },
 ];
 
 /** Competitions with no evidence in the currently-loaded match feed. */
@@ -85,19 +88,34 @@ function DisplayNameRow({ override }: { override: backendApi.DisplayNameOverride
 
 export default function DisplayNamesPage() {
   const queryClient = useQueryClient();
-  const [activeType, setActiveType] = useState<backendApi.DisplayNameEntityType>('COMPETITION');
+  const [activeType, setActiveType] = useState<TabValue>('COMPETITION');
   const [hasSynced, setHasSynced] = useState(false);
   const [expandedCountry, setExpandedCountry] = useState<string | null>(null);
+  const [expandedMarket, setExpandedMarket] = useState<string | null>(null);
 
   const { data: matches } = useQuery({ queryKey: matchesQueryKey, queryFn: oddsEngineApi.fetchMatches });
+
+  const isMarketsSelections = activeType === MARKETS_SELECTIONS;
 
   const {
     data: overrides,
     isPending: overridesPending,
     isError: overridesError,
   } = useQuery({
-    queryKey: displayNamesQueryKey(activeType),
-    queryFn: () => backendApi.listDisplayNames(activeType),
+    queryKey: displayNamesQueryKey(activeType as backendApi.DisplayNameEntityType),
+    queryFn: () => backendApi.listDisplayNames(activeType as backendApi.DisplayNameEntityType),
+    enabled: !isMarketsSelections,
+  });
+
+  const { data: marketOverrides, isPending: marketOverridesPending } = useQuery({
+    queryKey: displayNamesQueryKey('MARKET'),
+    queryFn: () => backendApi.listDisplayNames('MARKET'),
+    enabled: isMarketsSelections,
+  });
+  const { data: selectionOverrides } = useQuery({
+    queryKey: displayNamesQueryKey('SELECTION'),
+    queryFn: () => backendApi.listDisplayNames('SELECTION'),
+    enabled: isMarketsSelections,
   });
 
   const syncMutation = useMutation({
@@ -142,6 +160,25 @@ export default function DisplayNamesPage() {
     [isGrouped, overrides, byCountry],
   );
 
+  /** market name -> the distinct selection names seen under it in the live feed, so an expanded market shows only its own selections instead of every selection ever seen anywhere. */
+  const selectionNamesByMarket = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const match of matches ?? []) {
+      for (const market of match.markets) {
+        const names = map.get(market.name) ?? new Set<string>();
+        for (const selection of market.selections) {
+          names.add(selection.name);
+        }
+        map.set(market.name, names);
+      }
+    }
+    return map;
+  }, [matches]);
+  const selectionOverrideByName = useMemo(
+    () => new Map((selectionOverrides ?? []).map((override) => [override.rawName, override])),
+    [selectionOverrides],
+  );
+
   return (
     <div>
       <h1 className="text-2xl font-semibold">Display names</h1>
@@ -152,31 +189,36 @@ export default function DisplayNamesPage() {
       </p>
 
       <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Entity type">
-        {ENTITY_TYPES.map((entityType) => (
+        {TABS.map((tab) => (
           <Button
-            key={entityType.value}
-            variant={activeType === entityType.value ? 'primary' : 'secondary'}
-            aria-pressed={activeType === entityType.value}
+            key={tab.value}
+            variant={activeType === tab.value ? 'primary' : 'secondary'}
+            aria-pressed={activeType === tab.value}
             onClick={() => {
-              setActiveType(entityType.value);
+              setActiveType(tab.value);
               setExpandedCountry(null);
+              setExpandedMarket(null);
             }}
           >
-            {entityType.label}
+            {tab.label}
           </Button>
         ))}
       </div>
 
       <div className="mt-4 space-y-2">
-        {overridesPending && <p className="text-sm text-text-secondary">Loading display names…</p>}
-        {overridesError && <p className="text-sm text-danger">Failed to load display names.</p>}
-        {overrides?.length === 0 && (
+        {!isMarketsSelections && overridesPending && (
+          <p className="text-sm text-text-secondary">Loading display names…</p>
+        )}
+        {!isMarketsSelections && overridesError && (
+          <p className="text-sm text-danger">Failed to load display names.</p>
+        )}
+        {!isMarketsSelections && overrides?.length === 0 && (
           <p className="text-sm text-text-secondary">
             Nothing here yet - they'll appear once matches are live.
           </p>
         )}
 
-        {overrides && overrides.length > 0 && !isGrouped && (
+        {!isMarketsSelections && overrides && overrides.length > 0 && !isGrouped && (
           <Card className="space-y-2">
             {overrides.map((override) => (
               <DisplayNameRow key={override.id} override={override} />
@@ -184,7 +226,8 @@ export default function DisplayNamesPage() {
           </Card>
         )}
 
-        {isGrouped &&
+        {!isMarketsSelections &&
+          isGrouped &&
           countryGroups.map((group) => {
             const isExpanded = expandedCountry === group.country;
             return (
@@ -205,6 +248,51 @@ export default function DisplayNamesPage() {
                     {group.overrides.map((override) => (
                       <DisplayNameRow key={override.id} override={override} />
                     ))}
+                  </div>
+                )}
+              </Card>
+            );
+          })}
+
+        {isMarketsSelections && marketOverridesPending && (
+          <p className="text-sm text-text-secondary">Loading display names…</p>
+        )}
+        {isMarketsSelections && marketOverrides?.length === 0 && (
+          <p className="text-sm text-text-secondary">
+            Nothing here yet - they'll appear once matches are live.
+          </p>
+        )}
+        {isMarketsSelections &&
+          marketOverrides?.map((marketOverride) => {
+            const isExpanded = expandedMarket === marketOverride.rawName;
+            const selectionNames = [...(selectionNamesByMarket.get(marketOverride.rawName) ?? [])].sort(
+              (a, b) => a.localeCompare(b),
+            );
+            return (
+              <Card key={marketOverride.id} className="p-0">
+                <button
+                  type="button"
+                  aria-expanded={isExpanded}
+                  onClick={() => setExpandedMarket(isExpanded ? null : marketOverride.rawName)}
+                  className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
+                >
+                  <span className="text-sm font-semibold">
+                    {marketOverride.rawName} <span className="text-text-muted">({selectionNames.length})</span>
+                  </span>
+                  <ChevronIcon className={`h-4 w-4 shrink-0 text-text-muted ${isExpanded ? 'rotate-180' : ''}`} />
+                </button>
+                {isExpanded && (
+                  <div className="space-y-2 border-t border-border p-4 pt-3">
+                    <DisplayNameRow override={marketOverride} />
+                    {selectionNames.length === 0 && (
+                      <p className="text-sm text-text-secondary">No selections seen for this market yet.</p>
+                    )}
+                    {selectionNames.map((name) => {
+                      const selectionOverride = selectionOverrideByName.get(name);
+                      return selectionOverride ? (
+                        <DisplayNameRow key={selectionOverride.id} override={selectionOverride} />
+                      ) : null;
+                    })}
                   </div>
                 )}
               </Card>
