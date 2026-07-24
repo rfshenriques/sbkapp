@@ -9,6 +9,8 @@ import { calculateAccaRollbackReward } from '../acca-rollback/acca-rollback';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { BoostService } from '../boosts/boost.service';
 import { FreebetService } from '../freebets/freebet.service';
+import { InsuranceBetService } from '../insurance-bet/insurance-bet.service';
+import { calculateInsuredPayout } from '../insurance-bet/insurance-bet';
 import { resolveBetLimit, type LegContext } from '../limits/stake-limits';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
@@ -34,6 +36,7 @@ export class PamService {
     private readonly manualMarketService: ManualMarketService,
     private readonly boostService: BoostService,
     private readonly freebetService: FreebetService,
+    private readonly insuranceBetService: InsuranceBetService,
   ) {}
 
   async getWallet(userId: string): Promise<{ balanceCents: number }> {
@@ -247,7 +250,18 @@ export class PamService {
       ? { boostedCombinedOdds: rawBoost.baseCombinedOdds, boostPercent: 0 }
       : rawBoost;
     const combinedOdds = boost.boostedCombinedOdds;
-    const potentialPayoutCents = Math.round(dto.stakeCents * combinedOdds);
+    const rawPotentialPayoutCents = Math.round(dto.stakeCents * combinedOdds);
+
+    // Insurance is priced per-bet (no minimum leg count) and, like acca
+    // boost, never applies on a freebet-funded bet - the premium would
+    // reduce a payout the player never paid cash for in the first place.
+    const insuranceBetConfig = await this.insuranceBetService.getConfig(brandId);
+    const insurancePricing = calculateInsuredPayout(
+      rawPotentialPayoutCents,
+      Boolean(dto.insuranceOptIn) && !freebetGrant,
+      insuranceBetConfig,
+    );
+    const potentialPayoutCents = insurancePricing.insuredPayoutCents;
 
     await this.assertWithinStakeLimits(brandId, dto, matchesById, potentialPayoutCents);
     const manualMarketLiabilityToRecord = await this.assertWithinManualMarketLimitsAndCollectLiability(
@@ -292,6 +306,7 @@ export class PamService {
           combinedOdds,
           potentialPayoutCents,
           accaBoostPercent: boost.boostPercent,
+          insuranceCostPercent: insurancePricing.costPercent,
           freebetGrantId: freebetGrant?.id,
           selections: {
             create: dto.selections.map((selection) => ({
@@ -441,13 +456,40 @@ export class PamService {
         }
       }
 
+      // Unlike acca rollback, insurance only cares whether the bet lost at
+      // all, not how many legs did - and a single LOST leg permanently
+      // decides that (computeBetOutcome never reverses LOST once any leg
+      // has it), so this doesn't need to wait for every leg to be terminal.
+      if (outcome.overallStatus === 'LOST' && updatedBet.insuranceCostPercent > 0) {
+        await this.freebetService.grantSystem(
+          {
+            userId: updatedBet.userId,
+            brandId,
+            amountCents: updatedBet.stakeCents,
+            source: 'INSURANCE_BET',
+            sourceBetId: betId,
+          },
+          tx,
+        );
+      }
+
       const previousCredited = updatedBet.settledPayoutCents ?? 0;
       const rawCredited = outcome.overallStatus === 'PENDING' ? 0 : outcome.payoutCents;
+      // The insurance premium was already reflected in what the player was
+      // shown at placement (see PamService.placeBet) - re-derive the same
+      // reduction here rather than trusting a stored payout, mirroring how
+      // accaBoostPercent is recomputed rather than read off the bet too.
+      const insuredCredited =
+        updatedBet.insuranceCostPercent > 0
+          ? Math.round(rawCredited * (1 - updatedBet.insuranceCostPercent / 100))
+          : rawCredited;
       // A freebet-funded bet never returns its stake, even on a win or a
       // full void (see FreebetGrant) - only whatever's left after the
       // stake is real cash the player actually receives.
       const newCredited =
-        updatedBet.freebetGrantId !== null ? Math.max(0, rawCredited - updatedBet.stakeCents) : rawCredited;
+        updatedBet.freebetGrantId !== null
+          ? Math.max(0, insuredCredited - updatedBet.stakeCents)
+          : insuredCredited;
       const delta = newCredited - previousCredited;
 
       if (delta !== 0) {

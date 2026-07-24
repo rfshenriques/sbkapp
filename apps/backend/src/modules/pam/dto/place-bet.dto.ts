@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsBoolean,
   IsInt,
   IsNumber,
   IsOptional,
@@ -56,4 +57,15 @@ export class PlaceBetDto {
   @IsOptional()
   @IsString()
   freebetGrantId?: string;
+
+  /**
+   * When true and the brand has insurance bet enabled, the potential payout
+   * is reduced up front by the configured cost percent (see
+   * InsuranceBetConfig); if the bet then loses, the stake comes back as a
+   * freebet. Never applies on a freebet-funded bet, to avoid
+   * double-bonusing.
+   */
+  @IsOptional()
+  @IsBoolean()
+  insuranceOptIn?: boolean;
 }

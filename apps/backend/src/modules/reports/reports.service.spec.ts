@@ -6,6 +6,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { AccaBoostService } from '../acca-boost/acca-boost.service';
 import { AccaRollbackService } from '../acca-rollback/acca-rollback.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { InsuranceBetService } from '../insurance-bet/insurance-bet.service';
 import { BoostService } from '../boosts/boost.service';
 import { OddsLadderService } from '../boosts/odds-ladder.service';
 import { FreebetService } from '../freebets/freebet.service';
@@ -68,6 +69,7 @@ describe('ReportsService', () => {
         CompetitionSuspensionService,
         AccaBoostService,
         AccaRollbackService,
+        InsuranceBetService,
         ManualMarketService,
         BoostService,
         OddsLadderService,
