@@ -35,6 +35,22 @@ const chelsea: TeamColor = {
   updatedAt: '2026-07-18T00:00:00Z',
 };
 
+const hoffenheim: TeamColor = {
+  id: 'team-3',
+  name: '1899 Hoffenheim',
+  colorHex: null,
+  createdAt: '2026-07-18T00:00:00Z',
+  updatedAt: '2026-07-18T00:00:00Z',
+};
+
+const nineElms: TeamColor = {
+  id: 'team-4',
+  name: '96 Athletic',
+  colorHex: null,
+  createdAt: '2026-07-18T00:00:00Z',
+  updatedAt: '2026-07-18T00:00:00Z',
+};
+
 function renderTeamColorsPage() {
   const queryClient = new QueryClient();
   return render(
@@ -126,6 +142,36 @@ describe('TeamColorsPage', () => {
     await userEvent.click(englandGroup);
     expect(await screen.findByText('Arsenal')).toBeInTheDocument();
     expect(await screen.findByText('Chelsea')).toBeInTheDocument();
+  });
+
+  it('buckets every digit-led team name into one combined "0-9" group, sorted after Z', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/api/events') {
+        return new Response(JSON.stringify([liveMatch]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/team-colors') {
+        return new Response(JSON.stringify([arsenal, hoffenheim, nineElms]), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderTeamColorsPage();
+
+    const groupA = await screen.findByRole('button', { name: /^A \(1\)/ });
+    const numericGroup = await screen.findByRole('button', { name: /^0-9 \(2\)/ });
+    expect(screen.queryByRole('button', { name: /^1 \(/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^9 \(/ })).not.toBeInTheDocument();
+
+    const buttons = screen.getAllByRole('button', { name: /^(A|0-9) \(/ });
+    expect(buttons.indexOf(groupA)).toBeLessThan(buttons.indexOf(numericGroup));
+
+    await userEvent.click(numericGroup);
+    expect(await screen.findByText('1899 Hoffenheim')).toBeInTheDocument();
+    expect(screen.getByText('96 Athletic')).toBeInTheDocument();
   });
 
   it('setting a color sends the right request and disables Save until a change is made', async () => {

@@ -65,17 +65,25 @@ interface Group {
   teamColors: backendApi.TeamColor[];
 }
 
+const NUMERIC_BUCKET_KEY = '0-9';
+
+/** A-Z each get their own bucket; a name starting with a digit (e.g. "1899 Hoffenheim") falls into one combined numbers bucket rather than a separate bucket per digit. */
 function groupByLetter(teamColors: backendApi.TeamColor[]): Group[] {
   const map = new Map<string, backendApi.TeamColor[]>();
   for (const teamColor of teamColors) {
-    const letter = teamColor.name.trim().charAt(0).toUpperCase() || '#';
-    const bucket = map.get(letter) ?? [];
+    const firstChar = teamColor.name.trim().charAt(0).toUpperCase();
+    const key = /[0-9]/.test(firstChar) ? NUMERIC_BUCKET_KEY : firstChar || '#';
+    const bucket = map.get(key) ?? [];
     bucket.push(teamColor);
-    map.set(letter, bucket);
+    map.set(key, bucket);
   }
   return Array.from(map.entries())
     .map(([key, bucket]) => ({ key, label: key, teamColors: bucket }))
-    .sort((a, b) => a.key.localeCompare(b.key));
+    .sort((a, b) => {
+      if (a.key === NUMERIC_BUCKET_KEY) return 1;
+      if (b.key === NUMERIC_BUCKET_KEY) return -1;
+      return a.key.localeCompare(b.key);
+    });
 }
 
 function groupByCountry(teamColors: backendApi.TeamColor[], byCountry: Map<string, string>): Group[] {
