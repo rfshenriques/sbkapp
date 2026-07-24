@@ -167,7 +167,14 @@ function ManualMarketEntry({
   return (
     <div className="rounded-md bg-background px-3 py-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm font-medium">{market.name}</span>
+        <span className="flex items-center gap-2 text-sm font-medium">
+          {market.name}
+          {market.disabledAt && (
+            <span className="rounded bg-danger/20 px-2 py-0.5 text-xs text-danger">
+              Auto-disabled (liability cap reached)
+            </span>
+          )}
+        </span>
         <div className="flex items-center gap-2">
           <Button variant="secondary" onClick={() => setIsEditing(true)}>
             Edit
@@ -194,8 +201,10 @@ function ManualMarketEntry({
           idPrefix={`${market.name} limits`}
           maxStakeCents={market.maxStakeCents}
           maxLiabilityCents={market.maxLiabilityCents}
+          currentLiabilityCents={market.currentLiabilityCents}
           audienceMode={market.audienceMode}
           audienceSegmentIds={market.audienceSegments.map((segment) => segment.segmentId)}
+          staysLiveDuringInplay={market.staysLiveDuringInplay}
           isSaving={setLimitsMutation.isPending}
           onSave={(input) => setLimitsMutation.mutate({ id: market.id, input })}
         />

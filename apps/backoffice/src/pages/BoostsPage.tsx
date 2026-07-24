@@ -106,6 +106,7 @@ function BoostCell({
           currentLiabilityCents={existing.currentLiabilityCents}
           audienceMode={existing.audienceMode}
           audienceSegmentIds={existing.audienceSegments.map((segment) => segment.segmentId)}
+          staysLiveDuringInplay={existing.staysLiveDuringInplay}
           isSaving={setLimitsMutation.isPending}
           onSave={(input) => setLimitsMutation.mutate({ id: existing.id, input })}
         />

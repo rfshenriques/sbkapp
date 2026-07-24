@@ -151,6 +151,7 @@ describe('BoostsPage', () => {
             maxLiabilityCents: null,
             currentLiabilityCents: 0,
             disabledAt: null,
+            staysLiveDuringInplay: false,
             audienceMode: 'ALL',
             audienceSegments: [],
           },
@@ -192,6 +193,7 @@ describe('BoostsPage', () => {
         maxLiabilityCents: null,
         currentLiabilityCents: 0,
         disabledAt: null,
+        staysLiveDuringInplay: false,
         audienceMode: 'ALL',
         audienceSegments: [],
       },
@@ -249,6 +251,7 @@ describe('BoostsPage', () => {
         maxLiabilityCents: null,
         currentLiabilityCents: 0,
         disabledAt: null,
+        staysLiveDuringInplay: false,
         audienceMode: 'ALL',
         audienceSegments: [],
       },
@@ -275,6 +278,7 @@ describe('BoostsPage', () => {
           maxLiabilityCents: null,
           audienceMode: 'ALL',
           segmentIds: [],
+          staysLiveDuringInplay: false,
         });
         return new Response(JSON.stringify(boosts[0]), { status: 200 });
       }
@@ -311,6 +315,7 @@ describe('BoostsPage', () => {
         maxLiabilityCents: null,
         currentLiabilityCents: 0,
         disabledAt: null,
+        staysLiveDuringInplay: false,
         audienceMode: 'ALL',
         audienceSegments: [],
       },

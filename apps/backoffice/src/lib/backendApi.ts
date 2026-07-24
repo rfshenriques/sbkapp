@@ -103,6 +103,7 @@ export interface SetLimitsInput {
   maxLiabilityCents?: number | null;
   audienceMode?: AudienceMode;
   segmentIds?: string[];
+  staysLiveDuringInplay?: boolean;
 }
 
 export interface ManualMarket {
@@ -114,6 +115,8 @@ export interface ManualMarket {
   maxStakeCents: number | null;
   maxLiabilityCents: number | null;
   currentLiabilityCents: number;
+  disabledAt: string | null;
+  staysLiveDuringInplay: boolean;
   audienceMode: AudienceMode;
   audienceSegments: AudienceSegmentRef[];
 }
@@ -142,6 +145,7 @@ export interface Boost {
   maxLiabilityCents: number | null;
   currentLiabilityCents: number;
   disabledAt: string | null;
+  staysLiveDuringInplay: boolean;
   audienceMode: AudienceMode;
   audienceSegments: AudienceSegmentRef[];
 }

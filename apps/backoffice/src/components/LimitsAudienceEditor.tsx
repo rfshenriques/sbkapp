@@ -38,10 +38,12 @@ const AUDIENCE_MODES: AudienceMode[] = ['ALL', 'LOGGED_OUT', 'LOGGED_IN', 'SEGME
 export interface LimitsAudienceEditorProps {
   maxStakeCents: number | null;
   maxLiabilityCents: number | null;
-  /** Running exposure so far - only rendered as a progress bar when both this and maxLiabilityCents are set (boosts only; manual markets don't track this visually). */
+  /** Running exposure so far - only rendered as a progress bar when both this and maxLiabilityCents are set. */
   currentLiabilityCents?: number;
   audienceMode: AudienceMode;
   audienceSegmentIds: string[];
+  /** Whether this stays open once its match goes in-play - both boosts and manual markets auto-suspend in-play by default (see PamService), since neither has a live re-pricing feed behind it. */
+  staysLiveDuringInplay: boolean;
   onSave: (input: SetLimitsInput) => void;
   isSaving: boolean;
   idPrefix: string;
@@ -53,6 +55,7 @@ export function LimitsAudienceEditor({
   currentLiabilityCents,
   audienceMode,
   audienceSegmentIds,
+  staysLiveDuringInplay,
   onSave,
   isSaving,
   idPrefix,
@@ -61,6 +64,7 @@ export function LimitsAudienceEditor({
   const [liabilityDraft, setLiabilityDraft] = useState(centsToDraft(maxLiabilityCents));
   const [mode, setMode] = useState<AudienceMode>(audienceMode);
   const [segmentIds, setSegmentIds] = useState<string[]>(audienceSegmentIds);
+  const [staysLive, setStaysLive] = useState(staysLiveDuringInplay);
 
   const { data: segments } = useQuery({
     queryKey: segmentsQueryKey,
@@ -85,6 +89,7 @@ export function LimitsAudienceEditor({
       maxLiabilityCents: draftToCentsOrNull(liabilityDraft),
       audienceMode: mode,
       segmentIds: mode === 'SEGMENTS' ? segmentIds : [],
+      staysLiveDuringInplay: staysLive,
     });
   }
 
@@ -134,6 +139,15 @@ export function LimitsAudienceEditor({
               </option>
             ))}
           </select>
+        </label>
+        <label className="flex items-center gap-1.5 text-sm text-text-secondary">
+          <input
+            type="checkbox"
+            aria-label={`${idPrefix} will be live`}
+            checked={staysLive}
+            onChange={(event) => setStaysLive(event.target.checked)}
+          />
+          Will be live (stays open once the match goes in-play)
         </label>
         <Button variant="secondary" disabled={!canSave || isSaving} onClick={handleSave}>
           Save
