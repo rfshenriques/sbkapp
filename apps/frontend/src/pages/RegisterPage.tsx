@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { BrandPromoImage } from '../components/ui/BrandPromoImage';
 import { useAuth } from '../features/auth/useAuth';
+import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBrandStore } from '../features/brand/brandStore';
 
 const REGISTER_FORM_ID = 'register-form';
@@ -29,7 +29,8 @@ function RegisterPromoFallback({ size }: { size: 'mobile' | 'desktop' }) {
 
 export default function RegisterPage() {
   const { register } = useAuth();
-  const navigate = useNavigate();
+  const close = useAuthModalStore((state) => state.close);
+  const open = useAuthModalStore((state) => state.open);
   const brandId = useBrandStore((state) => state.brandId);
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
@@ -56,7 +57,7 @@ export default function RegisterPage() {
     setIsSubmitting(true);
     try {
       await register({ email, username, phone, password, ...attribution });
-      navigate('/');
+      close();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {
@@ -74,7 +75,7 @@ export default function RegisterPage() {
           <i></i>
         </span>
       }
-      onClose={() => navigate('/')}
+      onClose={close}
       closeLabel="Close registration"
       desktopSize="wide"
       bodyClassName="flex min-h-0 flex-1 flex-col sm:flex-row"
@@ -90,9 +91,13 @@ export default function RegisterPage() {
           </button>
           <p className="mt-3 text-center text-sm text-text-secondary">
             Already have an account?{' '}
-            <Link to="/login" className="text-highlight hover:underline">
+            <button
+              type="button"
+              onClick={() => open('login')}
+              className="text-highlight hover:underline"
+            >
               Log in
-            </Link>
+            </button>
           </p>
         </>
       }

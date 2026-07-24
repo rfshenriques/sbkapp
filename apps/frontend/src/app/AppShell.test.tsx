@@ -4,15 +4,16 @@ import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../features/auth/authStore';
+import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
-import LoginPage from '../pages/LoginPage';
-import RegisterPage from '../pages/RegisterPage';
+import { RegisterDeepLink } from '../features/auth/AuthDeepLink';
 import { AppShell } from './AppShell';
 
-// Login/register are real routes (see routes.ts) rather than plain
-// placeholders - the forced-login-on-load behavior navigates to /login,
-// and without a matching route the whole AppShell (a layout route) would
-// fail to match and disappear entirely.
+// Login/register are no longer routes AppShell's Outlet swaps to (see
+// authModalStore.ts) - AppShell renders them itself as an overlay based on
+// the store's mode, alongside whatever the Outlet is currently showing.
+// /register is kept here only to exercise the deep-link redirect (see
+// AuthDeepLink.tsx).
 function renderShell(initialEntries: string[] = ['/']) {
   const queryClient = new QueryClient();
   return render(
@@ -21,8 +22,7 @@ function renderShell(initialEntries: string[] = ['/']) {
         <Routes>
           <Route path="/" element={<AppShell />}>
             <Route index element={<div>Page content</div>} />
-            <Route path="login" element={<LoginPage />} />
-            <Route path="register" element={<RegisterPage />} />
+            <Route path="register" element={<RegisterDeepLink />} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -53,6 +53,7 @@ const awaySelection = {
 beforeEach(() => {
   useBetSlipStore.setState({ selections: [] });
   useAuthStore.setState({ accessToken: null, user: null, isInitialized: false });
+  useAuthModalStore.setState({ mode: null });
   // Not logged in by default - the silent-refresh call on mount finds no session.
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
 });

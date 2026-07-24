@@ -1,13 +1,14 @@
 import { useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { useAuth } from '../features/auth/useAuth';
+import { useAuthModalStore } from '../features/auth/authModalStore';
 
 const LOGIN_FORM_ID = 'login-form';
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const navigate = useNavigate();
+  const close = useAuthModalStore((state) => state.close);
+  const open = useAuthModalStore((state) => state.open);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -19,7 +20,7 @@ export default function LoginPage() {
     setIsSubmitting(true);
     try {
       await login(identifier, password);
-      navigate('/');
+      close();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {
@@ -37,7 +38,7 @@ export default function LoginPage() {
           <i></i>
         </span>
       }
-      onClose={() => navigate('/')}
+      onClose={close}
       closeLabel="Close login"
       footer={
         <>
@@ -51,9 +52,13 @@ export default function LoginPage() {
           </button>
           <p className="mt-3 text-center text-sm text-text-secondary">
             No account?{' '}
-            <Link to="/register" className="text-highlight hover:underline">
+            <button
+              type="button"
+              onClick={() => open('register')}
+              className="text-highlight hover:underline"
+            >
               Register
-            </Link>
+            </button>
           </p>
         </>
       }

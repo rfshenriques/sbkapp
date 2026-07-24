@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useRef, useState, type TouchEvent } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { BetSlipPanel } from '../features/bet-slip/BetSlipPanel';
@@ -7,11 +7,14 @@ import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { useBrandTheme } from '../features/brand/useBrandTheme';
 import { Footer } from '../features/footer/Footer';
 import { useAuth } from '../features/auth/useAuth';
+import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBootstrapAuth } from '../features/auth/useBootstrapAuth';
 import { formatCents, useWallet } from '../features/wallet/useWallet';
 import { Sidebar } from '../features/navigation/Sidebar';
 import { HomeIcon, LiveIcon, MyBetsIcon, PromotionsIcon, SearchIcon } from '../components/ui/NavIcons';
 import { useScrollLock } from '../lib/useScrollLock';
+import LoginPage from '../pages/LoginPage';
+import RegisterPage from '../pages/RegisterPage';
 
 /** The 5 bottom-nav destinations in on-screen order, for swipe navigation. */
 const NAV_STOPS: Array<{ kind: 'search' } | { kind: 'route'; path: string }> = [
@@ -31,6 +34,8 @@ export function AppShell() {
   const [isNavOpen, setIsNavOpen] = useState(false);
   const selections = useBetSlipStore((state) => state.selections);
   const { isAuthenticated, isInitialized, user, logout } = useAuth();
+  const authModalMode = useAuthModalStore((state) => state.mode);
+  const openAuthModal = useAuthModalStore((state) => state.open);
   const { data: wallet } = useWallet();
   const navigate = useNavigate();
   const location = useLocation();
@@ -40,8 +45,10 @@ export function AppShell() {
   const combinedOdds = selections.reduce((total, selection) => total * selection.odds, 1);
 
   // Force the login sheet on the first load of a fresh session so promos
-  // shown after login stay meaningful - only once per app open, and only
-  // if the player hasn't already navigated straight to login/register.
+  // shown after login stay meaningful - only once per app open. Opens as a
+  // modal over whatever page is current (see authModalStore) rather than
+  // navigating to a separate /login route, so the page underneath stays
+  // mounted and visible instead of leaving an empty page behind the sheet.
   // Dismissible like any other bottom sheet: anonymous browsing is still
   // fully supported once closed.
   const hasForcedLoginRef = useRef(false);
@@ -50,10 +57,14 @@ export function AppShell() {
       return;
     }
     hasForcedLoginRef.current = true;
-    if (!isAuthenticated && location.pathname !== '/login' && location.pathname !== '/register') {
-      navigate('/login');
+    // A deep-linked /login or /register (see AuthDeepLink.tsx) already
+    // opened a mode by the time this runs - child effects fire before the
+    // parent's on mount - so don't clobber a deliberate Register deep link
+    // back to Login.
+    if (!isAuthenticated && useAuthModalStore.getState().mode === null) {
+      openAuthModal('login');
     }
-  }, [isInitialized, isAuthenticated, location.pathname, navigate]);
+  }, [isInitialized, isAuthenticated, openAuthModal]);
 
   // Matches BottomSheet's own lock (see useScrollLock) - this drawer isn't
   // a BottomSheet, it's a bespoke overlay, so it needs the same treatment
@@ -160,12 +171,12 @@ export function AppShell() {
             ) : (
               isInitialized && (
                 <>
-                  <Link to="/login" className="btn-ghost">
+                  <button type="button" onClick={() => openAuthModal('login')} className="btn-ghost">
                     Log in
-                  </Link>
-                  <Link to="/register" className="btn-primary">
+                  </button>
+                  <button type="button" onClick={() => openAuthModal('register')} className="btn-primary">
                     Register
-                  </Link>
+                  </button>
                 </>
               )
             )}
@@ -322,6 +333,15 @@ export function AppShell() {
           </BottomSheet>
         </div>
       )}
+
+      {/* Rendered as an overlay alongside the Outlet, not as a route the
+          Outlet swaps to - keeps whatever page the player was on mounted
+          and visible (dimmed) behind the modal instead of unmounting it
+          into an empty page. Desktop-vs-mobile presentation (centered
+          dialog vs bottom sheet) is handled inside BottomSheet itself, same
+          as every other modal. */}
+      {authModalMode === 'login' && <LoginPage />}
+      {authModalMode === 'register' && <RegisterPage />}
 
       {/* Mobile-only: sports navigation takes over the space between the
           header and bottom nav like its own page, rather than a partial

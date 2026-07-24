@@ -4,6 +4,7 @@ import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../auth/authStore';
+import { useAuthModalStore } from '../auth/authModalStore';
 import { useBrandStore } from '../brand/brandStore';
 import { BetSlipPanel, type BetSlipPanelProps } from './BetSlipPanel';
 import { useBetSlipStore } from './betSlipStore';
@@ -52,6 +53,7 @@ const drawSelection = {
 beforeEach(() => {
   useBetSlipStore.setState({ selections: [] });
   useAuthStore.setState({ accessToken: null, user: null, isInitialized: true });
+  useAuthModalStore.setState({ mode: null });
   useBrandStore.setState({ brandId: undefined });
 });
 
@@ -183,15 +185,13 @@ describe('BetSlipPanel', () => {
     expect(useBetSlipStore.getState().selections).toEqual([]);
   });
 
-  it('shows a Log in button instead of a disabled Place Bet button when logged out', () => {
+  it('shows a Log in button instead of a disabled Place Bet button when logged out', async () => {
     useBetSlipStore.setState({ selections: [homeSelection] });
     renderPanel();
 
     expect(screen.queryByRole('button', { name: 'Place Bet' })).not.toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Log in to place a bet' })).toHaveAttribute(
-      'href',
-      '/login',
-    );
+    await userEvent.click(screen.getByRole('button', { name: 'Log in to place a bet' }));
+    expect(useAuthModalStore.getState().mode).toBe('login');
   });
 
   it('places a bet, shows a confirmation, and clears the slip when logged in', async () => {

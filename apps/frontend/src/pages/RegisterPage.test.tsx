@@ -1,26 +1,20 @@
 import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../features/auth/authStore';
+import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBrandStore } from '../features/brand/brandStore';
 import RegisterPage from './RegisterPage';
 
 const TEST_BRAND_ID = 'test-brand-id';
 
 function renderRegisterPage() {
-  return render(
-    <MemoryRouter initialEntries={['/register']}>
-      <Routes>
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/" element={<div>Odds board</div>} />
-      </Routes>
-    </MemoryRouter>,
-  );
+  return render(<RegisterPage />);
 }
 
 beforeEach(() => {
   useAuthStore.setState({ accessToken: null, user: null, isInitialized: false });
+  useAuthModalStore.setState({ mode: 'register' });
   // Normally set by useBrandTheme once brand resolution completes - this
   // page doesn't render inside AppShell here, so it's seeded directly.
   useBrandStore.setState({ brandId: TEST_BRAND_ID });
@@ -31,18 +25,17 @@ afterEach(() => {
 });
 
 describe('RegisterPage', () => {
-  it('renders as a bottom-sheet modal that closes back to the previous page', async () => {
+  it('renders as a bottom-sheet modal that closes on dismiss', async () => {
     const { container } = renderRegisterPage();
 
     expect(container.querySelector('.sheet-slide-up')).toBeInTheDocument();
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Close registration' })[0] as HTMLElement);
 
-    expect(await screen.findByText('Odds board')).toBeInTheDocument();
+    expect(useAuthModalStore.getState().mode).toBeNull();
   });
 
-
-  it('registers and navigates to the odds board on success', async () => {
+  it('registers and closes the modal on success', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(
@@ -58,7 +51,7 @@ describe('RegisterPage', () => {
     await userEvent.type(screen.getByLabelText('Password'), 'correct-horse-battery-staple');
     await userEvent.click(screen.getByRole('button', { name: 'Register' }));
 
-    expect(await screen.findByText('Odds board')).toBeInTheDocument();
+    await vi.waitFor(() => expect(useAuthModalStore.getState().mode).toBeNull());
     expect(useAuthStore.getState().accessToken).toBe('header.payload.signature');
 
     const [, requestInit] = fetchMock.mock.calls[0] as [string, RequestInit];
@@ -96,5 +89,13 @@ describe('RegisterPage', () => {
       await screen.findByText('Email, username, or phone number already in use'),
     ).toBeInTheDocument();
     expect(useAuthStore.getState().accessToken).toBeNull();
+  });
+
+  it('switches to the login modal when "Log in" is clicked', async () => {
+    renderRegisterPage();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Log in' }));
+
+    expect(useAuthModalStore.getState().mode).toBe('login');
   });
 });

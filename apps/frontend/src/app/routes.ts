@@ -4,6 +4,7 @@ import { AppShell } from './AppShell';
 // Not lazy-loaded: it's the fallback for render errors, including a failed
 // chunk load, so it must not depend on a chunk load succeeding itself.
 import ErrorPage from '../pages/ErrorPage';
+import { LoginDeepLink, RegisterDeepLink } from '../features/auth/AuthDeepLink';
 
 const OddsBoardPage = lazy(() => import('../pages/OddsBoardPage'));
 export const loadMatchDetailPage = () => import('../pages/MatchDetailPage');
@@ -14,8 +15,6 @@ const PromotionsPage = lazy(() => import('../pages/PromotionsPage'));
 const BoostsPage = lazy(() => import('../pages/BoostsPage'));
 const SpecialsPage = lazy(() => import('../pages/SpecialsPage'));
 const ResponsibleGamblingPage = lazy(() => import('../pages/ResponsibleGamblingPage'));
-const LoginPage = lazy(() => import('../pages/LoginPage'));
-const RegisterPage = lazy(() => import('../pages/RegisterPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
 export const routes: RouteObject[] = [
@@ -33,8 +32,13 @@ export const routes: RouteObject[] = [
       { path: 'boosts', Component: BoostsPage },
       { path: 'specials', Component: SpecialsPage },
       { path: 'responsible-gambling', Component: ResponsibleGamblingPage },
-      { path: 'login', Component: LoginPage },
-      { path: 'register', Component: RegisterPage },
+      // Bookmarkable/shareable URLs - open the auth modal (rendered by
+      // AppShell over whatever page is actually current) then redirect to
+      // / immediately, rather than being pages of their own. See
+      // AuthDeepLink.tsx for why: a routed Login/Register page unmounts
+      // whatever was on screen, leaving nothing behind the modal.
+      { path: 'login', Component: LoginDeepLink },
+      { path: 'register', Component: RegisterDeepLink },
       { path: '*', Component: NotFoundPage },
     ],
   },

@@ -1,8 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../auth/authStore';
+import { useAuthModalStore } from '../auth/authModalStore';
 import type { PlacedBet } from '../../lib/backendApi';
 import { BetHistoryList } from './BetHistoryList';
 
@@ -46,6 +48,7 @@ function renderList() {
 
 beforeEach(() => {
   useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+  useAuthModalStore.setState({ mode: null });
 });
 
 afterEach(() => {
@@ -53,13 +56,15 @@ afterEach(() => {
 });
 
 describe('BetHistoryList', () => {
-  it('prompts to log in when not authenticated, instead of loading forever', () => {
+  it('prompts to log in when not authenticated, instead of loading forever', async () => {
     useAuthStore.setState({ accessToken: null, user: null, isInitialized: true });
 
     renderList();
 
-    expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
     expect(screen.queryByRole('status', { name: 'Loading bet history' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Log in' }));
+    expect(useAuthModalStore.getState().mode).toBe('login');
   });
 
   it('shows an empty state when there are no bets', async () => {

@@ -1,12 +1,12 @@
 import { useEffect, useId, useRef, useState, type ReactNode, type SVGProps } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { cn } from '../../lib/cn';
 import { placeBet } from '../../lib/backendApi';
 import { useAuth } from '../auth/useAuth';
+import { useAuthModalStore } from '../auth/authModalStore';
 import { walletQueryKey } from '../wallet/useWallet';
 import { betsQueryKey } from '../bet-history/useBets';
 import { BetHistoryList } from '../bet-history/BetHistoryList';
@@ -286,6 +286,7 @@ export function BetSlipPanel({
   const removeSelection = useBetSlipStore((state) => state.removeSelection);
   const clear = useBetSlipStore((state) => state.clear);
   const { isAuthenticated } = useAuth();
+  const openAuthModal = useAuthModalStore((state) => state.open);
   const accaBoostConfig = useAccaBoostConfig();
   const queryClient = useQueryClient();
   const [stake, setStake] = useState('10.00');
@@ -554,9 +555,13 @@ export function BetSlipPanel({
             {isPending ? 'Placing…' : 'Place Bet'}
           </Button>
         ) : (
-          <Link to="/login" className="btn-primary block w-full text-center">
+          <button
+            type="button"
+            onClick={() => openAuthModal('login')}
+            className="btn-primary block w-full text-center"
+          >
             Log in to place a bet
-          </Link>
+          </button>
         )}
       </div>
     );

@@ -3,6 +3,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
 import type { BetStatus, PlacedBet } from '../../lib/backendApi';
 import { useAuth } from '../auth/useAuth';
+import { useAuthModalStore } from '../auth/authModalStore';
 import { sortBetsForHistory } from './sortBetsForHistory';
 import { useBets } from './useBets';
 
@@ -63,6 +64,7 @@ function BetCard({ bet }: { bet: PlacedBet }) {
 
 export function BetHistoryList() {
   const { isAuthenticated, isInitialized } = useAuth();
+  const openAuthModal = useAuthModalStore((state) => state.open);
   const { data: bets, isPending, isError } = useBets();
 
   if (isInitialized && !isAuthenticated) {
@@ -71,7 +73,7 @@ export function BetHistoryList() {
         title="Log in to see your bets"
         description="Your bet history shows up here once you're signed in."
         ctaLabel="Log in"
-        ctaHref="/login"
+        onCtaClick={() => openAuthModal('login')}
       />
     );
   }

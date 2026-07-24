@@ -25,7 +25,7 @@ describe('MyBetsPage', () => {
     useAuthStore.setState({ accessToken: null, user: null, isInitialized: true });
     renderPage();
 
-    expect(screen.getByRole('link', { name: 'Log in' })).toHaveAttribute('href', '/login');
+    expect(screen.getByRole('button', { name: 'Log in' })).toBeInTheDocument();
   });
 
   it('shows the bet history when authenticated', async () => {

@@ -11,6 +11,7 @@ import { Card } from '../components/ui/Card';
 import { HorizontalScroller } from '../components/ui/HorizontalScroller';
 import { SportIcon } from '../components/ui/SportIcon';
 import { cn } from '../lib/cn';
+import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBrandStore } from '../features/brand/brandStore';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { useTeamColors } from '../features/odds-board/useTeamColors';
@@ -183,6 +184,7 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
  */
 function PromoCard({ className }: { className?: string }) {
   const brandId = useBrandStore((state) => state.brandId);
+  const openAuthModal = useAuthModalStore((state) => state.open);
 
   return (
     <aside className={cn('relative overflow-hidden rounded-3xl', className)}>
@@ -208,9 +210,9 @@ function PromoCard({ className }: { className?: string }) {
         </span>
         <p className="font-display text-2xl leading-tight">Get up to €50 in bonus bets</p>
         <p className="text-sm text-white/80">Sign up and place your first bet on us.</p>
-        <Link to="/register" className="btn-primary mt-2 w-fit">
+        <button type="button" onClick={() => openAuthModal('register')} className="btn-primary mt-2 w-fit">
           Claim now
-        </Link>
+        </button>
       </div>
     </aside>
   );

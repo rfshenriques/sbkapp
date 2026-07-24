@@ -1,23 +1,17 @@
 import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
-import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../features/auth/authStore';
+import { useAuthModalStore } from '../features/auth/authModalStore';
 import LoginPage from './LoginPage';
 
 function renderLoginPage() {
-  return render(
-    <MemoryRouter initialEntries={['/login']}>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/" element={<div>Odds board</div>} />
-      </Routes>
-    </MemoryRouter>,
-  );
+  return render(<LoginPage />);
 }
 
 beforeEach(() => {
   useAuthStore.setState({ accessToken: null, user: null, isInitialized: false });
+  useAuthModalStore.setState({ mode: 'login' });
 });
 
 afterEach(() => {
@@ -25,16 +19,15 @@ afterEach(() => {
 });
 
 describe('LoginPage', () => {
-  it('closes back to the previous page when the backdrop is clicked', async () => {
+  it('closes the modal when the backdrop is clicked', async () => {
     renderLoginPage();
 
     await userEvent.click(screen.getAllByRole('button', { name: 'Close login' })[0] as HTMLElement);
 
-    expect(await screen.findByText('Odds board')).toBeInTheDocument();
+    expect(useAuthModalStore.getState().mode).toBeNull();
   });
 
-
-  it('logs in and navigates to the odds board on success', async () => {
+  it('logs in and closes the modal on success', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
@@ -50,7 +43,7 @@ describe('LoginPage', () => {
     await userEvent.type(screen.getByLabelText('Password'), 'correct-horse-battery-staple');
     await userEvent.click(screen.getByRole('button', { name: 'Log in' }));
 
-    expect(await screen.findByText('Odds board')).toBeInTheDocument();
+    await vi.waitFor(() => expect(useAuthModalStore.getState().mode).toBeNull());
     expect(useAuthStore.getState().accessToken).toBe('header.payload.signature');
   });
 
@@ -72,5 +65,13 @@ describe('LoginPage', () => {
 
     expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
     expect(useAuthStore.getState().accessToken).toBeNull();
+  });
+
+  it('switches to the register modal when "Register" is clicked', async () => {
+    renderLoginPage();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Register' }));
+
+    expect(useAuthModalStore.getState().mode).toBe('register');
   });
 });
