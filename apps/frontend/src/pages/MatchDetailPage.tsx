@@ -70,8 +70,11 @@ export default function MatchDetailPage() {
   }
 
   const matchResult = match.markets.find((market) => market.id === 'match-result');
-  // Everything else - manual markets included - shown as its own section below Match Result.
-  const otherMarkets = match.markets.filter((market) => market.id !== 'match-result');
+  // Manual (trader-created) markets stack together under one "Specials"
+  // heading rather than getting their own section each, per the same rule
+  // as SpecialsPage - the rest keep their own section below Match Result.
+  const otherMarkets = match.markets.filter((market) => market.id !== 'match-result' && !market.isSpecial);
+  const specialMarkets = match.markets.filter((market) => market.id !== 'match-result' && market.isSpecial);
   const homeTeamLabel = displayName('TEAM', match.homeTeam);
   const awayTeamLabel = displayName('TEAM', match.awayTeam);
   const matchLabel = `${homeTeamLabel} vs ${awayTeamLabel}`;
@@ -198,6 +201,34 @@ export default function MatchDetailPage() {
           />
         </div>
       ))}
+
+      {specialMarkets.length > 0 && (
+        <div className="mt-6">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="brand-flag" aria-hidden="true">
+              <i></i>
+              <i></i>
+              <i></i>
+            </span>
+            <h2 className="font-display text-lg">Specials</h2>
+          </div>
+          <div className="space-y-4">
+            {specialMarkets.map((market) => (
+              <div key={market.id}>
+                <p className="mb-1.5 text-xs font-semibold text-text-secondary">
+                  {displayName('MARKET', market.name)}
+                </p>
+                <MarketSelections
+                  matchId={match.id}
+                  matchLabel={matchLabel}
+                  competition={match.competition}
+                  market={market}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

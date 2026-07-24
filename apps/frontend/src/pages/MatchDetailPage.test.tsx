@@ -107,6 +107,51 @@ describe('MatchDetailPage', () => {
     expect(screen.getByRole('button', { name: 'No1.25' })).toBeInTheDocument();
   });
 
+  it('stacks every manual (isSpecial) market together under one Specials heading, separate from real markets', async () => {
+    stubOddsEngineFetch([
+      {
+        id: 'match-8',
+        sport: 'Football',
+        country: 'England',
+        competition: 'Some Small League',
+        homeTeam: 'Home Team',
+        awayTeam: 'Away Team',
+        kickoff: '2026-07-20T15:00:00Z',
+        isLive: false,
+        markets: [
+          {
+            id: 'match-result',
+            name: 'Match Result',
+            selections: [{ id: 'home', name: 'Home', odds: 1.5 }],
+          },
+          {
+            id: 'manual-1',
+            name: 'To Win Both Halves',
+            isSpecial: true,
+            selections: [{ id: 'yes', name: 'Yes', odds: 3.5 }],
+          },
+          {
+            id: 'manual-2',
+            name: 'Anytime Assist',
+            isSpecial: true,
+            selections: [{ id: 'saka', name: 'Saka', odds: 4.0 }],
+          },
+        ],
+      },
+    ]);
+
+    renderAt('match-8');
+
+    const specialsHeading = await screen.findByRole('heading', { name: 'Specials' });
+    expect(specialsHeading).toBeInTheDocument();
+    // Both manual markets sit inside the same Specials section, not each
+    // getting their own top-level heading the way a real market would.
+    const specialsSection = specialsHeading.closest('div')!.parentElement!;
+    expect(within(specialsSection).getByText('To Win Both Halves')).toBeInTheDocument();
+    expect(within(specialsSection).getByText('Anytime Assist')).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'To Win Both Halves' })).not.toBeInTheDocument();
+  });
+
   it('shows the live match tracker for a live match once its live state loads', async () => {
     const liveState: LiveMatchState = {
       matchId: 'match-3',
