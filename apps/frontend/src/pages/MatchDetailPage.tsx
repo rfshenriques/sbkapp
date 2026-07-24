@@ -5,6 +5,8 @@ import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { TeamColorAccent } from '../components/ui/TeamColorAccent';
+import { CampaignContextBanner } from '../features/bet-and-get/CampaignContextBanner';
+import { useCampaignsForMatch } from '../features/bet-and-get/useCampaignsForMatch';
 import { BoostedOddsRow } from '../features/bet-slip/BoostedOddsRow';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
@@ -55,6 +57,7 @@ export default function MatchDetailPage() {
   const { data: match, isPending, isError } = useMatch(matchId);
   const { data: liveState } = useLiveMatch(matchId, match?.isLive ?? false);
   const { data: allMatches } = useMatches();
+  const { data: applicableCampaigns } = useCampaignsForMatch(match?.id);
   const displayName = useDisplayNames();
   const teamColors = useTeamColors();
 
@@ -166,6 +169,14 @@ export default function MatchDetailPage() {
           />
         </h1>
       </section>
+
+      {applicableCampaigns && applicableCampaigns.length > 0 && (
+        <div className="mt-6 space-y-3">
+          {applicableCampaigns.map((campaign) => (
+            <CampaignContextBanner key={campaign.id} campaign={campaign} />
+          ))}
+        </div>
+      )}
 
       {match.isLive && liveState && (
         <div className="mt-6">

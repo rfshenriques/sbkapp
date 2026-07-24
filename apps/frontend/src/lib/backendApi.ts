@@ -256,6 +256,57 @@ export async function getBoosts(brandId: string): Promise<BoostedSelectionSummar
   return (await response.json()) as BoostedSelectionSummary[];
 }
 
+export type BetAndGetTrigger = 'PLACEMENT' | 'SETTLEMENT';
+export type BetAndGetBetType = 'SINGLES_ONLY' | 'ACCUMULATOR_ONLY' | 'EITHER';
+
+export interface BetAndGetCampaign {
+  id: string;
+  name: string;
+  description: string | null;
+  rewardAmountCents: number;
+  trigger: BetAndGetTrigger;
+  triggerOnWon: boolean;
+  triggerOnLost: boolean;
+  triggerOnVoid: boolean;
+  minStakeCents: number | null;
+  minOddsPerLeg: number | null;
+  betType: BetAndGetBetType;
+  minSelections: number | null;
+}
+
+/** Every enabled Bet & Get campaign for the acting brand - see apps/backend's BetAndGetPublicController. */
+export async function getBetAndGetCampaigns(brandId: string): Promise<BetAndGetCampaign[]> {
+  const response = await fetch(`${BASE_URL}/public/bet-and-get-campaigns/${encodeURIComponent(brandId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Bet & Get campaigns: ${response.status}`);
+  }
+  return (await response.json()) as BetAndGetCampaign[];
+}
+
+/** Every match currently in scope for this campaign - drives the campaign-matches page's single-vs-many resolution. */
+export async function getBetAndGetCampaignMatches(brandId: string, campaignId: string): Promise<Match[]> {
+  const response = await fetch(
+    `${BASE_URL}/public/bet-and-get-campaigns/${encodeURIComponent(brandId)}/${encodeURIComponent(campaignId)}/matches`,
+    { headers: optionalAuthHeaders() },
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch campaign matches: ${response.status}`);
+  }
+  return (await response.json()) as Match[];
+}
+
+/** Every enabled campaign covering this one match - backs the match-detail context banner. */
+export async function getBetAndGetCampaignsForMatch(brandId: string, matchId: string): Promise<BetAndGetCampaign[]> {
+  const response = await fetch(
+    `${BASE_URL}/public/bet-and-get-campaigns/${encodeURIComponent(brandId)}/match/${encodeURIComponent(matchId)}`,
+    { headers: optionalAuthHeaders() },
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch campaigns for match: ${response.status}`);
+  }
+  return (await response.json()) as BetAndGetCampaign[];
+}
+
 export interface MarketSuspension {
   matchId: string;
   /** Empty string means the whole match is suspended, not just one market - see apps/backend's MarketSuspensionService. */
