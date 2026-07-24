@@ -63,7 +63,7 @@ function SelectionButton({ selection, label, isSelected, isSuspended, onSelect }
         // homepage's featured/hero card) only have ~60px per column, too
         // tight to fit a struck-through price and the new one on one line.
         <span className="flex flex-col items-center leading-none">
-          <span className="text-[11px] text-text-secondary line-through decoration-1">
+          <span className="prev-odds text-xs font-semibold line-through decoration-1">
             {selection.originalOdds!.toFixed(2)}
           </span>
           <span className="odd-value text-highlight">{selection.odds.toFixed(2)}</span>

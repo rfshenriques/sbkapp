@@ -180,6 +180,18 @@ body.scroll-locked .app-header {
   color: #000;
 }
 
+/* A boosted selection's struck-through previous price (see
+   MarketSelections/BetSlipPanel/BoostsPage) - plain text-secondary reads
+   fine on the button's normal dark fill, but on .selected's bright
+   highlight-color gradient it's nearly invisible, the same problem
+   .odd-value's own color override above already solves for the new price. */
+.prev-odds {
+  color: var(--color-text-secondary);
+}
+.odd-btn.selected .prev-odds {
+  color: color-mix(in srgb, black 55%, transparent);
+}
+
 /* Whole-button flash when its price moves - bright, saturated green on a
    rise, red on a drop, plus a glowing ring so it still reads even on a
    .selected button's opaque gradient (box-shadow sits outside the

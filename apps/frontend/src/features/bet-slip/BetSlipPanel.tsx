@@ -51,7 +51,7 @@ function SelectionOdds({ selection }: { selection: BetSlipSelection }) {
       <span className="rounded-full bg-highlight px-1.5 py-px text-[9px] font-extrabold tracking-wide text-black uppercase">
         Boost
       </span>
-      <span className="text-xs text-text-secondary line-through decoration-1">
+      <span className="prev-odds text-xs font-semibold line-through decoration-1">
         {selection.originalOdds.toFixed(2)}
       </span>
       <span className="font-semibold text-highlight">{selection.odds.toFixed(2)}</span>
