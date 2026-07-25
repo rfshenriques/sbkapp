@@ -31,6 +31,20 @@ function formatEuros(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
+/** Every field optional and independently combinable - see listBetsForSettlement. */
+export interface ListBetsFilters {
+  status?: BetStatus;
+  from?: Date;
+  to?: Date;
+  player?: string;
+  fundedByFreebets?: boolean;
+  insured?: boolean;
+  boosted?: boolean;
+  hasCampaign?: boolean;
+  sport?: string;
+  competition?: string;
+}
+
 @Injectable()
 export class PamService {
   constructor(
@@ -498,15 +512,20 @@ export class PamService {
           betAndGetCampaignId: betAndGetCampaign?.id,
           depositCampaignRedemptionId: depositCampaignRedemption?.id,
           selections: {
-            create: dto.selections.map((selection) => ({
-              matchId: selection.matchId,
-              marketId: selection.marketId,
-              selectionId: selection.selectionId,
-              matchLabel: selection.matchLabel,
-              marketName: selection.marketName,
-              selectionName: selection.selectionName,
-              odds: selection.odds,
-            })),
+            create: dto.selections.map((selection) => {
+              const match = matchesById.get(selection.matchId);
+              return {
+                matchId: selection.matchId,
+                marketId: selection.marketId,
+                selectionId: selection.selectionId,
+                matchLabel: selection.matchLabel,
+                marketName: selection.marketName,
+                selectionName: selection.selectionName,
+                odds: selection.odds,
+                sport: match?.sport,
+                competition: match?.competition,
+              };
+            }),
           },
         },
         include: { selections: true },
@@ -600,10 +619,48 @@ export class PamService {
     return this.enrichBetsWithRollbackReward(bets);
   }
 
-  /** Admin-only: lists bets across all users in one brand, for manual settlement. */
-  async listBetsForSettlement(brandId: string, status?: BetStatus) {
+  /**
+   * Admin-only: lists bets across all users in one brand - used both by the
+   * settlement queue (status filter only) and the Reports > Bet History
+   * page (the fuller filter set below). Every filter here is optional and
+   * backed by a real stored column - sport/competition match against
+   * BetSelection's snapshotted values (see placeBet), so bets placed before
+   * that field existed simply won't match a sport/competition filter.
+   */
+  async listBetsForSettlement(brandId: string, filters: ListBetsFilters = {}) {
+    const { status, from, to, player, fundedByFreebets, insured, boosted, hasCampaign, sport, competition } =
+      filters;
     const bets = await this.prisma.bet.findMany({
-      where: { brandId, ...(status ? { status } : {}) },
+      where: {
+        brandId,
+        ...(status ? { status } : {}),
+        ...(from || to
+          ? { createdAt: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } }
+          : {}),
+        ...(player
+          ? {
+              user: {
+                OR: [
+                  { username: { contains: player, mode: 'insensitive' } },
+                  { email: { contains: player, mode: 'insensitive' } },
+                ],
+              },
+            }
+          : {}),
+        ...(fundedByFreebets !== undefined ? { fundedByFreebets } : {}),
+        ...(insured !== undefined
+          ? { insuranceCostPercent: insured ? { gt: 0 } : 0 }
+          : {}),
+        ...(boosted !== undefined ? { accaBoostPercent: boosted ? { gt: 0 } : 0 } : {}),
+        ...(hasCampaign !== undefined
+          ? hasCampaign
+            ? { OR: [{ betAndGetCampaignId: { not: null } }, { depositCampaignRedemptionId: { not: null } }] }
+            : { betAndGetCampaignId: null, depositCampaignRedemptionId: null }
+          : {}),
+        ...(sport || competition
+          ? { selections: { some: { ...(sport ? { sport } : {}), ...(competition ? { competition } : {}) } } }
+          : {}),
+      },
       include: {
         selections: true,
         user: { select: { id: true, username: true, email: true } },
@@ -613,6 +670,32 @@ export class PamService {
       orderBy: { createdAt: 'asc' },
     });
     return this.enrichBetsWithRollbackReward(bets);
+  }
+
+  /**
+   * Distinct sport/competition values seen on this brand's bets, so the
+   * Bet History report can offer real dropdown options instead of
+   * free-text input or a fabricated static list. Bets placed before
+   * BetSelection.sport/competition existed are simply absent from either
+   * list, not shown as blank/unknown entries.
+   */
+  async listBetFilterOptions(brandId: string) {
+    const [sports, competitions] = await Promise.all([
+      this.prisma.betSelection.findMany({
+        where: { bet: { brandId }, sport: { not: null } },
+        select: { sport: true },
+        distinct: ['sport'],
+      }),
+      this.prisma.betSelection.findMany({
+        where: { bet: { brandId }, competition: { not: null } },
+        select: { competition: true },
+        distinct: ['competition'],
+      }),
+    ]);
+    return {
+      sports: sports.map((row) => row.sport!).sort(),
+      competitions: competitions.map((row) => row.competition!).sort(),
+    };
   }
 
   /**

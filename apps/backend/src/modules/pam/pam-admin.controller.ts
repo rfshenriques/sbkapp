@@ -19,7 +19,23 @@ export class PamAdminController {
 
   @Get('bets')
   listBets(@Query() query: ListBetsQueryDto, @Req() req: AuthenticatedStaffRequest) {
-    return this.pamService.listBetsForSettlement(req.user.brandId, query.status);
+    return this.pamService.listBetsForSettlement(req.user.brandId, {
+      status: query.status,
+      from: query.from ? new Date(query.from) : undefined,
+      to: query.to ? new Date(query.to) : undefined,
+      player: query.player,
+      fundedByFreebets: query.fundedByFreebets,
+      insured: query.insured,
+      boosted: query.boosted,
+      hasCampaign: query.hasCampaign,
+      sport: query.sport,
+      competition: query.competition,
+    });
+  }
+
+  @Get('bets/filter-options')
+  listBetFilterOptions(@Req() req: AuthenticatedStaffRequest) {
+    return this.pamService.listBetFilterOptions(req.user.brandId);
   }
 
   @Patch('bets/:betId/selections/:selectionId/settlement')

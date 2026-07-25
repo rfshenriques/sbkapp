@@ -1345,6 +1345,15 @@ model BetSelection {
   selectionName String
   odds          Decimal         @db.Decimal(10, 2)
   status        SelectionStatus @default(OPEN)
+  /**
+   * Snapshotted from the match's live odds-engine data at placement time
+   * (competitions/matches are never persisted - see fetchMatchesByMatchId)
+   * so admin reporting can filter by sport/competition. Null on selections
+   * placed before this field existed - those simply don't match any
+   * sport/competition filter, they aren't backfilled.
+   */
+  sport         String?
+  competition   String?
 
   @@index([betId])
   @@map("bet_selections")

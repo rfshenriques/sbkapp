@@ -220,6 +220,9 @@ export interface BetSelection {
   selectionName: string;
   odds: string;
   status: SelectionStatus;
+  /** Snapshotted at placement time - null on selections placed before this field existed. */
+  sport: string | null;
+  competition: string | null;
 }
 
 export interface Bet {
@@ -336,10 +339,38 @@ async function authenticatedFetch(path: string, init: RequestInit = {}): Promise
   return requestWithToken(refreshed.accessToken);
 }
 
-export async function listBets(status?: BetStatus): Promise<Bet[]> {
-  const query = status ? `?status=${status}` : '';
-  const response = await authenticatedFetch(`/admin/bets${query}`);
+export interface ListBetsFilters {
+  status?: BetStatus;
+  from?: string;
+  to?: string;
+  player?: string;
+  fundedByFreebets?: boolean;
+  insured?: boolean;
+  boosted?: boolean;
+  hasCampaign?: boolean;
+  sport?: string;
+  competition?: string;
+}
+
+export async function listBets(filters: ListBetsFilters | BetStatus | undefined = undefined): Promise<Bet[]> {
+  const normalized: ListBetsFilters = typeof filters === 'string' ? { status: filters } : (filters ?? {});
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(normalized)) {
+    if (value !== undefined) params.set(key, String(value));
+  }
+  const query = params.toString();
+  const response = await authenticatedFetch(`/admin/bets${query ? `?${query}` : ''}`);
   return parseJsonOrThrow(response, `Failed to load bets: ${response.status}`);
+}
+
+export interface BetFilterOptions {
+  sports: string[];
+  competitions: string[];
+}
+
+export async function getBetFilterOptions(): Promise<BetFilterOptions> {
+  const response = await authenticatedFetch('/admin/bets/filter-options');
+  return parseJsonOrThrow(response, `Failed to load bet filter options: ${response.status}`);
 }
 
 export async function settleSelection(

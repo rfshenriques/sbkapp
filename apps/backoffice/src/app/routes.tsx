@@ -3,6 +3,7 @@ import AccaBoostPage from '../pages/AccaBoostPage';
 import AccaRollbackPage from '../pages/AccaRollbackPage';
 import AuditLogPage from '../pages/AuditLogPage';
 import BetAndGetCampaignsPage from '../pages/BetAndGetCampaignsPage';
+import BetHistoryReportPage from '../pages/BetHistoryReportPage';
 import DepositCampaignsPage from '../pages/DepositCampaignsPage';
 import InsuranceBetPage from '../pages/InsuranceBetPage';
 import CmsImagesPage from '../pages/CmsImagesPage';
@@ -183,6 +184,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN']}>
               <ReportsPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'bet-history',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN']}>
+              <BetHistoryReportPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

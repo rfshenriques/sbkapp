@@ -1705,11 +1705,11 @@ describe('PamService', () => {
         TEST_ACTOR,
       );
 
-      const pendingBets = await pamService.listBetsForSettlement(testBrandId, 'PENDING');
+      const pendingBets = await pamService.listBetsForSettlement(testBrandId, { status: 'PENDING' });
       expect(pendingBets.map((bet) => bet.id)).toContain(pendingBet.id);
       expect(pendingBets.map((bet) => bet.id)).not.toContain(wonBet.id);
 
-      const wonBets = await pamService.listBetsForSettlement(testBrandId, 'WON');
+      const wonBets = await pamService.listBetsForSettlement(testBrandId, { status: 'WON' });
       expect(wonBets.map((bet) => bet.id)).toContain(wonBet.id);
       expect(wonBets.map((bet) => bet.id)).not.toContain(pendingBet.id);
     });
@@ -1721,8 +1721,175 @@ describe('PamService', () => {
         stakeCents: 500,
       });
 
-      const pendingBets = await pamService.listBetsForSettlement(testBrandId, 'PENDING');
+      const pendingBets = await pamService.listBetsForSettlement(testBrandId, { status: 'PENDING' });
       expect(pendingBets.map((bet) => bet.id)).not.toContain(otherBrandBet.id);
+    });
+
+    it('filters bets by createdAt date range', async () => {
+      const userId = await createTestUser(100_000);
+      const olderBet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'match-older' })],
+        stakeCents: 500,
+      });
+      const newerBet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'match-newer' })],
+        stakeCents: 500,
+      });
+      await prisma.bet.update({
+        where: { id: olderBet.id },
+        data: { createdAt: new Date('2020-01-01T00:00:00Z') },
+      });
+
+      const recentBets = await pamService.listBetsForSettlement(testBrandId, {
+        from: new Date('2021-01-01T00:00:00Z'),
+      });
+      expect(recentBets.map((bet) => bet.id)).toContain(newerBet.id);
+      expect(recentBets.map((bet) => bet.id)).not.toContain(olderBet.id);
+
+      const oldBets = await pamService.listBetsForSettlement(testBrandId, {
+        to: new Date('2020-06-01T00:00:00Z'),
+      });
+      expect(oldBets.map((bet) => bet.id)).toContain(olderBet.id);
+      expect(oldBets.map((bet) => bet.id)).not.toContain(newerBet.id);
+    });
+
+    it('filters bets by a case-insensitive substring match against the player username or email', async () => {
+      const targetUserId = await createTestUser(100_000);
+      const targetUser = await prisma.user.findUniqueOrThrow({ where: { id: targetUserId } });
+      const otherUserId = await createTestUser(100_000);
+
+      const targetBet = await pamService.placeBet(targetUserId, {
+        selections: [buildSelection({ matchId: 'match-target' })],
+        stakeCents: 500,
+      });
+      const otherBet = await pamService.placeBet(otherUserId, {
+        selections: [buildSelection({ matchId: 'match-other' })],
+        stakeCents: 500,
+      });
+
+      const matches = await pamService.listBetsForSettlement(testBrandId, {
+        player: targetUser.username.toUpperCase(),
+      });
+      expect(matches.map((bet) => bet.id)).toContain(targetBet.id);
+      expect(matches.map((bet) => bet.id)).not.toContain(otherBet.id);
+    });
+
+    it('filters bets by fundedByFreebets, insured, boosted, and hasCampaign flags', async () => {
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await accaBoostService.setConfig(
+        testBrandId,
+        { boostPercentPerLeg: 5, minSelections: 2, minOddsPerLeg: 1.2, enabled: true },
+        TEST_ACTOR,
+      );
+      const campaign = await betAndGetCampaignService.create(
+        testBrandId,
+        { name: 'Filter Test Campaign', rewardAmountCents: 500 },
+        TEST_ACTOR,
+      );
+      await betAndGetCampaignService.setScopes(
+        testBrandId,
+        campaign.id,
+        // Scoped to just the plain bet's own match, so it's the only one of
+        // the four bets below that qualifies - the others all share the
+        // same default sport/competition from fakeMatch and would otherwise
+        // all qualify too, defeating the point of this isolation test.
+        [{ scopeType: 'MATCH', scopeValue: 'match-plain' }],
+        TEST_ACTOR,
+      );
+      await betAndGetCampaignService.update(testBrandId, campaign.id, { enabled: true }, TEST_ACTOR);
+
+      const freebetUserId = await createTestUser(100_000);
+      const freebetUser = await prisma.user.findUniqueOrThrow({ where: { id: freebetUserId } });
+      await freebetService.grant(testBrandId, { identifier: freebetUser.username, amountCents: 1_000 }, TEST_ACTOR);
+      const freebetBet = await pamService.placeBet(freebetUserId, {
+        selections: [buildSelection({ matchId: 'match-freebet' })],
+        stakeCents: 500,
+        useFreebets: true,
+      });
+
+      const insuredBet = await pamService.placeBet(await createTestUser(100_000), {
+        selections: [buildSelection({ matchId: 'match-insured' })],
+        stakeCents: 500,
+        insuranceOptIn: true,
+      });
+
+      const boostedBet = await pamService.placeBet(await createTestUser(100_000), {
+        selections: [
+          buildSelection({ matchId: 'match-boosted-1', odds: 2.0 }),
+          buildSelection({ matchId: 'match-boosted-2', selectionId: 'away', odds: 2.0 }),
+        ],
+        stakeCents: 500,
+      });
+
+      const plainBet = await pamService.placeBet(await createTestUser(100_000), {
+        selections: [buildSelection({ matchId: 'match-plain' })],
+        stakeCents: 500,
+      });
+
+      const freebetFiltered = await pamService.listBetsForSettlement(testBrandId, { fundedByFreebets: true });
+      expect(freebetFiltered.map((bet) => bet.id)).toEqual([freebetBet.id]);
+
+      const insuredFiltered = await pamService.listBetsForSettlement(testBrandId, { insured: true });
+      expect(insuredFiltered.map((bet) => bet.id)).toEqual([insuredBet.id]);
+
+      const boostedFiltered = await pamService.listBetsForSettlement(testBrandId, { boosted: true });
+      expect(boostedFiltered.map((bet) => bet.id)).toEqual([boostedBet.id]);
+
+      const campaignFiltered = await pamService.listBetsForSettlement(testBrandId, { hasCampaign: true });
+      expect(campaignFiltered.map((bet) => bet.id)).toEqual([plainBet.id]);
+
+      const noCampaignFiltered = await pamService.listBetsForSettlement(testBrandId, { hasCampaign: false });
+      const noCampaignIds = noCampaignFiltered.map((bet) => bet.id);
+      expect(noCampaignIds).toContain(freebetBet.id);
+      expect(noCampaignIds).not.toContain(plainBet.id);
+    });
+
+    it('filters bets by sport and competition, snapshotted onto each selection at placement time', async () => {
+      const userId = await createTestUser(100_000);
+      vi.mocked(oddsEngineClient.fetchMatchById).mockImplementationOnce(async (matchId: string) => ({
+        ...fakeMatch(matchId),
+        sport: 'Basketball',
+        competition: 'Test League',
+      }));
+      const basketballBet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'match-basketball' })],
+        stakeCents: 500,
+      });
+      const footballBet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'match-football' })],
+        stakeCents: 500,
+      });
+
+      const bySport = await pamService.listBetsForSettlement(testBrandId, { sport: 'Basketball' });
+      expect(bySport.map((bet) => bet.id)).toEqual([basketballBet.id]);
+
+      const byCompetition = await pamService.listBetsForSettlement(testBrandId, { competition: 'Test League' });
+      expect(byCompetition.map((bet) => bet.id)).toEqual([basketballBet.id]);
+
+      const byOtherSport = await pamService.listBetsForSettlement(testBrandId, { sport: 'Football' });
+      expect(byOtherSport.map((bet) => bet.id)).toContain(footballBet.id);
+      expect(byOtherSport.map((bet) => bet.id)).not.toContain(basketballBet.id);
+    });
+
+    it('listBetFilterOptions returns the distinct sports and competitions seen on this brand', async () => {
+      const userId = await createTestUser(100_000);
+      vi.mocked(oddsEngineClient.fetchMatchById).mockImplementationOnce(async (matchId: string) => ({
+        ...fakeMatch(matchId),
+        sport: 'Basketball',
+        competition: 'Test League',
+      }));
+      await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'match-options-basketball' })],
+        stakeCents: 500,
+      });
+      await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'match-options-football' })],
+        stakeCents: 500,
+      });
+
+      const options = await pamService.listBetFilterOptions(testBrandId);
+      expect(options.sports).toEqual(expect.arrayContaining(['Football', 'Basketball']));
+      expect(options.competitions).toEqual(expect.arrayContaining([DEFAULT_TEST_COMPETITION, 'Test League']));
     });
 
     it("never settles another brand's bet, even by guessing its id", async () => {

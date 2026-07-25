@@ -35,6 +35,8 @@ const pendingBet: Bet = {
       selectionName: 'Home',
       odds: '2.10',
       status: 'OPEN',
+      sport: 'Football',
+      competition: 'Premier League',
     },
   ],
 };
