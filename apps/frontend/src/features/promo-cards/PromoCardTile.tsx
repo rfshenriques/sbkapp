@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import * as backendApi from '../../lib/backendApi';
 import type { PromoCardItem } from '../../lib/backendApi';
+import { useDepositCampaignModalStore } from '../deposit-campaigns/depositCampaignModalStore';
 
 export interface PromoCardTileProps {
   card: PromoCardItem;
@@ -9,11 +12,15 @@ export interface PromoCardTileProps {
 
 /**
  * One CMS-managed promo card image, with an optional title/subtitle scrim
- * and an optional click-through to its linked Bet & Get campaign - see
- * apps/backend's PromoCardService and the backoffice's CMS Promo Cards
- * page. A card with no betAndGetCampaignId is purely decorative (no link).
+ * and an optional click-through to its linked campaign - a Bet & Get
+ * campaign navigates to its matches page, a deposit campaign reopens the
+ * same modal the post-login trigger uses (see DepositCampaignModal). A card
+ * with neither id set is purely decorative (no link). See apps/backend's
+ * PromoCardService and the backoffice's CMS Promo Cards page.
  */
 export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) {
+  const openDepositCampaignModal = useDepositCampaignModalStore((state) => state.open);
+  const [isLoadingDepositCampaign, setIsLoadingDepositCampaign] = useState(false);
   const hasCaption = Boolean(card.title || card.subtitle);
 
   const content = (
@@ -43,6 +50,32 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
       >
         {content}
       </Link>
+    );
+  }
+
+  if (card.depositCampaignId) {
+    const depositCampaignId = card.depositCampaignId;
+    async function handleClick() {
+      setIsLoadingDepositCampaign(true);
+      try {
+        const campaign = await backendApi.getDepositCampaign(brandId, depositCampaignId);
+        openDepositCampaignModal(campaign);
+      } catch {
+        // Best-effort - a failed fetch just means the click did nothing.
+      } finally {
+        setIsLoadingDepositCampaign(false);
+      }
+    }
+
+    return (
+      <button
+        type="button"
+        onClick={() => void handleClick()}
+        disabled={isLoadingDepositCampaign}
+        className={`relative block w-full overflow-hidden rounded-3xl text-left disabled:cursor-wait ${className ?? ''}`}
+      >
+        {content}
+      </button>
     );
   }
 
