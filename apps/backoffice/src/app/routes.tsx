@@ -6,6 +6,7 @@ import BetAndGetCampaignsPage from '../pages/BetAndGetCampaignsPage';
 import InsuranceBetPage from '../pages/InsuranceBetPage';
 import CmsImagesPage from '../pages/CmsImagesPage';
 import CmsPaymentsPage from '../pages/CmsPaymentsPage';
+import CmsPromoCardsPage from '../pages/CmsPromoCardsPage';
 import CmsQuicklinksPage from '../pages/CmsQuicklinksPage';
 import CmsSponsorsPage from '../pages/CmsSponsorsPage';
 import CompetitionRankingPage from '../pages/CompetitionRankingPage';
@@ -291,6 +292,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'CMS']}>
               <CmsPaymentsPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'cms-promo-cards',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'CMS']}>
+              <CmsPromoCardsPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

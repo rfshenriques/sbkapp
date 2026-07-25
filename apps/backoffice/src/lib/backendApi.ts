@@ -1257,3 +1257,70 @@ export async function setBetAndGetCampaignScopes(
   });
   return parseJsonOrThrow(response, `Failed to set Bet & Get campaign scope: ${response.status}`);
 }
+
+export interface PromoCard {
+  id: string;
+  brandId: string;
+  mimeType: string;
+  title: string | null;
+  subtitle: string | null;
+  sortOrder: number;
+  betAndGetCampaignId: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AddPromoCardPayload {
+  file: File;
+  title?: string;
+  subtitle?: string;
+  betAndGetCampaignId?: string;
+}
+
+export interface UpdatePromoCardPayload {
+  title?: string | null;
+  subtitle?: string | null;
+  betAndGetCampaignId?: string | null;
+}
+
+export async function listPromoCards(): Promise<PromoCard[]> {
+  const response = await authenticatedFetch('/admin/promo-cards');
+  return parseJsonOrThrow(response, `Failed to load promo cards: ${response.status}`);
+}
+
+/** No Content-Type header set - fetch derives the multipart boundary itself from the FormData body. */
+export async function addPromoCard(payload: AddPromoCardPayload): Promise<PromoCard> {
+  const formData = new FormData();
+  formData.append('file', payload.file);
+  if (payload.title) formData.append('title', payload.title);
+  if (payload.subtitle) formData.append('subtitle', payload.subtitle);
+  if (payload.betAndGetCampaignId) formData.append('betAndGetCampaignId', payload.betAndGetCampaignId);
+  const response = await authenticatedFetch('/admin/promo-cards', { method: 'POST', body: formData });
+  return parseJsonOrThrow(response, `Failed to upload promo card: ${response.status}`);
+}
+
+export async function updatePromoCard(id: string, payload: UpdatePromoCardPayload): Promise<PromoCard> {
+  const response = await authenticatedFetch(`/admin/promo-cards/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to update promo card: ${response.status}`);
+}
+
+export async function removePromoCard(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/promo-cards/${id}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(`Failed to remove promo card: ${response.status}`);
+  }
+}
+
+/** `ids` must be exactly the current set of promo cards, in the desired order. */
+export async function reorderPromoCards(ids: string[]): Promise<PromoCard[]> {
+  const response = await authenticatedFetch('/admin/promo-cards/reorder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  });
+  return parseJsonOrThrow(response, `Failed to reorder promo cards: ${response.status}`);
+}
