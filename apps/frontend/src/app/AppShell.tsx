@@ -150,7 +150,7 @@ export function AppShell() {
       onTouchEnd={handleTouchEnd}
     >
       <header className="app-header sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
-        <div className="mx-auto flex max-w-[1680px] items-center gap-4 px-4 py-3">
+        <div className="mx-auto grid max-w-[1680px] grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3">
           <NavLink to="/" className="flex shrink-0 items-center gap-2">
             <span className="font-display text-xl">{brandName}</span>
             <span className="brand-flag" aria-hidden="true">
@@ -163,8 +163,11 @@ export function AppShell() {
           {/* Desktop only - mirrors the mobile bottom nav's destinations
               (minus Search, which desktop already has via the persistent
               Sidebar's own search bar) so the same pages are reachable
-              without needing the bottom nav's icon strip. */}
-          <nav aria-label="Desktop app navigation" className="ml-6 hidden items-center gap-5 sm:flex">
+              without needing the bottom nav's icon strip. Centered in the
+              header's remaining space between the logo and the auth
+              buttons via the grid's middle 1fr column, not just packed
+              next to the logo. */}
+          <nav aria-label="Desktop app navigation" className="hidden items-center justify-center gap-5 sm:flex">
             <NavLink
               to="/"
               end
