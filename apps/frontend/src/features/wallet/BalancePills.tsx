@@ -1,10 +1,13 @@
 import { TicketIcon, WalletIcon } from '../../components/ui/NavIcons';
+import { cn } from '../../lib/cn';
 import { formatCents } from './useWallet';
 
 interface BalancePillsProps {
   cashCents: number;
   freebetsCents: number;
   className?: string;
+  /** Which pill to ring in --color-highlight - the bet slip uses this to show which balance the Cash/Freebets switch is currently staking from. Omitted anywhere that switch doesn't exist (the header). */
+  activeKind?: 'cash' | 'freebets';
 }
 
 /**
@@ -15,11 +18,14 @@ interface BalancePillsProps {
  * Freebets stay hidden at zero rather than showing a permanent "€0.00"
  * pill that's never actionable for most players.
  */
-export function BalancePills({ cashCents, freebetsCents, className }: BalancePillsProps) {
+export function BalancePills({ cashCents, freebetsCents, className, activeKind }: BalancePillsProps) {
   return (
     <span className={`flex items-center gap-1.5 ${className ?? ''}`}>
       <span
-        className="flex items-center gap-1 rounded-full bg-surface-2 px-2 py-1 text-xs text-text-secondary"
+        className={cn(
+          'flex items-center gap-1 rounded-full border bg-surface-2 px-2 py-1 text-xs text-text-secondary',
+          activeKind === 'cash' ? 'border-highlight' : 'border-transparent',
+        )}
         title="Cash balance (paper)"
       >
         <WalletIcon width={14} height={14} className="shrink-0" />
@@ -27,7 +33,10 @@ export function BalancePills({ cashCents, freebetsCents, className }: BalancePil
       </span>
       {freebetsCents > 0 && (
         <span
-          className="flex items-center gap-1 rounded-full bg-surface-2 px-2 py-1 text-xs text-text-secondary"
+          className={cn(
+            'flex items-center gap-1 rounded-full border bg-surface-2 px-2 py-1 text-xs text-text-secondary',
+            activeKind === 'freebets' ? 'border-highlight' : 'border-transparent',
+          )}
           title="Freebets balance"
         >
           <TicketIcon width={14} height={14} className="shrink-0" />

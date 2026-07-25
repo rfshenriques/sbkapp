@@ -467,6 +467,7 @@ export function BetSlipPanel({
   const accaRollbackConfig = useAccaRollbackConfig();
   const insuranceBetConfig = useInsuranceBetConfig();
   const { data: freebets } = useFreebets();
+  const hasFreebets = Boolean(freebets && freebets.length > 0);
   const { data: wallet } = useWallet();
   const queryClient = useQueryClient();
   const [stake, setStake] = useState('10.00');
@@ -735,21 +736,6 @@ export function BetSlipPanel({
     mainContent = (
       <div className="space-y-3">
         {confirmation && <p className="text-sm text-brand">{confirmation}</p>}
-        {freebets && freebets.length > 0 && (
-          <div className="flex items-center justify-center gap-3">
-            <span className={cn('text-xs font-semibold', !isFreebetMode ? 'text-text-primary' : 'text-text-muted')}>
-              Cash
-            </span>
-            <Switch
-              checked={isFreebetMode}
-              onChange={(checked) => setPayMethod(checked ? 'freebet' : 'cash')}
-              ariaLabel="Pay with freebets"
-            />
-            <span className={cn('text-xs font-semibold', isFreebetMode ? 'text-text-primary' : 'text-text-muted')}>
-              Freebets
-            </span>
-          </div>
-        )}
         {showTabs && (
           <div className="flex items-center justify-between border-b border-border">
             <div className="flex gap-4" role="tablist" aria-label="Bet slip mode">
@@ -983,8 +969,27 @@ export function BetSlipPanel({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {isAuthenticated && wallet && (
-        <div className="mb-3 flex shrink-0 justify-center">
-          <BalancePills cashCents={wallet.balanceCents} freebetsCents={sumFreebetsCents(freebets)} />
+        <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
+          <BalancePills
+            cashCents={wallet.balanceCents}
+            freebetsCents={sumFreebetsCents(freebets)}
+            activeKind={hasFreebets && selections.length > 0 ? (isFreebetMode ? 'freebets' : 'cash') : undefined}
+          />
+          {hasFreebets && selections.length > 0 && (
+            <div className="flex shrink-0 items-center gap-2">
+              <span className={cn('text-xs font-semibold', !isFreebetMode ? 'text-text-primary' : 'text-text-muted')}>
+                Cash
+              </span>
+              <Switch
+                checked={isFreebetMode}
+                onChange={(checked) => setPayMethod(checked ? 'freebet' : 'cash')}
+                ariaLabel="Pay with freebets"
+              />
+              <span className={cn('text-xs font-semibold', isFreebetMode ? 'text-text-primary' : 'text-text-muted')}>
+                Freebets
+              </span>
+            </div>
+          )}
         </div>
       )}
       {showHistoryTab && (

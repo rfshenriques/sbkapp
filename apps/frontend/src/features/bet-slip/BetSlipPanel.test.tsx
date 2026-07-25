@@ -559,6 +559,9 @@ describe('BetSlipPanel', () => {
         if (method === 'GET' && url === '/backend/freebets') {
           return new Response(JSON.stringify(freebets), { status: 200 });
         }
+        if (method === 'GET' && url === '/backend/wallet') {
+          return new Response(JSON.stringify({ balanceCents: 100000 }), { status: 200 });
+        }
         if (method === 'GET' && url === '/backend/public/acca-boost-config/brand-1') {
           return new Response(
             JSON.stringify(accaBoostConfig ?? { boostPercentPerLeg: 0, minSelections: 99, minOddsPerLeg: 1, enabled: false }),
