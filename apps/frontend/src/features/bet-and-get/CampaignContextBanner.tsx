@@ -1,6 +1,6 @@
 import type { BetAndGetCampaign } from '../../lib/backendApi';
 import { Card } from '../../components/ui/Card';
-import { formatCampaignRequirements, formatCampaignTrigger } from './formatCampaignRequirements';
+import { formatCampaignRequirements } from './formatCampaignRequirements';
 
 interface CampaignContextBannerProps {
   campaign: BetAndGetCampaign;
@@ -9,8 +9,10 @@ interface CampaignContextBannerProps {
 /**
  * Player-facing context for a Bet & Get campaign - shown at the top of the
  * campaign-matches page and, per-match, on MatchDetailPage when the match
- * qualifies for an active campaign. Deliberately shows the campaign's own
- * name/reward/conditions only - never the matches themselves, which is
+ * qualifies for an active campaign. Deliberately shows only the campaign's
+ * own name, the staff-authored description (never a canned marketing
+ * sentence generated from the reward/trigger config), and the auto-derived
+ * qualification requirements - never the matches themselves, which is
  * whatever page renders below it.
  */
 export function CampaignContextBanner({ campaign }: CampaignContextBannerProps) {
@@ -25,10 +27,6 @@ export function CampaignContextBanner({ campaign }: CampaignContextBannerProps) 
         <h2 className="font-display text-base">{campaign.name}</h2>
       </div>
       {campaign.description && <p className="mt-1.5 text-sm text-text-secondary">{campaign.description}</p>}
-      <p className="mt-2 text-sm">
-        Get a <span className="font-semibold text-highlight">€{(campaign.rewardAmountCents / 100).toFixed(2)} freebet</span>{' '}
-        {formatCampaignTrigger(campaign)}
-      </p>
       {requirements.length > 0 && (
         <p className="mt-1.5 text-xs text-text-secondary">{requirements.join(' · ')}</p>
       )}
