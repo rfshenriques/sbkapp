@@ -12,7 +12,10 @@ import { useAuth } from '../features/auth/useAuth';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBootstrapAuth } from '../features/auth/useBootstrapAuth';
 import { DepositCampaignModal } from '../features/deposit-campaigns/DepositCampaignModal';
+import { DepositModal } from '../features/deposit/DepositModal';
+import { useDepositModalStore } from '../features/deposit/depositModalStore';
 import { BalancePills } from '../features/wallet/BalancePills';
+import { InsufficientFundsModal } from '../features/wallet/InsufficientFundsModal';
 import { useWallet } from '../features/wallet/useWallet';
 import { sumFreebetsCents, useFreebets } from '../features/wallet/useFreebets';
 import { Sidebar } from '../features/navigation/Sidebar';
@@ -44,6 +47,7 @@ export function AppShell() {
   const { data: wallet } = useWallet();
   const { data: freebets } = useFreebets();
   const freebetsCents = sumFreebetsCents(freebets);
+  const openDepositModal = useDepositModalStore((state) => state.open);
   const navigate = useNavigate();
   const location = useLocation();
   const touchStartRef = useRef<{ x: number; y: number; skip: boolean } | null>(null);
@@ -214,7 +218,13 @@ export function AppShell() {
           <div className="ml-auto flex items-center gap-2">
             {isInitialized && isAuthenticated ? (
               <>
-                {wallet && <BalancePills cashCents={wallet.balanceCents} freebetsCents={freebetsCents} />}
+                {wallet && (
+                  <BalancePills
+                    cashCents={wallet.balanceCents}
+                    freebetsCents={freebetsCents}
+                    onAddFunds={openDepositModal}
+                  />
+                )}
                 <AccountMenu />
               </>
             ) : (
@@ -393,6 +403,8 @@ export function AppShell() {
       {authModalMode === 'login' && <LoginPage />}
       {authModalMode === 'register' && <RegisterPage />}
       <DepositCampaignModal />
+      <DepositModal />
+      <InsufficientFundsModal />
 
       {/* Mobile-only: sports navigation takes over the space between the
           header and bottom nav like its own page, rather than a partial

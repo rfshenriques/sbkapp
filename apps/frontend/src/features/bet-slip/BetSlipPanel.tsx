@@ -11,6 +11,7 @@ import { useAuthModalStore } from '../auth/authModalStore';
 import { useWallet, walletQueryKey } from '../wallet/useWallet';
 import { freebetsQueryKey, sumFreebetsCents, useFreebets } from '../wallet/useFreebets';
 import { BalancePills } from '../wallet/BalancePills';
+import { useInsufficientFundsModalStore } from '../wallet/insufficientFundsModalStore';
 import { betsQueryKey } from '../bet-history/useBets';
 import { BetHistoryList } from '../bet-history/BetHistoryList';
 import { calculateAccaBoost, type AccaBoostConfig } from './accaBoost';
@@ -560,6 +561,19 @@ export function BetSlipPanel({
     },
   });
 
+  const openInsufficientFundsModal = useInsufficientFundsModalStore((state) => state.open);
+  // A dedicated popup rather than the usual inline error text - "Insufficient
+  // balance" is the one placement failure with an obvious next step (add
+  // funds), so it gets a CTA instead of just a red line of text. Mounted at
+  // AppShell level (see insufficientFundsModalStore) since BetSlipPanel can
+  // itself be nested inside the mobile bet slip's own animated sheet.
+  useEffect(() => {
+    const activeError = tab === 'accumulator' ? placeAccumulatorMutation.error : placeSinglesMutation.error;
+    if (activeError instanceof Error && activeError.message === 'Insufficient balance') {
+      openInsufficientFundsModal();
+    }
+  }, [placeAccumulatorMutation.error, placeSinglesMutation.error]);
+
   const showTabs = selections.length >= 2;
   const tab: BetSlipTab = showTabs ? activeTab : 'singles';
   // A lone selection has nowhere else for its stake to live once it's not
@@ -838,25 +852,36 @@ export function BetSlipPanel({
           </>
         )}
         {!isFreebetMode && insuranceBetConfig.enabled && selections.length > 0 && !insuranceIneligible && (
-          <div className="space-y-1.5 rounded-xl border border-border bg-surface-2 p-2.5 text-xs">
+          <div className="rounded-xl border border-border bg-surface-2 p-2.5 text-xs">
             <div className="flex items-center justify-between gap-2">
               <span className="font-medium text-text-secondary">Insure this bet</span>
               <Switch checked={insuranceOptIn} onChange={setInsuranceOptIn} ariaLabel="Insure this bet" />
             </div>
-            <p className="text-text-secondary">
-              {isCurrentTabValid && currentTabRawPayoutCents > 0 ? (
-                <>
-                  If it wins, you'd get €{(currentTabInsurancePreviewCents / 100).toFixed(2)} instead of €
-                  {(currentTabRawPayoutCents / 100).toFixed(2)} ({insuranceBetConfig.costPercent}% less). If it
-                  loses, your full stake is returned as a freebet.
-                </>
-              ) : (
-                <>
-                  Pay {insuranceBetConfig.costPercent}% less in winnings to be protected - if this bet loses,
-                  your full stake is returned as a freebet.
-                </>
+            {/* grid-rows 0fr->1fr trick: only way to animate to/from an
+                intrinsic ("auto") height with a plain CSS transition. */}
+            <div
+              className={cn(
+                'grid transition-[grid-template-rows] duration-300 ease-out',
+                insuranceOptIn ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
               )}
-            </p>
+            >
+              <div className="overflow-hidden">
+                <p className="pt-1.5 text-text-secondary">
+                  {isCurrentTabValid && currentTabRawPayoutCents > 0 ? (
+                    <>
+                      If it wins, you'd get €{(currentTabInsurancePreviewCents / 100).toFixed(2)} instead of €
+                      {(currentTabRawPayoutCents / 100).toFixed(2)} ({insuranceBetConfig.costPercent}% less). If it
+                      loses, your full stake is returned as a freebet.
+                    </>
+                  ) : (
+                    <>
+                      Pay {insuranceBetConfig.costPercent}% less in winnings to be protected - if this bet loses,
+                      your full stake is returned as a freebet.
+                    </>
+                  )}
+                </p>
+              </div>
+            </div>
           </div>
         )}
         <div className="flex items-center justify-between text-sm text-text-secondary">
@@ -873,7 +898,7 @@ export function BetSlipPanel({
             </span>
           )}
         </div>
-        {error && <p className="text-xs text-danger">{error}</p>}
+        {error && error !== 'Insufficient balance' && <p className="text-xs text-danger">{error}</p>}
         {isAuthenticated ? (
           <Button
             variant="primary"

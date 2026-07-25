@@ -1,11 +1,12 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../auth/authStore';
 import { useAuthModalStore } from '../auth/authModalStore';
 import { useBrandStore } from '../brand/brandStore';
+import { useInsufficientFundsModalStore } from '../wallet/insufficientFundsModalStore';
 import { BetSlipPanel, type BetSlipPanelProps } from './BetSlipPanel';
 import { useBetSlipStore } from './betSlipStore';
 
@@ -58,6 +59,7 @@ beforeEach(() => {
   useAuthStore.setState({ accessToken: null, user: null, isInitialized: true });
   useAuthModalStore.setState({ mode: null });
   useBrandStore.setState({ brandId: undefined });
+  useInsufficientFundsModalStore.setState({ isOpen: false });
 });
 
 afterEach(() => {
@@ -737,6 +739,38 @@ describe('BetSlipPanel', () => {
       stakeCents: 1000,
       insuranceOptIn: false,
     });
+  });
+
+  it('opens the insufficient-funds modal instead of just showing inline error text when a cash bet exceeds the balance', async () => {
+    useAuthStore.setState({
+      accessToken: 'header.payload.signature',
+      user: null,
+      isInitialized: true,
+    });
+    useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: RequestInfo | URL) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        if (url === '/backend/freebets') {
+          return new Response(JSON.stringify([]), { status: 200 });
+        }
+        if (url === '/backend/bets') {
+          return new Response(JSON.stringify({ message: 'Insufficient balance' }), { status: 400 });
+        }
+        return new Response(null, { status: 404 });
+      }),
+    );
+
+    renderPanel();
+
+    const stakeInput = screen.getByLabelText('Stake');
+    await userEvent.clear(stakeInput);
+    await userEvent.type(stakeInput, '999999');
+    await userEvent.click(screen.getByRole('button', { name: 'Place Bet' }));
+
+    await waitFor(() => expect(useInsufficientFundsModalStore.getState().isOpen).toBe(true));
+    expect(screen.queryByText('Insufficient balance')).not.toBeInTheDocument();
   });
 
   it('shows no tabs and no combined odds for a single selection', () => {
