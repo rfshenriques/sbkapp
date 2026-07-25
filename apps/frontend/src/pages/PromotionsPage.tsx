@@ -1,4 +1,5 @@
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import { useBrandStore } from '../features/brand/brandStore';
 import { PromoCardTile } from '../features/promo-cards/PromoCardTile';
 import { usePromoCards } from '../features/promo-cards/usePromoCards';
@@ -9,7 +10,7 @@ import { usePromoCards } from '../features/promo-cards/usePromoCards';
  * there are none, rather than fabricated promo content.
  */
 export default function PromotionsPage() {
-  const { data: promoCards } = usePromoCards();
+  const { data: promoCards, isPending } = usePromoCards();
   const brandId = useBrandStore((state) => state.brandId);
   const hasCards = Boolean(promoCards && promoCards.length > 0 && brandId);
 
@@ -24,7 +25,12 @@ export default function PromotionsPage() {
         <h1 className="font-display text-lg">Promotions</h1>
       </div>
 
-      {hasCards ? (
+      {isPending ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Loading promotions" role="status">
+          <Skeleton className="h-48 w-full" />
+          <Skeleton className="h-48 w-full" />
+        </div>
+      ) : hasCards ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {promoCards!.map((card) => (
             <PromoCardTile key={card.id} card={card} brandId={brandId!} className="h-48" />

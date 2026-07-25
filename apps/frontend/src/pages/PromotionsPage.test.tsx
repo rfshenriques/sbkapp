@@ -41,6 +41,14 @@ afterEach(() => {
 });
 
 describe('PromotionsPage', () => {
+  it('shows a loading skeleton instead of the empty state while the fetch is in flight', () => {
+    stubFetch([]);
+    renderPage();
+
+    expect(screen.getByRole('status', { name: 'Loading promotions' })).toBeInTheDocument();
+    expect(screen.queryByText(/No active promotions right now/)).not.toBeInTheDocument();
+  });
+
   it('shows an honest empty state rather than fabricated promo content', async () => {
     stubFetch([]);
     renderPage();
