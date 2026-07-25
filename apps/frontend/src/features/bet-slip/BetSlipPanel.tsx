@@ -9,8 +9,9 @@ import { cn } from '../../lib/cn';
 import { placeBet } from '../../lib/backendApi';
 import { useAuth } from '../auth/useAuth';
 import { useAuthModalStore } from '../auth/authModalStore';
-import { walletQueryKey } from '../wallet/useWallet';
-import { freebetsQueryKey, useFreebets } from '../wallet/useFreebets';
+import { useWallet, walletQueryKey } from '../wallet/useWallet';
+import { freebetsQueryKey, sumFreebetsCents, useFreebets } from '../wallet/useFreebets';
+import { BalancePills } from '../wallet/BalancePills';
 import { betsQueryKey } from '../bet-history/useBets';
 import { BetHistoryList } from '../bet-history/BetHistoryList';
 import { calculateAccaBoost, type AccaBoostConfig } from './accaBoost';
@@ -466,6 +467,7 @@ export function BetSlipPanel({
   const accaRollbackConfig = useAccaRollbackConfig();
   const insuranceBetConfig = useInsuranceBetConfig();
   const { data: freebets } = useFreebets();
+  const { data: wallet } = useWallet();
   const queryClient = useQueryClient();
   const [stake, setStake] = useState('10.00');
   const [payMethod, setPayMethod] = useState<PayMethod>('cash');
@@ -980,6 +982,11 @@ export function BetSlipPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
+      {isAuthenticated && wallet && (
+        <div className="mb-3 flex shrink-0 justify-center">
+          <BalancePills cashCents={wallet.balanceCents} freebetsCents={sumFreebetsCents(freebets)} />
+        </div>
+      )}
       {showHistoryTab && (
         <div className="tab-pill mb-3 w-full shrink-0" role="tablist" aria-label="Bet slip panel view">
           <button

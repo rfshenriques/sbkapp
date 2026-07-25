@@ -83,3 +83,24 @@ export function PromotionsIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** Cash balance - a simple wallet, distinct from the ticket used for freebets. */
+export function WalletIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <rect x="2.5" y="5.5" width="15" height="10" rx="1.5" />
+      <path d="M2.5 8.5h15" />
+      <circle cx="13.5" cy="11.8" r="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** Freebets balance - a torn-edge ticket, distinct from the wallet used for cash. */
+export function TicketIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M2.5 8.2a1.8 1.8 0 0 0 0-3.4V4a1 1 0 0 1 1-1h13a1 1 0 0 1 1 1v.8a1.8 1.8 0 0 0 0 3.4v.4a1.8 1.8 0 0 0 0 3.4v.4a1.8 1.8 0 0 0 0 3.4V16a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-.8a1.8 1.8 0 0 0 0-3.4v-.4a1.8 1.8 0 0 0 0-3.4Z" />
+      <line x1="7.2" y1="3.5" x2="7.2" y2="16.5" strokeDasharray="1.6 1.6" />
+    </svg>
+  );
+}

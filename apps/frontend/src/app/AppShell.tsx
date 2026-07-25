@@ -11,7 +11,9 @@ import { useAuth } from '../features/auth/useAuth';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBootstrapAuth } from '../features/auth/useBootstrapAuth';
 import { DepositCampaignModal } from '../features/deposit-campaigns/DepositCampaignModal';
-import { formatCents, useWallet } from '../features/wallet/useWallet';
+import { BalancePills } from '../features/wallet/BalancePills';
+import { useWallet } from '../features/wallet/useWallet';
+import { sumFreebetsCents, useFreebets } from '../features/wallet/useFreebets';
 import { Sidebar } from '../features/navigation/Sidebar';
 import { HomeIcon, LiveIcon, MyBetsIcon, PromotionsIcon, SearchIcon } from '../components/ui/NavIcons';
 import { useScrollLock } from '../lib/useScrollLock';
@@ -39,6 +41,8 @@ export function AppShell() {
   const authModalMode = useAuthModalStore((state) => state.mode);
   const openAuthModal = useAuthModalStore((state) => state.open);
   const { data: wallet } = useWallet();
+  const { data: freebets } = useFreebets();
+  const freebetsCents = sumFreebetsCents(freebets);
   const navigate = useNavigate();
   const location = useLocation();
   const touchStartRef = useRef<{ x: number; y: number; skip: boolean } | null>(null);
@@ -210,11 +214,7 @@ export function AppShell() {
           <div className="ml-auto flex items-center gap-2">
             {isInitialized && isAuthenticated ? (
               <>
-                {wallet && (
-                  <span className="hidden text-sm text-text-secondary sm:inline">
-                    €{formatCents(wallet.balanceCents)} (paper)
-                  </span>
-                )}
+                {wallet && <BalancePills cashCents={wallet.balanceCents} freebetsCents={freebetsCents} />}
                 <span className="hidden text-sm text-text-secondary sm:inline">
                   {user?.username}
                 </span>
@@ -383,17 +383,6 @@ export function AppShell() {
             // the selections and otherwise leave very little of the actual
             // selection list visible before the fixed footer starts.
             mobileHeightClassName="h-[92dvh]"
-            headerExtra={
-              // Header's own balance display is sm:inline-only (hidden on
-              // mobile), so this is the only place a mobile player can see
-              // it - they need it right here to know how much they can stake.
-              isAuthenticated && wallet ? (
-                <p className="mt-1 text-sm text-text-secondary">
-                  Balance:{' '}
-                  <span className="font-semibold text-text-primary">€{formatCents(wallet.balanceCents)}</span> (paper)
-                </p>
-              ) : undefined
-            }
           >
             <BetSlipPanel />
           </BottomSheet>
