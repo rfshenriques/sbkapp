@@ -1,4 +1,10 @@
 import type { BoostedSelectionSummary, Match } from '@sportsbook/shared';
+import type {
+  AuthenticationResponseJSON,
+  PublicKeyCredentialCreationOptionsJSON,
+  PublicKeyCredentialRequestOptionsJSON,
+  RegistrationResponseJSON,
+} from '@simplewebauthn/browser';
 import { useAuthStore } from '../features/auth/authStore';
 import { useBrandStore } from '../features/brand/brandStore';
 
@@ -649,4 +655,56 @@ export async function getBets(): Promise<PlacedBet[]> {
 export async function getFreebets(): Promise<Freebet[]> {
   const response = await authenticatedFetch('/freebets');
   return parseJsonOrThrow(response, `Failed to load freebets: ${response.status}`);
+}
+
+export interface WebAuthnCredentialSummary {
+  id: string;
+  nickname: string | null;
+  deviceType: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+}
+
+/** See WebAuthnService.generateRegistrationOptionsForUser - fed straight into @simplewebauthn/browser's startRegistration(). */
+export async function getWebAuthnRegistrationOptions(): Promise<PublicKeyCredentialCreationOptionsJSON> {
+  const response = await authenticatedFetch('/auth/webauthn/register/options', { method: 'POST' });
+  return parseJsonOrThrow(response, `Failed to start passkey registration: ${response.status}`);
+}
+
+export async function verifyWebAuthnRegistration(
+  response: RegistrationResponseJSON,
+  nickname?: string,
+): Promise<WebAuthnCredentialSummary> {
+  const query = nickname ? `?nickname=${encodeURIComponent(nickname)}` : '';
+  const res = await authenticatedFetch(`/auth/webauthn/register/verify${query}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(response),
+  });
+  return parseJsonOrThrow(res, `Failed to save passkey: ${res.status}`);
+}
+
+/** Public/unauthenticated - identity isn't known until the assertion comes back (discoverable-credential login). */
+export async function getWebAuthnLoginOptions(): Promise<PublicKeyCredentialRequestOptionsJSON> {
+  const response = await fetch(`${BASE_URL}/auth/webauthn/login/options`, { method: 'POST' });
+  return parseJsonOrThrow(response, `Failed to start passkey login: ${response.status}`);
+}
+
+export async function verifyWebAuthnLogin(response: AuthenticationResponseJSON): Promise<AuthTokenResponse> {
+  const res = await fetch(`${BASE_URL}/auth/webauthn/login/verify`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify(response),
+  });
+  return parseJsonOrThrow(res, `Passkey login failed: ${res.status}`);
+}
+
+export async function listWebAuthnCredentials(): Promise<WebAuthnCredentialSummary[]> {
+  const response = await authenticatedFetch('/auth/webauthn/credentials');
+  return parseJsonOrThrow(response, `Failed to load passkeys: ${response.status}`);
+}
+
+export async function removeWebAuthnCredential(id: string): Promise<void> {
+  await authenticatedFetch(`/auth/webauthn/credentials/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }

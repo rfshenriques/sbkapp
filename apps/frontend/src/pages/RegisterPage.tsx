@@ -3,6 +3,7 @@ import { BottomSheet } from '../components/ui/BottomSheet';
 import { BrandPromoImage } from '../components/ui/BrandPromoImage';
 import { useAuth } from '../features/auth/useAuth';
 import { useAuthModalStore } from '../features/auth/authModalStore';
+import { runPostLoginPasskeyPrompt } from '../features/auth/runPostLoginPasskeyPrompt';
 import { useBrandStore } from '../features/brand/brandStore';
 
 const REGISTER_FORM_ID = 'register-form';
@@ -58,6 +59,7 @@ export default function RegisterPage() {
     try {
       await register({ email, username, phone, password, ...attribution });
       close();
+      runPostLoginPasskeyPrompt();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     } finally {

@@ -8,9 +8,11 @@ import { invalidAccumulatorReason } from '../features/bet-slip/accumulatorValidi
 import { useBrandTheme } from '../features/brand/useBrandTheme';
 import { Footer } from '../features/footer/Footer';
 import { AccountMenu } from '../features/auth/AccountMenu';
+import { PasskeyEnrollmentModal } from '../features/auth/PasskeyEnrollmentModal';
 import { useAuth } from '../features/auth/useAuth';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBootstrapAuth } from '../features/auth/useBootstrapAuth';
+import { attemptBiometricLogin } from '../lib/webauthn';
 import { DepositCampaignModal } from '../features/deposit-campaigns/DepositCampaignModal';
 import { DepositModal } from '../features/deposit/DepositModal';
 import { useDepositModalStore } from '../features/deposit/depositModalStore';
@@ -66,7 +68,9 @@ export function AppShell() {
   // navigating to a separate /login route, so the page underneath stays
   // mounted and visible instead of leaving an empty page behind the sheet.
   // Dismissible like any other bottom sheet: anonymous browsing is still
-  // fully supported once closed.
+  // fully supported once closed. First tries a silent biometric/passkey
+  // login (see lib/webauthn.ts) - the password form only opens once that
+  // fails, isn't available on this device, or the player cancels it.
   const hasForcedLoginRef = useRef(false);
   useEffect(() => {
     if (!isInitialized || hasForcedLoginRef.current) {
@@ -78,7 +82,11 @@ export function AppShell() {
     // parent's on mount - so don't clobber a deliberate Register deep link
     // back to Login.
     if (!isAuthenticated && useAuthModalStore.getState().mode === null) {
-      openAuthModal('login');
+      void attemptBiometricLogin().then((loggedIn) => {
+        if (!loggedIn && useAuthModalStore.getState().mode === null) {
+          openAuthModal('login');
+        }
+      });
     }
   }, [isInitialized, isAuthenticated, openAuthModal]);
 
@@ -405,6 +413,7 @@ export function AppShell() {
       <DepositCampaignModal />
       <DepositModal />
       <InsufficientFundsModal />
+      <PasskeyEnrollmentModal />
 
       {/* Mobile-only: sports navigation takes over the space between the
           header and bottom nav like its own page, rather than a partial

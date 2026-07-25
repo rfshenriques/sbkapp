@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "^13.3.0",
     "@sportsbook/shared": "workspace:*",
     "@tanstack/react-query": "^5.101.2",
     "react": "^19.2.0",
