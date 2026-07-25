@@ -393,7 +393,9 @@ export interface PromoCardItem {
 
 /** CMS-managed promo cards for the homepage/Promotions page - see apps/backend's PublicPromoCardController. */
 export async function getPromoCards(brandId: string): Promise<PromoCardItem[]> {
-  const response = await fetch(`${BASE_URL}/public/promo-cards/${encodeURIComponent(brandId)}`);
+  const response = await fetch(`${BASE_URL}/public/promo-cards/${encodeURIComponent(brandId)}`, {
+    headers: optionalAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch promo cards: ${response.status}`);
   }

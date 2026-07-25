@@ -197,8 +197,8 @@ function NewPromoCardForm({
     <Card className="space-y-3">
       <h2 className="text-sm font-semibold">New promo card</h2>
       <p className="text-xs text-text-secondary">
-        Shown on the homepage and Promotions page. Link it to a Bet & Get campaign to make it clickable, or
-        leave unlinked for a purely decorative card.
+        Shown on the homepage and Promotions page. Link it to a Bet & Get or deposit campaign to make it
+        clickable, or leave unlinked for a purely decorative card.
       </p>
 
       <div>

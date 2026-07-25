@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getCompetitionRankings, getPublicBrand, type PublicBrand } from './backendApi';
+import { useAuthStore } from '../features/auth/authStore';
+import { getCompetitionRankings, getPromoCards, getPublicBrand, type PublicBrand } from './backendApi';
 
 const publicBrand: PublicBrand = {
   id: 'brand-1',
@@ -87,5 +88,33 @@ describe('getCompetitionRankings', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 500 })));
 
     await expect(getCompetitionRankings('brand-1')).rejects.toThrow();
+  });
+});
+
+describe('getPromoCards', () => {
+  afterEach(() => {
+    useAuthStore.setState({ accessToken: null, user: null, isInitialized: false });
+  });
+
+  it('attaches the player token when logged in, so the backend can filter out already-redeemed campaign cards', async () => {
+    useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await getPromoCards('brand-1');
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/public/promo-cards/brand-1',
+      expect.objectContaining({ headers: { Authorization: 'Bearer header.payload.signature' } }),
+    );
+  });
+
+  it('sends no Authorization header when logged out', async () => {
+    const fetchMock = vi.fn(async () => new Response(JSON.stringify([]), { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await getPromoCards('brand-1');
+
+    expect(fetchMock).toHaveBeenCalledWith('/backend/public/promo-cards/brand-1', expect.objectContaining({ headers: {} }));
   });
 });

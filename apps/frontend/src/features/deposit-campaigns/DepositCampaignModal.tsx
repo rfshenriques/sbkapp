@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import * as backendApi from '../../lib/backendApi';
@@ -56,10 +56,21 @@ export function DepositCampaignModal() {
   const campaign = useDepositCampaignModalStore((state) => state.campaign);
   const close = useDepositCampaignModalStore((state) => state.close);
   const queryClient = useQueryClient();
-  const [amount, setAmount] = useState(() => (campaign ? formatCents(campaign.minDepositAmountCents) : ''));
+  const [amount, setAmount] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<DepositResult | null>(null);
+
+  // This component stays mounted at the AppShell level even when there's no
+  // campaign to show, so a fresh campaign opening doesn't remount it -
+  // reset the form explicitly instead of relying on a mount-time initializer.
+  useEffect(() => {
+    if (campaign) {
+      setAmount(formatCents(campaign.minDepositAmountCents));
+      setError(null);
+      setResult(null);
+    }
+  }, [campaign]);
 
   if (!campaign) {
     return null;
