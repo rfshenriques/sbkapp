@@ -614,6 +614,22 @@ describe('BetSlipPanel', () => {
       expect(screen.queryByText('Choose a freebet')).not.toBeInTheDocument();
     });
 
+    it('shows "Potential payout" (never "Potential winnings") as stake x odds, even in freebet mode', async () => {
+      stubFreebetsAndAccaBoost([{ id: 'grant-1', amountCents: 1000, remainingCents: 1000, expiresAt: null }]);
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      await userEvent.click(await screen.findByRole('switch', { name: 'Pay with freebets' }));
+      const stakeInput = screen.getByLabelText('Stake');
+      await userEvent.clear(stakeInput);
+      await userEvent.type(stakeInput, '3');
+
+      expect(screen.getByText('Potential payout')).toBeInTheDocument();
+      expect(screen.queryByText('Potential winnings')).not.toBeInTheDocument();
+      // stake 3 x odds 2.1 = 6.30 - the full payout, not the 3.30 net-winnings figure.
+      expect(screen.getByText('6.30')).toBeInTheDocument();
+    });
+
     it('placing a freebet-funded bet sends useFreebets and whatever stake the player typed, not the grant’s own amount', async () => {
       const fetchMock = stubFreebetsAndAccaBoost([{ id: 'grant-1', amountCents: 1000, remainingCents: 1000, expiresAt: null }]);
       useBetSlipStore.setState({ selections: [homeSelection] });

@@ -106,7 +106,7 @@ function MaxStakeNote({ selection }: { selection: BetSlipSelection }) {
  * selections yet (progress bar toward the threshold), enough selections but
  * a leg's price is too short to qualify, or qualifying (bar full, shows the
  * live boost % and, once a stake is typed in, what that boost is actually
- * worth - the previous vs. boosted potential winnings, not just the percent).
+ * worth - the previous vs. boosted potential payout, not just the percent).
  */
 function AccaBoostBar({
   legOdds,
@@ -132,7 +132,7 @@ function AccaBoostBar({
         </div>
         {stakeCents > 0 && (
           <div className="flex items-center justify-between text-xs">
-            <span className="text-text-secondary">Potential winnings</span>
+            <span className="text-text-secondary">Potential payout</span>
             <MoneyBeforeAfter
               beforeCents={Math.round(stakeCents * result.baseCombinedOdds)}
               afterCents={Math.round(stakeCents * result.boostedCombinedOdds)}
@@ -583,16 +583,13 @@ export function BetSlipPanel({
   const combinedOdds = accaBoost.boostedCombinedOdds;
   const stakeCents = Math.round(Number(stake) * 100);
   const isStakeValid = Number.isFinite(stakeCents) && stakeCents > 0;
-  // A freebet never returns its own stake, even on a win (see FreebetGrant) -
-  // the bet slip shows only the profit it would add, not the raw stake*odds
-  // figure, so the player isn't misled about what they'd actually receive.
+  // Payout is always stake x odds (see PamService.settleSelection - a
+  // freebet win credits the full stake x odds by default, per Brand.
+  // freebetStakeReturnedOnWin), never a net-winnings figure.
   const rawPotentialCents = stakeCents * combinedOdds;
-  const freebetAdjustedPotentialCents = isFreebetMode
-    ? Math.max(0, rawPotentialCents - stakeCents)
-    : rawPotentialCents;
   // Insurance never applies in freebet mode (see the reset effect above) -
   // this always passes through unchanged there, same as calculateInsuredPayout would.
-  const insurancePricing = calculateInsuredPayout(freebetAdjustedPotentialCents, insuranceOptIn, insuranceBetConfig);
+  const insurancePricing = calculateInsuredPayout(rawPotentialCents, insuranceOptIn, insuranceBetConfig);
   const potentialPayoutCents = insurancePricing.insuredPayoutCents;
   const potentialPayout = isStakeValid ? (potentialPayoutCents / 100).toFixed(2) : '—';
   const allSinglesValid =
@@ -603,16 +600,15 @@ export function BetSlipPanel({
     });
   // One payout total for all singles together, shown once in the footer -
   // each row already shows its own stake and odds, so repeating a payout
-  // line under every row as well would just be more noise. Freebet mode
-  // subtracts each row's own stake (stake-not-returned), same rule the
-  // accumulator's freebetAdjustedPotentialCents applies.
+  // line under every row as well would just be more noise. Always stake x
+  // odds, same as the accumulator's rawPotentialCents.
   const totalSinglesPayout = allSinglesValid
     ? (
         selections.reduce((total, selection) => {
           const stakeCentsForRow = Math.round(Number(getSingleStake(selection)) * 100);
           const rawCents = stakeCentsForRow * selection.odds;
           if (isFreebetMode) {
-            return total + Math.max(0, rawCents - stakeCentsForRow);
+            return total + rawCents;
           }
           return total + calculateInsuredPayout(rawCents, insuranceOptIn, insuranceBetConfig).insuredPayoutCents;
         }, 0) / 100
@@ -638,16 +634,16 @@ export function BetSlipPanel({
         return total + calculateInsuredPayout(rawCents, true, insuranceBetConfig).insuredPayoutCents;
       }, 0)
     : 0;
-  // Same freebet-adjusted figure the actual payout is derived from (see
+  // Same raw stake x odds figure the actual payout is derived from (see
   // insurancePricing above), but always previewed as if insurance were on -
   // used both for the toggle's explanatory copy and the before/after display.
   const accumulatorInsurancePreviewCents = calculateInsuredPayout(
-    freebetAdjustedPotentialCents,
+    rawPotentialCents,
     true,
     insuranceBetConfig,
   ).insuredPayoutCents;
   const isCurrentTabValid = tab === 'accumulator' ? isStakeValid : allSinglesValid;
-  const currentTabRawPayoutCents = tab === 'accumulator' ? freebetAdjustedPotentialCents : totalSinglesRawPayoutCents;
+  const currentTabRawPayoutCents = tab === 'accumulator' ? rawPotentialCents : totalSinglesRawPayoutCents;
   const currentTabInsurancePreviewCents =
     tab === 'accumulator' ? accumulatorInsurancePreviewCents : totalSinglesInsuredPreviewCents;
   // A discounted price purely for display - insurance doesn't change the
@@ -866,7 +862,7 @@ export function BetSlipPanel({
           </div>
         )}
         <div className="flex items-center justify-between text-sm text-text-secondary">
-          <span>{isFreebetMode ? 'Potential winnings' : 'Potential payout'}</span>
+          <span>Potential payout</span>
           {tab === 'accumulator' && accumulatorInvalidReason ? (
             <span className="font-semibold text-text-muted" aria-label="Payout not combinable">
               /
