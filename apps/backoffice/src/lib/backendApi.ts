@@ -1318,6 +1318,11 @@ export interface CreateDepositCampaignPayload {
   description?: string;
   minDepositAmountCents: number;
   rewardType: DepositRewardType;
+  /** Required when rewardType is FIXED. */
+  fixedRewardAmountCents?: number;
+  /** Required (both) when rewardType is PERCENTAGE. */
+  rewardPercent?: number;
+  rewardCapCents?: number;
 }
 
 export type UpdateDepositCampaignPayload = Partial<

@@ -93,6 +93,7 @@ describe('DepositCampaignsPage', () => {
           name: 'New Deposit Promo',
           minDepositAmountCents: 1000,
           rewardType: 'FIXED',
+          fixedRewardAmountCents: 500,
         });
         return new Response(JSON.stringify({ ...draftCampaign, id: 'campaign-2', name: 'New Deposit Promo' }), {
           status: 200,
@@ -111,6 +112,56 @@ describe('DepositCampaignsPage', () => {
       '/backend/admin/deposit-campaigns',
       expect.objectContaining({ method: 'POST' }),
     );
+  });
+
+  it('switching to percentage reward posts percent and cap instead of a fixed amount', async () => {
+    const fetchMock = stubFetch((url, method, init) => {
+      if (method === 'GET' && url === '/backend/admin/deposit-campaigns') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'POST' && url === '/backend/admin/deposit-campaigns') {
+        expect(JSON.parse(init!.body as string)).toEqual({
+          name: 'Percent Promo',
+          minDepositAmountCents: 1000,
+          rewardType: 'PERCENTAGE',
+          rewardPercent: 10,
+          rewardCapCents: 5000,
+        });
+        return new Response(JSON.stringify({ ...draftCampaign, id: 'campaign-3', name: 'Percent Promo' }), {
+          status: 200,
+        });
+      }
+      return undefined;
+    });
+
+    renderPage();
+    await screen.findByText('No campaigns yet - create one above.');
+
+    await userEvent.type(screen.getByLabelText('Campaign name'), 'Percent Promo');
+    await userEvent.selectOptions(screen.getByLabelText('Reward type'), 'PERCENTAGE');
+    await userEvent.click(screen.getByRole('button', { name: 'Create' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/deposit-campaigns',
+      expect.objectContaining({ method: 'POST' }),
+    );
+  });
+
+  it('disables Create when the reward amount is cleared', async () => {
+    stubFetch((url, method) => {
+      if (method === 'GET' && url === '/backend/admin/deposit-campaigns') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      return undefined;
+    });
+
+    renderPage();
+    await screen.findByText('No campaigns yet - create one above.');
+
+    await userEvent.type(screen.getByLabelText('Campaign name'), 'Incomplete Promo');
+    await userEvent.clear(screen.getByLabelText('Reward amount'));
+
+    expect(screen.getByRole('button', { name: 'Create' })).toBeDisabled();
   });
 
   it('toggling enabled sends a PATCH with the flipped value', async () => {

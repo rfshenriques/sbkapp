@@ -32,11 +32,19 @@ function audienceLabel(mode: AudienceMode): string {
 
 const AUDIENCE_MODES: AudienceMode[] = ['ALL', 'LOGGED_OUT', 'LOGGED_IN', 'SEGMENTS'];
 
+const DEFAULT_MIN_DEPOSIT = '10.00';
+const DEFAULT_FIXED_REWARD = '5.00';
+const DEFAULT_REWARD_PERCENT = '10';
+const DEFAULT_REWARD_CAP = '50.00';
+
 function NewCampaignForm() {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
-  const [minDepositAmount, setMinDepositAmount] = useState('10.00');
+  const [minDepositAmount, setMinDepositAmount] = useState(DEFAULT_MIN_DEPOSIT);
   const [rewardType, setRewardType] = useState<backendApi.DepositRewardType>('FIXED');
+  const [fixedRewardAmount, setFixedRewardAmount] = useState(DEFAULT_FIXED_REWARD);
+  const [rewardPercent, setRewardPercent] = useState(DEFAULT_REWARD_PERCENT);
+  const [rewardCap, setRewardCap] = useState(DEFAULT_REWARD_CAP);
   const [error, setError] = useState<string | null>(null);
 
   const createMutation = useMutation({
@@ -45,26 +53,40 @@ function NewCampaignForm() {
         name: name.trim(),
         minDepositAmountCents: displayToCents(minDepositAmount),
         rewardType,
+        ...(rewardType === 'FIXED'
+          ? { fixedRewardAmountCents: displayToCents(fixedRewardAmount) }
+          : { rewardPercent: Number(rewardPercent), rewardCapCents: displayToCents(rewardCap) }),
       }),
     onSuccess: () => {
       setName('');
-      setMinDepositAmount('10.00');
+      setMinDepositAmount(DEFAULT_MIN_DEPOSIT);
       setRewardType('FIXED');
+      setFixedRewardAmount(DEFAULT_FIXED_REWARD);
+      setRewardPercent(DEFAULT_REWARD_PERCENT);
+      setRewardCap(DEFAULT_REWARD_CAP);
       setError(null);
       void queryClient.invalidateQueries({ queryKey: campaignsQueryKey });
     },
     onError: (mutationError: Error) => setError(mutationError.message),
   });
 
+  const rewardValid =
+    rewardType === 'FIXED'
+      ? Number.isFinite(displayToCents(fixedRewardAmount)) && displayToCents(fixedRewardAmount) > 0
+      : Number(rewardPercent) > 0 && Number.isFinite(displayToCents(rewardCap)) && displayToCents(rewardCap) > 0;
+
   const isValid =
-    name.trim() !== '' && Number.isFinite(displayToCents(minDepositAmount)) && displayToCents(minDepositAmount) > 0;
+    name.trim() !== '' &&
+    Number.isFinite(displayToCents(minDepositAmount)) &&
+    displayToCents(minDepositAmount) > 0 &&
+    rewardValid;
 
   return (
     <Card className="space-y-3">
       <h2 className="text-sm font-semibold">New campaign</h2>
       <p className="text-xs text-text-secondary">
-        Created disabled - configure the reward, bet requirement, and audience below, then enable it when it's ready
-        to go live.
+        Created disabled - configure the bet requirement and audience below, then enable it when it's ready to go
+        live.
       </p>
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
@@ -75,17 +97,20 @@ function NewCampaignForm() {
           aria-label="Campaign name"
           className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
         />
-        <div className="flex items-center gap-1">
-          <span className="text-sm text-text-secondary">£</span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={minDepositAmount}
-            onChange={(event) => setMinDepositAmount(event.target.value)}
-            aria-label="Minimum deposit amount"
-            className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm"
-          />
-        </div>
+        <label className="flex items-center gap-1.5 text-sm text-text-secondary">
+          Min deposit
+          <span className="flex items-center gap-1">
+            <span>£</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={minDepositAmount}
+              onChange={(event) => setMinDepositAmount(event.target.value)}
+              aria-label="Minimum deposit amount"
+              className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm"
+            />
+          </span>
+        </label>
         <select
           aria-label="Reward type"
           value={rewardType}
@@ -95,6 +120,50 @@ function NewCampaignForm() {
           <option value="FIXED">Fixed amount</option>
           <option value="PERCENTAGE">% of deposit</option>
         </select>
+        {rewardType === 'FIXED' ? (
+          <label className="flex items-center gap-1.5 text-sm text-text-secondary">
+            Reward
+            <span className="flex items-center gap-1">
+              <span>£</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={fixedRewardAmount}
+                onChange={(event) => setFixedRewardAmount(event.target.value)}
+                aria-label="Reward amount"
+                className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </span>
+          </label>
+        ) : (
+          <>
+            <label className="flex items-center gap-1.5 text-sm text-text-secondary">
+              Percent
+              <input
+                type="text"
+                inputMode="decimal"
+                value={rewardPercent}
+                onChange={(event) => setRewardPercent(event.target.value)}
+                aria-label="Reward percent"
+                className="w-16 rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="flex items-center gap-1.5 text-sm text-text-secondary">
+              Cap
+              <span className="flex items-center gap-1">
+                <span>£</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={rewardCap}
+                  onChange={(event) => setRewardCap(event.target.value)}
+                  aria-label="Reward cap"
+                  className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                />
+              </span>
+            </label>
+          </>
+        )}
         <Button variant="primary" disabled={!isValid || createMutation.isPending} onClick={() => createMutation.mutate()}>
           Create
         </Button>
