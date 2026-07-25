@@ -14,6 +14,8 @@ import { cn } from '../lib/cn';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBrandStore } from '../features/brand/brandStore';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
+import { PromoCardTile } from '../features/promo-cards/PromoCardTile';
+import { usePromoCards } from '../features/promo-cards/usePromoCards';
 import { useTeamColors } from '../features/odds-board/useTeamColors';
 import { formatKickoff } from '../lib/formatKickoff';
 import { sortSportsByPriority } from '../lib/sportPriority';
@@ -220,6 +222,8 @@ function PromoCard({ className }: { className?: string }) {
 
 export default function OddsBoardPage() {
   const { data: matches, isPending, isError } = useMatches();
+  const { data: promoCards } = usePromoCards();
+  const brandId = useBrandStore((state) => state.brandId);
   const displayName = useDisplayNames();
   const [selectedSport, setSelectedSport] = useState<string | undefined>(undefined);
 
@@ -321,6 +325,29 @@ export default function OddsBoardPage() {
               Load more
             </Link>
           )}
+        </section>
+      )}
+
+      {promoCards && promoCards.length > 0 && brandId && (
+        <section className="mb-8">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="brand-flag" aria-hidden="true">
+              <i></i>
+              <i></i>
+              <i></i>
+            </span>
+            <h2 className="font-display text-lg">Promotions</h2>
+          </div>
+          <HorizontalScroller itemCount={promoCards.length} ariaLabel="Promo cards" className="h-40 sm:h-48">
+            {promoCards.map((card) => (
+              <PromoCardTile
+                key={card.id}
+                card={card}
+                brandId={brandId}
+                className="h-full w-72 shrink-0 snap-start"
+              />
+            ))}
+          </HorizontalScroller>
         </section>
       )}
 

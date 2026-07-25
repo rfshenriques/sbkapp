@@ -53,6 +53,10 @@ export function stubOddsEngineFetch(
       return new Response(JSON.stringify(matches), { status: 200 });
     }
 
+    if (url === `${BACKEND_BASE_URL}/public/promo-cards/${TEST_BRAND_ID}`) {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }
+
     const liveMatch = new RegExp(`^${ODDS_ENGINE_BASE_URL}/events/([^/]+)/live$`).exec(url);
     if (liveMatch) {
       const state = liveStates[liveMatch[1] as string];

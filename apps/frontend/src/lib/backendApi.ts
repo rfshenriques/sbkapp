@@ -307,6 +307,24 @@ export async function getBetAndGetCampaignsForMatch(brandId: string, matchId: st
   return (await response.json()) as BetAndGetCampaign[];
 }
 
+export interface PromoCardItem {
+  id: string;
+  mimeType: string;
+  title: string | null;
+  subtitle: string | null;
+  sortOrder: number;
+  betAndGetCampaignId: string | null;
+}
+
+/** CMS-managed promo cards for the homepage/Promotions page - see apps/backend's PublicPromoCardController. */
+export async function getPromoCards(brandId: string): Promise<PromoCardItem[]> {
+  const response = await fetch(`${BASE_URL}/public/promo-cards/${encodeURIComponent(brandId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch promo cards: ${response.status}`);
+  }
+  return (await response.json()) as PromoCardItem[];
+}
+
 export interface MarketSuspension {
   matchId: string;
   /** Empty string means the whole match is suspended, not just one market - see apps/backend's MarketSuspensionService. */

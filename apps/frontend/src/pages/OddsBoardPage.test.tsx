@@ -7,6 +7,7 @@ import type { Match } from '@sportsbook/shared';
 import { stubOddsEngineFetch, TEST_BRAND_ID } from '../test/mockOddsEngine';
 import { mockMatches } from '../mocks/matches';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
+import { useBrandStore } from '../features/brand/brandStore';
 import OddsBoardPage from './OddsBoardPage';
 
 function buildMatch(overrides: Partial<Match> = {}): Match {
@@ -234,5 +235,45 @@ describe('OddsBoardPage', () => {
 
     expect(await screen.findByRole('link', { name: 'Hockey Home 0 vs Hockey Away 0' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Football Home/ })).not.toBeInTheDocument();
+  });
+
+  it('shows a Promotions section with CMS promo cards when the brand has any', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === `/backend/public/matches/${TEST_BRAND_ID}`) {
+        return new Response(JSON.stringify(mockMatches), { status: 200 });
+      }
+      if (url === `/backend/public/promo-cards/${TEST_BRAND_ID}`) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: 'card-1',
+              mimeType: 'image/png',
+              title: 'Champions League Promo',
+              subtitle: null,
+              sortOrder: 0,
+              betAndGetCampaignId: 'campaign-1',
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    useBrandStore.setState({ brandId: TEST_BRAND_ID });
+
+    renderPage();
+
+    expect(await screen.findByText('Champions League Promo')).toBeInTheDocument();
+    const cardLinks = screen.getAllByRole('link', { name: /Champions League Promo/ });
+    expect(cardLinks[0]).toHaveAttribute('href', '/campaigns/campaign-1');
+  });
+
+  it('omits the Promotions section when the brand has no promo cards', async () => {
+    renderPage();
+
+    await screen.findByRole('link', { name: 'Arsenal vs Chelsea' });
+    expect(screen.queryByRole('heading', { name: 'Promotions' })).not.toBeInTheDocument();
   });
 });
