@@ -82,7 +82,25 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState<backendApi.UpdateBetAndGetCampaignPayload>(campaign);
 
-  useEffect(() => setDraft(campaign), [campaign]);
+  // Free-typed number/currency fields keep their own string draft, synced
+  // from the campaign only (never re-derived from `draft` on every
+  // keystroke) - deriving display text straight from the numeric value
+  // would silently strip a trailing "." or "0" as the user types it,
+  // making decimals like 1.50 impossible to enter.
+  const [rewardAmountText, setRewardAmountText] = useState(centsToDisplay(campaign.rewardAmountCents));
+  const [minStakeText, setMinStakeText] = useState(campaign.minStakeCents != null ? centsToDisplay(campaign.minStakeCents) : '');
+  const [minOddsText, setMinOddsText] = useState(campaign.minOddsPerLeg?.toString() ?? '');
+  const [minSelectionsText, setMinSelectionsText] = useState(campaign.minSelections?.toString() ?? '');
+  const [maxRedemptionsText, setMaxRedemptionsText] = useState(campaign.maxRedemptionsPerPlayer?.toString() ?? '');
+
+  useEffect(() => {
+    setDraft(campaign);
+    setRewardAmountText(centsToDisplay(campaign.rewardAmountCents));
+    setMinStakeText(campaign.minStakeCents != null ? centsToDisplay(campaign.minStakeCents) : '');
+    setMinOddsText(campaign.minOddsPerLeg?.toString() ?? '');
+    setMinSelectionsText(campaign.minSelections?.toString() ?? '');
+    setMaxRedemptionsText(campaign.maxRedemptionsPerPlayer?.toString() ?? '');
+  }, [campaign]);
 
   const saveMutation = useMutation({
     mutationFn: () => backendApi.updateBetAndGetCampaign(campaign.id, draft),
@@ -118,8 +136,11 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
             id={`reward-${campaign.id}`}
             type="text"
             inputMode="decimal"
-            value={centsToDisplay(draft.rewardAmountCents ?? 0)}
-            onChange={(event) => setDraft({ ...draft, rewardAmountCents: displayToCents(event.target.value) })}
+            value={rewardAmountText}
+            onChange={(event) => {
+              setRewardAmountText(event.target.value);
+              setDraft({ ...draft, rewardAmountCents: displayToCents(event.target.value) });
+            }}
             className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
           />
         </div>
@@ -205,11 +226,12 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
             id={`min-stake-${campaign.id}`}
             type="text"
             inputMode="decimal"
-            value={draft.minStakeCents != null ? centsToDisplay(draft.minStakeCents) : ''}
+            value={minStakeText}
             placeholder="No minimum"
-            onChange={(event) =>
-              setDraft({ ...draft, minStakeCents: event.target.value === '' ? null : displayToCents(event.target.value) })
-            }
+            onChange={(event) => {
+              setMinStakeText(event.target.value);
+              setDraft({ ...draft, minStakeCents: event.target.value === '' ? null : displayToCents(event.target.value) });
+            }}
             className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
           />
         </div>
@@ -221,11 +243,12 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
             id={`min-odds-${campaign.id}`}
             type="text"
             inputMode="decimal"
-            value={draft.minOddsPerLeg ?? ''}
+            value={minOddsText}
             placeholder="No minimum"
-            onChange={(event) =>
-              setDraft({ ...draft, minOddsPerLeg: event.target.value === '' ? null : Number(event.target.value) })
-            }
+            onChange={(event) => {
+              setMinOddsText(event.target.value);
+              setDraft({ ...draft, minOddsPerLeg: event.target.value === '' ? null : Number(event.target.value) });
+            }}
             className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
           />
         </div>
@@ -252,12 +275,13 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
             id={`min-selections-${campaign.id}`}
             type="text"
             inputMode="numeric"
-            value={draft.minSelections ?? ''}
+            value={minSelectionsText}
             placeholder="No minimum"
             disabled={draft.betType === 'SINGLES_ONLY'}
-            onChange={(event) =>
-              setDraft({ ...draft, minSelections: event.target.value === '' ? null : Number(event.target.value) })
-            }
+            onChange={(event) => {
+              setMinSelectionsText(event.target.value);
+              setDraft({ ...draft, minSelections: event.target.value === '' ? null : Number(event.target.value) });
+            }}
             className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm disabled:opacity-50"
           />
         </div>
@@ -281,14 +305,15 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
               id={`max-redemptions-${campaign.id}`}
               type="text"
               inputMode="numeric"
-              value={draft.maxRedemptionsPerPlayer ?? ''}
+              value={maxRedemptionsText}
               placeholder="Unlimited"
-              onChange={(event) =>
+              onChange={(event) => {
+                setMaxRedemptionsText(event.target.value);
                 setDraft({
                   ...draft,
                   maxRedemptionsPerPlayer: event.target.value === '' ? null : Number(event.target.value),
-                })
-              }
+                });
+              }}
               className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
             />
           </div>
