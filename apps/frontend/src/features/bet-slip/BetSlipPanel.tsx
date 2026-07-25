@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { MoneyBeforeAfter } from '../../components/ui/MoneyBeforeAfter';
 import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
 import { placeBet } from '../../lib/backendApi';
@@ -74,26 +75,6 @@ function SelectionOdds({ selection }: { selection: BetSlipSelection }) {
         &rarr;
       </span>
       <span className="font-semibold text-highlight">{selection.odds.toFixed(2)}</span>
-    </span>
-  );
-}
-
-/**
- * Struck-through previous amount, an arrow, then the new highlighted
- * amount - same visual language as SelectionOdds, reused for any
- * before/after money figure (acca boost's and insurance's potential
- * winnings).
- */
-function MoneyBeforeAfter({ beforeCents, afterCents }: { beforeCents: number; afterCents: number }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <span className="text-xs text-text-secondary line-through decoration-1">
-        €{(beforeCents / 100).toFixed(2)}
-      </span>
-      <span className="text-text-secondary" aria-hidden="true">
-        &rarr;
-      </span>
-      <span className="font-semibold text-highlight">€{(afterCents / 100).toFixed(2)}</span>
     </span>
   );
 }

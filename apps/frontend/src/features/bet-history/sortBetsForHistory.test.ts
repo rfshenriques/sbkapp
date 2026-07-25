@@ -12,6 +12,12 @@ function buildBet(overrides: Partial<PlacedBet> = {}): PlacedBet {
     settledPayoutCents: null,
     settledAt: null,
     createdAt: '2026-07-19T10:00:00Z',
+    fundedByFreebets: false,
+    insuranceCostPercent: 0,
+    accaBoostPercent: 0,
+    betAndGetCampaignName: null,
+    depositCampaignName: null,
+    accaRollbackRewardCents: null,
     selections: [],
     ...overrides,
   };

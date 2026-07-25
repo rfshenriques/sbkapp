@@ -588,22 +588,68 @@ export class PamService {
   }
 
   async getBets(userId: string) {
-    return this.prisma.bet.findMany({
+    const bets = await this.prisma.bet.findMany({
       where: { userId },
-      include: { selections: true },
+      include: {
+        selections: true,
+        betAndGetCampaign: { select: { name: true } },
+        depositCampaignRedemption: { include: { depositCampaign: { select: { name: true } } } },
+      },
       orderBy: { createdAt: 'desc' },
     });
+    return this.enrichBetsWithRollbackReward(bets);
   }
 
   /** Admin-only: lists bets across all users in one brand, for manual settlement. */
   async listBetsForSettlement(brandId: string, status?: BetStatus) {
-    return this.prisma.bet.findMany({
+    const bets = await this.prisma.bet.findMany({
       where: { brandId, ...(status ? { status } : {}) },
       include: {
         selections: true,
         user: { select: { id: true, username: true, email: true } },
+        betAndGetCampaign: { select: { name: true } },
+        depositCampaignRedemption: { include: { depositCampaign: { select: { name: true } } } },
       },
       orderBy: { createdAt: 'asc' },
+    });
+    return this.enrichBetsWithRollbackReward(bets);
+  }
+
+  /**
+   * A bet carries no field of its own recording an acca rollback reward -
+   * it's a side effect recorded only as a FreebetGrant with
+   * source: 'ACCA_ROLLBACK' and sourceBetId pointing back at it (see
+   * FreebetGrant.sourceBetId doc comment). Bet history (player-facing and
+   * admin settlement) both want to show "you got €X back as a freebet" next
+   * to the bet it came from, so this joins that in as a derived
+   * accaRollbackRewardCents field rather than storing it redundantly on Bet
+   * itself - same reasoning as re-deriving accaBoostPercent/insuredCredited
+   * instead of trusting a stored value (see settleSelection).
+   */
+  private async enrichBetsWithRollbackReward<
+    T extends {
+      id: string;
+      betAndGetCampaign: { name: string } | null;
+      depositCampaignRedemption: { depositCampaign: { name: string } } | null;
+    },
+  >(bets: T[]) {
+    const betIds = bets.map((bet) => bet.id);
+    const rollbackGrants = betIds.length
+      ? await this.prisma.freebetGrant.findMany({
+          where: { source: 'ACCA_ROLLBACK', sourceBetId: { in: betIds } },
+          select: { sourceBetId: true, amountCents: true },
+        })
+      : [];
+    const rollbackRewardByBetId = new Map(rollbackGrants.map((grant) => [grant.sourceBetId, grant.amountCents]));
+
+    return bets.map((bet) => {
+      const { betAndGetCampaign, depositCampaignRedemption, ...rest } = bet;
+      return {
+        ...rest,
+        betAndGetCampaignName: betAndGetCampaign?.name ?? null,
+        depositCampaignName: depositCampaignRedemption?.depositCampaign.name ?? null,
+        accaRollbackRewardCents: rollbackRewardByBetId.get(bet.id) ?? null,
+      };
     });
   }
 

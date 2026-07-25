@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../auth/authStore';
 import { useAuthModalStore } from '../auth/authModalStore';
 import type { PlacedBet } from '../../lib/backendApi';
-import { BetHistoryList } from './BetHistoryList';
+import { BetHistoryList, type BetHistoryFilter } from './BetHistoryList';
 
 function buildBet(overrides: Partial<PlacedBet> = {}): PlacedBet {
   return {
@@ -18,6 +18,12 @@ function buildBet(overrides: Partial<PlacedBet> = {}): PlacedBet {
     settledPayoutCents: null,
     settledAt: null,
     createdAt: '2026-07-19T10:00:00Z',
+    fundedByFreebets: false,
+    insuranceCostPercent: 0,
+    accaBoostPercent: 0,
+    betAndGetCampaignName: null,
+    depositCampaignName: null,
+    accaRollbackRewardCents: null,
     selections: [
       {
         id: 'sel-1',
@@ -35,12 +41,12 @@ function buildBet(overrides: Partial<PlacedBet> = {}): PlacedBet {
   };
 }
 
-function renderList() {
+function renderList(filter?: BetHistoryFilter) {
   const queryClient = new QueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <BetHistoryList />
+        <BetHistoryList filter={filter} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -87,7 +93,7 @@ describe('BetHistoryList', () => {
     expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
     expect(screen.getByText(/Match Result: Home/)).toBeInTheDocument();
     expect(screen.getByText('PENDING')).toBeInTheDocument();
-    expect(screen.getByText('Potential 20.00')).toBeInTheDocument();
+    expect(screen.getByText('Potential €20.00')).toBeInTheDocument();
   });
 
   it('shows the settled payout instead of "potential" for a settled bet', async () => {
@@ -99,7 +105,7 @@ describe('BetHistoryList', () => {
 
     renderList();
 
-    expect(await screen.findByText('Payout 19.50')).toBeInTheDocument();
+    expect(await screen.findByText('Payout €19.50')).toBeInTheDocument();
   });
 
   it('lists open bets before settled ones', async () => {
@@ -113,5 +119,151 @@ describe('BetHistoryList', () => {
 
     const statuses = await screen.findAllByText(/PENDING|WON/);
     expect(statuses.map((el) => el.textContent)).toEqual(['PENDING', 'WON']);
+  });
+
+  it('labels a single-selection bet "Single" and an accumulator "Accumulator (N)"', async () => {
+    const accaBet = buildBet({
+      id: 'acca',
+      selections: [
+        ...buildBet().selections,
+        {
+          id: 'sel-2',
+          matchId: 'match-2',
+          marketId: 'match-result',
+          selectionId: 'away',
+          matchLabel: 'Liverpool vs Man City',
+          marketName: 'Match Result',
+          selectionName: 'Away',
+          odds: '3.00',
+          status: 'OPEN',
+        },
+      ],
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([accaBet]), { status: 200 })));
+
+    renderList();
+
+    expect(await screen.findByText('Accumulator (2)')).toBeInTheDocument();
+  });
+
+  it('shows a Freebet tag for a freebet-funded bet', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify([buildBet({ fundedByFreebets: true })]), { status: 200 })),
+    );
+
+    renderList();
+
+    expect(await screen.findByText('Freebet')).toBeInTheDocument();
+  });
+
+  it('shows the pre-insurance payout struck through next to the insured one', async () => {
+    const insuredBet = buildBet({ insuranceCostPercent: 10, potentialPayoutCents: 1800 });
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify([insuredBet]), { status: 200 })),
+    );
+
+    renderList();
+
+    expect(await screen.findByText('Insured')).toBeInTheDocument();
+    expect(screen.getByText('€20.00')).toBeInTheDocument();
+    expect(screen.getByText('€18.00')).toBeInTheDocument();
+  });
+
+  it('shows the unboosted combined odds struck through next to the boosted one for a boosted accumulator', async () => {
+    const boostedBet = buildBet({
+      id: 'boosted',
+      combinedOdds: '6.60',
+      accaBoostPercent: 10,
+      selections: [
+        ...buildBet().selections,
+        {
+          id: 'sel-2',
+          matchId: 'match-2',
+          marketId: 'match-result',
+          selectionId: 'away',
+          matchLabel: 'Liverpool vs Man City',
+          marketName: 'Match Result',
+          selectionName: 'Away',
+          odds: '3.00',
+          status: 'OPEN',
+        },
+      ],
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([boostedBet]), { status: 200 })));
+
+    renderList();
+
+    expect(await screen.findByText('Boosted +10%')).toBeInTheDocument();
+    expect(screen.getByText(/6\.00/)).toBeInTheDocument();
+    expect(screen.getByText(/6\.60/)).toBeInTheDocument();
+  });
+
+  it('shows which campaign a bet qualified for', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify([buildBet({ betAndGetCampaignName: 'CL Bet & Get' })]), { status: 200 }),
+      ),
+    );
+
+    renderList();
+
+    expect(await screen.findByText('Qualified for CL Bet & Get')).toBeInTheDocument();
+  });
+
+  it('shows the acca rollback refund amount', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(JSON.stringify([buildBet({ status: 'LOST', accaRollbackRewardCents: 500 })]), { status: 200 }),
+      ),
+    );
+
+    renderList();
+
+    expect(await screen.findByText('€5.00 refunded as a freebet (Acca Rollback)')).toBeInTheDocument();
+  });
+
+  describe('filter', () => {
+    const bets = [
+      buildBet({ id: 'open', status: 'PENDING' }),
+      buildBet({ id: 'won', status: 'WON', settledPayoutCents: 2000 }),
+      buildBet({ id: 'lost', status: 'LOST', settledPayoutCents: 0 }),
+    ];
+
+    it('OPEN shows only PENDING bets', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(bets), { status: 200 })));
+      renderList('OPEN');
+      expect(await screen.findByText('PENDING')).toBeInTheDocument();
+      expect(screen.queryByText('WON')).not.toBeInTheDocument();
+      expect(screen.queryByText('LOST')).not.toBeInTheDocument();
+    });
+
+    it('WON shows only WON bets', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(bets), { status: 200 })));
+      renderList('WON');
+      expect(await screen.findByText('WON')).toBeInTheDocument();
+      expect(screen.queryByText('PENDING')).not.toBeInTheDocument();
+      expect(screen.queryByText('LOST')).not.toBeInTheDocument();
+    });
+
+    it('FINISHED shows every settled bet (WON and LOST), not just wins', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(bets), { status: 200 })));
+      renderList('FINISHED');
+      expect(await screen.findByText('WON')).toBeInTheDocument();
+      expect(screen.getByText('LOST')).toBeInTheDocument();
+      expect(screen.queryByText('PENDING')).not.toBeInTheDocument();
+    });
+
+    it('shows a filter-specific empty state when nothing matches', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue(new Response(JSON.stringify([buildBet({ status: 'WON' })]), { status: 200 })),
+      );
+      renderList('OPEN');
+      expect(await screen.findByText('No open bets')).toBeInTheDocument();
+    });
   });
 });

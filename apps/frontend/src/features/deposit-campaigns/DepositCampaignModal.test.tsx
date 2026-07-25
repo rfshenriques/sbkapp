@@ -77,8 +77,8 @@ describe('DepositCampaignModal', () => {
     renderModal();
 
     expect(screen.getByText('First Deposit Bonus')).toBeInTheDocument();
-    expect(screen.getByText('Deposit £10.00 or more and get a £5.00 freebet.')).toBeInTheDocument();
-    expect(screen.getByLabelText('Deposit amount (£)')).toHaveValue('10.00');
+    expect(screen.getByText('Deposit €10.00 or more and get a €5.00 freebet.')).toBeInTheDocument();
+    expect(screen.getByLabelText('Deposit amount (€)')).toHaveValue('10.00');
   });
 
   it('shows bet requirements when the campaign requires a qualifying bet', () => {
@@ -108,7 +108,7 @@ describe('DepositCampaignModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Deposit' }));
 
     expect(
-      await screen.findByText('Deposit successful! A £5.00 freebet has been added to your account.'),
+      await screen.findByText('Deposit successful! A €5.00 freebet has been added to your account.'),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument();
   });

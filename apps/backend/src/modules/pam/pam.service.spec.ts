@@ -1326,6 +1326,52 @@ describe('PamService', () => {
     expect(bets[1]?.stakeCents).toBe(500);
   });
 
+  it('getBets enriches each bet with its acca rollback reward and campaign names, derived rather than stored on Bet', async () => {
+    await accaRollbackService.setConfig(
+      testBrandId,
+      { minSelections: 2, lossThreshold: 1, rewardPercent: 100, enabled: true },
+      TEST_ACTOR,
+    );
+    const campaign = await betAndGetCampaignService.create(
+      testBrandId,
+      { name: 'CL Bet & Get', rewardAmountCents: 500 },
+      TEST_ACTOR,
+    );
+    await betAndGetCampaignService.setScopes(
+      testBrandId,
+      campaign.id,
+      [{ scopeType: 'SPORT', scopeValue: 'Football' }],
+      TEST_ACTOR,
+    );
+    await betAndGetCampaignService.update(testBrandId, campaign.id, { enabled: true }, TEST_ACTOR);
+
+    const userId = await createTestUser(100_000);
+    const plainBet = await pamService.placeBet(userId, {
+      selections: [buildSelection({ odds: 2.0 })],
+      stakeCents: 1_000,
+    });
+    expect(plainBet.betAndGetCampaignId).toBe(campaign.id);
+
+    const rollbackBet = await pamService.placeBet(userId, {
+      selections: [
+        buildSelection({ matchId: 'match-1', odds: 2.0 }),
+        buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2.0 }),
+      ],
+      stakeCents: 500,
+    });
+    await pamService.settleSelection(testBrandId, rollbackBet.id, rollbackBet.selections[0]!.id, 'WON', TEST_ACTOR);
+    await pamService.settleSelection(testBrandId, rollbackBet.id, rollbackBet.selections[1]!.id, 'LOST', TEST_ACTOR);
+
+    const bets = await pamService.getBets(userId);
+    const enrichedPlainBet = bets.find((bet) => bet.id === plainBet.id)!;
+    expect(enrichedPlainBet.betAndGetCampaignName).toBe('CL Bet & Get');
+    expect(enrichedPlainBet.depositCampaignName).toBeNull();
+    expect(enrichedPlainBet.accaRollbackRewardCents).toBeNull();
+
+    const enrichedRollbackBet = bets.find((bet) => bet.id === rollbackBet.id)!;
+    expect(enrichedRollbackBet.accaRollbackRewardCents).toBe(500);
+  });
+
   describe('settlement', () => {
     it('settling a single-selection bet WON credits the payout to the balance', async () => {
       const userId = await createTestUser(100_000);

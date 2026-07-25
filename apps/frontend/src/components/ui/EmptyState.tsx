@@ -4,7 +4,8 @@ import { Link } from 'react-router-dom';
 interface EmptyStateProps {
   title: string;
   description: string;
-  ctaLabel: string;
+  /** Omit entirely for a plain message with no next action (e.g. a filtered-empty list where "browse matches" isn't the right nudge). */
+  ctaLabel?: string;
   /** Navigates to a route - mutually exclusive with onCtaClick (e.g. opening the auth modal in place, without navigating away). */
   ctaHref?: string;
   onCtaClick?: () => void;
@@ -19,15 +20,16 @@ export function EmptyState({ title, description, ctaLabel, ctaHref, onCtaClick, 
       {above}
       <p className="font-display text-lg">{title}</p>
       <p className="max-w-[220px] text-sm text-text-secondary">{description}</p>
-      {onCtaClick ? (
-        <button type="button" onClick={onCtaClick} className="btn-primary">
-          {ctaLabel}
-        </button>
-      ) : (
-        <Link to={ctaHref ?? '/'} className="btn-primary">
-          {ctaLabel}
-        </Link>
-      )}
+      {ctaLabel &&
+        (onCtaClick ? (
+          <button type="button" onClick={onCtaClick} className="btn-primary">
+            {ctaLabel}
+          </button>
+        ) : (
+          <Link to={ctaHref ?? '/'} className="btn-primary">
+            {ctaLabel}
+          </Link>
+        ))}
     </div>
   );
 }

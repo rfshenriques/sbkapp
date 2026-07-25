@@ -1,31 +1,68 @@
+import type { ReactNode } from 'react';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { MoneyBeforeAfter } from '../../components/ui/MoneyBeforeAfter';
 import { Skeleton } from '../../components/ui/Skeleton';
-import type { BetStatus, PlacedBet } from '../../lib/backendApi';
+import { betStatusBadgeClasses, betStatusTextClasses } from '../../lib/betStatus';
+import type { PlacedBet } from '../../lib/backendApi';
 import { useAuth } from '../auth/useAuth';
 import { useAuthModalStore } from '../auth/authModalStore';
 import { sortBetsForHistory } from './sortBetsForHistory';
 import { useBets } from './useBets';
 
-const STATUS_STYLES: Record<BetStatus, string> = {
-  PENDING: 'bg-highlight text-black',
-  WON: 'bg-price-up text-black',
-  LOST: 'bg-price-down text-white',
-  VOID: 'bg-surface-2 text-text-secondary',
-};
+export type BetHistoryFilter = 'OPEN' | 'WON' | 'FINISHED';
 
-function formatCents(cents: number): string {
-  return (cents / 100).toFixed(2);
+function formatEuros(cents: number): string {
+  return `€${(cents / 100).toFixed(2)}`;
+}
+
+/**
+ * combinedOdds/potentialPayoutCents already have any acca boost/insurance
+ * baked in as of placement time (see PamService.placeBet) - the
+ * pre-boost/pre-insurance values are re-derived here rather than stored
+ * redundantly, same "recompute, don't trust a stored derived value"
+ * convention PamService.settleSelection itself follows.
+ */
+function unboostedCombinedOdds(bet: PlacedBet): number {
+  return Number(bet.combinedOdds) / (1 + bet.accaBoostPercent / 100);
+}
+
+function displayedPayoutCents(bet: PlacedBet): number {
+  return bet.status === 'PENDING' ? bet.potentialPayoutCents : (bet.settledPayoutCents ?? 0);
+}
+
+function uninsuredPayoutCents(bet: PlacedBet): number {
+  return Math.round(displayedPayoutCents(bet) / (1 - bet.insuranceCostPercent / 100));
+}
+
+function BetTag({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-secondary">
+      {children}
+    </span>
+  );
 }
 
 function BetCard({ bet }: { bet: PlacedBet }) {
   const isAccumulator = bet.selections.length > 1;
+  const payoutCents = displayedPayoutCents(bet);
+  const showInsuranceBeforeAfter = bet.insuranceCostPercent > 0 && payoutCents > 0;
+  const campaignName = bet.betAndGetCampaignName ?? bet.depositCampaignName;
+
   return (
     <Card className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <span className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest ${STATUS_STYLES[bet.status]}`}>
-          {bet.status}
-        </span>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span
+            className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest ${betStatusBadgeClasses(bet.status)}`}
+          >
+            {bet.status}
+          </span>
+          <BetTag>{isAccumulator ? `Accumulator (${bet.selections.length})` : 'Single'}</BetTag>
+          {bet.fundedByFreebets && <BetTag>Freebet</BetTag>}
+          {bet.insuranceCostPercent > 0 && <BetTag>Insured</BetTag>}
+          {bet.accaBoostPercent > 0 && <BetTag>Boosted +{bet.accaBoostPercent}%</BetTag>}
+        </div>
         <span className="text-xs text-text-muted">
           {new Date(bet.createdAt).toLocaleString(undefined, {
             day: 'numeric',
@@ -41,28 +78,61 @@ function BetCard({ bet }: { bet: PlacedBet }) {
           <div key={selection.id} className="text-sm">
             <p className="text-xs text-text-muted">{selection.matchLabel}</p>
             <p>
-              {selection.marketName}: {selection.selectionName}{' '}
+              <span className={betStatusTextClasses(selection.status)}>
+                {selection.marketName}: {selection.selectionName}
+              </span>{' '}
               <span className="text-text-secondary">@ {Number(selection.odds).toFixed(2)}</span>
             </p>
           </div>
         ))}
       </div>
 
+      {campaignName && <p className="text-xs text-highlight">Qualified for {campaignName}</p>}
+      {bet.accaRollbackRewardCents !== null && (
+        <p className="text-xs text-highlight">
+          {formatEuros(bet.accaRollbackRewardCents)} refunded as a freebet (Acca Rollback)
+        </p>
+      )}
+
       <div className="flex items-center justify-between border-t border-border pt-2 text-sm">
         <span className="text-text-secondary">
-          Stake {formatCents(bet.stakeCents)} {isAccumulator && `· Combined odds ${Number(bet.combinedOdds).toFixed(2)}`}
+          Stake {formatEuros(bet.stakeCents)}
+          {isAccumulator &&
+            (bet.accaBoostPercent > 0 ? (
+              <>
+                {' '}
+                · Combined odds {unboostedCombinedOdds(bet).toFixed(2)} &rarr; {Number(bet.combinedOdds).toFixed(2)}
+              </>
+            ) : (
+              ` · Combined odds ${Number(bet.combinedOdds).toFixed(2)}`
+            ))}
         </span>
         <span className="font-semibold">
-          {bet.status === 'PENDING'
-            ? `Potential ${formatCents(bet.potentialPayoutCents)}`
-            : `Payout ${formatCents(bet.settledPayoutCents ?? 0)}`}
+          {showInsuranceBeforeAfter ? (
+            <MoneyBeforeAfter beforeCents={uninsuredPayoutCents(bet)} afterCents={payoutCents} />
+          ) : bet.status === 'PENDING' ? (
+            `Potential ${formatEuros(payoutCents)}`
+          ) : (
+            `Payout ${formatEuros(payoutCents)}`
+          )}
         </span>
       </div>
     </Card>
   );
 }
 
-export function BetHistoryList() {
+function matchesFilter(bet: PlacedBet, filter: BetHistoryFilter): boolean {
+  if (filter === 'OPEN') return bet.status === 'PENDING';
+  if (filter === 'WON') return bet.status === 'WON';
+  return bet.status !== 'PENDING';
+}
+
+interface BetHistoryListProps {
+  /** Defaults to showing every bet - MyBetsPage passes the active Open/Won/Finished tab. */
+  filter?: BetHistoryFilter;
+}
+
+export function BetHistoryList({ filter }: BetHistoryListProps) {
   const { isAuthenticated, isInitialized } = useAuth();
   const openAuthModal = useAuthModalStore((state) => state.open);
   const { data: bets, isPending, isError } = useBets();
@@ -103,7 +173,17 @@ export function BetHistoryList() {
     );
   }
 
-  const sorted = sortBetsForHistory(bets);
+  const filtered = filter ? bets.filter((bet) => matchesFilter(bet, filter)) : bets;
+  const sorted = sortBetsForHistory(filtered);
+
+  if (sorted.length === 0) {
+    return (
+      <EmptyState
+        title={filter === 'OPEN' ? 'No open bets' : filter === 'WON' ? 'No won bets yet' : 'No finished bets yet'}
+        description="Bets matching this filter will show up here."
+      />
+    );
+  }
 
   return (
     <div className="space-y-3">

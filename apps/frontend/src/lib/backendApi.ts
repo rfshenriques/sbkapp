@@ -98,6 +98,18 @@ export interface PlacedBet {
   settledAt: string | null;
   createdAt: string;
   selections: PlacedBetSelection[];
+  /** Drew its stake from the pooled freebets balance instead of cash - see FreebetService.spendFromBalance. */
+  fundedByFreebets: boolean;
+  /** Insurance premium % actually deducted at placement - 0 when not insured. combinedOdds/potentialPayoutCents already reflect it; the pre-insurance values are derivable by dividing back out. */
+  insuranceCostPercent: number;
+  /** Acca boost % actually applied at placement - 0 when not boosted. combinedOdds already reflects it. */
+  accaBoostPercent: number;
+  /** Name of the Bet & Get campaign this bet qualified for, if any - resolved once at placement, frozen even if the campaign later changes. */
+  betAndGetCampaignName: string | null;
+  /** Name of the deposit campaign this bet fulfilled the bet-requirement for, if any. */
+  depositCampaignName: string | null;
+  /** How much was refunded as a freebet via the acca rollback promotion, if this bet triggered one - derived, not a property of the bet itself (see PamService.enrichBetsWithRollbackReward). */
+  accaRollbackRewardCents: number | null;
 }
 
 function extractErrorMessage(body: unknown, fallback: string): string {
