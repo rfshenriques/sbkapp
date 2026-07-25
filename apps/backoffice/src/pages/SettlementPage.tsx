@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card } from '../components/ui/Card';
 import * as backendApi from '../lib/backendApi';
@@ -10,7 +10,34 @@ const SELECTION_STATUSES: SelectionStatus[] = ['OPEN', 'WON', 'LOST', 'VOID'];
 const betsQueryKey = (status: BetStatus | 'ALL') => ['admin-bets', status] as const;
 
 function formatCents(cents: number): string {
-  return (cents / 100).toFixed(2);
+  return `€${(cents / 100).toFixed(2)}`;
+}
+
+/**
+ * combinedOdds/potentialPayoutCents already have any acca boost/insurance
+ * baked in as of placement time (see PamService.placeBet) - the
+ * pre-boost/pre-insurance values are re-derived here rather than stored
+ * redundantly, matching PamService.settleSelection's own convention of
+ * recomputing instead of trusting a stored derived value.
+ */
+function unboostedCombinedOdds(bet: backendApi.Bet): number {
+  return Number(bet.combinedOdds) / (1 + bet.accaBoostPercent / 100);
+}
+
+function displayedPayoutCents(bet: backendApi.Bet): number {
+  return bet.status === 'PENDING' ? bet.potentialPayoutCents : (bet.settledPayoutCents ?? 0);
+}
+
+function uninsuredPayoutCents(bet: backendApi.Bet): number {
+  return Math.round(displayedPayoutCents(bet) / (1 - bet.insuranceCostPercent / 100));
+}
+
+function BetTag({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-text-secondary">
+      {children}
+    </span>
+  );
 }
 
 const statusBadgeClassName: Record<string, string> = {
@@ -87,7 +114,13 @@ export default function SettlementPage() {
           <p className="text-sm text-text-secondary">No {statusFilter.toLowerCase()} bets.</p>
         )}
 
-        {bets?.map((bet) => (
+        {bets?.map((bet) => {
+          const isAccumulator = bet.selections.length > 1;
+          const payoutCents = displayedPayoutCents(bet);
+          const showInsuranceBeforeAfter = bet.insuranceCostPercent > 0 && payoutCents > 0;
+          const campaignName = bet.betAndGetCampaignName ?? bet.depositCampaignName;
+
+          return (
           <Card key={bet.id}>
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-2">
               <div>
@@ -95,20 +128,50 @@ export default function SettlementPage() {
                   {bet.user.username} <span className="text-text-muted">({bet.user.email})</span>
                 </p>
                 <p className="text-xs text-text-muted">Bet {bet.id}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <BetTag>{isAccumulator ? `Accumulator (${bet.selections.length})` : 'Single'}</BetTag>
+                  {bet.fundedByFreebets && <BetTag>Freebet</BetTag>}
+                  {bet.insuranceCostPercent > 0 && <BetTag>Insured</BetTag>}
+                  {bet.accaBoostPercent > 0 && <BetTag>Boosted +{bet.accaBoostPercent}%</BetTag>}
+                </div>
               </div>
               <div className="flex items-center gap-3 text-sm">
                 <span className="text-text-secondary">
-                  Stake {formatCents(bet.stakeCents)} @ {Number(bet.combinedOdds).toFixed(2)}
+                  Stake {formatCents(bet.stakeCents)} @{' '}
+                  {isAccumulator && bet.accaBoostPercent > 0 ? (
+                    <>
+                      <span className="text-text-muted line-through">{unboostedCombinedOdds(bet).toFixed(2)}</span>{' '}
+                      &rarr; {Number(bet.combinedOdds).toFixed(2)}
+                    </>
+                  ) : (
+                    Number(bet.combinedOdds).toFixed(2)
+                  )}
                 </span>
                 <span className="text-text-secondary">
                   Payout{' '}
-                  {bet.settledPayoutCents !== null
-                    ? formatCents(bet.settledPayoutCents)
-                    : formatCents(bet.potentialPayoutCents) + ' (potential)'}
+                  {showInsuranceBeforeAfter ? (
+                    <>
+                      <span className="text-text-muted line-through">{formatCents(uninsuredPayoutCents(bet))}</span>{' '}
+                      &rarr; {formatCents(payoutCents)}
+                    </>
+                  ) : bet.settledPayoutCents !== null ? (
+                    formatCents(bet.settledPayoutCents)
+                  ) : (
+                    formatCents(bet.potentialPayoutCents) + ' (potential)'
+                  )}
                 </span>
                 <StatusBadge status={bet.status} />
               </div>
             </div>
+
+            {(campaignName || bet.accaRollbackRewardCents !== null) && (
+              <div className="pt-2 text-xs text-highlight">
+                {campaignName && <p>Qualified for {campaignName}</p>}
+                {bet.accaRollbackRewardCents !== null && (
+                  <p>{formatCents(bet.accaRollbackRewardCents)} refunded as a freebet (Acca Rollback)</p>
+                )}
+              </div>
+            )}
 
             <div className="mt-3 space-y-2">
               {bet.selections.map((selection) => (
@@ -152,7 +215,8 @@ export default function SettlementPage() {
               ))}
             </div>
           </Card>
-        ))}
+          );
+        })}
 
         {settleMutation.isError && (
           <p className="text-sm text-danger">

@@ -16,6 +16,12 @@ const pendingBet: Bet = {
   createdAt: '2026-07-17T00:00:00Z',
   settledPayoutCents: null,
   settledAt: null,
+  fundedByFreebets: false,
+  insuranceCostPercent: 0,
+  accaBoostPercent: 0,
+  betAndGetCampaignName: null,
+  depositCampaignName: null,
+  accaRollbackRewardCents: null,
   user: { id: 'user-1', username: 'bettor_bob', email: 'bettor@example.com' },
   selections: [
     {
@@ -120,5 +126,37 @@ describe('SettlementPage', () => {
     renderSettlementPage();
 
     expect(await screen.findByText('No pending bets.')).toBeInTheDocument();
+  });
+
+  it('shows freebet, insurance, boost, campaign, and acca rollback indicators', async () => {
+    const enrichedBet: Bet = {
+      ...pendingBet,
+      combinedOdds: '6.60',
+      accaBoostPercent: 10,
+      insuranceCostPercent: 10,
+      fundedByFreebets: true,
+      betAndGetCampaignName: 'CL Bet & Get',
+      accaRollbackRewardCents: 500,
+      potentialPayoutCents: 1800,
+      selections: [
+        pendingBet.selections[0]!,
+        { ...pendingBet.selections[0]!, id: 'sel-2', selectionId: 'away', selectionName: 'Away' },
+      ],
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify([enrichedBet]), { status: 200 })),
+    );
+
+    renderSettlementPage();
+
+    expect(await screen.findByText('Accumulator (2)')).toBeInTheDocument();
+    expect(screen.getByText('Freebet')).toBeInTheDocument();
+    expect(screen.getByText('Insured')).toBeInTheDocument();
+    expect(screen.getByText('Boosted +10%')).toBeInTheDocument();
+    expect(screen.getByText('Qualified for CL Bet & Get')).toBeInTheDocument();
+    expect(screen.getByText('€5.00 refunded as a freebet (Acca Rollback)')).toBeInTheDocument();
+    expect(screen.getByText('6.00')).toBeInTheDocument();
+    expect(screen.getByText(/6\.60/)).toBeInTheDocument();
   });
 });

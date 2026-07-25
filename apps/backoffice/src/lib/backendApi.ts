@@ -234,6 +234,18 @@ export interface Bet {
   settledAt: string | null;
   selections: BetSelection[];
   user: { id: string; username: string; email: string };
+  /** True when this bet was funded from the player's freebets balance instead of cash. */
+  fundedByFreebets: boolean;
+  /** Insurance premium percent deducted from the payout at placement time - 0 when not insured. */
+  insuranceCostPercent: number;
+  /** Acca boost percent applied at placement time - 0 for a single or an unqualifying accumulator. */
+  accaBoostPercent: number;
+  /** Name of the Bet & Get campaign this bet qualified for, if any. */
+  betAndGetCampaignName: string | null;
+  /** Name of the deposit campaign this bet fulfilled the bet-requirement for, if any. */
+  depositCampaignName: string | null;
+  /** Amount refunded as a freebet via Acca Rollback, if this bet triggered one. */
+  accaRollbackRewardCents: number | null;
 }
 
 function extractErrorMessage(body: unknown, fallback: string): string {
