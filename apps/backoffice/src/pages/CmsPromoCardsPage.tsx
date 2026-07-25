@@ -6,6 +6,7 @@ import * as backendApi from '../lib/backendApi';
 
 const promoCardsQueryKey = ['promo-cards'] as const;
 const campaignsQueryKey = ['bet-and-get-campaigns'] as const;
+const depositCampaignsQueryKey = ['deposit-campaigns'] as const;
 const homepageCarouselConfigQueryKey = ['homepage-carousel-config'] as const;
 const ACCEPTED_TYPES = 'image/png,image/jpeg,image/webp';
 
@@ -86,41 +87,85 @@ function HomepageCarouselSettings() {
   );
 }
 
+interface CampaignSelection {
+  betAndGetCampaignId: string;
+  depositCampaignId: string;
+}
+
+const NONE_VALUE = '';
+
+function encodeCampaignValue(selection: CampaignSelection): string {
+  if (selection.betAndGetCampaignId) return `bet-and-get:${selection.betAndGetCampaignId}`;
+  if (selection.depositCampaignId) return `deposit:${selection.depositCampaignId}`;
+  return NONE_VALUE;
+}
+
+function decodeCampaignValue(value: string): CampaignSelection {
+  if (value.startsWith('bet-and-get:')) {
+    return { betAndGetCampaignId: value.slice('bet-and-get:'.length), depositCampaignId: '' };
+  }
+  if (value.startsWith('deposit:')) {
+    return { betAndGetCampaignId: '', depositCampaignId: value.slice('deposit:'.length) };
+  }
+  return { betAndGetCampaignId: '', depositCampaignId: '' };
+}
+
 function CampaignSelect({
   id,
-  value,
+  selection,
   onChange,
-  campaigns,
+  betAndGetCampaigns,
+  depositCampaigns,
 }: {
   id: string;
-  value: string;
-  onChange: (value: string) => void;
-  campaigns: backendApi.BetAndGetCampaign[];
+  selection: CampaignSelection;
+  onChange: (selection: CampaignSelection) => void;
+  betAndGetCampaigns: backendApi.BetAndGetCampaign[];
+  depositCampaigns: backendApi.DepositCampaign[];
 }) {
   return (
     <select
       id={id}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
+      value={encodeCampaignValue(selection)}
+      onChange={(event) => onChange(decodeCampaignValue(event.target.value))}
       className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
     >
-      <option value="">No campaign (decorative only)</option>
-      {campaigns.map((campaign) => (
-        <option key={campaign.id} value={campaign.id}>
-          {campaign.name}
-        </option>
-      ))}
+      <option value={NONE_VALUE}>No campaign (decorative only)</option>
+      {betAndGetCampaigns.length > 0 && (
+        <optgroup label="Bet & Get">
+          {betAndGetCampaigns.map((campaign) => (
+            <option key={campaign.id} value={`bet-and-get:${campaign.id}`}>
+              {campaign.name}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {depositCampaigns.length > 0 && (
+        <optgroup label="Deposit">
+          {depositCampaigns.map((campaign) => (
+            <option key={campaign.id} value={`deposit:${campaign.id}`}>
+              {campaign.name}
+            </option>
+          ))}
+        </optgroup>
+      )}
     </select>
   );
 }
 
-function NewPromoCardForm({ campaigns }: { campaigns: backendApi.BetAndGetCampaign[] }) {
+function NewPromoCardForm({
+  betAndGetCampaigns,
+  depositCampaigns,
+}: {
+  betAndGetCampaigns: backendApi.BetAndGetCampaign[];
+  depositCampaigns: backendApi.DepositCampaign[];
+}) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
-  const [betAndGetCampaignId, setBetAndGetCampaignId] = useState('');
+  const [selection, setSelection] = useState<CampaignSelection>({ betAndGetCampaignId: '', depositCampaignId: '' });
   const [error, setError] = useState<string | null>(null);
 
   const addMutation = useMutation({
@@ -129,13 +174,14 @@ function NewPromoCardForm({ campaigns }: { campaigns: backendApi.BetAndGetCampai
         file: file as File,
         title: title.trim() || undefined,
         subtitle: subtitle.trim() || undefined,
-        betAndGetCampaignId: betAndGetCampaignId || undefined,
+        betAndGetCampaignId: selection.betAndGetCampaignId || undefined,
+        depositCampaignId: selection.depositCampaignId || undefined,
       }),
     onSuccess: () => {
       setFile(null);
       setTitle('');
       setSubtitle('');
-      setBetAndGetCampaignId('');
+      setSelection({ betAndGetCampaignId: '', depositCampaignId: '' });
       setError(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       void queryClient.invalidateQueries({ queryKey: promoCardsQueryKey });
@@ -203,9 +249,10 @@ function NewPromoCardForm({ campaigns }: { campaigns: backendApi.BetAndGetCampai
         <div className="mt-1">
           <CampaignSelect
             id="promo-card-campaign"
-            value={betAndGetCampaignId}
-            onChange={setBetAndGetCampaignId}
-            campaigns={campaigns}
+            selection={selection}
+            onChange={setSelection}
+            betAndGetCampaigns={betAndGetCampaigns}
+            depositCampaigns={depositCampaigns}
           />
         </div>
       </div>
@@ -221,7 +268,8 @@ function NewPromoCardForm({ campaigns }: { campaigns: backendApi.BetAndGetCampai
 
 function PromoCardRow({
   card,
-  campaigns,
+  betAndGetCampaigns,
+  depositCampaigns,
   isDragged,
   onDragStart,
   onDragOver,
@@ -229,7 +277,8 @@ function PromoCardRow({
   onDragEnd,
 }: {
   card: backendApi.PromoCard;
-  campaigns: backendApi.BetAndGetCampaign[];
+  betAndGetCampaigns: backendApi.BetAndGetCampaign[];
+  depositCampaigns: backendApi.DepositCampaign[];
   isDragged: boolean;
   onDragStart: () => void;
   onDragOver: (event: DragEvent) => void;
@@ -240,12 +289,18 @@ function PromoCardRow({
   const [isExpanded, setIsExpanded] = useState(false);
   const [title, setTitle] = useState(card.title ?? '');
   const [subtitle, setSubtitle] = useState(card.subtitle ?? '');
-  const [betAndGetCampaignId, setBetAndGetCampaignId] = useState(card.betAndGetCampaignId ?? '');
+  const [selection, setSelection] = useState<CampaignSelection>({
+    betAndGetCampaignId: card.betAndGetCampaignId ?? '',
+    depositCampaignId: card.depositCampaignId ?? '',
+  });
 
   useEffect(() => {
     setTitle(card.title ?? '');
     setSubtitle(card.subtitle ?? '');
-    setBetAndGetCampaignId(card.betAndGetCampaignId ?? '');
+    setSelection({
+      betAndGetCampaignId: card.betAndGetCampaignId ?? '',
+      depositCampaignId: card.depositCampaignId ?? '',
+    });
   }, [card]);
 
   const saveMutation = useMutation({
@@ -253,7 +308,8 @@ function PromoCardRow({
       backendApi.updatePromoCard(card.id, {
         title: title.trim() || null,
         subtitle: subtitle.trim() || null,
-        betAndGetCampaignId: betAndGetCampaignId || null,
+        betAndGetCampaignId: selection.betAndGetCampaignId || null,
+        depositCampaignId: selection.depositCampaignId || null,
       }),
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: promoCardsQueryKey }),
   });
@@ -263,11 +319,14 @@ function PromoCardRow({
     onSuccess: () => void queryClient.invalidateQueries({ queryKey: promoCardsQueryKey }),
   });
 
-  const linkedCampaign = campaigns.find((campaign) => campaign.id === card.betAndGetCampaignId);
+  const linkedCampaign =
+    betAndGetCampaigns.find((campaign) => campaign.id === card.betAndGetCampaignId) ??
+    depositCampaigns.find((campaign) => campaign.id === card.depositCampaignId);
   const isDirty =
     title.trim() !== (card.title ?? '') ||
     subtitle.trim() !== (card.subtitle ?? '') ||
-    betAndGetCampaignId !== (card.betAndGetCampaignId ?? '');
+    selection.betAndGetCampaignId !== (card.betAndGetCampaignId ?? '') ||
+    selection.depositCampaignId !== (card.depositCampaignId ?? '');
 
   return (
     <div
@@ -337,9 +396,10 @@ function PromoCardRow({
             <div className="mt-1">
               <CampaignSelect
                 id={`campaign-${card.id}`}
-                value={betAndGetCampaignId}
-                onChange={setBetAndGetCampaignId}
-                campaigns={campaigns}
+                selection={selection}
+                onChange={setSelection}
+                betAndGetCampaigns={betAndGetCampaigns}
+                depositCampaigns={depositCampaigns}
               />
             </div>
           </div>
@@ -375,6 +435,10 @@ export default function CmsPromoCardsPage() {
   const { data: campaigns } = useQuery({
     queryKey: campaignsQueryKey,
     queryFn: backendApi.listBetAndGetCampaigns,
+  });
+  const { data: depositCampaigns } = useQuery({
+    queryKey: depositCampaignsQueryKey,
+    queryFn: backendApi.listDepositCampaigns,
   });
 
   const orderedCards = useMemo(
@@ -412,13 +476,14 @@ export default function CmsPromoCardsPage() {
     <div>
       <h1 className="text-2xl font-semibold">CMS: Promo cards</h1>
       <p className="mt-1 text-sm text-text-secondary">
-        Promotional cards for the homepage and Promotions page. Link a card to a Bet & Get campaign to make
-        it clickable through to that campaign's matches, or leave it unlinked for a purely decorative card.
+        Promotional cards for the homepage and Promotions page. Link a card to a Bet & Get campaign to make it
+        clickable through to that campaign's matches, or to a deposit campaign to open its deposit modal, or
+        leave it unlinked for a purely decorative card.
       </p>
 
       <div className="mt-4 space-y-4">
         <HomepageCarouselSettings />
-        <NewPromoCardForm campaigns={campaigns ?? []} />
+        <NewPromoCardForm betAndGetCampaigns={campaigns ?? []} depositCampaigns={depositCampaigns ?? []} />
 
         {isPending && <p className="text-sm text-text-secondary">Loading…</p>}
         {isError && <p className="text-sm text-danger">Failed to load promo cards.</p>}
@@ -432,7 +497,8 @@ export default function CmsPromoCardsPage() {
               <PromoCardRow
                 key={card.id}
                 card={card}
-                campaigns={campaigns ?? []}
+                betAndGetCampaigns={campaigns ?? []}
+                depositCampaigns={depositCampaigns ?? []}
                 isDragged={draggedId === card.id}
                 onDragStart={() => setDraggedId(card.id)}
                 onDragOver={allowDrop}

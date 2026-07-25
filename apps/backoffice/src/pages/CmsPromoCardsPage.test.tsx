@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStaffAuthStore } from '../features/auth/staffAuthStore';
-import type { BetAndGetCampaign, PromoCard } from '../lib/backendApi';
+import type { BetAndGetCampaign, DepositCampaign, PromoCard } from '../lib/backendApi';
 import CmsPromoCardsPage from './CmsPromoCardsPage';
 
 const campaign: BetAndGetCampaign = {
@@ -26,6 +26,34 @@ const campaign: BetAndGetCampaign = {
   createdAt: '2026-07-24T00:00:00Z',
   updatedAt: '2026-07-24T00:00:00Z',
   scopes: [],
+};
+
+const depositCampaign: DepositCampaign = {
+  id: 'deposit-campaign-1',
+  brandId: 'brand-1',
+  name: 'First Deposit Bonus',
+  description: null,
+  enabled: true,
+  minDepositAmountCents: 1_000,
+  rewardType: 'FIXED',
+  fixedRewardAmountCents: 500,
+  rewardPercent: null,
+  rewardCapCents: null,
+  requiresBet: false,
+  trigger: 'PLACEMENT',
+  triggerOnWon: false,
+  triggerOnLost: false,
+  triggerOnVoid: false,
+  minStakeCents: null,
+  minOddsPerLeg: null,
+  betType: 'EITHER',
+  minSelections: null,
+  allowMultipleRedemptions: false,
+  maxRedemptionsPerPlayer: null,
+  audienceMode: 'ALL',
+  segments: [],
+  createdAt: '2026-07-24T00:00:00Z',
+  updatedAt: '2026-07-24T00:00:00Z',
 };
 
 const decorativeCard: PromoCard = {
@@ -58,6 +86,9 @@ function stubFetch(handler: (url: string, method: string, init?: RequestInit) =>
     if (result) return result;
     if (url === '/backend/admin/bet-and-get-campaigns') {
       return new Response(JSON.stringify([campaign]), { status: 200 });
+    }
+    if (url === '/backend/admin/deposit-campaigns') {
+      return new Response(JSON.stringify([depositCampaign]), { status: 200 });
     }
     if (url === '/backend/admin/homepage-carousel-config') {
       return new Response(JSON.stringify({ enabled: false, autoScrollSeconds: 6 }), { status: 200 });
@@ -166,6 +197,7 @@ describe('CmsPromoCardsPage', () => {
         const formData = init!.body as FormData;
         expect(formData.get('title')).toBe('Welcome offer');
         expect(formData.get('betAndGetCampaignId')).toBe('campaign-1');
+        expect(formData.get('depositCampaignId')).toBeNull();
         expect(formData.get('file')).toBeInstanceOf(File);
         return new Response(JSON.stringify({ ...decorativeCard, betAndGetCampaignId: 'campaign-1' }), {
           status: 200,
@@ -180,10 +212,42 @@ describe('CmsPromoCardsPage', () => {
     const file = new File(['bytes'], 'promo.png', { type: 'image/png' });
     await userEvent.upload(screen.getByLabelText('Image'), file);
     await userEvent.type(screen.getByLabelText('Title (optional)'), 'Welcome offer');
-    await userEvent.selectOptions(screen.getByLabelText('Linked campaign'), 'campaign-1');
+    await userEvent.selectOptions(screen.getByLabelText('Linked campaign'), 'bet-and-get:campaign-1');
     await userEvent.click(screen.getByRole('button', { name: 'Add promo card' }));
 
     expect(fetchMock).toHaveBeenCalledWith('/backend/admin/promo-cards', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('linking a card to a deposit campaign shows it grouped separately and saves depositCampaignId', async () => {
+    const fetchMock = stubFetch((url, method, init) => {
+      if (method === 'GET' && url === '/backend/admin/promo-cards') {
+        return new Response(JSON.stringify([decorativeCard]), { status: 200 });
+      }
+      if (method === 'PATCH' && url === '/backend/admin/promo-cards/card-1') {
+        expect(JSON.parse(init!.body as string)).toMatchObject({
+          betAndGetCampaignId: null,
+          depositCampaignId: 'deposit-campaign-1',
+        });
+        return new Response(JSON.stringify({ ...decorativeCard, depositCampaignId: 'deposit-campaign-1' }), {
+          status: 200,
+        });
+      }
+      return undefined;
+    });
+
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: /Welcome offer/ }));
+    const campaignSelects = screen.getAllByLabelText('Linked campaign');
+    const rowSelect = campaignSelects[campaignSelects.length - 1]!;
+
+    expect((await screen.findAllByRole('option', { name: 'First Deposit Bonus' })).length).toBeGreaterThan(0);
+    await userEvent.selectOptions(rowSelect, 'deposit:deposit-campaign-1');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/promo-cards/card-1',
+      expect.objectContaining({ method: 'PATCH' }),
+    );
   });
 
   it('removing a card sends a DELETE for its id', async () => {
@@ -226,7 +290,7 @@ describe('CmsPromoCardsPage', () => {
     // Two "Linked campaign" selects are on screen at once here - the
     // always-visible New promo card form's, and this expanded row's.
     const campaignSelects = screen.getAllByLabelText('Linked campaign');
-    await userEvent.selectOptions(campaignSelects[campaignSelects.length - 1]!, 'campaign-1');
+    await userEvent.selectOptions(campaignSelects[campaignSelects.length - 1]!, 'bet-and-get:campaign-1');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(fetchMock).toHaveBeenCalledWith(
