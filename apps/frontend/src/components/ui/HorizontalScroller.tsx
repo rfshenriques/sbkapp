@@ -9,6 +9,8 @@ export interface HorizontalScrollerProps {
   itemCount: number;
   ariaLabel: string;
   className?: string;
+  /** When set (and there's more than one item), auto-advances one item every N seconds, looping back to the start at the end - see the backoffice's Homepage auto-scroll setting. */
+  autoScrollSeconds?: number;
 }
 
 /**
@@ -21,7 +23,13 @@ export interface HorizontalScrollerProps {
  * single-item block (today's reality for Match of the day/Promotions
  * until the CMS lets staff add more) renders with neither.
  */
-export function HorizontalScroller({ children, itemCount, ariaLabel, className }: HorizontalScrollerProps) {
+export function HorizontalScroller({
+  children,
+  itemCount,
+  ariaLabel,
+  className,
+  autoScrollSeconds,
+}: HorizontalScrollerProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
@@ -58,6 +66,23 @@ export function HorizontalScroller({ children, itemCount, ariaLabel, className }
   function scrollByPage(direction: 1 | -1) {
     scrollRef.current?.scrollBy({ left: direction * scrollRef.current.clientWidth * 0.9, behavior: 'smooth' });
   }
+
+  useEffect(() => {
+    if (!autoScrollSeconds || itemCount <= 1) {
+      return;
+    }
+    const id = window.setInterval(() => {
+      const el = scrollRef.current;
+      if (!el) return;
+      const maxScroll = el.scrollWidth - el.clientWidth;
+      if (el.scrollLeft >= maxScroll - 4) {
+        el.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        scrollByPage(1);
+      }
+    }, autoScrollSeconds * 1000);
+    return () => window.clearInterval(id);
+  }, [autoScrollSeconds, itemCount]);
 
   const showArrows = itemCount > 1 && (canScrollLeft || canScrollRight);
 

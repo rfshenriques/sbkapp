@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -237,7 +237,7 @@ describe('OddsBoardPage', () => {
     expect(screen.queryByRole('link', { name: /Football Home/ })).not.toBeInTheDocument();
   });
 
-  it('shows a Promotions section with CMS promo cards when the brand has any', async () => {
+  it('renders CMS promo cards in the same Promotions slot as the Match of the day row, replacing the static Welcome Bonus card', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === `/backend/public/matches/${TEST_BRAND_ID}`) {
@@ -265,15 +265,19 @@ describe('OddsBoardPage', () => {
 
     renderPage();
 
-    expect(await screen.findByText('Champions League Promo')).toBeInTheDocument();
-    const cardLinks = screen.getAllByRole('link', { name: /Champions League Promo/ });
-    expect(cardLinks[0]).toHaveAttribute('href', '/campaigns/campaign-1');
+    // The "Promotions" aria-label is the desktop right-hand slot next to
+    // Match of the day - it should carry the real card, not a whole new
+    // section, and the old static Welcome Bonus copy should be gone.
+    const promoSlot = await screen.findByRole('group', { name: 'Promotions' });
+    expect(within(promoSlot).getByText('Champions League Promo')).toBeInTheDocument();
+    expect(within(promoSlot).getByRole('link')).toHaveAttribute('href', '/campaigns/campaign-1');
+    expect(screen.queryByText('Welcome Bonus')).not.toBeInTheDocument();
   });
 
-  it('omits the Promotions section when the brand has no promo cards', async () => {
+  it('falls back to the static Welcome Bonus card in that same slot when the brand has no promo cards', async () => {
     renderPage();
 
-    await screen.findByRole('link', { name: 'Arsenal vs Chelsea' });
-    expect(screen.queryByRole('heading', { name: 'Promotions' })).not.toBeInTheDocument();
+    const promoSlot = await screen.findByRole('group', { name: 'Promotions' });
+    expect(within(promoSlot).getByText('Welcome Bonus')).toBeInTheDocument();
   });
 });

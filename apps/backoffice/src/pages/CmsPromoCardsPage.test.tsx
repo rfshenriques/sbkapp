@@ -58,6 +58,9 @@ function stubFetch(handler: (url: string, method: string, init?: RequestInit) =>
     if (url === '/backend/admin/bet-and-get-campaigns') {
       return new Response(JSON.stringify([campaign]), { status: 200 });
     }
+    if (url === '/backend/admin/homepage-carousel-config') {
+      return new Response(JSON.stringify({ enabled: false, autoScrollSeconds: 6 }), { status: 200 });
+    }
     return new Response(null, { status: 404 });
   });
   vi.stubGlobal('fetch', fetchMock);
@@ -77,6 +80,38 @@ afterEach(() => {
 });
 
 describe('CmsPromoCardsPage', () => {
+  it('loads and saves the homepage auto-scroll settings', async () => {
+    const fetchMock = stubFetch((url, method) => {
+      if (method === 'GET' && url === '/backend/admin/promo-cards') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/homepage-carousel-config') {
+        return new Response(JSON.stringify({ enabled: false, autoScrollSeconds: 6 }), { status: 200 });
+      }
+      if (method === 'PUT' && url === '/backend/admin/homepage-carousel-config') {
+        return new Response(JSON.stringify({ enabled: true, autoScrollSeconds: 8 }), { status: 200 });
+      }
+      return undefined;
+    });
+
+    renderPage();
+
+    const enabledCheckbox = await screen.findByLabelText('Enabled');
+    expect(enabledCheckbox).not.toBeChecked();
+    await userEvent.click(enabledCheckbox);
+    await userEvent.clear(screen.getByLabelText('Auto-scroll every N seconds'));
+    await userEvent.type(screen.getByLabelText('Auto-scroll every N seconds'), '8');
+    await userEvent.click(screen.getByRole('button', { name: 'Save auto-scroll settings' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/homepage-carousel-config',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ enabled: true, autoScrollSeconds: 8 }),
+      }),
+    );
+  });
+
   it('lists cards showing their linked campaign, collapsed by default', async () => {
     stubFetch((url) => {
       if (url === '/backend/admin/promo-cards') {

@@ -154,6 +154,20 @@ export async function getPublicBrand(): Promise<PublicBrand | undefined> {
   return (await byIdResponse.json()) as PublicBrand;
 }
 
+export interface HomepageCarouselConfig {
+  enabled: boolean;
+  autoScrollSeconds: number;
+}
+
+/** Whether/how fast to auto-advance the homepage's "Match of the day + Promotions" row - see apps/backend's HomepageCarouselModule. */
+export async function getHomepageCarouselConfig(brandId: string): Promise<HomepageCarouselConfig> {
+  const response = await fetch(`${BASE_URL}/public/homepage-carousel-config/${encodeURIComponent(brandId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch homepage carousel config: ${response.status}`);
+  }
+  return (await response.json()) as HomepageCarouselConfig;
+}
+
 export interface CompetitionRanking {
   competition: string;
   rank: number;

@@ -65,6 +65,11 @@ export interface AccaBoostConfig {
   enabled: boolean;
 }
 
+export interface HomepageCarouselConfig {
+  enabled: boolean;
+  autoScrollSeconds: number;
+}
+
 export interface AccaRollbackConfig {
   minSelections: number;
   lossThreshold: number;
@@ -552,6 +557,20 @@ export async function setBoostLimits(id: string, input: SetLimitsInput): Promise
     body: JSON.stringify(input),
   });
   return parseJsonOrThrow(response, `Failed to set boost limits: ${response.status}`);
+}
+
+export async function getHomepageCarouselConfig(): Promise<HomepageCarouselConfig> {
+  const response = await authenticatedFetch('/admin/homepage-carousel-config');
+  return parseJsonOrThrow(response, `Failed to load homepage carousel config: ${response.status}`);
+}
+
+export async function setHomepageCarouselConfig(config: HomepageCarouselConfig): Promise<HomepageCarouselConfig> {
+  const response = await authenticatedFetch('/admin/homepage-carousel-config', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  return parseJsonOrThrow(response, `Failed to save homepage carousel config: ${response.status}`);
 }
 
 export async function getAccaBoostConfig(): Promise<AccaBoostConfig> {

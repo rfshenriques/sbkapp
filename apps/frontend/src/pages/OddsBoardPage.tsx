@@ -16,6 +16,7 @@ import { useBrandStore } from '../features/brand/brandStore';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { PromoCardTile } from '../features/promo-cards/PromoCardTile';
 import { usePromoCards } from '../features/promo-cards/usePromoCards';
+import { useHomepageCarouselConfig } from '../features/promo-cards/useHomepageCarouselConfig';
 import { useTeamColors } from '../features/odds-board/useTeamColors';
 import { formatKickoff } from '../lib/formatKickoff';
 import { sortSportsByPriority } from '../lib/sportPriority';
@@ -223,6 +224,7 @@ function PromoCard({ className }: { className?: string }) {
 export default function OddsBoardPage() {
   const { data: matches, isPending, isError } = useMatches();
   const { data: promoCards } = usePromoCards();
+  const { data: carouselConfig } = useHomepageCarouselConfig();
   const brandId = useBrandStore((state) => state.brandId);
   const displayName = useDisplayNames();
   const [selectedSport, setSelectedSport] = useState<string | undefined>(undefined);
@@ -254,30 +256,51 @@ export default function OddsBoardPage() {
   const liveCapped = liveMatches.slice(0, MAX_HOMEPAGE_ITEMS);
   const upcomingCapped = upcomingForSport.slice(0, MAX_HOMEPAGE_ITEMS);
 
+  // The "Promotions" slot next to Match of the day: staff-managed CMS promo
+  // cards (see the backoffice's Promo Cards page) when the brand has any,
+  // otherwise the static Welcome Bonus card that's always been there - the
+  // slot itself never disappears or moves, it's swipeable within itself
+  // once there's more than one real card.
+  const hasCmsPromoCards = Boolean(promoCards && promoCards.length > 0 && brandId);
+  function promoSlotItems(className: string) {
+    if (hasCmsPromoCards) {
+      return promoCards!.map((card) => (
+        <PromoCardTile key={card.id} card={card} brandId={brandId as string} className={className} />
+      ));
+    }
+    return [<PromoCard key="static-welcome-bonus" className={className} />];
+  }
+  const promoSlotCount = hasCmsPromoCards ? promoCards!.length : 1;
+  const autoScrollSeconds =
+    carouselConfig?.enabled && carouselConfig.autoScrollSeconds > 0 ? carouselConfig.autoScrollSeconds : undefined;
+
   return (
     <div>
       {featured && featuredMatchResult && (
         <div className="mb-8">
           {/* Mobile: one swipeable block mixing the featured match and
-              promo cards, both the same size - dots show there's a second
-              card, no arrows (touch swipe covers it). */}
+              promo cards, all the same size - dots show there's more than
+              one card, no arrows (touch swipe covers it). */}
           <div className="sm:hidden">
-            <HorizontalScroller itemCount={2} ariaLabel="Featured content">
+            <HorizontalScroller
+              itemCount={1 + promoSlotCount}
+              ariaLabel="Featured content"
+              autoScrollSeconds={autoScrollSeconds}
+            >
               <FeaturedMatchCard
                 match={featured}
                 matchResult={featuredMatchResult}
                 className="w-full shrink-0 snap-center"
               />
-              <PromoCard className="w-full shrink-0 snap-center" />
+              {promoSlotItems('w-full shrink-0 snap-center')}
             </HorizontalScroller>
           </div>
 
           {/* Desktop: two separate blocks side by side, each its own
               scroller - the match of the day block only ever scrolls
               between match-of-the-day cards, the promo block only between
-              promo cards. Each has exactly one card today, so neither
-              shows arrows/dots yet - both appear automatically once
-              there's more than one to move between. */}
+              promo cards. Arrows/dots appear automatically once either
+              block has more than one card to move between. */}
           <div className="hidden gap-4 sm:flex sm:items-stretch">
             <div className="min-w-0 sm:flex-1">
               <HorizontalScroller itemCount={1} ariaLabel="Match of the day" className="min-w-0">
@@ -289,8 +312,13 @@ export default function OddsBoardPage() {
               </HorizontalScroller>
             </div>
             <div className="min-w-0 sm:w-72 sm:shrink-0">
-              <HorizontalScroller itemCount={1} ariaLabel="Promotions" className="min-w-0">
-                <PromoCard className="h-full w-full shrink-0 snap-start" />
+              <HorizontalScroller
+                itemCount={promoSlotCount}
+                ariaLabel="Promotions"
+                className="min-w-0"
+                autoScrollSeconds={autoScrollSeconds}
+              >
+                {promoSlotItems('h-full w-full shrink-0 snap-start')}
               </HorizontalScroller>
             </div>
           </div>
@@ -325,29 +353,6 @@ export default function OddsBoardPage() {
               Load more
             </Link>
           )}
-        </section>
-      )}
-
-      {promoCards && promoCards.length > 0 && brandId && (
-        <section className="mb-8">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="brand-flag" aria-hidden="true">
-              <i></i>
-              <i></i>
-              <i></i>
-            </span>
-            <h2 className="font-display text-lg">Promotions</h2>
-          </div>
-          <HorizontalScroller itemCount={promoCards.length} ariaLabel="Promo cards" className="h-40 sm:h-48">
-            {promoCards.map((card) => (
-              <PromoCardTile
-                key={card.id}
-                card={card}
-                brandId={brandId}
-                className="h-full w-72 shrink-0 snap-start"
-              />
-            ))}
-          </HorizontalScroller>
         </section>
       )}
 

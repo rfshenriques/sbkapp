@@ -6,7 +6,85 @@ import * as backendApi from '../lib/backendApi';
 
 const promoCardsQueryKey = ['promo-cards'] as const;
 const campaignsQueryKey = ['bet-and-get-campaigns'] as const;
+const homepageCarouselConfigQueryKey = ['homepage-carousel-config'] as const;
 const ACCEPTED_TYPES = 'image/png,image/jpeg,image/webp';
+
+/**
+ * Controls the homepage's "Match of the day + Promotions" row: on mobile the
+ * combined swipeable block, on desktop just the Promotions side (Match of
+ * the day stays fixed there) - see apps/frontend's OddsBoardPage.
+ */
+function HomepageCarouselSettings() {
+  const queryClient = useQueryClient();
+  const { data, isPending } = useQuery({
+    queryKey: homepageCarouselConfigQueryKey,
+    queryFn: backendApi.getHomepageCarouselConfig,
+  });
+  const [draft, setDraft] = useState<backendApi.HomepageCarouselConfig | null>(null);
+
+  useEffect(() => {
+    if (data && draft === null) {
+      setDraft(data);
+    }
+  }, [data, draft]);
+
+  const saveMutation = useMutation({
+    mutationFn: (config: backendApi.HomepageCarouselConfig) => backendApi.setHomepageCarouselConfig(config),
+    onSuccess: (saved) => {
+      setDraft(saved);
+      void queryClient.invalidateQueries({ queryKey: homepageCarouselConfigQueryKey });
+    },
+  });
+
+  const isValid = draft !== null && Number.isInteger(draft.autoScrollSeconds) && draft.autoScrollSeconds >= 3;
+
+  return (
+    <Card className="space-y-3">
+      <h2 className="text-sm font-semibold">Homepage auto-scroll</h2>
+      <p className="text-xs text-text-secondary">
+        Automatically cycles through the cards in that row - Match of the day and Promotions together on
+        mobile, just Promotions on desktop.
+      </p>
+
+      {isPending && <p className="text-sm text-text-secondary">Loading…</p>}
+
+      {draft && (
+        <>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={draft.enabled}
+              onChange={(event) => setDraft({ ...draft, enabled: event.target.checked })}
+            />
+            Enabled
+          </label>
+
+          <div className="max-w-xs">
+            <label htmlFor="carousel-auto-scroll-seconds" className="block text-xs text-text-secondary">
+              Auto-scroll every N seconds
+            </label>
+            <input
+              id="carousel-auto-scroll-seconds"
+              type="text"
+              inputMode="numeric"
+              value={draft.autoScrollSeconds}
+              onChange={(event) => setDraft({ ...draft, autoScrollSeconds: Number(event.target.value) })}
+              className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary"
+            />
+          </div>
+
+          <Button
+            variant="primary"
+            disabled={!isValid || saveMutation.isPending}
+            onClick={() => draft && saveMutation.mutate(draft)}
+          >
+            Save auto-scroll settings
+          </Button>
+        </>
+      )}
+    </Card>
+  );
+}
 
 function CampaignSelect({
   id,
@@ -339,6 +417,7 @@ export default function CmsPromoCardsPage() {
       </p>
 
       <div className="mt-4 space-y-4">
+        <HomepageCarouselSettings />
         <NewPromoCardForm campaigns={campaigns ?? []} />
 
         {isPending && <p className="text-sm text-text-secondary">Loading…</p>}

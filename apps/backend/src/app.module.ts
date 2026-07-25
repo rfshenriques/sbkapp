@@ -28,6 +28,7 @@ import { MarginsModule } from './modules/margins/margins.module';
 import { MarketingSpendModule } from './modules/marketing-spend/marketing-spend.module';
 import { FreebetModule } from './modules/freebets/freebet.module';
 import { PromoCardModule } from './modules/promo-cards/promo-card.module';
+import { HomepageCarouselModule } from './modules/homepage-carousel/homepage-carousel.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { PromoCardModule } from './modules/promo-cards/promo-card.module';
     MarketingSpendModule,
     FreebetModule,
     PromoCardModule,
+    HomepageCarouselModule,
   ],
 })
 export class AppModule {}
