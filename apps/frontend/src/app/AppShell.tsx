@@ -7,6 +7,7 @@ import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { invalidAccumulatorReason } from '../features/bet-slip/accumulatorValidity';
 import { useBrandTheme } from '../features/brand/useBrandTheme';
 import { Footer } from '../features/footer/Footer';
+import { AccountMenu } from '../features/auth/AccountMenu';
 import { useAuth } from '../features/auth/useAuth';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBootstrapAuth } from '../features/auth/useBootstrapAuth';
@@ -37,7 +38,7 @@ export function AppShell() {
   const [isSlipOpen, setIsSlipOpen] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const selections = useBetSlipStore((state) => state.selections);
-  const { isAuthenticated, isInitialized, user, logout } = useAuth();
+  const { isAuthenticated, isInitialized } = useAuth();
   const authModalMode = useAuthModalStore((state) => state.mode);
   const openAuthModal = useAuthModalStore((state) => state.open);
   const { data: wallet } = useWallet();
@@ -156,12 +157,11 @@ export function AppShell() {
       <header className="app-header sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
         <div className="mx-auto grid max-w-[1680px] grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3">
           <NavLink to="/" className="flex shrink-0 items-center gap-2">
-            <span className="font-display text-xl">{brandName}</span>
-            <span className="brand-flag" aria-hidden="true">
-              <i></i>
-              <i></i>
-              <i></i>
-            </span>
+            {brandQuery.data?.logoUrl ? (
+              <img src={brandQuery.data.logoUrl} alt={brandName} className="h-8 max-w-[10rem] object-contain" />
+            ) : (
+              <span className="font-display text-xl">{brandName}</span>
+            )}
           </NavLink>
 
           {/* Desktop only - mirrors the mobile bottom nav's destinations
@@ -215,12 +215,7 @@ export function AppShell() {
             {isInitialized && isAuthenticated ? (
               <>
                 {wallet && <BalancePills cashCents={wallet.balanceCents} freebetsCents={freebetsCents} />}
-                <span className="hidden text-sm text-text-secondary sm:inline">
-                  {user?.username}
-                </span>
-                <button type="button" onClick={() => void logout()} className="btn-ghost">
-                  Log out
-                </button>
+                <AccountMenu />
               </>
             ) : (
               isInitialized && (

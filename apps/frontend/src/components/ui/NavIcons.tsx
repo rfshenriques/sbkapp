@@ -104,3 +104,13 @@ export function TicketIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** Signed-in player's account menu trigger - a head-and-shoulders silhouette, replacing the old plain "Log out" button. */
+export function AccountIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <circle cx="10" cy="7" r="3.2" />
+      <path d="M3.5 17c0-3.3 2.9-6 6.5-6s6.5 2.7 6.5 6" />
+    </svg>
+  );
+}
