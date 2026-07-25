@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { useAuth } from '../features/auth/useAuth';
 import { useAuthModalStore } from '../features/auth/authModalStore';
+import { useDepositCampaignModalStore } from '../features/deposit-campaigns/depositCampaignModalStore';
+import * as backendApi from '../lib/backendApi';
 
 const LOGIN_FORM_ID = 'login-form';
 
@@ -9,6 +11,7 @@ export default function LoginPage() {
   const { login } = useAuth();
   const close = useAuthModalStore((state) => state.close);
   const open = useAuthModalStore((state) => state.open);
+  const openDepositCampaignModal = useDepositCampaignModalStore((state) => state.open);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -21,6 +24,14 @@ export default function LoginPage() {
     try {
       await login(identifier, password);
       close();
+      backendApi
+        .getEligibleDepositCampaign()
+        .then((campaign) => {
+          if (campaign) openDepositCampaignModal(campaign);
+        })
+        .catch(() => {
+          // Best-effort - a failed eligibility check just means no popup, not a broken login.
+        });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed');
     } finally {

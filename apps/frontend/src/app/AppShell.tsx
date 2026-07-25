@@ -10,6 +10,7 @@ import { Footer } from '../features/footer/Footer';
 import { useAuth } from '../features/auth/useAuth';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBootstrapAuth } from '../features/auth/useBootstrapAuth';
+import { DepositCampaignModal } from '../features/deposit-campaigns/DepositCampaignModal';
 import { formatCents, useWallet } from '../features/wallet/useWallet';
 import { Sidebar } from '../features/navigation/Sidebar';
 import { HomeIcon, LiveIcon, MyBetsIcon, PromotionsIcon, SearchIcon } from '../components/ui/NavIcons';
@@ -404,6 +405,7 @@ export function AppShell() {
           as every other modal. */}
       {authModalMode === 'login' && <LoginPage />}
       {authModalMode === 'register' && <RegisterPage />}
+      <DepositCampaignModal />
 
       {/* Mobile-only: sports navigation takes over the space between the
           header and bottom nav like its own page, rather than a partial

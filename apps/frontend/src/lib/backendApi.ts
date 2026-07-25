@@ -321,6 +321,66 @@ export async function getBetAndGetCampaignsForMatch(brandId: string, matchId: st
   return (await response.json()) as BetAndGetCampaign[];
 }
 
+export type DepositRewardType = 'FIXED' | 'PERCENTAGE';
+
+export interface DepositCampaign {
+  id: string;
+  name: string;
+  description: string | null;
+  minDepositAmountCents: number;
+  rewardType: DepositRewardType;
+  fixedRewardAmountCents: number | null;
+  rewardPercent: number | null;
+  rewardCapCents: number | null;
+  requiresBet: boolean;
+  trigger: BetAndGetTrigger;
+  triggerOnWon: boolean;
+  triggerOnLost: boolean;
+  triggerOnVoid: boolean;
+  minStakeCents: number | null;
+  minOddsPerLeg: number | null;
+  betType: BetAndGetBetType;
+  minSelections: number | null;
+}
+
+/** A single deposit campaign by id - backs a deposit-linked promo card's click-through. See apps/backend's PublicDepositCampaignController. */
+export async function getDepositCampaign(brandId: string, id: string): Promise<DepositCampaign> {
+  const response = await fetch(
+    `${BASE_URL}/public/deposit-campaigns/${encodeURIComponent(brandId)}/${encodeURIComponent(id)}`,
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch deposit campaign: ${response.status}`);
+  }
+  return (await response.json()) as DepositCampaign;
+}
+
+/** The first enabled deposit campaign this logged-in player is targeted by and can still redeem, or null - drives the post-login modal. */
+export async function getEligibleDepositCampaign(): Promise<DepositCampaign | null> {
+  const response = await authenticatedFetch('/deposit-campaigns/eligible');
+  return parseJsonOrThrow(response, `Failed to check deposit campaign eligibility: ${response.status}`);
+}
+
+export interface DepositCampaignRedemption {
+  id: string;
+  rewardAmountCents: number;
+  status: 'PENDING_BET' | 'PENDING_SETTLEMENT' | 'GRANTED';
+}
+
+export interface DepositResult {
+  deposit: { id: string; amountCents: number };
+  redemption: DepositCampaignRedemption | null;
+}
+
+/** Paper-money top-up (see apps/backend's DepositService) - also resolves and applies any eligible deposit campaign in the same transaction. */
+export async function recordDeposit(amountCents: number): Promise<DepositResult> {
+  const response = await authenticatedFetch('/deposits', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amountCents }),
+  });
+  return parseJsonOrThrow(response, `Failed to record deposit: ${response.status}`);
+}
+
 export interface PromoCardItem {
   id: string;
   mimeType: string;
@@ -328,6 +388,7 @@ export interface PromoCardItem {
   subtitle: string | null;
   sortOrder: number;
   betAndGetCampaignId: string | null;
+  depositCampaignId: string | null;
 }
 
 /** CMS-managed promo cards for the homepage/Promotions page - see apps/backend's PublicPromoCardController. */
