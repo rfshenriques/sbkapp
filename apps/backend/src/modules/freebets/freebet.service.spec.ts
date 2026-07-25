@@ -65,9 +65,18 @@ describe('FreebetService', () => {
 
   afterEach(async () => {
     await prisma.auditLogEntry.deleteMany({ where: { actorUsername: TEST_ACTOR.username } });
+    await prisma.bet.deleteMany({ where: { userId } });
     await prisma.freebetGrant.deleteMany({ where: { userId } });
     await moduleRef.close();
   });
+
+  /** spendFromBalance's BetFreebetDebit rows have a real FK to bets - a bare string id (as the old atomic spend() test data used) would violate it, so tests that spend need a real, if minimal, Bet row to point at. */
+  async function createTestBet(): Promise<string> {
+    const bet = await prisma.bet.create({
+      data: { userId, brandId: brandAId, stakeCents: 1000, combinedOdds: 1.5, potentialPayoutCents: 1500 },
+    });
+    return bet.id;
+  }
 
   it('grants a freebet by username and lists it back', async () => {
     const grant = await service.grant(brandAId, { identifier: username, amountCents: 1000 }, TEST_ACTOR);
@@ -98,55 +107,89 @@ describe('FreebetService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('listActive only returns ACTIVE, unexpired grants', async () => {
+  it('listActive only returns ACTIVE, unexpired, not-fully-drawn-down grants, oldest-expiring first', async () => {
     const active = await service.grant(brandAId, { identifier: username, amountCents: 1000 }, TEST_ACTOR);
     const expired = await service.grant(
       brandAId,
       { identifier: username, amountCents: 500, expiresAt: new Date(Date.now() - 60_000) },
       TEST_ACTOR,
     );
-    const spent = await service.grant(brandAId, { identifier: username, amountCents: 250 }, TEST_ACTOR);
-    await service.spend(spent.id, userId, 'bet-1');
+    const exhausted = await service.grant(brandAId, { identifier: username, amountCents: 250 }, TEST_ACTOR);
+    // Simulating an already-fully-drawn-down grant directly (rather than via
+    // spendFromBalance, which would draw from `active` first since it's
+    // older) keeps this test about listActive's own filtering, independent
+    // of spend-order behavior covered separately below.
+    await prisma.freebetGrant.update({
+      where: { id: exhausted.id },
+      data: { remainingCents: 0, status: 'SPENT', spentAt: new Date() },
+    });
 
     const activeGrants = await service.listActive(userId, brandAId);
     expect(activeGrants.map((grant) => grant.id)).toEqual([active.id]);
     expect(expired).toBeTruthy();
   });
 
-  it('balanceCents sums only active/unexpired grants', async () => {
+  it('balanceCents sums only active/unexpired grants remaining balance', async () => {
     await service.grant(brandAId, { identifier: username, amountCents: 1000 }, TEST_ACTOR);
     await service.grant(brandAId, { identifier: username, amountCents: 500 }, TEST_ACTOR);
-    const spent = await service.grant(brandAId, { identifier: username, amountCents: 250 }, TEST_ACTOR);
-    await service.spend(spent.id, userId, 'bet-1');
+    const exhausted = await service.grant(brandAId, { identifier: username, amountCents: 250 }, TEST_ACTOR);
+    const betId = await createTestBet();
+    await service.spendFromBalance(userId, brandAId, 250, betId);
+    expect(exhausted).toBeTruthy();
 
     expect(await service.balanceCents(userId, brandAId)).toBe(1500);
   });
 
-  it('spend marks the grant SPENT with the funding bet id, and rejects a second spend', async () => {
+  it('spendFromBalance draws down a single grant that covers the whole amount, leaving it ACTIVE with a smaller remainder', async () => {
     const grant = await service.grant(brandAId, { identifier: username, amountCents: 1000 }, TEST_ACTOR);
+    const betId = await createTestBet();
 
-    const spent = await service.spend(grant.id, userId, 'bet-1');
-    expect(spent.status).toBe('SPENT');
-    expect(spent.spentOnBetId).toBe('bet-1');
-    expect(spent.spentAt).not.toBeNull();
+    await service.spendFromBalance(userId, brandAId, 300, betId);
 
-    await expect(service.spend(grant.id, userId, 'bet-2')).rejects.toBeInstanceOf(BadRequestException);
+    const reloaded = (await service.list(brandAId, username))[0]!;
+    expect(reloaded.remainingCents).toBe(700);
+    expect(reloaded.status).toBe('ACTIVE');
+    expect(await service.balanceCents(userId, brandAId)).toBe(700);
   });
 
-  it('spend rejects an expired grant', async () => {
-    const grant = await service.grant(
+  it('spendFromBalance fully exhausts a grant and marks it SPENT once remainingCents hits 0', async () => {
+    const grant = await service.grant(brandAId, { identifier: username, amountCents: 1000 }, TEST_ACTOR);
+    const betId = await createTestBet();
+
+    await service.spendFromBalance(userId, brandAId, 1000, betId);
+
+    const reloaded = (await service.list(brandAId, username))[0]!;
+    expect(reloaded.id).toBe(grant.id);
+    expect(reloaded.remainingCents).toBe(0);
+    expect(reloaded.status).toBe('SPENT');
+    expect(reloaded.spentAt).not.toBeNull();
+  });
+
+  it('spendFromBalance spans several grants, oldest-expiring first, when one alone is not enough', async () => {
+    const soonExpiring = await service.grant(
       brandAId,
-      { identifier: username, amountCents: 1000, expiresAt: new Date(Date.now() - 60_000) },
+      { identifier: username, amountCents: 400, expiresAt: new Date(Date.now() + 3_600_000) },
       TEST_ACTOR,
     );
+    const neverExpires = await service.grant(brandAId, { identifier: username, amountCents: 1000 }, TEST_ACTOR);
+    const betId = await createTestBet();
 
-    await expect(service.spend(grant.id, userId, 'bet-1')).rejects.toBeInstanceOf(BadRequestException);
+    await service.spendFromBalance(userId, brandAId, 500, betId);
+
+    const grants = await service.list(brandAId, username);
+    const soonReloaded = grants.find((grant) => grant.id === soonExpiring.id)!;
+    const neverReloaded = grants.find((grant) => grant.id === neverExpires.id)!;
+    // The soon-expiring grant (400) is drawn down first and fully exhausted; only the remaining 100 comes from the never-expiring one.
+    expect(soonReloaded.remainingCents).toBe(0);
+    expect(soonReloaded.status).toBe('SPENT');
+    expect(neverReloaded.remainingCents).toBe(900);
   });
 
-  it("spend rejects a grant that doesn't belong to the given user", async () => {
-    const grant = await service.grant(brandAId, { identifier: username, amountCents: 1000 }, TEST_ACTOR);
+  it('spendFromBalance throws when the pool cannot cover the full amount', async () => {
+    await service.grant(brandAId, { identifier: username, amountCents: 300 }, TEST_ACTOR);
+    const betId = await createTestBet();
 
-    await expect(service.spend(grant.id, 'someone-else', 'bet-1')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.spendFromBalance(userId, brandAId, 500, betId)).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('void revokes an ACTIVE grant', async () => {
@@ -159,9 +202,10 @@ describe('FreebetService', () => {
     expect(await service.balanceCents(userId, brandAId)).toBe(0);
   });
 
-  it('void rejects an already-spent grant', async () => {
+  it('void rejects an already fully-spent grant', async () => {
     const grant = await service.grant(brandAId, { identifier: username, amountCents: 1000 }, TEST_ACTOR);
-    await service.spend(grant.id, userId, 'bet-1');
+    const betId = await createTestBet();
+    await service.spendFromBalance(userId, brandAId, 1000, betId);
 
     await expect(service.void(brandAId, grant.id, TEST_ACTOR)).rejects.toBeInstanceOf(BadRequestException);
   });

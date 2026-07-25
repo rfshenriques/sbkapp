@@ -1150,12 +1150,13 @@ export interface FreebetGrant {
   userId: string;
   brandId: string;
   amountCents: number;
+  /** How much of amountCents hasn't been drawn down by a freebet-funded bet yet - what's actually still spendable from this grant. */
+  remainingCents: number;
   source: FreebetSource;
   note: string | null;
   status: FreebetStatus;
   expiresAt: string | null;
   spentAt: string | null;
-  spentOnBetId: string | null;
   voidedAt: string | null;
   createdByStaffUserId: string | null;
   createdByUsername: string | null;

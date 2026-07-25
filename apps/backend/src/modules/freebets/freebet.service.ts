@@ -34,11 +34,12 @@ export interface SystemGrantFreebetInput {
 }
 
 /**
- * A freebet is a single-use, stake-not-returned token - atomic (a bet
- * funded by one must stake exactly its amountCents), same as how real
- * sportsbook free bets work. `status` only ever changes via an explicit
- * actor action (spend on bet placement, void by staff); expiry is a
- * read-time condition on expiresAt, not a swept status.
+ * A freebet grant credits the player's pooled freebets balance - a second,
+ * stake-not-returned wallet a bet can draw any typed stake from (see
+ * spendFromBalance), not a single fixed-value token. `status` flips to
+ * SPENT once a grant's `remainingCents` is fully drawn down, or VOIDED via
+ * an explicit staff action; expiry is a read-time condition on expiresAt,
+ * not a swept status.
  */
 @Injectable()
 export class FreebetService {
@@ -65,6 +66,7 @@ export class FreebetService {
         userId: user.id,
         brandId,
         amountCents: input.amountCents,
+        remainingCents: input.amountCents,
         source: 'MANUAL',
         note: input.note,
         expiresAt: input.expiresAt,
@@ -110,6 +112,7 @@ export class FreebetService {
         userId: input.userId,
         brandId: input.brandId,
         amountCents: input.amountCents,
+        remainingCents: input.amountCents,
         source: input.source,
         sourceBetId: input.sourceBetId,
         sourceCampaignId: input.sourceCampaignId,
@@ -151,48 +154,76 @@ export class FreebetService {
     });
   }
 
-  /** ACTIVE, unexpired grants only - what a player can actually fund a bet with right now. */
+  /** ACTIVE, unexpired, not-yet-fully-drawn-down grants only - what a player can actually fund a bet with right now, oldest-expiring first (the order spendFromBalance draws them down in). */
   async listActive(userId: string, brandId: string) {
     return this.prisma.freebetGrant.findMany({
       where: {
         userId,
         brandId,
         status: 'ACTIVE',
+        remainingCents: { gt: 0 },
         OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: [{ expiresAt: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
     });
   }
 
-  /** Sum of active/unexpired grants - only what gates the bet slip's Cash/Freebets toggle visibility, never used to fund a bet directly (see spend, which is per-grant and atomic). */
+  /** Sum of active/unexpired grants' remaining balance - the pooled freebets wallet total a bet's typed stake can draw from (see spendFromBalance). */
   async balanceCents(userId: string, brandId: string): Promise<number> {
     const active = await this.listActive(userId, brandId);
-    return active.reduce((total, grant) => total + grant.amountCents, 0);
+    return active.reduce((total, grant) => total + grant.remainingCents, 0);
   }
 
   /**
-   * Marks one specific grant SPENT, tied to the bet it funded. The caller
-   * (PamService.placeBet) is responsible for checking the bet's stake
-   * equals grant.amountCents before calling this - this method only
-   * enforces ownership/status/expiry, not the stake match, since it has no
-   * bet-shape knowledge of its own.
+   * Draws a freebet-mode bet's stake down from the player's pooled
+   * balance, oldest-expiring grant first, potentially spanning several
+   * grants for one bet (see BetFreebetDebit) - the freebets equivalent of
+   * decrementing User.balanceCents for a cash bet. Throws if the pool
+   * can't cover the full amount; the caller (PamService.placeBet) is
+   * expected to have already confirmed balanceCents() >= amountCents, so
+   * this only re-throws on a genuine race (e.g. a grant voided/expired
+   * between the check and this call).
    */
-  async spend(grantId: string, userId: string, betId: string, client: PrismaClientLike = this.prisma) {
-    const grant = await client.freebetGrant.findUnique({ where: { id: grantId } });
-    if (!grant || grant.userId !== userId) {
-      throw new NotFoundException('Freebet not found');
-    }
-    if (grant.status !== 'ACTIVE') {
-      throw new BadRequestException('This freebet is no longer active');
-    }
-    if (grant.expiresAt && grant.expiresAt <= new Date()) {
-      throw new BadRequestException('This freebet has expired');
+  async spendFromBalance(
+    userId: string,
+    brandId: string,
+    amountCents: number,
+    betId: string,
+    client: PrismaClientLike = this.prisma,
+  ): Promise<void> {
+    const grants = await client.freebetGrant.findMany({
+      where: {
+        userId,
+        brandId,
+        status: 'ACTIVE',
+        remainingCents: { gt: 0 },
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+      orderBy: [{ expiresAt: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
+    });
+
+    let remaining = amountCents;
+    for (const grant of grants) {
+      if (remaining <= 0) break;
+      const debit = Math.min(grant.remainingCents, remaining);
+      const nextRemainingCents = grant.remainingCents - debit;
+      await client.freebetGrant.update({
+        where: { id: grant.id },
+        data: {
+          remainingCents: nextRemainingCents,
+          status: nextRemainingCents <= 0 ? 'SPENT' : 'ACTIVE',
+          spentAt: nextRemainingCents <= 0 ? new Date() : grant.spentAt,
+        },
+      });
+      await client.betFreebetDebit.create({
+        data: { betId, freebetGrantId: grant.id, amountCents: debit },
+      });
+      remaining -= debit;
     }
 
-    return client.freebetGrant.update({
-      where: { id: grantId },
-      data: { status: 'SPENT', spentAt: new Date(), spentOnBetId: betId },
-    });
+    if (remaining > 0) {
+      throw new BadRequestException('Insufficient freebets balance');
+    }
   }
 
   /** Staff revokes an ACTIVE grant before it's used - `brandId` scopes so a staff member can never void another brand's grant. */

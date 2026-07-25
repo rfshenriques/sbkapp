@@ -1,6 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode, type SVGProps } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Freebet } from '../../lib/backendApi';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
@@ -253,39 +252,6 @@ function StakeLimitAlert({ stakeCents, preview }: { stakeCents: number; preview:
   );
 }
 
-/**
- * Replaces the typed stake input in freebet mode - a freebet is a single-use
- * token of a fixed value (see FreebetGrant), not an amount the player types,
- * so they pick which one to spend instead.
- */
-function FreebetPicker({
-  freebets,
-  selectedId,
-  onSelect,
-}: {
-  freebets: Freebet[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <div>
-      <p className="text-xs text-text-secondary">Choose a freebet</p>
-      <div className="mt-1.5 flex flex-wrap gap-2">
-        {freebets.map((freebet) => (
-          <button
-            key={freebet.id}
-            type="button"
-            className={`tab${selectedId === freebet.id ? ' active' : ''}`}
-            onClick={() => onSelect(freebet.id)}
-          >
-            €{(freebet.amountCents / 100).toFixed(2)}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 interface StakeFieldProps {
   stakeId: string;
   stake: string;
@@ -472,7 +438,6 @@ export function BetSlipPanel({
   const queryClient = useQueryClient();
   const [stake, setStake] = useState('10.00');
   const [payMethod, setPayMethod] = useState<PayMethod>('cash');
-  const [selectedFreebetId, setSelectedFreebetId] = useState<string | null>(null);
   const [insuranceOptIn, setInsuranceOptIn] = useState(false);
   // Keyed by selectionKey() - each single-bet row's own stake, entered
   // independently of every other row but all placed together by the one
@@ -511,16 +476,6 @@ export function BetSlipPanel({
     hadMultipleSelectionsRef.current = hasMultipleNow;
     hadSameEventConflictRef.current = sameEventConflictNow;
   }, [selections]);
-  // A freebet is a single token that funds exactly one bet - it can't cover
-  // several simultaneous single bets at once (see placeSinglesMutation),
-  // so switching to Singles with 2+ selections while in freebet mode falls
-  // back to Cash automatically rather than leaving a dead-end selection.
-  useEffect(() => {
-    if (payMethod === 'freebet' && activeTab === 'singles' && selections.length > 1) {
-      setPayMethod('cash');
-      setSelectedFreebetId(null);
-    }
-  }, [payMethod, activeTab, selections.length]);
   // Insurance never applies alongside a freebet-funded bet, to avoid
   // double-bonusing (same rule acca boost/rollback follow) - drop it the
   // moment the player switches into freebet mode rather than silently
@@ -550,12 +505,10 @@ export function BetSlipPanel({
   }
 
   const isFreebetMode = payMethod === 'freebet';
-  const selectedFreebet = freebets?.find((freebet) => freebet.id === selectedFreebetId) ?? null;
   const insuranceApplies = insuranceOptIn && insuranceBetConfig.enabled;
 
   function resetPayMethod() {
     setPayMethod('cash');
-    setSelectedFreebetId(null);
     setInsuranceOptIn(false);
   }
 
@@ -575,24 +528,21 @@ export function BetSlipPanel({
 
   /**
    * Places every single-bet row's own stake as its own separate bet, all at
-   * once from the one bottom button - except in freebet mode, where the
-   * reset effect above guarantees exactly one selection, so it places that
-   * one bet funded by the chosen freebet instead of the generic cash loop.
+   * once from the one bottom button - each draws from the freebets pool
+   * instead of cash when isFreebetMode, same as the accumulator tab, since
+   * freebets act as a second wallet rather than a one-bet-only token.
    */
   const placeSinglesMutation = useMutation({
     mutationFn: async () => {
-      if (isFreebetMode && selectedFreebet) {
-        const bet = await placeBet({
-          selections: [selections[0]!],
-          stakeCents: selectedFreebet.amountCents,
-          freebetGrantId: selectedFreebet.id,
-        });
-        return [bet];
-      }
       return Promise.all(
         selections.map((selection) => {
           const stakeCents = Math.round(Number(getSingleStake(selection)) * 100);
-          return placeBet({ selections: [selection], stakeCents, insuranceOptIn });
+          return placeBet({
+            selections: [selection],
+            stakeCents,
+            useFreebets: isFreebetMode || undefined,
+            insuranceOptIn: isFreebetMode ? undefined : insuranceOptIn,
+          });
         }),
       );
     },
@@ -636,8 +586,8 @@ export function BetSlipPanel({
       : rawAccaBoost;
   // The un-boosted product passes straight through when the accumulator doesn't qualify (see calculateAccaBoost).
   const combinedOdds = accaBoost.boostedCombinedOdds;
-  const stakeCents = isFreebetMode ? (selectedFreebet?.amountCents ?? 0) : Math.round(Number(stake) * 100);
-  const isStakeValid = isFreebetMode ? selectedFreebet !== null : Number.isFinite(stakeCents) && stakeCents > 0;
+  const stakeCents = Math.round(Number(stake) * 100);
+  const isStakeValid = Number.isFinite(stakeCents) && stakeCents > 0;
   // A freebet never returns its own stake, even on a win (see FreebetGrant) -
   // the bet slip shows only the profit it would add, not the raw stake*odds
   // figure, so the player isn't misled about what they'd actually receive.
@@ -650,31 +600,29 @@ export function BetSlipPanel({
   const insurancePricing = calculateInsuredPayout(freebetAdjustedPotentialCents, insuranceOptIn, insuranceBetConfig);
   const potentialPayoutCents = insurancePricing.insuredPayoutCents;
   const potentialPayout = isStakeValid ? (potentialPayoutCents / 100).toFixed(2) : '—';
-  const allSinglesValid = isFreebetMode
-    ? selectedFreebet !== null
-    : selections.length > 0 &&
-      selections.every((selection) => {
-        const cents = Math.round(Number(getSingleStake(selection)) * 100);
-        return Number.isFinite(cents) && cents > 0;
-      });
+  const allSinglesValid =
+    selections.length > 0 &&
+    selections.every((selection) => {
+      const cents = Math.round(Number(getSingleStake(selection)) * 100);
+      return Number.isFinite(cents) && cents > 0;
+    });
   // One payout total for all singles together, shown once in the footer -
   // each row already shows its own stake and odds, so repeating a payout
-  // line under every row as well would just be more noise. In freebet mode
-  // the reset effect above guarantees at most one selection, so this is
-  // really just that one bet's (stake-not-returned) profit.
-  const totalSinglesPayout = isFreebetMode
-    ? allSinglesValid && selectedFreebet
-      ? (Math.max(0, selectedFreebet.amountCents * selections[0]!.odds - selectedFreebet.amountCents) / 100).toFixed(2)
-      : '—'
-    : allSinglesValid
-      ? (
-          selections.reduce((total, selection) => {
-            const stakeCents = Math.round(Number(getSingleStake(selection)) * 100);
-            const rawCents = stakeCents * selection.odds;
-            return total + calculateInsuredPayout(rawCents, insuranceOptIn, insuranceBetConfig).insuredPayoutCents;
-          }, 0) / 100
-        ).toFixed(2)
-      : '—';
+  // line under every row as well would just be more noise. Freebet mode
+  // subtracts each row's own stake (stake-not-returned), same rule the
+  // accumulator's freebetAdjustedPotentialCents applies.
+  const totalSinglesPayout = allSinglesValid
+    ? (
+        selections.reduce((total, selection) => {
+          const stakeCentsForRow = Math.round(Number(getSingleStake(selection)) * 100);
+          const rawCents = stakeCentsForRow * selection.odds;
+          if (isFreebetMode) {
+            return total + Math.max(0, rawCents - stakeCentsForRow);
+          }
+          return total + calculateInsuredPayout(rawCents, insuranceOptIn, insuranceBetConfig).insuredPayoutCents;
+        }, 0) / 100
+      ).toFixed(2)
+    : '—';
   // Uninsured total, for the "previous" side of the before/after display -
   // same shape as totalSinglesPayout's reduce but without the insurance
   // discount, and always computed (not gated on insuranceOptIn) so the
@@ -854,47 +802,41 @@ export function BetSlipPanel({
         {tab === 'accumulator' && !isFreebetMode && !insuranceOptIn && !accumulatorInvalidReason && (
           <AccaRollbackBar selectionCount={selections.length} config={accaRollbackConfig} />
         )}
-        {tab === 'accumulator' &&
-          (isFreebetMode ? (
-            <FreebetPicker freebets={freebets ?? []} selectedId={selectedFreebetId} onSelect={setSelectedFreebetId} />
-          ) : (
-            <>
-              <StakeField
-                stakeId={stakeId}
-                stake={stake}
-                onStakeChange={setStake}
-                odds={insuranceEffectiveCombinedOdds ?? combinedOdds}
-                previousOdds={
-                  accaBoost.qualifies
-                    ? accaBoost.baseCombinedOdds
-                    : insuranceApplies
-                      ? combinedOdds
-                      : undefined
-                }
-                invalid={Boolean(accumulatorInvalidReason)}
-              />
-              <StakeLimitAlert stakeCents={stakeCents} preview={accumulatorStakeLimitPreview} />
-            </>
-          ))}
-        {singleSelection &&
-          (isFreebetMode ? (
-            <FreebetPicker freebets={freebets ?? []} selectedId={selectedFreebetId} onSelect={setSelectedFreebetId} />
-          ) : (
-            <>
-              <StakeField
-                stakeId={stakeId}
-                stake={getSingleStake(singleSelection)}
-                onStakeChange={(value) => setSingleStake(singleSelection, value)}
-                odds={insuranceEffectiveSingleOdds ?? singleSelection.odds}
-                hideOdds={!insuranceApplies}
-                previousOdds={insuranceApplies ? singleSelection.odds : undefined}
-              />
-              <StakeLimitAlert
-                stakeCents={Math.round(Number(getSingleStake(singleSelection)) * 100)}
-                preview={singleSelectionStakeLimitPreview}
-              />
-            </>
-          ))}
+        {tab === 'accumulator' && (
+          <>
+            <StakeField
+              stakeId={stakeId}
+              stake={stake}
+              onStakeChange={setStake}
+              odds={insuranceEffectiveCombinedOdds ?? combinedOdds}
+              previousOdds={
+                accaBoost.qualifies
+                  ? accaBoost.baseCombinedOdds
+                  : insuranceApplies
+                    ? combinedOdds
+                    : undefined
+              }
+              invalid={Boolean(accumulatorInvalidReason)}
+            />
+            <StakeLimitAlert stakeCents={stakeCents} preview={accumulatorStakeLimitPreview} />
+          </>
+        )}
+        {singleSelection && (
+          <>
+            <StakeField
+              stakeId={stakeId}
+              stake={getSingleStake(singleSelection)}
+              onStakeChange={(value) => setSingleStake(singleSelection, value)}
+              odds={insuranceEffectiveSingleOdds ?? singleSelection.odds}
+              hideOdds={!insuranceApplies}
+              previousOdds={insuranceApplies ? singleSelection.odds : undefined}
+            />
+            <StakeLimitAlert
+              stakeCents={Math.round(Number(getSingleStake(singleSelection)) * 100)}
+              preview={singleSelectionStakeLimitPreview}
+            />
+          </>
+        )}
         {!isFreebetMode && insuranceBetConfig.enabled && selections.length > 0 && !insuranceIneligible && (
           <div className="space-y-1.5 rounded-xl border border-border bg-surface-2 p-2.5 text-xs">
             <div className="flex items-center justify-between gap-2">
@@ -943,8 +885,8 @@ export function BetSlipPanel({
                 placeAccumulatorMutation.mutate({
                   selections,
                   stakeCents,
-                  freebetGrantId: isFreebetMode ? (selectedFreebetId ?? undefined) : undefined,
-                  insuranceOptIn,
+                  useFreebets: isFreebetMode || undefined,
+                  insuranceOptIn: isFreebetMode ? undefined : insuranceOptIn,
                 });
               } else {
                 placeSinglesMutation.mutate();

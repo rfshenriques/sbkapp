@@ -339,7 +339,7 @@ describe('PromoCardService', () => {
       const campaign = await campaignService.create(brandAId, { name: 'BNG', rewardAmountCents: 1_000 }, TEST_ACTOR);
       await service.add(brandAId, Buffer.from('a'), 'image/png', { betAndGetCampaignId: campaign.id }, TEST_ACTOR);
       await prisma.freebetGrant.create({
-        data: { userId, brandId: brandAId, amountCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
+        data: { userId, brandId: brandAId, amountCents: 1_000, remainingCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
       });
 
       expect(await service.listForViewer(brandAId, userId)).toEqual([]);
@@ -375,7 +375,7 @@ describe('PromoCardService', () => {
       );
       await service.add(brandAId, Buffer.from('a'), 'image/png', { betAndGetCampaignId: campaign.id }, TEST_ACTOR);
       await prisma.freebetGrant.create({
-        data: { userId, brandId: brandAId, amountCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
+        data: { userId, brandId: brandAId, amountCents: 1_000, remainingCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
       });
 
       expect(await service.listForViewer(brandAId, userId)).toHaveLength(1);

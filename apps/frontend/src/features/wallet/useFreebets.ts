@@ -13,7 +13,7 @@ export function useFreebets() {
   });
 }
 
-/** Total spendable freebet balance - what the header/bet slip balance display shows, distinct from any single freebet's own amount. */
+/** Total spendable freebets balance - the pooled wallet total shown in the header/bet slip, summed from each grant's remaining (not original) amount. */
 export function sumFreebetsCents(freebets: Freebet[] | undefined): number {
-  return (freebets ?? []).reduce((total, freebet) => total + freebet.amountCents, 0);
+  return (freebets ?? []).reduce((total, freebet) => total + freebet.remainingCents, 0);
 }

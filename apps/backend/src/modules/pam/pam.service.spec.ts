@@ -900,7 +900,7 @@ describe('PamService', () => {
   });
 
   describe('freebets', () => {
-    it('funds a bet with a freebet instead of the cash balance, and disables acca boost', async () => {
+    it('funds a bet with the freebets pool instead of the cash balance, and disables acca boost', async () => {
       await accaBoostService.setConfig(
         testBrandId,
         { boostPercentPerLeg: 5, minSelections: 2, minOddsPerLeg: 1.2, enabled: true },
@@ -919,10 +919,10 @@ describe('PamService', () => {
           buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 1.5 }),
         ],
         stakeCents: 1_000,
-        freebetGrantId: grant.id,
+        useFreebets: true,
       });
 
-      // Cash balance untouched - the freebet funded the stake, not the player's own money.
+      // Cash balance untouched - the freebets pool funded the stake, not the player's own money.
       const wallet = await pamService.getWallet(userId);
       expect(wallet.balanceCents).toBe(100_000);
 
@@ -932,24 +932,42 @@ describe('PamService', () => {
 
       const spentGrant = await prisma.freebetGrant.findUniqueOrThrow({ where: { id: grant.id } });
       expect(spentGrant.status).toBe('SPENT');
-      expect(spentGrant.spentOnBetId).toBe(bet.id);
+      expect(spentGrant.remainingCents).toBe(0);
     });
 
-    it("rejects a stake that doesn't exactly match the freebet's value", async () => {
+    it('acts like a wallet: a typed stake smaller than the grant draws it down and leaves the remainder spendable', async () => {
       const userId = await createTestUser(100_000);
       const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
       const grant = await freebetService.grant(testBrandId, { identifier: user.username, amountCents: 1_000 }, TEST_ACTOR);
 
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection()],
+        stakeCents: 300,
+        useFreebets: true,
+      });
+
+      expect(bet.stakeCents).toBe(300);
+      const partiallySpent = await prisma.freebetGrant.findUniqueOrThrow({ where: { id: grant.id } });
+      expect(partiallySpent.status).toBe('ACTIVE');
+      expect(partiallySpent.remainingCents).toBe(700);
+      expect(await pamService.getFreebets(userId).then((freebets) => freebets[0]!.remainingCents)).toBe(700);
+    });
+
+    it('rejects a stake that exceeds the freebets balance', async () => {
+      const userId = await createTestUser(100_000);
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      await freebetService.grant(testBrandId, { identifier: user.username, amountCents: 1_000 }, TEST_ACTOR);
+
       await expect(
         pamService.placeBet(userId, {
           selections: [buildSelection()],
-          stakeCents: 500,
-          freebetGrantId: grant.id,
+          stakeCents: 1_500,
+          useFreebets: true,
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
 
-    it('rejects a freebet that is no longer active', async () => {
+    it('rejects useFreebets once the only grant has been voided', async () => {
       const userId = await createTestUser(100_000);
       const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
       const grant = await freebetService.grant(testBrandId, { identifier: user.username, amountCents: 1_000 }, TEST_ACTOR);
@@ -959,7 +977,7 @@ describe('PamService', () => {
         pamService.placeBet(userId, {
           selections: [buildSelection()],
           stakeCents: 1_000,
-          freebetGrantId: grant.id,
+          useFreebets: true,
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
@@ -1041,6 +1059,7 @@ describe('PamService', () => {
           userId,
           brandId: testBrandId,
           amountCents: 500,
+          remainingCents: 500,
           source: 'BET_AND_GET',
           sourceCampaignId: campaign.id,
         },
@@ -1394,7 +1413,7 @@ describe('PamService', () => {
       const bet = await pamService.placeBet(userId, {
         selections: [buildSelection({ odds: 2.1 })],
         stakeCents: 1_000,
-        freebetGrantId: grant.id,
+        useFreebets: true,
       });
 
       const settled = await pamService.settleSelection(
@@ -1420,7 +1439,7 @@ describe('PamService', () => {
       const bet = await pamService.placeBet(userId, {
         selections: [buildSelection({ odds: 2.1 })],
         stakeCents: 1_000,
-        freebetGrantId: grant.id,
+        useFreebets: true,
       });
 
       const settled = await pamService.settleSelection(
@@ -1443,7 +1462,7 @@ describe('PamService', () => {
       const bet = await pamService.placeBet(userId, {
         selections: [buildSelection({ odds: 2.1 })],
         stakeCents: 1_000,
-        freebetGrantId: grant.id,
+        useFreebets: true,
       });
 
       const settled = await pamService.settleSelection(
@@ -1767,11 +1786,7 @@ describe('PamService', () => {
       );
       const userId = await createTestUser(100_000);
       const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-      const freebetGrant = await freebetService.grant(
-        testBrandId,
-        { identifier: user.username, amountCents: 1_000 },
-        TEST_ACTOR,
-      );
+      await freebetService.grant(testBrandId, { identifier: user.username, amountCents: 1_000 }, TEST_ACTOR);
       const bet = await pamService.placeBet(userId, {
         selections: [
           buildSelection({ matchId: 'match-1', odds: 2.0 }),
@@ -1779,7 +1794,7 @@ describe('PamService', () => {
           buildSelection({ matchId: 'match-3', selectionId: 'away', odds: 2.0 }),
         ],
         stakeCents: 1_000,
-        freebetGrantId: freebetGrant.id,
+        useFreebets: true,
       });
 
       await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
@@ -1903,7 +1918,7 @@ describe('PamService', () => {
       const bet = await pamService.placeBet(userId, {
         selections: [buildSelection({ odds: 2.0 })],
         stakeCents: 1_000,
-        freebetGrantId: grant.id,
+        useFreebets: true,
         insuranceOptIn: true,
       });
 

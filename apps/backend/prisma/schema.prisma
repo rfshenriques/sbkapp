@@ -204,14 +204,16 @@ enum FreebetSource {
 }
 
 /**
- * One freebet token - stake-not-returned, single-use, atomic (a bet placed
- * with a freebet must stake exactly this grant's amountCents, not a partial
- * amount - same as how real sportsbook free bets work; the player picks
- * which token to use, not a "balance" they draw down arbitrarily).
- * `status` only ever changes via an explicit actor action (FreebetService.
- * spend on bet placement, .void by staff) - expiry is a read-time
- * condition on expiresAt, not a swept status, since there's no background
- * job infrastructure in this codebase to transition it otherwise.
+ * One freebet grant - a stake-not-returned credit toward the player's
+ * pooled freebets balance (see FreebetService.balanceCents), not a
+ * single-use fixed-value token. A bet can draw any typed stake from that
+ * pool, potentially spanning several grants (see BetFreebetDebit) -
+ * `remainingCents` tracks how much of this specific grant hasn't been
+ * drawn down yet, starting equal to `amountCents`. `status` flips to
+ * SPENT once `remainingCents` reaches 0, or VOIDED via an explicit staff
+ * action - expiry is a read-time condition on expiresAt, not a swept
+ * status, since there's no background job infrastructure in this
+ * codebase to transition it otherwise.
  */
 model FreebetGrant {
   id                   String        @id @default(uuid())
@@ -220,6 +222,8 @@ model FreebetGrant {
   brandId              String
   brand                Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
   amountCents          Int
+  /** How much of amountCents hasn't been drawn down by a BetFreebetDebit yet - starts equal to amountCents. */
+  remainingCents       Int
   source               FreebetSource
   /**
    * Staff-entered free text for a MANUAL grant, e.g. "Goodwill gesture - support ticket #482". Null for system-granted sources.
@@ -227,8 +231,8 @@ model FreebetGrant {
   note                 String?
   status               FreebetStatus @default(ACTIVE)
   expiresAt            DateTime?
+  /** When remainingCents first reached 0 - i.e. when this grant was fully drawn down. */
   spentAt              DateTime?
-  spentOnBetId         String?
   /**
    * The bet that triggered a system grant (e.g. the losing accumulator an ACCA_ROLLBACK reward refunds) - null for MANUAL grants. Also doubles as the idempotency key so re-settling a bet never grants the reward twice.
    */
@@ -246,13 +250,33 @@ model FreebetGrant {
   createdAt            DateTime      @default(now())
   updatedAt            DateTime      @updatedAt
 
-  fundedBet Bet?
+  debits BetFreebetDebit[]
 
   @@index([userId, status])
   @@index([brandId])
   @@index([sourceBetId])
   @@index([sourceCampaignId])
   @@map("freebet_grants")
+}
+
+/**
+ * One grant's contribution toward funding one freebet-mode bet - a bet's
+ * stake can draw from several grants at once (see
+ * FreebetService.spendFromBalance), so this is a many-to-many join between
+ * Bet and FreebetGrant rather than a single FK on either side.
+ */
+model BetFreebetDebit {
+  id             String       @id @default(uuid())
+  betId          String
+  bet            Bet          @relation(fields: [betId], references: [id], onDelete: Cascade)
+  freebetGrantId String
+  freebetGrant   FreebetGrant @relation(fields: [freebetGrantId], references: [id], onDelete: Cascade)
+  amountCents    Int
+  createdAt      DateTime     @default(now())
+
+  @@index([betId])
+  @@index([freebetGrantId])
+  @@map("bet_freebet_debits")
 }
 
 /**
@@ -598,10 +622,14 @@ model Bet {
   settledAt          DateTime?
 
   /**
-   * Set only when this bet was funded by a freebet instead of cash (see FreebetService.spend) - stakeCents always equals that grant's amountCents. Settlement never returns the stake for a freebet-funded bet, only the profit (see PamService.settleSelection).
+   * True when this bet was funded from the player's pooled freebets balance
+   * instead of cash (see FreebetService.spendFromBalance) - the typed stake
+   * can draw from one or several grants, tracked per-grant in
+   * freebetDebits. Settlement never returns the stake for a freebet-funded
+   * bet, only the profit (see PamService.settleSelection).
    */
-  freebetGrantId String?       @unique
-  freebetGrant   FreebetGrant? @relation(fields: [freebetGrantId], references: [id], onDelete: SetNull)
+  fundedByFreebets Boolean           @default(false)
+  freebetDebits    BetFreebetDebit[]
 
   /**
    * The single BetAndGetCampaign this bet qualified for, resolved once at placement time from the live match/odds data then reused unchanged at settlement (see PamService) - never re-derived later, so a scope/condition change never retroactively relabels an already-placed bet. Null when no campaign applied.

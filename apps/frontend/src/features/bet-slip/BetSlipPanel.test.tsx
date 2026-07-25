@@ -550,7 +550,7 @@ describe('BetSlipPanel', () => {
 
   describe('freebets', () => {
     function stubFreebetsAndAccaBoost(
-      freebets: { id: string; amountCents: number; expiresAt: string | null }[],
+      freebets: { id: string; amountCents: number; remainingCents: number; expiresAt: string | null }[],
       accaBoostConfig?: { boostPercentPerLeg: number; minSelections: number; minOddsPerLeg: number; enabled: boolean },
     ) {
       const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -601,25 +601,26 @@ describe('BetSlipPanel', () => {
       expect(screen.queryByRole('switch', { name: 'Pay with freebets' })).not.toBeInTheDocument();
     });
 
-    it('switching to Freebets replaces the stake input with a picker of the player’s freebets', async () => {
-      stubFreebetsAndAccaBoost([{ id: 'grant-1', amountCents: 1000, expiresAt: null }]);
+    it('switching to Freebets keeps the same typed stake input - freebets act like a second wallet, not a fixed-value token', async () => {
+      stubFreebetsAndAccaBoost([{ id: 'grant-1', amountCents: 1000, remainingCents: 1000, expiresAt: null }]);
       useBetSlipStore.setState({ selections: [homeSelection] });
       renderPanel();
 
       await userEvent.click(await screen.findByRole('switch', { name: 'Pay with freebets' }));
 
-      expect(screen.getByText('Choose a freebet')).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: '€10.00' })).toBeInTheDocument();
-      expect(screen.queryByLabelText('Stake')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Stake')).toBeInTheDocument();
+      expect(screen.queryByText('Choose a freebet')).not.toBeInTheDocument();
     });
 
-    it('placing a freebet-funded bet sends the freebetGrantId and the freebet’s own amount as the stake', async () => {
-      const fetchMock = stubFreebetsAndAccaBoost([{ id: 'grant-1', amountCents: 1000, expiresAt: null }]);
+    it('placing a freebet-funded bet sends useFreebets and whatever stake the player typed, not the grant’s own amount', async () => {
+      const fetchMock = stubFreebetsAndAccaBoost([{ id: 'grant-1', amountCents: 1000, remainingCents: 1000, expiresAt: null }]);
       useBetSlipStore.setState({ selections: [homeSelection] });
       renderPanel();
 
       await userEvent.click(await screen.findByRole('switch', { name: 'Pay with freebets' }));
-      await userEvent.click(screen.getByRole('button', { name: '€10.00' }));
+      const stakeInput = screen.getByLabelText('Stake');
+      await userEvent.clear(stakeInput);
+      await userEvent.type(stakeInput, '3');
       await userEvent.click(screen.getByRole('button', { name: 'Place Bet' }));
 
       await screen.findByText(/Bet placed!/);
@@ -627,14 +628,14 @@ describe('BetSlipPanel', () => {
       const [, init] = betCall as [string, RequestInit];
       expect(JSON.parse(init.body as string)).toEqual({
         selections: [homeSelection],
-        stakeCents: 1000,
-        freebetGrantId: 'grant-1',
+        stakeCents: 300,
+        useFreebets: true,
       });
     });
 
     it('hides the Acca Boost bar in freebet mode even for a qualifying accumulator', async () => {
       stubFreebetsAndAccaBoost(
-        [{ id: 'grant-1', amountCents: 1000, expiresAt: null }],
+        [{ id: 'grant-1', amountCents: 1000, remainingCents: 1000, expiresAt: null }],
         { boostPercentPerLeg: 5, minSelections: 2, minOddsPerLeg: 1.2, enabled: true },
       );
       useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
@@ -647,8 +648,8 @@ describe('BetSlipPanel', () => {
       expect(screen.queryByText(/Acca Boost/)).not.toBeInTheDocument();
     });
 
-    it('falls back to Cash automatically when switching to Singles with 2+ selections while in freebet mode', async () => {
-      stubFreebetsAndAccaBoost([{ id: 'grant-1', amountCents: 1000, expiresAt: null }]);
+    it('stays in freebet mode when switching to Singles with 2+ selections - freebets can fund several bets at once, unlike the old fixed-token model', async () => {
+      stubFreebetsAndAccaBoost([{ id: 'grant-1', amountCents: 1000, remainingCents: 1000, expiresAt: null }]);
       useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
       renderPanel();
 
@@ -657,8 +658,7 @@ describe('BetSlipPanel', () => {
 
       await userEvent.click(screen.getByRole('tab', { name: 'Singles' }));
 
-      expect(screen.getByRole('switch', { name: 'Pay with freebets' })).toHaveAttribute('aria-checked', 'false');
-      expect(screen.queryByText('Choose a freebet')).not.toBeInTheDocument();
+      expect(screen.getByRole('switch', { name: 'Pay with freebets' })).toHaveAttribute('aria-checked', 'true');
     });
   });
 

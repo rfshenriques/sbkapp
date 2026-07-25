@@ -97,7 +97,12 @@ function FreebetRow({ grant, identifier }: { grant: backendApi.FreebetGrant; ide
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-background px-3 py-2 text-sm">
       <div className="min-w-0">
-        <span className="font-semibold">€{formatEuros(grant.amountCents)}</span>{' '}
+        <span className="font-semibold">
+          €{formatEuros(grant.amountCents)}
+          {grant.status === 'ACTIVE' && grant.remainingCents < grant.amountCents && (
+            <span className="font-normal text-text-secondary"> (€{formatEuros(grant.remainingCents)} left)</span>
+          )}
+        </span>{' '}
         <span className={`rounded px-1.5 py-0.5 text-xs ${statusBadgeClasses(grant.status)}`}>{grant.status}</span>
         <div className="text-xs text-text-muted">
           {grant.source === 'MANUAL' ? `Granted by ${grant.createdByUsername ?? 'staff'}` : grant.source}
@@ -115,11 +120,13 @@ function FreebetRow({ grant, identifier }: { grant: backendApi.FreebetGrant; ide
 }
 
 /**
- * A freebet is single-use and atomic (see FreebetService) - a bet funded by
- * one must stake exactly its value. This page is a per-player lookup, not a
- * flat list, since there's no "all freebets" use case yet - a trader/CRM
- * staff member always starts from a specific player (support ticket,
- * goodwill gesture, campaign reward correction).
+ * A freebet grant credits the player's pooled freebets balance (see
+ * FreebetService.spendFromBalance) - a bet can draw any typed stake from
+ * it, so a grant is often partially drawn down rather than spent all at
+ * once. This page is a per-player lookup, not a flat list, since there's
+ * no "all freebets" use case yet - a trader/CRM staff member always
+ * starts from a specific player (support ticket, goodwill gesture,
+ * campaign reward correction).
  */
 export default function FreebetsPage() {
   const [identifierInput, setIdentifierInput] = useState('');

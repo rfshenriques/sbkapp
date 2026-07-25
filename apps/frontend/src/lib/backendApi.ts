@@ -53,16 +53,17 @@ export interface PlaceBetSelection {
 export interface PlaceBetPayload {
   selections: PlaceBetSelection[];
   stakeCents: number;
-  /** Funds this bet with a freebet instead of cash - stakeCents must equal that grant's amountCents exactly (see FreebetService). */
-  freebetGrantId?: string;
-  /** Opts into insurance (see InsuranceBetService) - reduces the payout by the brand's cost percent, refunds the stake as a freebet if the bet loses. Never applies alongside freebetGrantId. */
+  /** Draws stakeCents from the player's pooled freebets balance instead of cash - any typed amount up to that balance, not a fixed token value (see FreebetService.spendFromBalance). */
+  useFreebets?: boolean;
+  /** Opts into insurance (see InsuranceBetService) - reduces the payout by the brand's cost percent, refunds the stake as a freebet if the bet loses. Never applies alongside useFreebets. */
   insuranceOptIn?: boolean;
 }
 
-/** A player's own freebet token - always ACTIVE and unexpired (see PamService.getFreebets/FreebetService.listActive), since that's all a player ever needs to see to place a bet with one. */
+/** One grant toward a player's pooled freebets balance - always ACTIVE, unexpired, and not yet fully drawn down (see PamService.getFreebets/FreebetService.listActive). remainingCents (not amountCents) is what's actually still spendable. */
 export interface Freebet {
   id: string;
   amountCents: number;
+  remainingCents: number;
   expiresAt: string | null;
 }
 

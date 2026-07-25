@@ -238,7 +238,7 @@ describe('BetAndGetCampaignService', () => {
       expect(await service.canRedeem(campaign, userId)).toBe(true);
 
       await prisma.freebetGrant.create({
-        data: { userId, brandId: brandAId, amountCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
+        data: { userId, brandId: brandAId, amountCents: 1_000, remainingCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
       });
 
       expect(await service.canRedeem(campaign, userId)).toBe(false);
@@ -253,11 +253,11 @@ describe('BetAndGetCampaignService', () => {
 
       expect(await service.canRedeem(campaign, userId)).toBe(true);
       await prisma.freebetGrant.create({
-        data: { userId, brandId: brandAId, amountCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
+        data: { userId, brandId: brandAId, amountCents: 1_000, remainingCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
       });
       expect(await service.canRedeem(campaign, userId)).toBe(true);
       await prisma.freebetGrant.create({
-        data: { userId, brandId: brandAId, amountCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
+        data: { userId, brandId: brandAId, amountCents: 1_000, remainingCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
       });
       expect(await service.canRedeem(campaign, userId)).toBe(false);
     });
@@ -271,7 +271,7 @@ describe('BetAndGetCampaignService', () => {
 
       for (let i = 0; i < 5; i += 1) {
         await prisma.freebetGrant.create({
-          data: { userId, brandId: brandAId, amountCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
+          data: { userId, brandId: brandAId, amountCents: 1_000, remainingCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
         });
       }
       expect(await service.canRedeem(campaign, userId)).toBe(true);
@@ -282,7 +282,7 @@ describe('BetAndGetCampaignService', () => {
       const campaignB = await service.create(brandAId, { name: 'B', rewardAmountCents: 1_000 }, TEST_ACTOR);
 
       await prisma.freebetGrant.create({
-        data: { userId, brandId: brandAId, amountCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaignA.id },
+        data: { userId, brandId: brandAId, amountCents: 1_000, remainingCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaignA.id },
       });
 
       expect(await service.canRedeem(campaignB, userId)).toBe(true);

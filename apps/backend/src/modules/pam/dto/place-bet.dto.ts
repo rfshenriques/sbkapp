@@ -49,14 +49,15 @@ export class PlaceBetDto {
   stakeCents!: number;
 
   /**
-   * When set, this bet is funded by that freebet grant instead of the
-   * player's cash balance - stakeCents must equal the grant's own
-   * amountCents exactly (a freebet is atomic, see FreebetService), and acca
-   * boost never applies (see PamService.placeBet) to avoid double-bonusing.
+   * When true, this bet draws stakeCents from the player's pooled freebets
+   * balance instead of their cash balance (see FreebetService.
+   * spendFromBalance) - any typed amount up to that balance, not a fixed
+   * token value. Acca boost never applies (see PamService.placeBet) to
+   * avoid double-bonusing.
    */
   @IsOptional()
-  @IsString()
-  freebetGrantId?: string;
+  @IsBoolean()
+  useFreebets?: boolean;
 
   /**
    * When true and the brand has insurance bet enabled, the potential payout

@@ -213,7 +213,14 @@ describe('DepositCampaignService', () => {
     it('is true once a DEPOSIT_CAMPAIGN freebet has actually been granted', async () => {
       const campaign = await service.create(brandAId, FIXED_INPUT, TEST_ACTOR);
       await prisma.freebetGrant.create({
-        data: { userId, brandId: brandAId, amountCents: 1_000, source: 'DEPOSIT_CAMPAIGN', sourceCampaignId: campaign.id },
+        data: {
+          userId,
+          brandId: brandAId,
+          amountCents: 1_000,
+          remainingCents: 1_000,
+          source: 'DEPOSIT_CAMPAIGN',
+          sourceCampaignId: campaign.id,
+        },
       });
 
       expect(await service.hasBeenGranted(campaign.id, userId)).toBe(true);
