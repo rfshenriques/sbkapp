@@ -95,12 +95,33 @@ export function WalletIcon(props: IconProps) {
   );
 }
 
-/** Freebets balance - a torn-edge ticket, distinct from the wallet used for cash. */
-export function TicketIcon(props: IconProps) {
+/**
+ * Freebets balance - a solid circular badge with a bold "F", distinct from
+ * the plain-stroke wallet icon used for cash. Unlike the other icons here
+ * it's filled, not stroke-only: the badge's own fill is `currentColor` (a
+ * consumer sets it via a text-* color class, normally --color-highlight -
+ * this is a general accent/status indicator, not a CTA, so it never uses
+ * --color-brand), while the ring and letter stay a fixed white so the mark
+ * reads the same on any brand color or theme.
+ */
+export function FreebetBadgeIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 20 20" {...props}>
+      <circle cx="10" cy="10" r="9" fill="currentColor" />
+      <circle cx="10" cy="10" r="9" fill="none" stroke="white" strokeWidth="1.3" />
+      <text x="10" y="14" textAnchor="middle" fontSize="10.5" fontWeight="800" fill="white">
+        F
+      </text>
+    </svg>
+  );
+}
+
+/** Still-resolving/OPEN status - a clock face, next to the check/cross used for WON/LOST. */
+export function ClockIcon(props: IconProps) {
   return (
     <svg {...baseProps} {...props}>
-      <path d="M2.5 8.2a1.8 1.8 0 0 0 0-3.4V4a1 1 0 0 1 1-1h13a1 1 0 0 1 1 1v.8a1.8 1.8 0 0 0 0 3.4v.4a1.8 1.8 0 0 0 0 3.4v.4a1.8 1.8 0 0 0 0 3.4V16a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-.8a1.8 1.8 0 0 0 0-3.4v-.4a1.8 1.8 0 0 0 0-3.4Z" />
-      <line x1="7.2" y1="3.5" x2="7.2" y2="16.5" strokeDasharray="1.6 1.6" />
+      <circle cx="10" cy="10" r="7.5" />
+      <path d="M10 6v4l3 2" />
     </svg>
   );
 }

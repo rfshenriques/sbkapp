@@ -3,8 +3,9 @@ import { Card } from '../../components/ui/Card';
 import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MoneyBeforeAfter } from '../../components/ui/MoneyBeforeAfter';
+import { ClockIcon } from '../../components/ui/NavIcons';
 import { Skeleton } from '../../components/ui/Skeleton';
-import { betStatusBadgeClasses, betStatusTextClasses } from '../../lib/betStatus';
+import { betStatusBadgeClasses, betStatusLabel, betStatusTextClasses } from '../../lib/betStatus';
 import type { PlacedBet, PlacedBetSelection } from '../../lib/backendApi';
 import { useAuth } from '../auth/useAuth';
 import { useAuthModalStore } from '../auth/authModalStore';
@@ -44,15 +45,14 @@ function BetTag({ children }: { children: ReactNode }) {
   );
 }
 
-/** Small filled circle per accumulator leg - a WON/LOST/VOID glyph once a leg has settled, plain colored dot while still OPEN. Collapsed-state summary so a player can see at a glance how an accumulator is going without expanding it. */
+/** Small filled circle per accumulator leg - a check/cross/dash glyph once a leg has settled, a clock while still OPEN. Collapsed-state summary so a player can see at a glance how an accumulator is going without expanding it. */
 function SelectionStatusDot({ status }: { status: PlacedBetSelection['status'] }) {
-  const glyph = status === 'WON' ? '✓' : status === 'LOST' ? '✕' : status === 'VOID' ? '–' : '';
   return (
     <span
       aria-hidden="true"
       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold leading-none ${betStatusBadgeClasses(status)}`}
     >
-      {glyph}
+      {status === 'WON' ? '✓' : status === 'LOST' ? '✕' : status === 'VOID' ? '–' : <ClockIcon width={11} height={11} />}
     </span>
   );
 }
@@ -85,7 +85,7 @@ function BetCard({ bet }: { bet: PlacedBet }) {
           <span
             className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest ${betStatusBadgeClasses(bet.status)}`}
           >
-            {bet.status}
+            {betStatusLabel(bet.status)}
           </span>
           <BetTag>{isAccumulator ? `Accumulator (${bet.selections.length})` : 'Single'}</BetTag>
           {bet.fundedByFreebets && <BetTag>Freebet</BetTag>}

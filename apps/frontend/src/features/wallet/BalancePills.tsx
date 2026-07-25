@@ -1,4 +1,4 @@
-import { TicketIcon, WalletIcon } from '../../components/ui/NavIcons';
+import { FreebetBadgeIcon, WalletIcon } from '../../components/ui/NavIcons';
 import { cn } from '../../lib/cn';
 import { formatCents } from './useWallet';
 
@@ -52,7 +52,7 @@ export function BalancePills({ cashCents, freebetsCents, className, activeKind, 
           )}
           title="Freebets balance"
         >
-          <TicketIcon width={14} height={14} className="shrink-0" />
+          <FreebetBadgeIcon width={15} height={15} className="shrink-0 text-highlight" />
           <span className="font-semibold text-text-primary">€{formatCents(freebetsCents)}</span>
         </span>
       )}

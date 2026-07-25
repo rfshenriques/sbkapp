@@ -92,16 +92,16 @@ describe('MyBetsPage', () => {
     renderPage();
 
     expect(screen.getByRole('tab', { name: 'Open' })).toHaveAttribute('aria-selected', 'true');
-    await screen.findByText('PENDING');
+    await screen.findByText('OPEN');
     expect(screen.queryByText('WON')).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('tab', { name: 'Won' }));
     expect(await screen.findByText('WON')).toBeInTheDocument();
-    expect(screen.queryByText('PENDING')).not.toBeInTheDocument();
+    expect(screen.queryByText('OPEN')).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('tab', { name: 'Finished' }));
     expect(await screen.findByText('WON')).toBeInTheDocument();
     expect(screen.getByText('LOST')).toBeInTheDocument();
-    expect(screen.queryByText('PENDING')).not.toBeInTheDocument();
+    expect(screen.queryByText('OPEN')).not.toBeInTheDocument();
   });
 });

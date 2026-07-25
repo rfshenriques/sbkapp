@@ -92,7 +92,7 @@ describe('BetHistoryList', () => {
 
     expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
     expect(screen.getByText(/Match Result: Home/)).toBeInTheDocument();
-    expect(screen.getByText('PENDING')).toBeInTheDocument();
+    expect(screen.getByText('OPEN')).toBeInTheDocument();
     expect(screen.getByText('Potential €20.00')).toBeInTheDocument();
   });
 
@@ -117,8 +117,8 @@ describe('BetHistoryList', () => {
 
     renderList();
 
-    const statuses = await screen.findAllByText(/PENDING|WON/);
-    expect(statuses.map((el) => el.textContent)).toEqual(['PENDING', 'WON']);
+    const statuses = await screen.findAllByText(/OPEN|WON/);
+    expect(statuses.map((el) => el.textContent)).toEqual(['OPEN', 'WON']);
   });
 
   it('labels a single-selection bet "Single" and an accumulator "Accumulator (N)"', async () => {
@@ -281,7 +281,7 @@ describe('BetHistoryList', () => {
     it('OPEN shows only PENDING bets', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(bets), { status: 200 })));
       renderList('OPEN');
-      expect(await screen.findByText('PENDING')).toBeInTheDocument();
+      expect(await screen.findByText('OPEN')).toBeInTheDocument();
       expect(screen.queryByText('WON')).not.toBeInTheDocument();
       expect(screen.queryByText('LOST')).not.toBeInTheDocument();
     });
@@ -290,7 +290,7 @@ describe('BetHistoryList', () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(bets), { status: 200 })));
       renderList('WON');
       expect(await screen.findByText('WON')).toBeInTheDocument();
-      expect(screen.queryByText('PENDING')).not.toBeInTheDocument();
+      expect(screen.queryByText('OPEN')).not.toBeInTheDocument();
       expect(screen.queryByText('LOST')).not.toBeInTheDocument();
     });
 
@@ -299,7 +299,7 @@ describe('BetHistoryList', () => {
       renderList('FINISHED');
       expect(await screen.findByText('WON')).toBeInTheDocument();
       expect(screen.getByText('LOST')).toBeInTheDocument();
-      expect(screen.queryByText('PENDING')).not.toBeInTheDocument();
+      expect(screen.queryByText('OPEN')).not.toBeInTheDocument();
     });
 
     it('shows a filter-specific empty state when nothing matches', async () => {
