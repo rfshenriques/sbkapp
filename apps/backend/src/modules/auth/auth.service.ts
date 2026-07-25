@@ -70,6 +70,16 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Only one device stays signed in at a time - logging in here revokes
+    // every other still-active refresh token for this player, so an
+    // already-open session elsewhere can no longer silently refresh once
+    // its short-lived access token expires (see authenticatedFetch on the
+    // frontend, which clears local auth state the moment a refresh fails).
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: user.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
     return this.issueTokens(user.id, user.username, user.email, user.brandId);
   }
 

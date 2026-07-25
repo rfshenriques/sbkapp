@@ -143,6 +143,21 @@ describe('AuthService', () => {
     await expect(authService.refresh(refreshToken)).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
+  it('logging in from a second device revokes the first device’s refresh token', async () => {
+    const dto = buildRegisterDto();
+    const { refreshToken: deviceARefreshToken } = await authService.register(dto);
+    const user = await prisma.user.findUniqueOrThrow({ where: { email: dto.email } });
+    createdUserIds.push(user.id);
+
+    const deviceB = await authService.login({ identifier: dto.email, password: dto.password });
+    expect(deviceB.refreshToken).not.toBe(deviceARefreshToken);
+
+    await expect(authService.refresh(deviceARefreshToken)).rejects.toBeInstanceOf(UnauthorizedException);
+    await expect(authService.refresh(deviceB.refreshToken)).resolves.toMatchObject({
+      accessToken: expect.any(String),
+    });
+  });
+
   it('logout revokes the refresh token so it can no longer be used', async () => {
     const dto = buildRegisterDto();
     const { refreshToken } = await authService.register(dto);
