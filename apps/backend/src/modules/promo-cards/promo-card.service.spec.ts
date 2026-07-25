@@ -5,12 +5,14 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
+import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.service';
 import { PromoCardService } from './promo-card.service';
 
 describe('PromoCardService', () => {
   let moduleRef: TestingModule;
   let service: PromoCardService;
   let campaignService: BetAndGetCampaignService;
+  let depositCampaignService: DepositCampaignService;
   let prisma: PrismaService;
   let setupPrisma: PrismaService;
   let brandAId: string;
@@ -41,12 +43,13 @@ describe('PromoCardService', () => {
 
   beforeEach(async () => {
     moduleRef = await Test.createTestingModule({
-      providers: [PromoCardService, BetAndGetCampaignService, PrismaService, AuditLogService],
+      providers: [PromoCardService, BetAndGetCampaignService, DepositCampaignService, PrismaService, AuditLogService],
     }).compile();
     await moduleRef.init();
 
     service = moduleRef.get(PromoCardService);
     campaignService = moduleRef.get(BetAndGetCampaignService);
+    depositCampaignService = moduleRef.get(DepositCampaignService);
     prisma = moduleRef.get(PrismaService);
   });
 
@@ -56,6 +59,7 @@ describe('PromoCardService', () => {
     });
     await prisma.promoCard.deleteMany({ where: { brandId: { in: [brandAId, brandBId] } } });
     await prisma.betAndGetCampaign.deleteMany({ where: { brandId: { in: [brandAId, brandBId] } } });
+    await prisma.depositCampaign.deleteMany({ where: { brandId: { in: [brandAId, brandBId] } } });
     await moduleRef.close();
   });
 
@@ -215,5 +219,172 @@ describe('PromoCardService', () => {
 
     expect(await service.list(brandAId)).toHaveLength(1);
     expect(await service.list(brandBId)).toHaveLength(0);
+  });
+
+  describe('deposit campaign linking', () => {
+    it('stores a deposit campaign link', async () => {
+      const campaign = await depositCampaignService.create(
+        brandAId,
+        { name: 'Deposit Boost', minDepositAmountCents: 5_000, rewardType: 'FIXED', fixedRewardAmountCents: 1_000 },
+        TEST_ACTOR,
+      );
+
+      const card = await service.add(
+        brandAId,
+        Buffer.from('bytes'),
+        'image/png',
+        { depositCampaignId: campaign.id },
+        TEST_ACTOR,
+      );
+
+      expect(card.depositCampaignId).toBe(campaign.id);
+    });
+
+    it('rejects linking a card to a nonexistent deposit campaign', async () => {
+      await expect(
+        service.add(brandAId, Buffer.from('bytes'), 'image/png', { depositCampaignId: 'does-not-exist' }, TEST_ACTOR),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("rejects linking a card to another brand's deposit campaign, even by guessing its id", async () => {
+      const otherBrandCampaign = await depositCampaignService.create(
+        brandBId,
+        { name: 'Other', minDepositAmountCents: 5_000, rewardType: 'FIXED', fixedRewardAmountCents: 1_000 },
+        OTHER_BRAND_ACTOR,
+      );
+
+      await expect(
+        service.add(
+          brandAId,
+          Buffer.from('bytes'),
+          'image/png',
+          { depositCampaignId: otherBrandCampaign.id },
+          TEST_ACTOR,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('rejects a card linked to both a Bet & Get and a Deposit campaign at once', async () => {
+      const betAndGet = await campaignService.create(brandAId, { name: 'BNG', rewardAmountCents: 1_000 }, TEST_ACTOR);
+      const deposit = await depositCampaignService.create(
+        brandAId,
+        { name: 'Deposit', minDepositAmountCents: 5_000, rewardType: 'FIXED', fixedRewardAmountCents: 1_000 },
+        TEST_ACTOR,
+      );
+
+      await expect(
+        service.add(
+          brandAId,
+          Buffer.from('bytes'),
+          'image/png',
+          { betAndGetCampaignId: betAndGet.id, depositCampaignId: deposit.id },
+          TEST_ACTOR,
+        ),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rejects an update that would leave both campaign links set, even when only one field is touched', async () => {
+      const betAndGet = await campaignService.create(brandAId, { name: 'BNG', rewardAmountCents: 1_000 }, TEST_ACTOR);
+      const deposit = await depositCampaignService.create(
+        brandAId,
+        { name: 'Deposit', minDepositAmountCents: 5_000, rewardType: 'FIXED', fixedRewardAmountCents: 1_000 },
+        TEST_ACTOR,
+      );
+      const card = await service.add(
+        brandAId,
+        Buffer.from('bytes'),
+        'image/png',
+        { betAndGetCampaignId: betAndGet.id },
+        TEST_ACTOR,
+      );
+
+      await expect(
+        service.update(brandAId, card.id, { depositCampaignId: deposit.id }, TEST_ACTOR),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('listForViewer', () => {
+    let userId: string;
+    const createdUserIds: string[] = [];
+
+    beforeEach(async () => {
+      const unique = randomUUID();
+      const user = await prisma.user.create({
+        data: {
+          email: `test-${unique}@example.com`,
+          username: `user_${unique.slice(0, 8)}`,
+          phone: `+1555${unique.replace(/\D/g, '').slice(0, 7)}`,
+          passwordHash: 'irrelevant',
+          brandId: brandAId,
+        },
+      });
+      userId = user.id;
+      createdUserIds.push(user.id);
+    });
+
+    afterEach(async () => {
+      await prisma.user.deleteMany({ where: { id: { in: createdUserIds } } });
+      createdUserIds.length = 0;
+    });
+
+    it('shows every card to a logged-out viewer, unfiltered', async () => {
+      const campaign = await campaignService.create(brandAId, { name: 'BNG', rewardAmountCents: 1_000 }, TEST_ACTOR);
+      await service.add(brandAId, Buffer.from('a'), 'image/png', { betAndGetCampaignId: campaign.id }, TEST_ACTOR);
+
+      expect(await service.listForViewer(brandAId, null)).toHaveLength(1);
+    });
+
+    it('hides a card linked to a Bet & Get campaign the player already redeemed', async () => {
+      const campaign = await campaignService.create(brandAId, { name: 'BNG', rewardAmountCents: 1_000 }, TEST_ACTOR);
+      await service.add(brandAId, Buffer.from('a'), 'image/png', { betAndGetCampaignId: campaign.id }, TEST_ACTOR);
+      await prisma.freebetGrant.create({
+        data: { userId, brandId: brandAId, amountCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
+      });
+
+      expect(await service.listForViewer(brandAId, userId)).toEqual([]);
+    });
+
+    it('hides a card linked to a Deposit campaign the player already redeemed', async () => {
+      const campaign = await depositCampaignService.create(
+        brandAId,
+        { name: 'Deposit', minDepositAmountCents: 5_000, rewardType: 'FIXED', fixedRewardAmountCents: 1_000 },
+        TEST_ACTOR,
+      );
+      await service.add(brandAId, Buffer.from('a'), 'image/png', { depositCampaignId: campaign.id }, TEST_ACTOR);
+      const deposit = await prisma.deposit.create({ data: { userId, brandId: brandAId, amountCents: 5_000 } });
+      await prisma.depositCampaignRedemption.create({
+        data: {
+          depositCampaignId: campaign.id,
+          userId,
+          brandId: brandAId,
+          depositId: deposit.id,
+          rewardAmountCents: 1_000,
+          status: 'GRANTED',
+        },
+      });
+
+      expect(await service.listForViewer(brandAId, userId)).toEqual([]);
+    });
+
+    it('still shows a card whose campaign allows multiple redemptions, up to the cap', async () => {
+      const campaign = await campaignService.create(
+        brandAId,
+        { name: 'BNG', rewardAmountCents: 1_000, allowMultipleRedemptions: true, maxRedemptionsPerPlayer: 2 },
+        TEST_ACTOR,
+      );
+      await service.add(brandAId, Buffer.from('a'), 'image/png', { betAndGetCampaignId: campaign.id }, TEST_ACTOR);
+      await prisma.freebetGrant.create({
+        data: { userId, brandId: brandAId, amountCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
+      });
+
+      expect(await service.listForViewer(brandAId, userId)).toHaveLength(1);
+    });
+
+    it('still shows a decorative card (no campaign link) regardless of the viewer', async () => {
+      await service.add(brandAId, Buffer.from('a'), 'image/png', {}, TEST_ACTOR);
+
+      expect(await service.listForViewer(brandAId, userId)).toHaveLength(1);
+    });
   });
 });

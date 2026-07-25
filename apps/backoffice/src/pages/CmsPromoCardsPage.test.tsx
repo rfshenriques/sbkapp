@@ -36,6 +36,7 @@ const decorativeCard: PromoCard = {
   subtitle: null,
   sortOrder: 0,
   betAndGetCampaignId: null,
+  depositCampaignId: null,
   createdAt: '2026-07-24T00:00:00Z',
   updatedAt: '2026-07-24T00:00:00Z',
 };

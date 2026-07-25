@@ -1277,6 +1277,86 @@ export async function setBetAndGetCampaignScopes(
   return parseJsonOrThrow(response, `Failed to set Bet & Get campaign scope: ${response.status}`);
 }
 
+export type DepositRewardType = 'FIXED' | 'PERCENTAGE';
+
+export interface DepositCampaignSegment {
+  id: string;
+  depositCampaignId: string;
+  segmentId: string;
+}
+
+export interface DepositCampaign {
+  id: string;
+  brandId: string;
+  name: string;
+  description: string | null;
+  enabled: boolean;
+  minDepositAmountCents: number;
+  rewardType: DepositRewardType;
+  fixedRewardAmountCents: number | null;
+  rewardPercent: number | null;
+  rewardCapCents: number | null;
+  requiresBet: boolean;
+  trigger: BetAndGetTrigger;
+  triggerOnWon: boolean;
+  triggerOnLost: boolean;
+  triggerOnVoid: boolean;
+  minStakeCents: number | null;
+  minOddsPerLeg: number | null;
+  betType: BetAndGetBetType;
+  minSelections: number | null;
+  allowMultipleRedemptions: boolean;
+  maxRedemptionsPerPlayer: number | null;
+  audienceMode: AudienceMode;
+  segments: DepositCampaignSegment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateDepositCampaignPayload {
+  name: string;
+  description?: string;
+  minDepositAmountCents: number;
+  rewardType: DepositRewardType;
+}
+
+export type UpdateDepositCampaignPayload = Partial<
+  Omit<DepositCampaign, 'id' | 'brandId' | 'createdAt' | 'updatedAt' | 'segments'> & { segmentIds: string[] }
+>;
+
+export async function listDepositCampaigns(): Promise<DepositCampaign[]> {
+  const response = await authenticatedFetch('/admin/deposit-campaigns');
+  return parseJsonOrThrow(response, `Failed to load deposit campaigns: ${response.status}`);
+}
+
+export async function createDepositCampaign(payload: CreateDepositCampaignPayload): Promise<DepositCampaign> {
+  const response = await authenticatedFetch('/admin/deposit-campaigns', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to create deposit campaign: ${response.status}`);
+}
+
+export async function updateDepositCampaign(
+  id: string,
+  payload: UpdateDepositCampaignPayload,
+): Promise<DepositCampaign> {
+  const response = await authenticatedFetch(`/admin/deposit-campaigns/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to update deposit campaign: ${response.status}`);
+}
+
+export async function removeDepositCampaign(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/deposit-campaigns/${id}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(`Failed to remove deposit campaign: ${response.status}`);
+  }
+}
+
 export interface PromoCard {
   id: string;
   brandId: string;
@@ -1285,6 +1365,7 @@ export interface PromoCard {
   subtitle: string | null;
   sortOrder: number;
   betAndGetCampaignId: string | null;
+  depositCampaignId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1294,12 +1375,14 @@ export interface AddPromoCardPayload {
   title?: string;
   subtitle?: string;
   betAndGetCampaignId?: string;
+  depositCampaignId?: string;
 }
 
 export interface UpdatePromoCardPayload {
   title?: string | null;
   subtitle?: string | null;
   betAndGetCampaignId?: string | null;
+  depositCampaignId?: string | null;
 }
 
 export async function listPromoCards(): Promise<PromoCard[]> {
@@ -1314,6 +1397,7 @@ export async function addPromoCard(payload: AddPromoCardPayload): Promise<PromoC
   if (payload.title) formData.append('title', payload.title);
   if (payload.subtitle) formData.append('subtitle', payload.subtitle);
   if (payload.betAndGetCampaignId) formData.append('betAndGetCampaignId', payload.betAndGetCampaignId);
+  if (payload.depositCampaignId) formData.append('depositCampaignId', payload.depositCampaignId);
   const response = await authenticatedFetch('/admin/promo-cards', { method: 'POST', body: formData });
   return parseJsonOrThrow(response, `Failed to upload promo card: ${response.status}`);
 }

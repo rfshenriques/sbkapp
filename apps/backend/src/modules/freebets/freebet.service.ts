@@ -20,9 +20,16 @@ export interface SystemGrantFreebetInput {
   amountCents: number;
   /** Never MANUAL - that source is staff-initiated via grant(). */
   source: Exclude<FreebetSource, 'MANUAL'>;
-  /** The bet that triggered this reward, e.g. the losing accumulator an ACCA_ROLLBACK refunds - also the idempotency key callers should check via findBySourceBet before granting. */
-  sourceBetId: string;
-  /** Only meaningful for BET_AND_GET - which campaign granted this, so BetAndGetCampaignService can count a player's redemptions of that specific campaign. */
+  /**
+   * The bet that triggered this reward, e.g. the losing accumulator an
+   * ACCA_ROLLBACK refunds - also the idempotency key this method checks
+   * before granting (re-settling the same bet never double-grants). Omit
+   * only for a reward with no triggering bet at all (e.g. a DEPOSIT_CAMPAIGN
+   * grant that doesn't require a bet) - the dedup check is skipped in that
+   * case, so the caller is responsible for its own idempotency.
+   */
+  sourceBetId?: string;
+  /** Only meaningful for BET_AND_GET and DEPOSIT_CAMPAIGN - which campaign granted this, so its service can count a player's redemptions against maxRedemptionsPerPlayer. */
   sourceCampaignId?: string;
 }
 
@@ -81,16 +88,21 @@ export class FreebetService {
    * A system-triggered reward (acca rollback, insurance bet) rather than a
    * staff-initiated one - no actor to attribute it to, so it's logged under
    * a `system:<source>` audit actor instead. Idempotent on (sourceBetId,
-   * source): a bet whose settlement is corrected and re-evaluated must
-   * never be granted the same reward twice, so a second call with the same
-   * pair just returns the grant already created by the first.
+   * source) whenever sourceBetId is given: a bet whose settlement is
+   * corrected and re-evaluated must never be granted the same reward twice,
+   * so a second call with the same pair just returns the grant already
+   * created by the first. Skipped entirely when sourceBetId is omitted -
+   * the caller (e.g. a no-bet-required deposit campaign) owns its own
+   * idempotency in that case.
    */
   async grantSystem(input: SystemGrantFreebetInput, client: PrismaClientLike = this.prisma) {
-    const existing = await client.freebetGrant.findFirst({
-      where: { sourceBetId: input.sourceBetId, source: input.source },
-    });
-    if (existing) {
-      return existing;
+    if (input.sourceBetId) {
+      const existing = await client.freebetGrant.findFirst({
+        where: { sourceBetId: input.sourceBetId, source: input.source },
+      });
+      if (existing) {
+        return existing;
+      }
     }
 
     const grant = await client.freebetGrant.create({

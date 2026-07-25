@@ -7,6 +7,7 @@ import { AccaBoostService } from '../acca-boost/acca-boost.service';
 import { AccaRollbackService } from '../acca-rollback/acca-rollback.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
+import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.service';
 import { InsuranceBetService } from '../insurance-bet/insurance-bet.service';
 import { BoostService } from '../boosts/boost.service';
 import { OddsLadderService } from '../boosts/odds-ladder.service';
@@ -76,6 +77,7 @@ describe('ReportsService', () => {
         OddsLadderService,
         FreebetService,
         BetAndGetCampaignService,
+        DepositCampaignService,
         {
           provide: OddsEngineClient,
           useValue: {

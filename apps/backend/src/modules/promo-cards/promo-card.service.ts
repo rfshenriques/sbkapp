@@ -1,6 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
+import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.service';
 
 /** Metadata only - never the image bytes, so listing stays a small JSON response. */
 const METADATA_SELECT = {
@@ -11,6 +13,7 @@ const METADATA_SELECT = {
   subtitle: true,
   sortOrder: true,
   betAndGetCampaignId: true,
+  depositCampaignId: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -19,21 +22,25 @@ export interface PromoCardFields {
   title?: string | null;
   subtitle?: string | null;
   betAndGetCampaignId?: string | null;
+  depositCampaignId?: string | null;
 }
 
 /**
  * CMS-managed promotional cards for the homepage/Promotions page - each is
  * a staff-uploaded image with optional title/subtitle and an optional link
- * to an already-configured BetAndGetCampaign (see PromoCard in
- * schema.prisma). A card with no campaign link is purely decorative;
- * clicking a linked one resolves to that campaign's scoped matches on the
- * player side (see resolveCampaignLinkPath in apps/frontend).
+ * to an already-configured BetAndGetCampaign or DepositCampaign, never both
+ * at once (see PromoCard in schema.prisma). A card with no campaign link is
+ * purely decorative; clicking a linked one resolves to that campaign's
+ * scoped matches (Bet & Get) or reopens the deposit modal (Deposit) on the
+ * player side.
  */
 @Injectable()
 export class PromoCardService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
+    private readonly betAndGetCampaignService: BetAndGetCampaignService,
+    private readonly depositCampaignService: DepositCampaignService,
   ) {}
 
   async list(brandId: string) {
@@ -44,12 +51,62 @@ export class PromoCardService {
     });
   }
 
-  /** A card can only ever link to a campaign owned by its own brand - never validated by trusting the id alone. */
-  private async assertCampaignOwnership(brandId: string, betAndGetCampaignId: string | null | undefined) {
-    if (!betAndGetCampaignId) return;
-    const campaign = await this.prisma.betAndGetCampaign.findUnique({ where: { id: betAndGetCampaignId } });
-    if (!campaign || campaign.brandId !== brandId) {
-      throw new NotFoundException('Bet & Get campaign not found');
+  /**
+   * Every card the player-facing homepage/Promotions page should actually
+   * show - same as list() for a logged-out viewer (no redemption history to
+   * check), but drops any card linked to a campaign this player has already
+   * exhausted their redemptions on (see BetAndGetCampaignService.canRedeem /
+   * DepositCampaignService.canRedeem - both respect allowMultipleRedemptions
+   * and maxRedemptionsPerPlayer), so a player never keeps seeing a promo for
+   * a reward they can't get again.
+   */
+  async listForViewer(brandId: string, userId: string | null) {
+    const cards = await this.list(brandId);
+    if (!userId) {
+      return cards;
+    }
+
+    const visible = await Promise.all(
+      cards.map(async (card) => {
+        if (card.betAndGetCampaignId) {
+          const campaign = await this.betAndGetCampaignService.get(brandId, card.betAndGetCampaignId);
+          if (!(await this.betAndGetCampaignService.canRedeem(campaign, userId))) {
+            return null;
+          }
+        }
+        if (card.depositCampaignId) {
+          const campaign = await this.depositCampaignService.get(brandId, card.depositCampaignId);
+          if (!(await this.depositCampaignService.canRedeem(campaign, userId))) {
+            return null;
+          }
+        }
+        return card;
+      }),
+    );
+
+    return visible.filter((card): card is NonNullable<typeof card> => card !== null);
+  }
+
+  /** A card can only ever link to a campaign owned by its own brand - never validated by trusting the id alone. Linking to both campaign types at once isn't allowed - a card promotes exactly one campaign. */
+  private async assertCampaignOwnership(
+    brandId: string,
+    betAndGetCampaignId: string | null | undefined,
+    depositCampaignId: string | null | undefined,
+  ) {
+    if (betAndGetCampaignId && depositCampaignId) {
+      throw new BadRequestException('A promo card can link to a Bet & Get campaign or a Deposit campaign, not both');
+    }
+    if (betAndGetCampaignId) {
+      const campaign = await this.prisma.betAndGetCampaign.findUnique({ where: { id: betAndGetCampaignId } });
+      if (!campaign || campaign.brandId !== brandId) {
+        throw new NotFoundException('Bet & Get campaign not found');
+      }
+    }
+    if (depositCampaignId) {
+      const campaign = await this.prisma.depositCampaign.findUnique({ where: { id: depositCampaignId } });
+      if (!campaign || campaign.brandId !== brandId) {
+        throw new NotFoundException('Deposit campaign not found');
+      }
     }
   }
 
@@ -60,7 +117,7 @@ export class PromoCardService {
     fields: PromoCardFields,
     actor: AuditActor,
   ) {
-    await this.assertCampaignOwnership(brandId, fields.betAndGetCampaignId);
+    await this.assertCampaignOwnership(brandId, fields.betAndGetCampaignId, fields.depositCampaignId);
     const data = Buffer.from(fileData);
     const highest = await this.prisma.promoCard.findFirst({
       where: { brandId },
@@ -76,6 +133,7 @@ export class PromoCardService {
         title: fields.title,
         subtitle: fields.subtitle,
         betAndGetCampaignId: fields.betAndGetCampaignId,
+        depositCampaignId: fields.depositCampaignId,
         sortOrder: (highest?.sortOrder ?? -1) + 1,
       },
       select: METADATA_SELECT,
@@ -98,7 +156,16 @@ export class PromoCardService {
     if (!existing || existing.brandId !== brandId) {
       throw new NotFoundException('Promo card not found');
     }
-    await this.assertCampaignOwnership(brandId, fields.betAndGetCampaignId);
+    // Validate the state the patch actually results in, not just what's
+    // being touched this call - an update that only sets depositCampaignId
+    // while leaving an existing betAndGetCampaignId untouched would
+    // otherwise end up with both set, violating the one-campaign-per-card
+    // rule without ever being caught.
+    const effectiveBetAndGetCampaignId =
+      fields.betAndGetCampaignId !== undefined ? fields.betAndGetCampaignId : existing.betAndGetCampaignId;
+    const effectiveDepositCampaignId =
+      fields.depositCampaignId !== undefined ? fields.depositCampaignId : existing.depositCampaignId;
+    await this.assertCampaignOwnership(brandId, effectiveBetAndGetCampaignId, effectiveDepositCampaignId);
 
     const card = await this.prisma.promoCard.update({
       where: { id },

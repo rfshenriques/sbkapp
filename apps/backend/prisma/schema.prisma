@@ -45,10 +45,12 @@ model User {
   brandId String
   brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Restrict)
 
-  refreshTokens RefreshToken[]
-  bets          Bet[]
-  segments      PlayerSegmentMember[]
-  freebetGrants FreebetGrant[]
+  refreshTokens              RefreshToken[]
+  bets                       Bet[]
+  segments                   PlayerSegmentMember[]
+  freebetGrants              FreebetGrant[]
+  deposits                   Deposit[]
+  depositCampaignRedemptions DepositCampaignRedemption[]
 
   @@index([brandId])
   @@map("users")
@@ -175,6 +177,9 @@ enum AuditAction {
   PROMO_CARD_REMOVED
   PROMO_CARD_REORDERED
   HOMEPAGE_CAROUSEL_CONFIG_SET
+  DEPOSIT_CAMPAIGN_CREATED
+  DEPOSIT_CAMPAIGN_UPDATED
+  DEPOSIT_CAMPAIGN_REMOVED
 }
 
 enum FreebetStatus {
@@ -195,6 +200,7 @@ enum FreebetSource {
   ACCA_ROLLBACK
   INSURANCE_BET
   BET_AND_GET
+  DEPOSIT_CAMPAIGN
 }
 
 /**
@@ -208,29 +214,37 @@ enum FreebetSource {
  * job infrastructure in this codebase to transition it otherwise.
  */
 model FreebetGrant {
-  id            String        @id @default(uuid())
-  userId        String
-  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  brandId       String
-  brand         Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  amountCents   Int
-  source        FreebetSource
-  /** Staff-entered free text for a MANUAL grant, e.g. "Goodwill gesture - support ticket #482". Null for system-granted sources. */
-  note          String?
-  status        FreebetStatus @default(ACTIVE)
-  expiresAt     DateTime?
-  spentAt       DateTime?
-  spentOnBetId  String?
-  /** The bet that triggered a system grant (e.g. the losing accumulator an ACCA_ROLLBACK reward refunds) - null for MANUAL grants. Also doubles as the idempotency key so re-settling a bet never grants the reward twice. */
-  sourceBetId   String?
-  /** Which BetAndGetCampaign granted this - only set when source is BET_AND_GET, used to count a player's redemptions of that specific campaign against its maxRedemptionsPerPlayer. */
-  sourceCampaignId String?
-  voidedAt      DateTime?
-  /** Denormalized actor snapshot, same pattern as AuditLogEntry - null for a system-granted (non-MANUAL) source. */
+  id                   String        @id @default(uuid())
+  userId               String
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brandId              String
+  brand                Brand         @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  amountCents          Int
+  source               FreebetSource
+  /**
+   * Staff-entered free text for a MANUAL grant, e.g. "Goodwill gesture - support ticket #482". Null for system-granted sources.
+   */
+  note                 String?
+  status               FreebetStatus @default(ACTIVE)
+  expiresAt            DateTime?
+  spentAt              DateTime?
+  spentOnBetId         String?
+  /**
+   * The bet that triggered a system grant (e.g. the losing accumulator an ACCA_ROLLBACK reward refunds) - null for MANUAL grants. Also doubles as the idempotency key so re-settling a bet never grants the reward twice.
+   */
+  sourceBetId          String?
+  /**
+   * Which BetAndGetCampaign granted this - only set when source is BET_AND_GET, used to count a player's redemptions of that specific campaign against its maxRedemptionsPerPlayer.
+   */
+  sourceCampaignId     String?
+  voidedAt             DateTime?
+  /**
+   * Denormalized actor snapshot, same pattern as AuditLogEntry - null for a system-granted (non-MANUAL) source.
+   */
   createdByStaffUserId String?
   createdByUsername    String?
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
 
   fundedBet Bet?
 
@@ -314,14 +328,17 @@ model PlayerSegment {
   brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
   name        String
   description String?
-  /** Staff-set swatch (e.g. "#EF0107") so the backoffice can show a colored circle next to each segment - purely a CRM organizing aid, no player-facing effect. Null until a staff member sets one. */
+  /**
+   * Staff-set swatch (e.g. "#EF0107") so the backoffice can show a colored circle next to each segment - purely a CRM organizing aid, no player-facing effect. Null until a staff member sets one.
+   */
   colorHex    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members       PlayerSegmentMember[]
-  manualMarkets ManualMarketSegment[]
-  boosts        BoostSegment[]
+  members          PlayerSegmentMember[]
+  manualMarkets    ManualMarketSegment[]
+  boosts           BoostSegment[]
+  depositCampaigns DepositCampaignSegment[]
 
   @@unique([brandId, name])
   @@index([brandId])
@@ -368,7 +385,9 @@ enum LimitScope {
   COUNTRY
   LEAGUE
   MARKET
-  /** Targets one specific player (scopeValue = that player's User.id) - the most specific possible scope, overriding whatever the market/league/sport/global cascade would otherwise say for their bets. See stake-limits.ts's player-aware resolution. */
+  /**
+   * Targets one specific player (scopeValue = that player's User.id) - the most specific possible scope, overriding whatever the market/league/sport/global cascade would otherwise say for their bets. See stake-limits.ts's player-aware resolution.
+   */
   PLAYER
 }
 
@@ -379,7 +398,6 @@ enum LimitScope {
  * raw feed sport/country/competition/market name, same convention as
  * CompetitionTier/CompetitionRanking - matches are never persisted, so
  * there's no id to key on.
- *
  * A bet resolves its effective cap per field (maxStakeCents,
  * maxLiabilityCents) independently by walking MARKET -> LEAGUE -> COUNTRY
  * -> SPORT -> GLOBAL, tier-specific before tier-agnostic at each level, and
@@ -562,9 +580,13 @@ model Bet {
   stakeCents           Int
   combinedOdds         Decimal   @db.Decimal(10, 4)
   potentialPayoutCents Int
-  /** The acca boost percent (see AccaBoostConfig) actually applied at placement time - 0 for a single bet or an accumulator that didn't qualify. Stored on the bet, not recomputed later, so a config change never retroactively changes a bet already placed. */
+  /**
+   * The acca boost percent (see AccaBoostConfig) actually applied at placement time - 0 for a single bet or an accumulator that didn't qualify. Stored on the bet, not recomputed later, so a config change never retroactively changes a bet already placed.
+   */
   accaBoostPercent     Float     @default(0)
-  /** The insurance premium percent (see InsuranceBetConfig) actually deducted from the payout at placement time - 0 when the player didn't opt in or the feature was off. A non-zero value here is also what settlement checks to decide whether a loss refunds the stake as a freebet. */
+  /**
+   * The insurance premium percent (see InsuranceBetConfig) actually deducted from the payout at placement time - 0 when the player didn't opt in or the feature was off. A non-zero value here is also what settlement checks to decide whether a loss refunds the stake as a freebet.
+   */
   insuranceCostPercent Float     @default(0)
   status               BetStatus @default(PENDING)
   createdAt            DateTime  @default(now())
@@ -575,13 +597,23 @@ model Bet {
   settledPayoutCents Int?
   settledAt          DateTime?
 
-  /** Set only when this bet was funded by a freebet instead of cash (see FreebetService.spend) - stakeCents always equals that grant's amountCents. Settlement never returns the stake for a freebet-funded bet, only the profit (see PamService.settleSelection). */
+  /**
+   * Set only when this bet was funded by a freebet instead of cash (see FreebetService.spend) - stakeCents always equals that grant's amountCents. Settlement never returns the stake for a freebet-funded bet, only the profit (see PamService.settleSelection).
+   */
   freebetGrantId String?       @unique
   freebetGrant   FreebetGrant? @relation(fields: [freebetGrantId], references: [id], onDelete: SetNull)
 
-  /** The single BetAndGetCampaign this bet qualified for, resolved once at placement time from the live match/odds data then reused unchanged at settlement (see PamService) - never re-derived later, so a scope/condition change never retroactively relabels an already-placed bet. Null when no campaign applied. */
+  /**
+   * The single BetAndGetCampaign this bet qualified for, resolved once at placement time from the live match/odds data then reused unchanged at settlement (see PamService) - never re-derived later, so a scope/condition change never retroactively relabels an already-placed bet. Null when no campaign applied.
+   */
   betAndGetCampaignId String?
   betAndGetCampaign   BetAndGetCampaign? @relation(fields: [betAndGetCampaignId], references: [id], onDelete: SetNull)
+
+  /**
+   * The DepositCampaignRedemption this bet fulfilled the bet-requirement for, if any (its own depositCampaignId points at the campaign) - same "resolved once at placement, reused unchanged at settlement" rule as betAndGetCampaignId.
+   */
+  depositCampaignRedemptionId String?                    @unique
+  depositCampaignRedemption   DepositCampaignRedemption? @relation(fields: [depositCampaignRedemptionId], references: [id], onDelete: SetNull)
 
   selections BetSelection[]
 
@@ -680,25 +712,37 @@ model ManualMarket {
   name      String
   createdAt DateTime @default(now())
 
-  /** Per-bet cap on a single selection in this market; a bet over this amount is rejected, not silently capped. */
-  maxStakeCents Int?
+  /**
+   * Per-bet cap on a single selection in this market; a bet over this amount is rejected, not silently capped.
+   */
+  maxStakeCents         Int?
   /**
    * Cap on total exposure across all bets placed on this market. Unlike a
    * boost's maxLiabilityCents, hitting this doesn't remove the market -
    * it's enforced the same way as maxStakeCents: a bet that would push
    * total liability past the cap is rejected outright.
    */
-  maxLiabilityCents Int?
-  /** Running total of potential payout across bets placed on this market so far - see PamService's liability tracking. */
-  currentLiabilityCents Int @default(0)
-  /** Who can see this market at all - see AudienceMode. Defaults to everyone, same as before this field existed. */
-  audienceMode AudienceMode @default(ALL)
-  /** Set once currentLiabilityCents reaches maxLiabilityCents - mergeIntoMatches skips a disabled market, same as if it never existed. Not deleted, so the exposure history stays on the row. */
-  disabledAt DateTime?
-  /** A manually-priced market has no live re-pricing feed behind it, so it auto-suspends the moment its match goes in-play unless a trader explicitly marks it safe to keep offering live. Defaults to false (auto-suspend), same as every market before this field existed. */
-  staysLiveDuringInplay Boolean @default(false)
-  /** A novelty/special market a trader doesn't want combined into an accumulator with other legs (correlation risk a manual price can't account for) - a bet with 2+ selections that includes one of these is rejected outright, same enforcement PamService already gives boosts. Defaults to false - unrestricted, same as every market before this field existed. */
-  singlesOnly Boolean @default(false)
+  maxLiabilityCents     Int?
+  /**
+   * Running total of potential payout across bets placed on this market so far - see PamService's liability tracking.
+   */
+  currentLiabilityCents Int          @default(0)
+  /**
+   * Who can see this market at all - see AudienceMode. Defaults to everyone, same as before this field existed.
+   */
+  audienceMode          AudienceMode @default(ALL)
+  /**
+   * Set once currentLiabilityCents reaches maxLiabilityCents - mergeIntoMatches skips a disabled market, same as if it never existed. Not deleted, so the exposure history stays on the row.
+   */
+  disabledAt            DateTime?
+  /**
+   * A manually-priced market has no live re-pricing feed behind it, so it auto-suspends the moment its match goes in-play unless a trader explicitly marks it safe to keep offering live. Defaults to false (auto-suspend), same as every market before this field existed.
+   */
+  staysLiveDuringInplay Boolean      @default(false)
+  /**
+   * A novelty/special market a trader doesn't want combined into an accumulator with other legs (correlation risk a manual price can't account for) - a bet with 2+ selections that includes one of these is rejected outright, same enforcement PamService already gives boosts. Defaults to false - unrestricted, same as every market before this field existed.
+   */
+  singlesOnly           Boolean      @default(false)
 
   selections       ManualMarketSelection[]
   audienceSegments ManualMarketSegment[]
@@ -771,18 +815,30 @@ model Boost {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  /** Per-bet cap on the boosted selection - shown to players alongside the boosted price, enforced (rejected, not capped) at placement. */
-  maxStakeCents Int?
-  /** Total extra payout (boosted odds minus original odds, times stake) this boost may give away before it auto-disables. Null means unlimited. */
-  maxLiabilityCents Int?
-  /** Running total of extra payout given away by bets placed at the boosted price so far - see PamService's liability tracking. */
-  currentLiabilityCents Int @default(0)
-  /** Set once currentLiabilityCents reaches maxLiabilityCents - applyBoosts skips a disabled boost, same as if it never existed. Not deleted, so the exposure history stays on the row. */
-  disabledAt DateTime?
-  /** Who can see this boosted price at all - see AudienceMode. Defaults to everyone, same as before this field existed. */
-  audienceMode AudienceMode @default(ALL)
-  /** A boosted price has no live re-pricing behind the boost itself, so it auto-suspends the moment its match goes in-play unless a trader explicitly marks it safe to keep offering live. Defaults to false (auto-suspend), same as every boost before this field existed. */
-  staysLiveDuringInplay Boolean @default(false)
+  /**
+   * Per-bet cap on the boosted selection - shown to players alongside the boosted price, enforced (rejected, not capped) at placement.
+   */
+  maxStakeCents         Int?
+  /**
+   * Total extra payout (boosted odds minus original odds, times stake) this boost may give away before it auto-disables. Null means unlimited.
+   */
+  maxLiabilityCents     Int?
+  /**
+   * Running total of extra payout given away by bets placed at the boosted price so far - see PamService's liability tracking.
+   */
+  currentLiabilityCents Int          @default(0)
+  /**
+   * Set once currentLiabilityCents reaches maxLiabilityCents - applyBoosts skips a disabled boost, same as if it never existed. Not deleted, so the exposure history stays on the row.
+   */
+  disabledAt            DateTime?
+  /**
+   * Who can see this boosted price at all - see AudienceMode. Defaults to everyone, same as before this field existed.
+   */
+  audienceMode          AudienceMode @default(ALL)
+  /**
+   * A boosted price has no live re-pricing behind the boost itself, so it auto-suspends the moment its match goes in-play unless a trader explicitly marks it safe to keep offering live. Defaults to false (auto-suspend), same as every boost before this field existed.
+   */
+  staysLiveDuringInplay Boolean      @default(false)
 
   audienceSegments BoostSegment[]
 
@@ -865,7 +921,9 @@ model InsuranceBetConfig {
   @@map("insurance_bet_configs")
 }
 
-/** When the reward fires - immediately when a qualifying bet is placed, or once it settles (see the three triggerOnX flags on BetAndGetCampaign for which settlement outcomes count). */
+/**
+ * When the reward fires - immediately when a qualifying bet is placed, or once it settles (see the three triggerOnX flags on BetAndGetCampaign for which settlement outcomes count).
+ */
 enum BetAndGetTrigger {
   PLACEMENT
   SETTLEMENT
@@ -877,7 +935,9 @@ enum BetAndGetBetType {
   EITHER
 }
 
-/** What kind of thing a BetAndGetCampaignScope entry names - see BetAndGetCampaignScope.scopeValue for what's stored per type. */
+/**
+ * What kind of thing a BetAndGetCampaignScope entry names - see BetAndGetCampaignScope.scopeValue for what's stored per type.
+ */
 enum BetAndGetScopeType {
   SPORT
   COMPETITION
@@ -893,30 +953,40 @@ enum BetAndGetScopeType {
  * fields on this model.
  */
 model BetAndGetCampaign {
-  id          String   @id @default(uuid())
+  id          String  @id @default(uuid())
   brandId     String
-  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  brand       Brand   @relation(fields: [brandId], references: [id], onDelete: Cascade)
   name        String
   description String?
-  enabled     Boolean  @default(false)
+  enabled     Boolean @default(false)
 
   rewardAmountCents Int
 
-  trigger BetAndGetTrigger @default(PLACEMENT)
-  /** Only meaningful when trigger is SETTLEMENT - at least one should be true, checked by the service layer, not the DB. */
-  triggerOnWon  Boolean @default(false)
-  triggerOnLost Boolean @default(false)
-  triggerOnVoid Boolean @default(false)
+  trigger       BetAndGetTrigger @default(PLACEMENT)
+  /**
+   * Only meaningful when trigger is SETTLEMENT - at least one should be true, checked by the service layer, not the DB.
+   */
+  triggerOnWon  Boolean          @default(false)
+  triggerOnLost Boolean          @default(false)
+  triggerOnVoid Boolean          @default(false)
 
-  /** All four qualifying-condition fields are optional independently - null means that condition doesn't restrict anything. */
+  /**
+   * All four qualifying-condition fields are optional independently - null means that condition doesn't restrict anything.
+   */
   minStakeCents Int?
-  /** Every leg's own odds must be at least this - same convention as AccaBoostConfig.minOddsPerLeg. */
+  /**
+   * Every leg's own odds must be at least this - same convention as AccaBoostConfig.minOddsPerLeg.
+   */
   minOddsPerLeg Float?
   betType       BetAndGetBetType @default(EITHER)
-  /** Only checked when the bet is an accumulator (2+ selections). */
+  /**
+   * Only checked when the bet is an accumulator (2+ selections).
+   */
   minSelections Int?
 
-  /** false = at most one redemption ever per player for this campaign. When true, maxRedemptionsPerPlayer caps it further (null = unlimited). */
+  /**
+   * false = at most one redemption ever per player for this campaign. When true, maxRedemptionsPerPlayer caps it further (null = unlimited).
+   */
   allowMultipleRedemptions Boolean @default(false)
   maxRedemptionsPerPlayer  Int?
 
@@ -925,7 +995,9 @@ model BetAndGetCampaign {
 
   scopes     BetAndGetCampaignScope[]
   bets       Bet[]
-  /** CMS-managed cards (homepage/Promotions page) that link to this campaign - see PromoCard. A campaign can have zero, one, or several pointing at it. */
+  /**
+   * CMS-managed cards (homepage/Promotions page) that link to this campaign - see PromoCard. A campaign can have zero, one, or several pointing at it.
+   */
   promoCards PromoCard[]
 
   @@index([brandId])
@@ -954,11 +1026,12 @@ model BetAndGetCampaignScope {
 /**
  * A CMS-managed promotional card - shown on the homepage and/or the
  * Promotions page (apps/frontend), byte-stored like BrandImage. Optionally
- * links to a BetAndGetCampaign so clicking the card takes the player
- * straight to that campaign's scoped matches (a single match if the scope
- * resolves to exactly one, otherwise a listing) - a card with no link is
- * purely decorative. sortOrder is staff-controlled, same drag-reorder
- * convention as BrandImageListItem/CompetitionRanking.
+ * links to a BetAndGetCampaign (clicking takes the player straight to that
+ * campaign's scoped matches) or a DepositCampaign (clicking reopens the
+ * deposit campaign modal) - never both at once, enforced by the service
+ * layer, not the DB. A card with no link is purely decorative. sortOrder is
+ * staff-controlled, same drag-reorder convention as
+ * BrandImageListItem/CompetitionRanking.
  */
 model PromoCard {
   id        String   @id @default(uuid())
@@ -975,8 +1048,169 @@ model PromoCard {
   betAndGetCampaignId String?
   betAndGetCampaign   BetAndGetCampaign? @relation(fields: [betAndGetCampaignId], references: [id], onDelete: SetNull)
 
+  depositCampaignId String?
+  depositCampaign   DepositCampaign? @relation(fields: [depositCampaignId], references: [id], onDelete: SetNull)
+
   @@index([brandId, sortOrder])
   @@map("promo_cards")
+}
+
+enum DepositRewardType {
+  FIXED
+  PERCENTAGE
+}
+
+enum DepositCampaignRedemptionStatus {
+  /**
+   * Deposit qualified, still waiting on a bet that meets the campaign's conditions - eligible to be matched by the next qualifying bet.
+   */
+  PENDING_BET
+  /**
+   * A qualifying bet has linked to this redemption (see Bet.depositCampaignRedemptionId) and the campaign's trigger is SETTLEMENT - awaiting that bet's outcome.
+   */
+  PENDING_SETTLEMENT
+  /**
+   * The freebet has been granted (immediately for a no-bet-required campaign or a PLACEMENT trigger, or once the linked bet's settlement outcome matched).
+   */
+  GRANTED
+}
+
+/**
+ * A deposit-triggered promo: reward is either a flat amount per qualifying
+ * deposit (FIXED) or a percentage of the deposit up to a cap (PERCENTAGE).
+ * Optionally also requires a subsequent bet to meet the same
+ * trigger/qualifying-condition shape as BetAndGetCampaign (requiresBet) -
+ * when false the reward grants the instant a qualifying deposit is made.
+ * Shown to the player as a modal right after login (see the public
+ * eligible-for-me endpoint) and/or via a linked PromoCard.
+ */
+model DepositCampaign {
+  id          String  @id @default(uuid())
+  brandId     String
+  brand       Brand   @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  enabled     Boolean @default(false)
+
+  minDepositAmountCents Int
+
+  rewardType             DepositRewardType
+  /**
+   * Required when rewardType is FIXED, ignored otherwise.
+   */
+  fixedRewardAmountCents Int?
+  /**
+   * Required when rewardType is PERCENTAGE (e.g. 50 = 50%), ignored otherwise.
+   */
+  rewardPercent          Float?
+  /**
+   * Required when rewardType is PERCENTAGE - the max freebet the percentage can produce.
+   */
+  rewardCapCents         Int?
+
+  requiresBet   Boolean          @default(false)
+  /**
+   * Only meaningful when requiresBet is true.
+   */
+  trigger       BetAndGetTrigger @default(PLACEMENT)
+  /**
+   * Only meaningful when requiresBet and trigger are SETTLEMENT - at least one should be true, checked by the service layer, not the DB.
+   */
+  triggerOnWon  Boolean          @default(false)
+  triggerOnLost Boolean          @default(false)
+  triggerOnVoid Boolean          @default(false)
+  /**
+   * All four qualifying-condition fields are optional independently, same convention as BetAndGetCampaign - only meaningful when requiresBet is true.
+   */
+  minStakeCents Int?
+  minOddsPerLeg Float?
+  betType       BetAndGetBetType @default(EITHER)
+  minSelections Int?
+
+  /**
+   * false = at most one redemption ever per player for this campaign. When true, maxRedemptionsPerPlayer caps it further (null = unlimited).
+   */
+  allowMultipleRedemptions Boolean @default(false)
+  maxRedemptionsPerPlayer  Int?
+
+  /**
+   * Who this campaign is shown/available to - same pattern as Boost/ManualMarket audience targeting.
+   */
+  audienceMode AudienceMode             @default(ALL)
+  segments     DepositCampaignSegment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  redemptions DepositCampaignRedemption[]
+  promoCards  PromoCard[]
+
+  @@index([brandId])
+  @@map("deposit_campaigns")
+}
+
+model DepositCampaignSegment {
+  id                String          @id @default(uuid())
+  depositCampaignId String
+  depositCampaign   DepositCampaign @relation(fields: [depositCampaignId], references: [id], onDelete: Cascade)
+  segmentId         String
+  segment           PlayerSegment   @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@unique([depositCampaignId, segmentId])
+  @@map("deposit_campaign_segments")
+}
+
+/**
+ * One player's real-money (paper-money simulation) top-up - the trigger
+ * event a DepositCampaign reacts to. See DepositService.
+ */
+model Deposit {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brandId     String
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  amountCents Int
+  createdAt   DateTime @default(now())
+
+  redemptions DepositCampaignRedemption[]
+
+  @@index([userId])
+  @@map("deposits")
+}
+
+/**
+ * One deposit's progress toward a DepositCampaign's reward - created the
+ * instant a qualifying deposit is made (status GRANTED immediately if the
+ * campaign doesn't require a bet, otherwise PENDING_BET until a qualifying
+ * bet links to it via Bet.depositCampaignRedemptionId). rewardAmountCents
+ * is computed once at creation from the deposit amount and never
+ * recalculated, so a later campaign edit never retroactively changes an
+ * already-qualified deposit's reward.
+ */
+model DepositCampaignRedemption {
+  id                String                          @id @default(uuid())
+  depositCampaignId String
+  depositCampaign   DepositCampaign                 @relation(fields: [depositCampaignId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User                            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brandId           String
+  brand             Brand                           @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  depositId         String
+  deposit           Deposit                         @relation(fields: [depositId], references: [id], onDelete: Cascade)
+  rewardAmountCents Int
+  status            DepositCampaignRedemptionStatus @default(PENDING_BET)
+  createdAt         DateTime                        @default(now())
+  updatedAt         DateTime                        @updatedAt
+
+  /**
+   * The bet that fulfilled this redemption's bet requirement, if any - see Bet.depositCampaignRedemptionId (the FK lives there, this is just the reverse side).
+   */
+  fulfillingBet Bet?
+
+  @@index([userId, depositCampaignId])
+  @@index([status])
+  @@map("deposit_campaign_redemptions")
 }
 
 /**
@@ -1088,33 +1322,36 @@ model Brand {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  productFlags           BrandProductFlag[]
-  users                  User[]
-  staffUsers             StaffUser[]
-  bets                   Bet[]
-  auditLogEntries        AuditLogEntry[]
-  marketSuspensions      MarketSuspension[]
-  competitionSuspensions CompetitionSuspension[]
-  competitionRankings    CompetitionRanking[]
-  images                 BrandImage[]
-  imageListItems         BrandImageListItem[]
-  competitionTiers       CompetitionTier[]
-  marginConfigs          MarginConfig[]
-  marketingSpends        MarketingSpend[]
-  oddsOverrides          OddsOverride[]
-  manualMarkets          ManualMarket[]
-  oddsLadderRungs        OddsLadderRung[]
-  boosts                 Boost[]
-  accaBoostConfig        AccaBoostConfig?
-  accaRollbackConfig     AccaRollbackConfig?
-  insuranceBetConfig     InsuranceBetConfig?
-  stakeLimits            StakeLimit[]
-  competitionQuicklinks  CompetitionQuicklink[]
-  playerSegments         PlayerSegment[]
-  freebetGrants          FreebetGrant[]
-  betAndGetCampaigns     BetAndGetCampaign[]
-  promoCards             PromoCard[]
-  homepageCarouselConfig HomepageCarouselConfig?
+  productFlags               BrandProductFlag[]
+  users                      User[]
+  staffUsers                 StaffUser[]
+  bets                       Bet[]
+  auditLogEntries            AuditLogEntry[]
+  marketSuspensions          MarketSuspension[]
+  competitionSuspensions     CompetitionSuspension[]
+  competitionRankings        CompetitionRanking[]
+  images                     BrandImage[]
+  imageListItems             BrandImageListItem[]
+  competitionTiers           CompetitionTier[]
+  marginConfigs              MarginConfig[]
+  marketingSpends            MarketingSpend[]
+  oddsOverrides              OddsOverride[]
+  manualMarkets              ManualMarket[]
+  oddsLadderRungs            OddsLadderRung[]
+  boosts                     Boost[]
+  accaBoostConfig            AccaBoostConfig?
+  accaRollbackConfig         AccaRollbackConfig?
+  insuranceBetConfig         InsuranceBetConfig?
+  stakeLimits                StakeLimit[]
+  competitionQuicklinks      CompetitionQuicklink[]
+  playerSegments             PlayerSegment[]
+  freebetGrants              FreebetGrant[]
+  betAndGetCampaigns         BetAndGetCampaign[]
+  promoCards                 PromoCard[]
+  homepageCarouselConfig     HomepageCarouselConfig?
+  depositCampaigns           DepositCampaign[]
+  deposits                   Deposit[]
+  depositCampaignRedemptions DepositCampaignRedemption[]
 
   @@map("brands")
 }
