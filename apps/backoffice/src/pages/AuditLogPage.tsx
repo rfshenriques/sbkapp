@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import * as backendApi from '../lib/backendApi';
 
 function formatTimestamp(iso: string): string {
@@ -28,7 +29,12 @@ export default function AuditLogPage() {
       <h1 className="text-2xl font-semibold">Audit log</h1>
 
       <Card className="mt-4">
-        {isPending && <p className="text-sm text-text-secondary">Loading audit log…</p>}
+        {isPending && (
+          <div className="space-y-2" aria-label="Loading audit log" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
         {isError && <p className="text-sm text-danger">Failed to load audit log.</p>}
         {entries && entries.length === 0 && (
           <p className="text-sm text-text-secondary">No audit entries yet.</p>

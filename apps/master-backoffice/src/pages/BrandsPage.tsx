@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import * as backendApi from '../lib/backendApi';
 
 const brandsQueryKey = ['brands'] as const;
@@ -108,7 +109,12 @@ export default function BrandsPage() {
       </Card>
 
       <Card className="mt-4">
-        {isPending && <p className="text-sm text-text-secondary">Loading brands…</p>}
+        {isPending && (
+          <div className="space-y-2" aria-label="Loading brands" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
         {isError && <p className="text-sm text-danger">Failed to load brands.</p>}
         {brands && brands.length === 0 && (
           <p className="text-sm text-text-secondary">No brands yet.</p>

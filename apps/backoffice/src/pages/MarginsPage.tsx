@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
 
@@ -135,7 +136,12 @@ export default function MarginsPage() {
       )}
 
       <div className="mt-4">
-        {marginsPending && <p className="text-sm text-text-secondary">Loading margin configs…</p>}
+        {marginsPending && (
+          <div className="space-y-2" aria-label="Loading margin configs" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
         {marginsError && <p className="text-sm text-danger">Failed to load margin configs.</p>}
         {!marginsPending && sports.length === 0 && (
           <p className="text-sm text-text-secondary">

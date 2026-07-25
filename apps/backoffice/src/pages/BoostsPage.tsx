@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Match } from '@sportsbook/shared';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import { MatchDrilldown } from '../components/MatchDrilldown';
 import { LimitsAudienceEditor } from '../components/LimitsAudienceEditor';
@@ -150,7 +151,12 @@ function MatchRow({
 
       {isExpanded && (
         <div className="mt-3 space-y-2 border-t border-border pt-3">
-          {expandedMatchPending && <p className="text-sm text-text-secondary">Loading markets…</p>}
+          {expandedMatchPending && (
+            <div className="space-y-2" aria-label="Loading markets" role="status">
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+          )}
           {expandedMatch?.markets.length === 0 && (
             <p className="text-sm text-text-secondary">No markets available yet.</p>
           )}

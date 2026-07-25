@@ -25,9 +25,9 @@ describe('MatchDrilldown', () => {
     expect(screen.getByText('No live matches right now.')).toBeInTheDocument();
   });
 
-  it('shows a loading state', () => {
+  it('shows an animated loading state', () => {
     render(<MatchDrilldown matches={undefined} isLoading renderLeague={() => null} />);
-    expect(screen.getByText('Loading live matches…')).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading live matches' })).toBeInTheDocument();
   });
 
   it('only renders the league content once drilled all the way down to it', async () => {

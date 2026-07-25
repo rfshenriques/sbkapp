@@ -13,6 +13,7 @@ import {
 } from 'recharts';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import * as backendApi from '../lib/backendApi';
 import type { ReportGranularity } from '../lib/backendApi';
 import { bucketDate } from '../lib/bucketDate';
@@ -150,7 +151,12 @@ export default function RegistrationsPage() {
 
       <Card className="mt-4">
         <h2 className="text-sm font-medium text-text-secondary">Registrations</h2>
-        {registrationsPending && <p className="mt-2 text-sm text-text-secondary">Loading…</p>}
+        {registrationsPending && (
+          <div className="space-y-2" aria-label="Loading content" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
         {registrationsError && (
           <p className="mt-2 text-sm text-danger">Failed to load registrations.</p>
         )}
@@ -176,7 +182,12 @@ export default function RegistrationsPage() {
         <h2 className="text-sm font-medium text-text-secondary">
           GGR{hasSpend ? ' vs marketing spend' : ''}
         </h2>
-        {ggrPending && <p className="mt-2 text-sm text-text-secondary">Loading…</p>}
+        {ggrPending && (
+          <div className="space-y-2" aria-label="Loading content" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
         {ggrError && <p className="mt-2 text-sm text-danger">Failed to load GGR.</p>}
         {ggr && ggrChartData.length === 0 && (
           <p className="mt-2 text-sm text-text-secondary">No data in this range.</p>

@@ -2,6 +2,7 @@ import { useMemo, useState, type DragEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { Skeleton } from '../../components/ui/Skeleton';
 import * as backendApi from '../../lib/backendApi';
 import * as oddsEngineApi from '../../lib/oddsEngineApi';
 
@@ -104,7 +105,12 @@ export function QuicklinksSection() {
         rankings, which orders each sport's own drill-down independently.
       </p>
 
-      {quicklinksPending && <p className="text-sm text-text-secondary">Loading quicklinks…</p>}
+      {quicklinksPending && (
+        <div className="space-y-2" aria-label="Loading quicklinks" role="status">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+      )}
       {quicklinksError && <p className="text-sm text-danger">Failed to load quicklinks.</p>}
 
       <div className="grid gap-6 lg:grid-cols-2">

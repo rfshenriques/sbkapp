@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, type ChangeEvent, type DragEvent } from 'rea
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { Skeleton } from '../../components/ui/Skeleton';
 import * as backendApi from '../../lib/backendApi';
 
 const imageListQueryKey = (kind: backendApi.BrandImageListKind) => ['brand-image-list', kind] as const;
@@ -88,7 +89,12 @@ export function ImageListSection({
     <div>
       <p className="mb-3 text-sm text-text-secondary">{description}</p>
 
-      {isPending && <p className="text-sm text-text-secondary">Loading…</p>}
+      {isPending && (
+        <div className="space-y-2" aria-label="Loading content" role="status">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+      )}
       {isError && <p className="text-sm text-danger">Failed to load images.</p>}
       {error && <p className="mb-2 text-sm text-danger">{error}</p>}
 

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import * as backendApi from '../lib/backendApi';
 
 const accaBoostQueryKey = ['acca-boost-config'] as const;
@@ -49,7 +50,12 @@ export default function AccaBoostPage() {
       </p>
 
       <div className="mt-4 max-w-md">
-        {isPending && <p className="text-sm text-text-secondary">Loading acca boost config…</p>}
+        {isPending && (
+          <div className="space-y-2" aria-label="Loading acca boost config" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
         {isError && <p className="text-sm text-danger">Failed to load acca boost config.</p>}
 
         {draft && (

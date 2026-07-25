@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import * as backendApi from '../lib/backendApi';
 import { KNOWN_PRODUCTS } from '../lib/backendApi';
 
@@ -89,7 +90,12 @@ export default function BrandDetailPage() {
       </Link>
       <h1 className="mt-2 text-2xl font-semibold">{brand?.name ?? 'Brand'}</h1>
 
-      {isPending && <p className="mt-4 text-sm text-text-secondary">Loading brand…</p>}
+      {isPending && (
+        <div className="mt-4 space-y-2" aria-label="Loading brand" role="status">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+      )}
       {isError && <p className="mt-4 text-sm text-danger">Failed to load brand.</p>}
 
       {brand && (

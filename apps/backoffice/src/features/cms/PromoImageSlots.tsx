@@ -2,6 +2,7 @@ import { useRef, useState, type ChangeEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { Skeleton } from '../../components/ui/Skeleton';
 import * as backendApi from '../../lib/backendApi';
 
 const imagesQueryKey = ['brand-images'] as const;
@@ -141,7 +142,12 @@ export function PromoImageSlots() {
         Each slot below shows where it's used and its recommended resolution, so nothing gets
         uploaded at the wrong size.
       </p>
-      {isPending && <p className="text-sm text-text-secondary">Loading images…</p>}
+      {isPending && (
+        <div className="space-y-2" aria-label="Loading images" role="status">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+      )}
       {isError && <p className="text-sm text-danger">Failed to load images.</p>}
       {!isPending &&
         !isError &&

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import * as backendApi from '../lib/backendApi';
 
@@ -231,7 +232,12 @@ export default function PlayerSegmentsPage() {
       <div className="mt-4 space-y-4">
         <NewSegmentForm />
 
-        {isPending && <p className="text-sm text-text-secondary">Loading segments…</p>}
+        {isPending && (
+          <div className="space-y-2" aria-label="Loading segments" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
         {isError && <p className="text-sm text-danger">Failed to load player segments.</p>}
         {!isPending && segments?.length === 0 && (
           <p className="text-sm text-text-secondary">No segments yet - create one above.</p>

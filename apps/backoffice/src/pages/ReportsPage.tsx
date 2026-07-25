@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import * as backendApi from '../lib/backendApi';
 
 function formatCents(cents: number): string {
@@ -61,7 +62,12 @@ export default function ReportsPage() {
         </div>
       </div>
 
-      {summaryPending && <p className="mt-4 text-sm text-text-secondary">Loading summary…</p>}
+      {summaryPending && (
+        <div className="space-y-2" aria-label="Loading summary" role="status">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+      )}
       {summaryError && <p className="mt-4 text-sm text-danger">Failed to load report summary.</p>}
 
       {summary && (
@@ -119,7 +125,12 @@ export default function ReportsPage() {
 
       <Card className="mt-4">
         <h2 className="text-sm font-medium text-text-secondary">Staff settlement activity</h2>
-        {activityPending && <p className="mt-2 text-sm text-text-secondary">Loading…</p>}
+        {activityPending && (
+          <div className="space-y-2" aria-label="Loading content" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
         {activityError && (
           <p className="mt-2 text-sm text-danger">Failed to load staff activity.</p>
         )}

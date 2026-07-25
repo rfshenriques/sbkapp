@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { BetSummaryCard } from '../components/BetSummaryCard';
+import { Skeleton } from '../components/ui/Skeleton';
 import * as backendApi from '../lib/backendApi';
 import type { BetStatus, ListBetsFilters } from '../lib/backendApi';
 
@@ -214,7 +215,12 @@ export default function BetHistoryReportPage() {
       </div>
 
       <div className="mt-4 space-y-4">
-        {isPending && <p className="text-sm text-text-secondary">Loading bets…</p>}
+        {isPending && (
+          <div className="space-y-2" aria-label="Loading bets" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
         {isError && <p className="text-sm text-danger">Failed to load bets.</p>}
         {bets && bets.length === 0 && <p className="text-sm text-text-secondary">No bets match these filters.</p>}
 

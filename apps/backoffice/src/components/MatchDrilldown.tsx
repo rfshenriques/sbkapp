@@ -3,6 +3,7 @@ import type { Match } from '@sportsbook/shared';
 import { buildMatchTree, type CompetitionNode } from '../lib/matchTree';
 import { Card } from './ui/Card';
 import { ChevronIcon } from './ui/ChevronIcon';
+import { Skeleton } from './ui/Skeleton';
 
 interface ExpandButtonProps {
   isExpanded: boolean;
@@ -71,7 +72,13 @@ export function MatchDrilldown({
   }
 
   if (isLoading) {
-    return <p className="text-sm text-text-secondary">Loading live matches…</p>;
+    return (
+      <div className="space-y-2" aria-label="Loading live matches" role="status">
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+      </div>
+    );
   }
   if (isError) {
     return <p className="text-sm text-danger">Failed to load live matches.</p>;

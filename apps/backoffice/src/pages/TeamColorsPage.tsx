@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import { teamCountryMap } from '../lib/countryMaps';
 import { groupByLetter } from '../lib/groupByLetter';
@@ -158,7 +159,12 @@ export default function TeamColorsPage() {
       )}
 
       <div className="mt-4 space-y-2">
-        {teamColorsPending && <p className="text-sm text-text-secondary">Loading team colors…</p>}
+        {teamColorsPending && (
+          <div className="space-y-2" aria-label="Loading team colors" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
         {teamColorsError && <p className="text-sm text-danger">Failed to load team colors.</p>}
         {teamColors?.length === 0 && (
           <p className="text-sm text-text-secondary">

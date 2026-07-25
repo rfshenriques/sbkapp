@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import * as backendApi from '../lib/backendApi';
 
 function freebetsQueryKey(identifier: string) {
@@ -176,7 +177,12 @@ export default function FreebetsPage() {
         <div className="mt-4 space-y-4">
           <GrantFreebetForm identifier={lookedUp} />
 
-          {isPending && <p className="text-sm text-text-secondary">Loading…</p>}
+          {isPending && (
+            <div className="space-y-2" aria-label="Loading content" role="status">
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+          )}
           {isError && (
             <p className="text-sm text-danger">
               {error instanceof Error ? error.message : 'Failed to load freebets.'}

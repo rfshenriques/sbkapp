@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ChangeEvent, type DragEvent 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import * as backendApi from '../lib/backendApi';
 
 const promoCardsQueryKey = ['promo-cards'] as const;
@@ -47,7 +48,12 @@ function HomepageCarouselSettings() {
         mobile, just Promotions on desktop.
       </p>
 
-      {isPending && <p className="text-sm text-text-secondary">Loading…</p>}
+      {isPending && (
+        <div className="space-y-2" aria-label="Loading content" role="status">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
+        </div>
+      )}
 
       {draft && (
         <>
@@ -485,7 +491,12 @@ export default function CmsPromoCardsPage() {
         <HomepageCarouselSettings />
         <NewPromoCardForm betAndGetCampaigns={campaigns ?? []} depositCampaigns={depositCampaigns ?? []} />
 
-        {isPending && <p className="text-sm text-text-secondary">Loading…</p>}
+        {isPending && (
+          <div className="space-y-2" aria-label="Loading content" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
         {isError && <p className="text-sm text-danger">Failed to load promo cards.</p>}
         {!isPending && orderedCards.length === 0 && (
           <p className="text-sm text-text-secondary">No promo cards yet - add one above.</p>

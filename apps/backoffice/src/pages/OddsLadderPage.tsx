@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import * as backendApi from '../lib/backendApi';
 
 const ladderQueryKey = ['odds-ladder'] as const;
@@ -75,7 +76,12 @@ export default function OddsLadderPage() {
         </div>
 
         <div className="mt-4">
-          {isPending && <p className="text-sm text-text-secondary">Loading odds ladder…</p>}
+          {isPending && (
+            <div className="space-y-2" aria-label="Loading odds ladder" role="status">
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+            </div>
+          )}
           {isError && <p className="text-sm text-danger">Failed to load odds ladder.</p>}
           {!isPending && rungs?.length === 0 && (
             <p className="text-sm text-text-secondary">

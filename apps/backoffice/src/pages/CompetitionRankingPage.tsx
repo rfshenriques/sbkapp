@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Match } from '@sportsbook/shared';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import { competitionSportMap } from '../lib/countryMaps';
 import { sortSportsByPriority } from '../lib/sportPriority';
@@ -213,7 +214,12 @@ export default function CompetitionRankingPage() {
       </p>
 
       <div className="mt-4 space-y-2">
-        {rankingsPending && <p className="text-sm text-text-secondary">Loading rankings…</p>}
+        {rankingsPending && (
+          <div className="space-y-2" aria-label="Loading rankings" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
         {rankingsError && <p className="text-sm text-danger">Failed to load competition rankings.</p>}
         {!rankingsPending && sports.length === 0 && (
           <p className="text-sm text-text-secondary">No sports yet - they'll appear here once matches are live.</p>

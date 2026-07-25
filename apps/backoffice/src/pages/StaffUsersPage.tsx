@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import * as backendApi from '../lib/backendApi';
 import type { StaffRole } from '../lib/backendApi';
 
@@ -122,9 +123,17 @@ export default function StaffUsersPage() {
       </Card>
 
       <Card className="mt-4">
-        {isPending && <p className="text-sm text-text-secondary">Loading staff users…</p>}
+        {isPending && (
+          <div className="space-y-2" aria-label="Loading staff users" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
         {isError && <p className="text-sm text-danger">Failed to load staff users.</p>}
-        {staffUsers && (
+        {staffUsers && staffUsers.length === 0 && (
+          <p className="text-sm text-text-secondary">No staff users yet.</p>
+        )}
+        {staffUsers && staffUsers.length > 0 && (
           <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>

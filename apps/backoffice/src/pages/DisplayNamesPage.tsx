@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { Skeleton } from '../components/ui/Skeleton';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import { competitionCountryMap } from '../lib/countryMaps';
 import { groupByLetter } from '../lib/groupByLetter';
@@ -216,7 +217,10 @@ export default function DisplayNamesPage() {
 
       <div className="mt-4 space-y-2">
         {!isMarketsSelections && overridesPending && (
-          <p className="text-sm text-text-secondary">Loading display names…</p>
+          <div className="space-y-2" aria-label="Loading display names" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
         )}
         {!isMarketsSelections && overridesError && (
           <p className="text-sm text-danger">Failed to load display names.</p>
@@ -292,7 +296,10 @@ export default function DisplayNamesPage() {
           })}
 
         {isMarketsSelections && marketOverridesPending && (
-          <p className="text-sm text-text-secondary">Loading display names…</p>
+          <div className="space-y-2" aria-label="Loading display names" role="status">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
         )}
         {isMarketsSelections && marketOverrides?.length === 0 && (
           <p className="text-sm text-text-secondary">
