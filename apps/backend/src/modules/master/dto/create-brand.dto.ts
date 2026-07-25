@@ -45,6 +45,10 @@ export class CreateBrandDto {
 
 export class UpdateBrandDto {
   @IsOptional()
+  @IsBoolean()
+  freebetStakeReturnedOnWin?: boolean;
+
+  @IsOptional()
   @MinLength(2)
   name?: string;
 

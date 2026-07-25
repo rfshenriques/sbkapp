@@ -143,6 +143,15 @@ describe('BrandsService', () => {
     expect(updated.buttonColorHex).toBe('#abcdef');
   });
 
+  it('defaults freebetStakeReturnedOnWin to true and lets it be toggled off', async () => {
+    const created = await brandsService.createBrand(buildCreateBrandDto());
+    createdBrandIds.push(created.id);
+    expect(created.freebetStakeReturnedOnWin).toBe(true);
+
+    const updated = await brandsService.updateBrand(created.id, { freebetStakeReturnedOnWin: false });
+    expect(updated.freebetStakeReturnedOnWin).toBe(false);
+  });
+
   it('sets and toggles a product flag', async () => {
     const created = await brandsService.createBrand(buildCreateBrandDto());
     createdBrandIds.push(created.id);

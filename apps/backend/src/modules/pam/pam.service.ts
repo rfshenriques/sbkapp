@@ -788,12 +788,23 @@ export class PamService {
         updatedBet.insuranceCostPercent > 0
           ? Math.round(rawCredited * (1 - updatedBet.insuranceCostPercent / 100))
           : rawCredited;
-      // A freebet-funded bet never returns its stake, even on a win or a
-      // full void (see FreebetGrant) - only whatever's left after the
-      // stake is real cash the player actually receives.
-      const newCredited = updatedBet.fundedByFreebets
-        ? Math.max(0, insuredCredited - updatedBet.stakeCents)
-        : insuredCredited;
+      // A freebet-funded bet that LOSes or VOIDs never credits anything -
+      // there was no real cash at stake to return. Only on a WIN is
+      // whether the stake itself comes back alongside net winnings a
+      // per-brand choice (Brand.freebetStakeReturnedOnWin); either way the
+      // credited amount lands in the player's cash balance below, never
+      // back into their freebets balance.
+      let newCredited = insuredCredited;
+      if (updatedBet.fundedByFreebets) {
+        if (outcome.overallStatus !== 'WON') {
+          newCredited = 0;
+        } else {
+          const brand = await tx.brand.findUniqueOrThrow({ where: { id: brandId } });
+          newCredited = brand.freebetStakeReturnedOnWin
+            ? insuredCredited
+            : Math.max(0, insuredCredited - updatedBet.stakeCents);
+        }
+      }
       const delta = newCredited - previousCredited;
 
       if (delta !== 0) {

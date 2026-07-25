@@ -16,6 +16,7 @@ const brand: Brand = {
   buttonColorHex: '#112233',
   highlightColorHex: null,
   filterColorHex: '#334455',
+  freebetStakeReturnedOnWin: true,
   createdAt: '2026-07-18T00:00:00Z',
   updatedAt: '2026-07-18T00:00:00Z',
   productFlags: [{ id: 'flag-1', brandId: 'brand-1', product: 'CASHOUT', enabled: false }],

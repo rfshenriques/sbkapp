@@ -34,6 +34,8 @@ export interface Brand {
   buttonColorHex: string | null;
   highlightColorHex: string | null;
   filterColorHex: string | null;
+  /** Whether a winning freebet-funded bet credits its stake back alongside net winnings - always to the player's cash balance, never back into freebets. */
+  freebetStakeReturnedOnWin: boolean;
   createdAt: string;
   updatedAt: string;
   productFlags: BrandProductFlag[];
@@ -58,6 +60,7 @@ export interface UpdateBrandPayload {
   buttonColorHex?: string;
   highlightColorHex?: string;
   filterColorHex?: string;
+  freebetStakeReturnedOnWin?: boolean;
 }
 
 function extractErrorMessage(body: unknown, fallback: string): string {

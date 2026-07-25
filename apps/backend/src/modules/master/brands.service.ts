@@ -67,6 +67,7 @@ export class BrandsService {
           buttonColorHex: dto.buttonColorHex,
           highlightColorHex: dto.highlightColorHex,
           filterColorHex: dto.filterColorHex,
+          freebetStakeReturnedOnWin: dto.freebetStakeReturnedOnWin,
         },
         include: { productFlags: true },
       })

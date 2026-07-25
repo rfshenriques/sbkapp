@@ -1406,7 +1406,7 @@ describe('PamService', () => {
       expect(wallet.balanceCents).toBe(100_000);
     });
 
-    it('a freebet-funded bet that WINs credits only the profit, not the stake', async () => {
+    it('a freebet-funded bet that WINs credits the full payout when the brand returns the stake on win (default)', async () => {
       const userId = await createTestUser(100_000);
       const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
       const grant = await freebetService.grant(testBrandId, { identifier: user.username, amountCents: 1_000 }, TEST_ACTOR);
@@ -1424,12 +1424,41 @@ describe('PamService', () => {
         TEST_ACTOR,
       );
 
-      // Raw payout would be 2_100 (stake * odds) - a freebet never returns
-      // the stake, only the 1_100 profit on top of it.
+      // Brand.freebetStakeReturnedOnWin defaults to true - the full raw
+      // payout (stake * odds = 2_100) is credited, stake included, same as
+      // a cash-funded bet.
+      expect(settled.settledPayoutCents).toBe(2_100);
+      const wallet = await pamService.getWallet(userId);
+      // Balance was never debited at placement (freebet-funded), so it gains the whole payout.
+      expect(wallet.balanceCents).toBe(102_100);
+    });
+
+    it('a freebet-funded bet that WINs credits only the profit when the brand opts out of returning the stake', async () => {
+      const userId = await createTestUser(100_000);
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      await prisma.brand.update({ where: { id: testBrandId }, data: { freebetStakeReturnedOnWin: false } });
+      const grant = await freebetService.grant(testBrandId, { identifier: user.username, amountCents: 1_000 }, TEST_ACTOR);
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.1 })],
+        stakeCents: 1_000,
+        useFreebets: true,
+      });
+
+      const settled = await pamService.settleSelection(
+        testBrandId,
+        bet.id,
+        bet.selections[0]!.id,
+        'WON',
+        TEST_ACTOR,
+      );
+
+      // Raw payout would be 2_100 (stake * odds) - with the stake withheld,
+      // only the 1_100 profit on top of it is credited.
       expect(settled.settledPayoutCents).toBe(1_100);
       const wallet = await pamService.getWallet(userId);
-      // Balance was never debited at placement (freebet-funded), so it only ever gains the profit.
       expect(wallet.balanceCents).toBe(101_100);
+
+      await prisma.brand.update({ where: { id: testBrandId }, data: { freebetStakeReturnedOnWin: true } });
     });
 
     it('a freebet-funded bet that LOSEs credits nothing and never touched the cash balance', async () => {

@@ -34,9 +34,12 @@ export interface SystemGrantFreebetInput {
 }
 
 /**
- * A freebet grant credits the player's pooled freebets balance - a second,
- * stake-not-returned wallet a bet can draw any typed stake from (see
- * spendFromBalance), not a single fixed-value token. `status` flips to
+ * A freebet grant credits the player's pooled freebets balance - a second
+ * wallet a bet can draw any typed stake from (see spendFromBalance), not a
+ * single fixed-value token. Whether a winning bet's stake is credited back
+ * on top of net winnings is a per-brand choice (see
+ * Brand.freebetStakeReturnedOnWin / PamService.settleSelection), not
+ * something this service decides. `status` flips to
  * SPENT once a grant's `remainingCents` is fully drawn down, or VOIDED via
  * an explicit staff action; expiry is a read-time condition on expiresAt,
  * not a swept status.
