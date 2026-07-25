@@ -28,7 +28,7 @@ afterEach(() => {
 });
 
 describe('HorizontalScroller auto-scroll', () => {
-  it('advances the scroll position every autoScrollSeconds when there is more than one item', () => {
+  it('advances exactly to the next child\'s own offset, not an approximate viewport-percentage nudge', () => {
     render(
       <HorizontalScroller itemCount={3} ariaLabel="Test" autoScrollSeconds={5}>
         {items(3)}
@@ -36,19 +36,23 @@ describe('HorizontalScroller auto-scroll', () => {
     );
 
     const group = screen.getByRole('group', { name: 'Test' });
-    // jsdom reports 0 for scrollWidth/clientWidth by default (nothing to
-    // scroll), which would always take the "loop back to start" branch -
-    // simulate an actual mid-scroll state so this test exercises scrollBy.
+    // jsdom reports 0 for scrollWidth/clientWidth/offsetLeft by default
+    // (nothing to scroll) - simulate an actual mid-scroll, 3-equal-width-
+    // item state so this test exercises the real branch.
     Object.defineProperty(group, 'scrollWidth', { value: 900, configurable: true });
     Object.defineProperty(group, 'clientWidth', { value: 300, configurable: true });
     Object.defineProperty(group, 'scrollLeft', { value: 0, configurable: true });
-    const { scrollBy } = stubScrollMethods(group);
+    const children = Array.from(group.children) as HTMLElement[];
+    children.forEach((child, index) =>
+      Object.defineProperty(child, 'offsetLeft', { value: index * 300, configurable: true }),
+    );
+    const { scrollTo } = stubScrollMethods(group);
 
-    expect(scrollBy).not.toHaveBeenCalled();
+    expect(scrollTo).not.toHaveBeenCalled();
     vi.advanceTimersByTime(5000);
-    expect(scrollBy).toHaveBeenCalledTimes(1);
-    vi.advanceTimersByTime(5000);
-    expect(scrollBy).toHaveBeenCalledTimes(2);
+    // From scrollLeft 0, the next child ahead is index 1 at offsetLeft 300 -
+    // landing there exactly, not scrollByPage's approximate 0.9 * 300 = 270.
+    expect(scrollTo).toHaveBeenCalledWith({ left: 300, behavior: 'smooth' });
   });
 
   it('loops back to the start once scrolled to the end', () => {

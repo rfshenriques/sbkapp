@@ -77,9 +77,17 @@ export function HorizontalScroller({
       const maxScroll = el.scrollWidth - el.clientWidth;
       if (el.scrollLeft >= maxScroll - 4) {
         el.scrollTo({ left: 0, behavior: 'smooth' });
-      } else {
-        scrollByPage(1);
+        return;
       }
+      // Land exactly on the next child's own offset rather than
+      // scrollByPage's approximate 90%-of-viewport nudge - that fudge
+      // factor is fine for a user-clicked arrow button, but for
+      // auto-scroll it could undershoot a child's start (e.g. a 2-item
+      // pair each ~ the container's width) and leave it only ~90%
+      // revealed until a second tick nudged it the rest of the way.
+      const children = Array.from(el.children) as HTMLElement[];
+      const next = children.find((child) => child.offsetLeft > el.scrollLeft + 4);
+      el.scrollTo({ left: next ? next.offsetLeft : maxScroll, behavior: 'smooth' });
     }, autoScrollSeconds * 1000);
     return () => window.clearInterval(id);
   }, [autoScrollSeconds, itemCount]);
