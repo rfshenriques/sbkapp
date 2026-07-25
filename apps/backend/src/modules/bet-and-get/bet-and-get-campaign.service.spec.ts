@@ -147,6 +147,42 @@ describe('BetAndGetCampaignService', () => {
 
       expect(active.map((campaign) => campaign.id)).toEqual([inScope.id]);
     });
+
+    it('excludes an enabled campaign outside its scheduling window, includes one inside it', async () => {
+      const notYetStarted = await service.create(
+        brandAId,
+        { name: 'Future', rewardAmountCents: 1_000, startAt: new Date(Date.now() + 86_400_000) },
+        TEST_ACTOR,
+      );
+      await service.setScopes(brandAId, notYetStarted.id, [{ scopeType: 'SPORT', scopeValue: 'Football' }], TEST_ACTOR);
+      await service.update(brandAId, notYetStarted.id, { enabled: true }, TEST_ACTOR);
+
+      const alreadyEnded = await service.create(
+        brandAId,
+        { name: 'Past', rewardAmountCents: 1_000, endAt: new Date(Date.now() - 86_400_000) },
+        TEST_ACTOR,
+      );
+      await service.setScopes(brandAId, alreadyEnded.id, [{ scopeType: 'SPORT', scopeValue: 'Football' }], TEST_ACTOR);
+      await service.update(brandAId, alreadyEnded.id, { enabled: true }, TEST_ACTOR);
+
+      const currentlyRunning = await service.create(
+        brandAId,
+        {
+          name: 'Now',
+          rewardAmountCents: 1_000,
+          startAt: new Date(Date.now() - 86_400_000),
+          endAt: new Date(Date.now() + 86_400_000),
+        },
+        TEST_ACTOR,
+      );
+      await service.setScopes(brandAId, currentlyRunning.id, [{ scopeType: 'SPORT', scopeValue: 'Football' }], TEST_ACTOR);
+      await service.update(brandAId, currentlyRunning.id, { enabled: true }, TEST_ACTOR);
+
+      const match = { sport: 'Football', competition: 'EPL', matchId: 'match-1' };
+      const active = await service.findActiveForMatch(brandAId, match);
+
+      expect(active.map((campaign) => campaign.id)).toEqual([currentlyRunning.id]);
+    });
   });
 
   describe('resolveApplicableCampaign', () => {

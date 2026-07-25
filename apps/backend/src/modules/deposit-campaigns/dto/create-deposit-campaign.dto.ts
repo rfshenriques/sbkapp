@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsPositive, IsString, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsISO8601, IsInt, IsOptional, IsPositive, IsString, Min } from 'class-validator';
 import type { AudienceMode, BetAndGetBetType, BetAndGetTrigger, DepositRewardType } from '@prisma/client';
 
 const REWARD_TYPES: DepositRewardType[] = ['FIXED', 'PERCENTAGE'];
@@ -20,6 +20,15 @@ export class CreateDepositCampaignDto {
 
   @IsIn(REWARD_TYPES)
   rewardType!: DepositRewardType;
+
+  /** Optional scheduling window - both independently optional, see DepositCampaign.startAt/endAt. */
+  @IsOptional()
+  @IsISO8601()
+  startAt?: string | null;
+
+  @IsOptional()
+  @IsISO8601()
+  endAt?: string | null;
 
   /** Required when rewardType is FIXED - checked in the service, not here, since it depends on another field. */
   @IsOptional()

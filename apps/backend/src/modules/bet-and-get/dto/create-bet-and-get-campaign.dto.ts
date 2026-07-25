@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsInt, IsOptional, IsPositive, IsString, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsISO8601, IsInt, IsOptional, IsPositive, IsString, Min } from 'class-validator';
 import type { BetAndGetBetType, BetAndGetTrigger } from '@prisma/client';
 
 const TRIGGERS: BetAndGetTrigger[] = ['PLACEMENT', 'SETTLEMENT'];
@@ -15,6 +15,15 @@ export class CreateBetAndGetCampaignDto {
   @IsInt()
   @IsPositive()
   rewardAmountCents!: number;
+
+  /** Optional scheduling window - both independently optional, see BetAndGetCampaign.startAt/endAt. */
+  @IsOptional()
+  @IsISO8601()
+  startAt?: string | null;
+
+  @IsOptional()
+  @IsISO8601()
+  endAt?: string | null;
 
   @IsOptional()
   @IsIn(TRIGGERS)

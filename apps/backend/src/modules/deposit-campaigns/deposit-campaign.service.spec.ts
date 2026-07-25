@@ -258,5 +258,26 @@ describe('DepositCampaignService', () => {
 
       expect(await service.resolveEligibleForPlayer(brandAId, userId, { isLoggedIn: true, segmentIds: [] })).toBeNull();
     });
+
+    it('skips an enabled campaign outside its scheduling window', async () => {
+      const notYetStarted = await service.create(
+        brandAId,
+        { ...FIXED_INPUT, startAt: new Date(Date.now() + 86_400_000) },
+        TEST_ACTOR,
+      );
+      await service.update(brandAId, notYetStarted.id, { enabled: true }, TEST_ACTOR);
+      expect(await service.resolveEligibleForPlayer(brandAId, userId, { isLoggedIn: true, segmentIds: [] })).toBeNull();
+    });
+
+    it('resolves a campaign currently inside its scheduling window', async () => {
+      const running = await service.create(
+        brandAId,
+        { ...FIXED_INPUT, startAt: new Date(Date.now() - 86_400_000), endAt: new Date(Date.now() + 86_400_000) },
+        TEST_ACTOR,
+      );
+      await service.update(brandAId, running.id, { enabled: true }, TEST_ACTOR);
+      const resolved = await service.resolveEligibleForPlayer(brandAId, userId, { isLoggedIn: true, segmentIds: [] });
+      expect(resolved?.id).toBe(running.id);
+    });
   });
 });

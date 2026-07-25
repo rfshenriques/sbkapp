@@ -12,6 +12,8 @@ const draftCampaign: DepositCampaign = {
   name: 'First Deposit Bonus',
   description: null,
   enabled: false,
+  startAt: null,
+  endAt: null,
   minDepositAmountCents: 1_000,
   rewardType: 'FIXED',
   fixedRewardAmountCents: 500,

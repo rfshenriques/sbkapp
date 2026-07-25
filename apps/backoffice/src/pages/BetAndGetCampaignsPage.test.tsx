@@ -12,6 +12,8 @@ const draftCampaign: BetAndGetCampaign = {
   name: 'CL Bet & Get',
   description: null,
   enabled: false,
+  startAt: null,
+  endAt: null,
   rewardAmountCents: 1_000,
   trigger: 'PLACEMENT',
   triggerOnWon: false,

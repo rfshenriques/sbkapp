@@ -28,6 +28,32 @@ export function matchIsInCampaignScope(scopes: CampaignScope[], match: ScopeMatc
   });
 }
 
+export interface CampaignSchedule {
+  enabled: boolean;
+  startAt: Date | null;
+  endAt: Date | null;
+}
+
+/**
+ * Whether a campaign is actually live right now - both the staff-controlled
+ * enabled flag AND (if set) within its optional start/end window. Either
+ * boundary is optional independently: a startAt with no endAt runs forever
+ * once it begins, an endAt with no startAt is already running. Shared by
+ * BetAndGetCampaignService and DepositCampaignService's "enabled" gates.
+ */
+export function isCampaignScheduledActive(campaign: CampaignSchedule, now: Date = new Date()): boolean {
+  if (!campaign.enabled) {
+    return false;
+  }
+  if (campaign.startAt !== null && now < campaign.startAt) {
+    return false;
+  }
+  if (campaign.endAt !== null && now > campaign.endAt) {
+    return false;
+  }
+  return true;
+}
+
 export interface CampaignConditions {
   minStakeCents: number | null;
   minOddsPerLeg: number | null;

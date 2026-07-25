@@ -30,20 +30,27 @@ export class BetAndGetAdminController {
 
   @Post()
   create(@Body() dto: CreateBetAndGetCampaignDto, @Req() req: AuthenticatedStaffRequest) {
-    return this.betAndGetCampaignService.create(req.user.brandId, dto, {
-      id: req.user.sub,
-      username: req.user.username,
-      brandId: req.user.brandId,
-    });
+    const { startAt, endAt, ...rest } = dto;
+    return this.betAndGetCampaignService.create(
+      req.user.brandId,
+      { ...rest, startAt: startAt ? new Date(startAt) : null, endAt: endAt ? new Date(endAt) : null },
+      { id: req.user.sub, username: req.user.username, brandId: req.user.brandId },
+    );
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateBetAndGetCampaignDto, @Req() req: AuthenticatedStaffRequest) {
-    return this.betAndGetCampaignService.update(req.user.brandId, id, dto, {
-      id: req.user.sub,
-      username: req.user.username,
-      brandId: req.user.brandId,
-    });
+    const { startAt, endAt, ...rest } = dto;
+    return this.betAndGetCampaignService.update(
+      req.user.brandId,
+      id,
+      {
+        ...rest,
+        ...(startAt !== undefined ? { startAt: startAt ? new Date(startAt) : null } : {}),
+        ...(endAt !== undefined ? { endAt: endAt ? new Date(endAt) : null } : {}),
+      },
+      { id: req.user.sub, username: req.user.username, brandId: req.user.brandId },
+    );
   }
 
   @Delete(':id')

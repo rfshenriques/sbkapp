@@ -959,6 +959,13 @@ model BetAndGetCampaign {
   name        String
   description String?
   enabled     Boolean @default(false)
+  /**
+   * Optional scheduling window, both independently optional - a campaign is
+   * only actually live when enabled AND (no startAt or startAt has passed)
+   * AND (no endAt or endAt hasn't passed yet). See isCampaignScheduledActive.
+   */
+  startAt DateTime?
+  endAt   DateTime?
 
   rewardAmountCents Int
 
@@ -1091,6 +1098,9 @@ model DepositCampaign {
   name        String
   description String?
   enabled     Boolean @default(false)
+  /** Same optional scheduling window as BetAndGetCampaign - see isCampaignScheduledActive. */
+  startAt DateTime?
+  endAt   DateTime?
 
   minDepositAmountCents Int
 

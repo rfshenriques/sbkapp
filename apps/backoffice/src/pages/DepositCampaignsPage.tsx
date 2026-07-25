@@ -5,6 +5,7 @@ import { Card } from '../components/ui/Card';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import * as backendApi from '../lib/backendApi';
 import type { AudienceMode } from '../lib/backendApi';
+import { formatScheduleWindow, isoToLocalInputValue, localInputValueToIso } from '../lib/dateTimeInput';
 
 const campaignsQueryKey = ['deposit-campaigns'] as const;
 const segmentsQueryKey = ['player-segments'] as const;
@@ -45,6 +46,8 @@ function NewCampaignForm() {
   const [fixedRewardAmount, setFixedRewardAmount] = useState(DEFAULT_FIXED_REWARD);
   const [rewardPercent, setRewardPercent] = useState(DEFAULT_REWARD_PERCENT);
   const [rewardCap, setRewardCap] = useState(DEFAULT_REWARD_CAP);
+  const [startAt, setStartAt] = useState('');
+  const [endAt, setEndAt] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const createMutation = useMutation({
@@ -53,6 +56,8 @@ function NewCampaignForm() {
         name: name.trim(),
         minDepositAmountCents: displayToCents(minDepositAmount),
         rewardType,
+        startAt: localInputValueToIso(startAt),
+        endAt: localInputValueToIso(endAt),
         ...(rewardType === 'FIXED'
           ? { fixedRewardAmountCents: displayToCents(fixedRewardAmount) }
           : { rewardPercent: Number(rewardPercent), rewardCapCents: displayToCents(rewardCap) }),
@@ -64,6 +69,8 @@ function NewCampaignForm() {
       setFixedRewardAmount(DEFAULT_FIXED_REWARD);
       setRewardPercent(DEFAULT_REWARD_PERCENT);
       setRewardCap(DEFAULT_REWARD_CAP);
+      setStartAt('');
+      setEndAt('');
       setError(null);
       void queryClient.invalidateQueries({ queryKey: campaignsQueryKey });
     },
@@ -168,6 +175,35 @@ function NewCampaignForm() {
           Create
         </Button>
       </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <div>
+          <label className="block text-xs text-text-secondary" htmlFor="new-deposit-campaign-start">
+            Starts (optional)
+          </label>
+          <input
+            id="new-deposit-campaign-start"
+            type="datetime-local"
+            value={startAt}
+            onChange={(event) => setStartAt(event.target.value)}
+            className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-text-secondary" htmlFor="new-deposit-campaign-end">
+            Ends (optional)
+          </label>
+          <input
+            id="new-deposit-campaign-end"
+            type="datetime-local"
+            value={endAt}
+            onChange={(event) => setEndAt(event.target.value)}
+            className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+          />
+        </div>
+        <p className="text-xs text-text-secondary">
+          Leave either blank to run with no boundary on that side - enabling still requires the checkbox below.
+        </p>
+      </div>
       {error && <p className="text-sm text-danger">{error}</p>}
     </Card>
   );
@@ -201,6 +237,8 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
   const [minOddsText, setMinOddsText] = useState(campaign.minOddsPerLeg?.toString() ?? '');
   const [minSelectionsText, setMinSelectionsText] = useState(campaign.minSelections?.toString() ?? '');
   const [maxRedemptionsText, setMaxRedemptionsText] = useState(campaign.maxRedemptionsPerPlayer?.toString() ?? '');
+  const [startAtText, setStartAtText] = useState(isoToLocalInputValue(campaign.startAt));
+  const [endAtText, setEndAtText] = useState(isoToLocalInputValue(campaign.endAt));
 
   useEffect(() => {
     setDraft({ ...campaign, segmentIds: campaign.segments.map((segment) => segment.segmentId) });
@@ -212,6 +250,8 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
     setMinOddsText(campaign.minOddsPerLeg?.toString() ?? '');
     setMinSelectionsText(campaign.minSelections?.toString() ?? '');
     setMaxRedemptionsText(campaign.maxRedemptionsPerPlayer?.toString() ?? '');
+    setStartAtText(isoToLocalInputValue(campaign.startAt));
+    setEndAtText(isoToLocalInputValue(campaign.endAt));
   }, [campaign]);
 
   const { data: segments } = useQuery({
@@ -300,6 +340,39 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
           onChange={(event) => setDraft({ ...draft, description: event.target.value })}
           className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
         />
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div>
+          <label className="block text-xs text-text-secondary" htmlFor={`start-${campaign.id}`}>
+            Starts (optional)
+          </label>
+          <input
+            id={`start-${campaign.id}`}
+            type="datetime-local"
+            value={startAtText}
+            onChange={(event) => {
+              setStartAtText(event.target.value);
+              setDraft({ ...draft, startAt: localInputValueToIso(event.target.value) });
+            }}
+            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-text-secondary" htmlFor={`end-${campaign.id}`}>
+            Ends (optional)
+          </label>
+          <input
+            id={`end-${campaign.id}`}
+            type="datetime-local"
+            value={endAtText}
+            onChange={(event) => {
+              setEndAtText(event.target.value);
+              setDraft({ ...draft, endAt: localInputValueToIso(event.target.value) });
+            }}
+            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+          />
+        </div>
       </div>
 
       <div>
@@ -644,6 +717,9 @@ function CampaignCard({ campaign }: CampaignCardProps) {
               {rewardSummary} · min deposit £{centsToDisplay(campaign.minDepositAmountCents)} ·{' '}
               {campaign.requiresBet ? `requires bet (${campaign.trigger.toLowerCase()})` : 'no bet required'}
             </span>
+            {(campaign.startAt || campaign.endAt) && (
+              <span className="block text-xs text-text-secondary">{formatScheduleWindow(campaign)}</span>
+            )}
           </span>
         </span>
         <ChevronIcon className={`h-4 w-4 shrink-0 text-text-muted ${isExpanded ? 'rotate-180' : ''}`} />

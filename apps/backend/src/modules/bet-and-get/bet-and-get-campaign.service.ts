@@ -8,6 +8,8 @@ export interface CreateBetAndGetCampaignInput {
   name: string;
   description?: string;
   rewardAmountCents: number;
+  startAt?: Date | null;
+  endAt?: Date | null;
   trigger?: BetAndGetTrigger;
   triggerOnWon?: boolean;
   triggerOnLost?: boolean;
@@ -50,10 +52,18 @@ export class BetAndGetCampaignService {
     });
   }
 
-  /** Enabled campaigns only, oldest first - what the player-facing list/matching logic iterates over. */
+  /** Enabled AND currently within their scheduling window (if any), oldest first - what the player-facing list/matching logic iterates over. */
   async listEnabled(brandId: string) {
+    const now = new Date();
     return this.prisma.betAndGetCampaign.findMany({
-      where: { brandId, enabled: true },
+      where: {
+        brandId,
+        enabled: true,
+        AND: [
+          { OR: [{ startAt: null }, { startAt: { lte: now } }] },
+          { OR: [{ endAt: null }, { endAt: { gte: now } }] },
+        ],
+      },
       include: campaignInclude,
       orderBy: { createdAt: 'asc' },
     });
@@ -81,6 +91,8 @@ export class BetAndGetCampaignService {
         name: input.name,
         description: input.description,
         rewardAmountCents: input.rewardAmountCents,
+        startAt: input.startAt ?? null,
+        endAt: input.endAt ?? null,
         trigger: input.trigger ?? 'PLACEMENT',
         triggerOnWon: input.triggerOnWon ?? false,
         triggerOnLost: input.triggerOnLost ?? false,

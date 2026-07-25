@@ -3,11 +3,13 @@ import type { AudienceMode, BetAndGetBetType, BetAndGetTrigger, DepositRewardTyp
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { resolveAudience, type AudienceViewer } from '../audience/audience';
-import { betQualifiesForCampaign, type QualifyingBetInput } from '../bet-and-get/bet-and-get';
+import { betQualifiesForCampaign, isCampaignScheduledActive, type QualifyingBetInput } from '../bet-and-get/bet-and-get';
 
 export interface DepositCampaignInput {
   name: string;
   description?: string;
+  startAt?: Date | null;
+  endAt?: Date | null;
   minDepositAmountCents: number;
   rewardType: DepositRewardType;
   fixedRewardAmountCents?: number | null;
@@ -64,10 +66,18 @@ export class DepositCampaignService {
     });
   }
 
-  /** Enabled campaigns only, oldest first - what deposit evaluation and the promo-card/modal eligibility checks iterate over. */
+  /** Enabled AND currently within their scheduling window (if any), oldest first - what deposit evaluation and the promo-card/modal eligibility checks iterate over. */
   async listEnabled(brandId: string) {
+    const now = new Date();
     return this.prisma.depositCampaign.findMany({
-      where: { brandId, enabled: true },
+      where: {
+        brandId,
+        enabled: true,
+        AND: [
+          { OR: [{ startAt: null }, { startAt: { lte: now } }] },
+          { OR: [{ endAt: null }, { endAt: { gte: now } }] },
+        ],
+      },
       include: campaignInclude,
       orderBy: { createdAt: 'asc' },
     });
@@ -96,6 +106,8 @@ export class DepositCampaignService {
         brandId,
         name: input.name,
         description: input.description,
+        startAt: input.startAt ?? null,
+        endAt: input.endAt ?? null,
         minDepositAmountCents: input.minDepositAmountCents,
         rewardType: input.rewardType,
         fixedRewardAmountCents: input.fixedRewardAmountCents ?? null,
@@ -219,7 +231,9 @@ export class DepositCampaignService {
     });
     return (
       pending.find(
-        (redemption) => redemption.depositCampaign.enabled && betQualifiesForCampaign(redemption.depositCampaign, bet),
+        (redemption) =>
+          isCampaignScheduledActive(redemption.depositCampaign) &&
+          betQualifiesForCampaign(redemption.depositCampaign, bet),
       ) ?? null
     );
   }

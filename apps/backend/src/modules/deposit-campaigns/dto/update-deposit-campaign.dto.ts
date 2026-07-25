@@ -1,4 +1,4 @@
-import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsPositive, IsString, Min } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsISO8601, IsInt, IsOptional, IsPositive, IsString, Min } from 'class-validator';
 import type { AudienceMode, BetAndGetBetType, BetAndGetTrigger, DepositRewardType } from '@prisma/client';
 
 const REWARD_TYPES: DepositRewardType[] = ['FIXED', 'PERCENTAGE'];
@@ -19,6 +19,14 @@ export class UpdateDepositCampaignDto {
   @IsOptional()
   @IsBoolean()
   enabled?: boolean;
+
+  @IsOptional()
+  @IsISO8601()
+  startAt?: string | null;
+
+  @IsOptional()
+  @IsISO8601()
+  endAt?: string | null;
 
   @IsOptional()
   @IsInt()

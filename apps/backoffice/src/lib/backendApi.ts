@@ -1206,6 +1206,9 @@ export interface BetAndGetCampaign {
   name: string;
   description: string | null;
   enabled: boolean;
+  /** Optional scheduling window, both independently optional - null means no boundary on that side. */
+  startAt: string | null;
+  endAt: string | null;
   rewardAmountCents: number;
   trigger: BetAndGetTrigger;
   triggerOnWon: boolean;
@@ -1225,6 +1228,8 @@ export interface BetAndGetCampaign {
 export interface CreateBetAndGetCampaignPayload {
   name: string;
   description?: string;
+  startAt?: string | null;
+  endAt?: string | null;
   rewardAmountCents: number;
 }
 
@@ -1291,6 +1296,9 @@ export interface DepositCampaign {
   name: string;
   description: string | null;
   enabled: boolean;
+  /** Optional scheduling window, both independently optional - null means no boundary on that side. */
+  startAt: string | null;
+  endAt: string | null;
   minDepositAmountCents: number;
   rewardType: DepositRewardType;
   fixedRewardAmountCents: number | null;
@@ -1316,6 +1324,8 @@ export interface DepositCampaign {
 export interface CreateDepositCampaignPayload {
   name: string;
   description?: string;
+  startAt?: string | null;
+  endAt?: string | null;
   minDepositAmountCents: number;
   rewardType: DepositRewardType;
   /** Required when rewardType is FIXED. */

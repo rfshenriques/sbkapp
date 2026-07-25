@@ -29,20 +29,27 @@ export class DepositCampaignAdminController {
 
   @Post()
   create(@Body() dto: CreateDepositCampaignDto, @Req() req: AuthenticatedStaffRequest) {
-    return this.depositCampaignService.create(req.user.brandId, dto, {
-      id: req.user.sub,
-      username: req.user.username,
-      brandId: req.user.brandId,
-    });
+    const { startAt, endAt, ...rest } = dto;
+    return this.depositCampaignService.create(
+      req.user.brandId,
+      { ...rest, startAt: startAt ? new Date(startAt) : null, endAt: endAt ? new Date(endAt) : null },
+      { id: req.user.sub, username: req.user.username, brandId: req.user.brandId },
+    );
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() dto: UpdateDepositCampaignDto, @Req() req: AuthenticatedStaffRequest) {
-    return this.depositCampaignService.update(req.user.brandId, id, dto, {
-      id: req.user.sub,
-      username: req.user.username,
-      brandId: req.user.brandId,
-    });
+    const { startAt, endAt, ...rest } = dto;
+    return this.depositCampaignService.update(
+      req.user.brandId,
+      id,
+      {
+        ...rest,
+        ...(startAt !== undefined ? { startAt: startAt ? new Date(startAt) : null } : {}),
+        ...(endAt !== undefined ? { endAt: endAt ? new Date(endAt) : null } : {}),
+      },
+      { id: req.user.sub, username: req.user.username, brandId: req.user.brandId },
+    );
   }
 
   @Delete(':id')

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { betQualifiesForCampaign, matchIsInCampaignScope, type CampaignConditions, type CampaignScope } from './bet-and-get';
+import {
+  betQualifiesForCampaign,
+  isCampaignScheduledActive,
+  matchIsInCampaignScope,
+  type CampaignConditions,
+  type CampaignScope,
+} from './bet-and-get';
 
 const NO_CONDITIONS: CampaignConditions = {
   minStakeCents: null,
@@ -45,6 +51,41 @@ describe('matchIsInCampaignScope', () => {
       { scopeType: 'COMPETITION', scopeValue: 'Champions League' },
     ];
     expect(matchIsInCampaignScope(scopes, match)).toBe(true);
+  });
+});
+
+describe('isCampaignScheduledActive', () => {
+  const now = new Date('2026-06-15T12:00:00Z');
+
+  it('is false when disabled, regardless of the window', () => {
+    expect(isCampaignScheduledActive({ enabled: false, startAt: null, endAt: null }, now)).toBe(false);
+  });
+
+  it('is true when enabled with no window set', () => {
+    expect(isCampaignScheduledActive({ enabled: true, startAt: null, endAt: null }, now)).toBe(true);
+  });
+
+  it('is false before startAt, true once reached', () => {
+    const future = new Date('2026-06-16T00:00:00Z');
+    const past = new Date('2026-06-01T00:00:00Z');
+    expect(isCampaignScheduledActive({ enabled: true, startAt: future, endAt: null }, now)).toBe(false);
+    expect(isCampaignScheduledActive({ enabled: true, startAt: past, endAt: null }, now)).toBe(true);
+  });
+
+  it('is false after endAt, true up to and including it', () => {
+    const past = new Date('2026-06-01T00:00:00Z');
+    const future = new Date('2026-06-16T00:00:00Z');
+    expect(isCampaignScheduledActive({ enabled: true, startAt: null, endAt: past }, now)).toBe(false);
+    expect(isCampaignScheduledActive({ enabled: true, startAt: null, endAt: future }, now)).toBe(true);
+  });
+
+  it('requires now to fall inside both boundaries when both are set', () => {
+    const start = new Date('2026-06-10T00:00:00Z');
+    const end = new Date('2026-06-20T00:00:00Z');
+    expect(isCampaignScheduledActive({ enabled: true, startAt: start, endAt: end }, now)).toBe(true);
+    expect(isCampaignScheduledActive({ enabled: true, startAt: start, endAt: new Date('2026-06-12T00:00:00Z') }, now)).toBe(
+      false,
+    );
   });
 });
 
