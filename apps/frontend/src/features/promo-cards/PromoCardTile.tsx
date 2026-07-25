@@ -25,10 +25,17 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
 
   const content = (
     <>
+      {/* Absolutely positioned (matching the static fallback PromoCard's
+          own image) so the uploaded image's intrinsic aspect ratio never
+          contributes real in-flow height to this card - left in normal
+          flow, a tall/portrait upload would inflate this card's height
+          and, via the mobile scroller's default flex align-items:stretch,
+          drag Match of the Day's height up along with it even though
+          neither card's own size should depend on the other's content. */}
       <img
         src={`/backend/public/promo-cards/${brandId}/item/${card.id}`}
         alt={card.title ?? ''}
-        className="h-full w-full object-cover"
+        className="absolute inset-0 h-full w-full object-cover"
       />
       {hasCaption && (
         <>
