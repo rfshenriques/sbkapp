@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { Card } from '../../components/ui/Card';
+import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MoneyBeforeAfter } from '../../components/ui/MoneyBeforeAfter';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { betStatusBadgeClasses, betStatusTextClasses } from '../../lib/betStatus';
-import type { PlacedBet } from '../../lib/backendApi';
+import type { PlacedBet, PlacedBetSelection } from '../../lib/backendApi';
 import { useAuth } from '../auth/useAuth';
 import { useAuthModalStore } from '../auth/authModalStore';
 import { sortBetsForHistory } from './sortBetsForHistory';
@@ -43,8 +44,36 @@ function BetTag({ children }: { children: ReactNode }) {
   );
 }
 
+/** Small filled circle per accumulator leg - a WON/LOST/VOID glyph once a leg has settled, plain colored dot while still OPEN. Collapsed-state summary so a player can see at a glance how an accumulator is going without expanding it. */
+function SelectionStatusDot({ status }: { status: PlacedBetSelection['status'] }) {
+  const glyph = status === 'WON' ? '✓' : status === 'LOST' ? '✕' : status === 'VOID' ? '–' : '';
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold leading-none ${betStatusBadgeClasses(status)}`}
+    >
+      {glyph}
+    </span>
+  );
+}
+
+function SelectionRow({ selection }: { selection: PlacedBetSelection }) {
+  return (
+    <div className="text-sm">
+      <p className="text-xs text-text-muted">{selection.matchLabel}</p>
+      <p>
+        <span className={betStatusTextClasses(selection.status)}>
+          {selection.marketName}: {selection.selectionName}
+        </span>{' '}
+        <span className="text-text-secondary">@ {Number(selection.odds).toFixed(2)}</span>
+      </p>
+    </div>
+  );
+}
+
 function BetCard({ bet }: { bet: PlacedBet }) {
   const isAccumulator = bet.selections.length > 1;
+  const [isExpanded, setIsExpanded] = useState(false);
   const payoutCents = displayedPayoutCents(bet);
   const showInsuranceBeforeAfter = bet.insuranceCostPercent > 0 && payoutCents > 0;
   const campaignName = bet.betAndGetCampaignName ?? bet.depositCampaignName;
@@ -73,19 +102,39 @@ function BetCard({ bet }: { bet: PlacedBet }) {
         </span>
       </div>
 
-      <div className="space-y-1">
-        {bet.selections.map((selection) => (
-          <div key={selection.id} className="text-sm">
-            <p className="text-xs text-text-muted">{selection.matchLabel}</p>
-            <p>
-              <span className={betStatusTextClasses(selection.status)}>
-                {selection.marketName}: {selection.selectionName}
-              </span>{' '}
-              <span className="text-text-secondary">@ {Number(selection.odds).toFixed(2)}</span>
-            </p>
-          </div>
-        ))}
-      </div>
+      {isAccumulator ? (
+        <div>
+          <button
+            type="button"
+            onClick={() => setIsExpanded((expanded) => !expanded)}
+            aria-expanded={isExpanded}
+            className="flex w-full items-center justify-between gap-2 rounded-lg py-1 text-left"
+          >
+            <span className="flex flex-wrap items-center gap-1">
+              {bet.selections.map((selection) => (
+                <SelectionStatusDot key={selection.id} status={selection.status} />
+              ))}
+            </span>
+            <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-text-secondary">
+              {isExpanded ? 'Hide selections' : 'Show selections'}
+              <ChevronIcon width={14} height={14} className={isExpanded ? 'rotate-180' : ''} />
+            </span>
+          </button>
+          {isExpanded && (
+            <div className="space-y-1 border-t border-border pt-2">
+              {bet.selections.map((selection) => (
+                <SelectionRow key={selection.id} selection={selection} />
+              ))}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-1">
+          {bet.selections.map((selection) => (
+            <SelectionRow key={selection.id} selection={selection} />
+          ))}
+        </div>
+      )}
 
       {campaignName && <p className="text-xs text-highlight">Qualified for {campaignName}</p>}
       {bet.accaRollbackRewardCents !== null && (

@@ -200,6 +200,51 @@ describe('BetHistoryList', () => {
     expect(screen.getByText(/6\.60/)).toBeInTheDocument();
   });
 
+  it('keeps a single bet\'s selection always visible with no expand control', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([buildBet()]), { status: 200 })));
+
+    renderList();
+
+    expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /show selections/i })).not.toBeInTheDocument();
+  });
+
+  it('collapses an accumulator by default, hiding per-selection detail until expanded', async () => {
+    const accaBet = buildBet({
+      id: 'acca',
+      selections: [
+        ...buildBet().selections,
+        {
+          id: 'sel-2',
+          matchId: 'match-2',
+          marketId: 'match-result',
+          selectionId: 'away',
+          matchLabel: 'Liverpool vs Man City',
+          marketName: 'Match Result',
+          selectionName: 'Away',
+          odds: '3.00',
+          status: 'OPEN',
+        },
+      ],
+    });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify([accaBet]), { status: 200 })));
+
+    renderList();
+
+    expect(await screen.findByText('Accumulator (2)')).toBeInTheDocument();
+    expect(screen.queryByText('Arsenal vs Chelsea')).not.toBeInTheDocument();
+    expect(screen.queryByText('Liverpool vs Man City')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Show selections' }));
+
+    expect(screen.getByText('Arsenal vs Chelsea')).toBeInTheDocument();
+    expect(screen.getByText('Liverpool vs Man City')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Hide selections' }));
+
+    expect(screen.queryByText('Arsenal vs Chelsea')).not.toBeInTheDocument();
+  });
+
   it('shows which campaign a bet qualified for', async () => {
     vi.stubGlobal(
       'fetch',
