@@ -27,6 +27,7 @@ import { BrandImageListModule } from './modules/brand-image-list/brand-image-lis
 import { MarginsModule } from './modules/margins/margins.module';
 import { MarketingSpendModule } from './modules/marketing-spend/marketing-spend.module';
 import { FreebetModule } from './modules/freebets/freebet.module';
+import { PromoCardModule } from './modules/promo-cards/promo-card.module';
 
 @Module({
   imports: [
@@ -58,6 +59,7 @@ import { FreebetModule } from './modules/freebets/freebet.module';
     MarginsModule,
     MarketingSpendModule,
     FreebetModule,
+    PromoCardModule,
   ],
 })
 export class AppModule {}
