@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Match } from '@sportsbook/shared';
 import { useBrandStore } from '../brand/brandStore';
@@ -50,6 +50,25 @@ function renderSidebar() {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
         <Sidebar />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}
+
+function LocationMarker() {
+  const location = useLocation();
+  return <p>Navigated to: {location.pathname}{location.search}</p>;
+}
+
+function renderSidebarWithBrowseRoute() {
+  const queryClient = new QueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route path="/" element={<Sidebar />} />
+          <Route path="/browse" element={<LocationMarker />} />
+        </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -249,5 +268,62 @@ describe('Sidebar', () => {
     await userEvent.click(screen.getByRole('button', { name: /Ice Hockey/ }));
     expect(screen.queryByRole('button', { name: /England/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /USA/ })).toBeInTheDocument();
+  });
+
+  describe('select multiple', () => {
+    it('shows no Apply button and no checkboxes until "Select multiple" is toggled on', async () => {
+      stubFetch([buildMatch({ sport: 'Football', country: 'England', competition: 'Premier League' })]);
+
+      renderSidebar();
+
+      await screen.findByRole('button', { name: /Football/ });
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Apply/ })).not.toBeInTheDocument();
+    });
+
+    it('selecting a sport checkbox does not also toggle that sport open/closed', async () => {
+      stubFetch([buildMatch({ sport: 'Football', country: 'England', competition: 'Premier League' })]);
+
+      renderSidebar();
+      await userEvent.click(await screen.findByRole('button', { name: 'Select multiple' }));
+
+      await userEvent.click(screen.getByRole('checkbox', { name: /Select Football/ }));
+
+      expect(screen.queryByRole('button', { name: /England/ })).not.toBeInTheDocument();
+    });
+
+    it('selecting a sport and a competition, then applying, navigates to /browse with both encoded', async () => {
+      stubFetch([
+        buildMatch({ id: 'm1', sport: 'Football', country: 'England', competition: 'Premier League' }),
+        buildMatch({ id: 'm2', sport: 'Basketball', country: 'USA', competition: 'NBA' }),
+      ]);
+
+      renderSidebarWithBrowseRoute();
+      await userEvent.click(await screen.findByRole('button', { name: 'Select multiple' }));
+
+      await userEvent.click(screen.getByRole('checkbox', { name: /Select Basketball/ }));
+
+      await userEvent.click(screen.getByRole('button', { name: /Football/ }));
+      await userEvent.click(screen.getByRole('button', { name: /England/ }));
+      await userEvent.click(screen.getByRole('checkbox', { name: /Select Premier League/ }));
+
+      await userEvent.click(screen.getByRole('button', { name: 'Apply (2)' }));
+
+      const marker = await screen.findByText(/Navigated to:/);
+      expect(marker.textContent).toBe('Navigated to: /browse?sports=Basketball&competitions=Premier+League');
+    });
+
+    it('"Cancel" exits select-multiple mode and clears any selections', async () => {
+      stubFetch([buildMatch({ sport: 'Football', country: 'England', competition: 'Premier League' })]);
+
+      renderSidebar();
+      await userEvent.click(await screen.findByRole('button', { name: 'Select multiple' }));
+      await userEvent.click(screen.getByRole('checkbox', { name: /Select Football/ }));
+
+      await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Select multiple' })).toBeInTheDocument();
+    });
   });
 });

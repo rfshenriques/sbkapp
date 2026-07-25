@@ -10,6 +10,7 @@ const OddsBoardPage = lazy(() => import('../pages/OddsBoardPage'));
 export const loadMatchDetailPage = () => import('../pages/MatchDetailPage');
 const MatchDetailPage = lazy(loadMatchDetailPage);
 const CampaignMatchesPage = lazy(() => import('../pages/CampaignMatchesPage'));
+const BrowsePage = lazy(() => import('../pages/BrowsePage'));
 const SportPage = lazy(() => import('../pages/SportPage'));
 const MyBetsPage = lazy(() => import('../pages/MyBetsPage'));
 const PromotionsPage = lazy(() => import('../pages/PromotionsPage'));
@@ -27,6 +28,7 @@ export const routes: RouteObject[] = [
       { index: true, Component: OddsBoardPage },
       { path: 'matches/:matchId', Component: MatchDetailPage },
       { path: 'campaigns/:campaignId', Component: CampaignMatchesPage },
+      { path: 'browse', Component: BrowsePage },
       { path: 'sports/:sport', Component: SportPage },
       { path: 'live', Component: SportPage },
       { path: 'my-bets', Component: MyBetsPage },

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { CountryFlag } from '../../components/ui/CountryFlag';
 import { BoostIcon, SearchIcon, SpecialsIcon } from '../../components/ui/NavIcons';
@@ -35,6 +35,7 @@ export interface SidebarProps {
 }
 
 export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: SidebarProps = {}) {
+  const navigate = useNavigate();
   const { data: matches } = useMatches();
   const { data: rankings } = useCompetitionRankings();
   const { data: quicklinks } = useCompetitionQuicklinks();
@@ -89,6 +90,49 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
 
   const [expandedSport, setExpandedSport] = useState<string | null>(null);
   const [expandedCountry, setExpandedCountry] = useState<string | null>(null);
+
+  // "Select multiple" lets a player pick several sports and/or competitions
+  // out of the drill-down tree, then jump to BrowsePage with all of their
+  // matches at once - a separate mode rather than always-on checkboxes so
+  // the tree's normal one-tap-to-navigate behavior stays the default.
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [selectedSports, setSelectedSports] = useState<Set<string>>(new Set());
+  const [selectedCompetitions, setSelectedCompetitions] = useState<Set<string>>(new Set());
+
+  function resetMultiSelect() {
+    setIsMultiSelectMode(false);
+    setSelectedSports(new Set());
+    setSelectedCompetitions(new Set());
+  }
+
+  function toggleSelectedSport(sport: string) {
+    setSelectedSports((previous) => {
+      const next = new Set(previous);
+      if (next.has(sport)) next.delete(sport);
+      else next.add(sport);
+      return next;
+    });
+  }
+
+  function toggleSelectedCompetition(competition: string) {
+    setSelectedCompetitions((previous) => {
+      const next = new Set(previous);
+      if (next.has(competition)) next.delete(competition);
+      else next.add(competition);
+      return next;
+    });
+  }
+
+  const totalSelected = selectedSports.size + selectedCompetitions.size;
+
+  function applyMultiSelect() {
+    const params = new URLSearchParams();
+    if (selectedSports.size > 0) params.set('sports', [...selectedSports].join(','));
+    if (selectedCompetitions.size > 0) params.set('competitions', [...selectedCompetitions].join(','));
+    navigate(`/browse?${params.toString()}`);
+    onNavigate?.();
+    resetMultiSelect();
+  }
 
   const hasNoResults = isSearching && !hasMatchResults && topCompetitions.length === 0 && tree.length === 0;
 
@@ -202,11 +246,21 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
 
       {showLeagues && tree.length > 0 && (
         <div>
-          <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-text-muted">Sports</h2>
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-text-muted">Sports</h2>
+            <button
+              type="button"
+              onClick={() => (isMultiSelectMode ? resetMultiSelect() : setIsMultiSelectMode(true))}
+              className="text-xs font-semibold text-highlight"
+            >
+              {isMultiSelectMode ? 'Cancel' : 'Select multiple'}
+            </button>
+          </div>
           <div className="overflow-hidden rounded-2xl bg-surface-2">
             <ul className="divide-y divide-border/60">
               {tree.map((sportNode) => {
                 const isSportOpen = isSearching || expandedSport === sportNode.sport;
+                const isSportSelected = selectedSports.has(sportNode.sport);
                 return (
                   <li key={sportNode.sport}>
                     <button
@@ -218,6 +272,16 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                         setExpandedCountry(null);
                       }}
                     >
+                      {isMultiSelectMode && (
+                        <input
+                          type="checkbox"
+                          checked={isSportSelected}
+                          onChange={() => toggleSelectedSport(sportNode.sport)}
+                          onClick={(event) => event.stopPropagation()}
+                          aria-label={`Select ${displayName('SPORT', sportNode.sport)}`}
+                          className="h-4 w-4 shrink-0"
+                        />
+                      )}
                       <SportIcon sport={sportNode.sport} size={28} />
                       <span className="flex-1 text-sm font-semibold text-text-primary">
                         {displayName('SPORT', sportNode.sport)}
@@ -234,15 +298,17 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                         background rather than border lines. */}
                     {isSportOpen && (
                       <ul className="fade-in-down divide-y divide-border/60 bg-black/10">
-                        <li>
-                          <Link
-                            to={`/sports/${encodeURIComponent(sportNode.sport)}`}
-                            className="flex items-center py-2.5 pr-3 pl-8 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
-                            onClick={onNavigate}
-                          >
-                            All matches
-                          </Link>
-                        </li>
+                        {!isMultiSelectMode && (
+                          <li>
+                            <Link
+                              to={`/sports/${encodeURIComponent(sportNode.sport)}`}
+                              className="flex items-center py-2.5 pr-3 pl-8 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
+                              onClick={onNavigate}
+                            >
+                              All matches
+                            </Link>
+                          </li>
+                        )}
                         {sportNode.countries.map((countryNode) => {
                           const isCountryOpen = isSearching || expandedCountry === countryNode.country;
                           return (
@@ -269,13 +335,12 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
 
                               {isCountryOpen && (
                                 <ul className="fade-in-down divide-y divide-border/60 bg-black/10">
-                                  {countryNode.competitions.map((competitionNode) => (
-                                    <li key={competitionNode.competition}>
-                                      <Link
-                                        to={`/sports/${encodeURIComponent(sportNode.sport)}?competition=${encodeURIComponent(competitionNode.competition)}`}
-                                        className="flex items-center justify-between py-2.5 pr-3 pl-14 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
-                                        onClick={onNavigate}
-                                      >
+                                  {countryNode.competitions.map((competitionNode) => {
+                                    const isCompetitionSelected = selectedCompetitions.has(
+                                      competitionNode.competition,
+                                    );
+                                    const competitionLabel = (
+                                      <>
                                         <span>
                                           {displayName('COUNTRY', countryNode.country)} -{' '}
                                           {displayName('COMPETITION', competitionNode.competition)}
@@ -283,9 +348,37 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                                         <span className="text-xs text-text-muted">
                                           {competitionNode.matchCount}
                                         </span>
-                                      </Link>
-                                    </li>
-                                  ))}
+                                      </>
+                                    );
+                                    return (
+                                      <li key={competitionNode.competition}>
+                                        {isMultiSelectMode ? (
+                                          <label className="flex cursor-pointer items-center justify-between gap-2 py-2.5 pr-3 pl-14 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary">
+                                            <span className="flex items-center gap-2">
+                                              <input
+                                                type="checkbox"
+                                                checked={isCompetitionSelected}
+                                                onChange={() =>
+                                                  toggleSelectedCompetition(competitionNode.competition)
+                                                }
+                                                aria-label={`Select ${displayName('COMPETITION', competitionNode.competition)}`}
+                                                className="h-4 w-4 shrink-0"
+                                              />
+                                              {competitionLabel}
+                                            </span>
+                                          </label>
+                                        ) : (
+                                          <Link
+                                            to={`/sports/${encodeURIComponent(sportNode.sport)}?competition=${encodeURIComponent(competitionNode.competition)}`}
+                                            className="flex items-center justify-between py-2.5 pr-3 pl-14 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
+                                            onClick={onNavigate}
+                                          >
+                                            {competitionLabel}
+                                          </Link>
+                                        )}
+                                      </li>
+                                    );
+                                  })}
                                 </ul>
                               )}
                             </li>
@@ -298,6 +391,14 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
               })}
             </ul>
           </div>
+        </div>
+      )}
+
+      {isMultiSelectMode && totalSelected > 0 && (
+        <div className={cn('sticky bottom-0 z-10 -mx-4 -mb-4 px-4 pt-3 pb-4', stickyBgClassName)}>
+          <button type="button" onClick={applyMultiSelect} className="btn-primary w-full">
+            Apply ({totalSelected})
+          </button>
         </div>
       )}
     </nav>
