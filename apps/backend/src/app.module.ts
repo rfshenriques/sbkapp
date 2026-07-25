@@ -29,6 +29,7 @@ import { MarketingSpendModule } from './modules/marketing-spend/marketing-spend.
 import { FreebetModule } from './modules/freebets/freebet.module';
 import { PromoCardModule } from './modules/promo-cards/promo-card.module';
 import { HomepageCarouselModule } from './modules/homepage-carousel/homepage-carousel.module';
+import { WebAuthnModule } from './modules/webauthn/webauthn.module';
 
 @Module({
   imports: [
@@ -62,6 +63,7 @@ import { HomepageCarouselModule } from './modules/homepage-carousel/homepage-car
     FreebetModule,
     PromoCardModule,
     HomepageCarouselModule,
+    WebAuthnModule,
   ],
 })
 export class AppModule {}

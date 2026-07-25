@@ -51,9 +51,63 @@ model User {
   freebetGrants              FreebetGrant[]
   deposits                   Deposit[]
   depositCampaignRedemptions DepositCampaignRedemption[]
+  webAuthnCredentials        WebAuthnCredential[]
 
   @@index([brandId])
   @@map("users")
+}
+
+/**
+ * One registered passkey/biometric credential (Face ID, Touch ID, Windows
+ * Hello, a security key, ...) - see WebAuthnService. `credentialId` is the
+ * authenticator-issued handle used to look up which user+key a login
+ * assertion is claiming to be from; `counter` guards against a cloned
+ * authenticator replaying an old signature (must strictly increase on
+ * every use, except for known-zero multi-device passkeys where the spec
+ * allows it to stay at 0).
+ */
+model WebAuthnCredential {
+  id           String    @id @default(uuid())
+  userId       String
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId String    @unique
+  publicKey    Bytes
+  counter      Int
+  transports   String[]
+  deviceType   String
+  backedUp     Boolean
+  /**
+   * Player-facing label for the device-management list, e.g. "iPhone" -
+   * defaults to a generic name at registration time since the browser
+   * doesn't hand over anything more specific than transports/deviceType.
+   */
+  nickname     String?
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime?
+
+  @@index([userId])
+  @@map("webauthn_credentials")
+}
+
+/**
+ * An in-flight WebAuthn ceremony's server-generated challenge - single-use,
+ * deleted the moment it's consumed by a matching verify call (see
+ * WebAuthnService.consumeChallenge). userId is set for a registration
+ * challenge (tied to the already-authenticated player registering a new
+ * device) and null for a login challenge (identity isn't known until the
+ * assertion comes back, since this is a discoverable-credential/usernameless
+ * flow). No sweep job for expired-but-never-consumed rows - same "read-time
+ * condition, not a swept status" tolerance this codebase already applies to
+ * FreebetGrant.expiresAt.
+ */
+model WebAuthnChallenge {
+  id        String   @id @default(uuid())
+  challenge String   @unique
+  userId    String?
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@map("webauthn_challenges")
 }
 
 model RefreshToken {

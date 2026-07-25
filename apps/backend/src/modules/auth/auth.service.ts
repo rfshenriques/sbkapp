@@ -83,6 +83,23 @@ export class AuthService {
     return this.issueTokens(user.id, user.username, user.email, user.brandId);
   }
 
+  /**
+   * The tail end of login() (revoke-other-devices, then issue) minus the
+   * password check - used by WebAuthnService once a passkey assertion has
+   * already verified who the player is, so the same single-active-session
+   * invariant applies to a biometric login as a password one.
+   */
+  async loginWithUserId(userId: string): Promise<AuthTokens> {
+    const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: user.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return this.issueTokens(user.id, user.username, user.email, user.brandId);
+  }
+
   async refresh(refreshToken: string): Promise<AuthTokens> {
     const stored = await this.prisma.refreshToken.findUnique({
       where: { tokenHash: hashToken(refreshToken) },
