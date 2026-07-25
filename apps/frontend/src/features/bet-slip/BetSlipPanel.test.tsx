@@ -595,7 +595,7 @@ describe('BetSlipPanel', () => {
       useBetSlipStore.setState({ selections: [homeSelection] });
       renderPanel();
 
-      expect(screen.queryByRole('tab', { name: 'Freebets' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('switch', { name: 'Pay with freebets' })).not.toBeInTheDocument();
     });
 
     it('switching to Freebets replaces the stake input with a picker of the player’s freebets', async () => {
@@ -603,7 +603,7 @@ describe('BetSlipPanel', () => {
       useBetSlipStore.setState({ selections: [homeSelection] });
       renderPanel();
 
-      await userEvent.click(await screen.findByRole('tab', { name: 'Freebets' }));
+      await userEvent.click(await screen.findByRole('switch', { name: 'Pay with freebets' }));
 
       expect(screen.getByText('Choose a freebet')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: '€10.00' })).toBeInTheDocument();
@@ -615,7 +615,7 @@ describe('BetSlipPanel', () => {
       useBetSlipStore.setState({ selections: [homeSelection] });
       renderPanel();
 
-      await userEvent.click(await screen.findByRole('tab', { name: 'Freebets' }));
+      await userEvent.click(await screen.findByRole('switch', { name: 'Pay with freebets' }));
       await userEvent.click(screen.getByRole('button', { name: '€10.00' }));
       await userEvent.click(screen.getByRole('button', { name: 'Place Bet' }));
 
@@ -639,7 +639,7 @@ describe('BetSlipPanel', () => {
 
       expect(await screen.findByText(/Acca Boost/)).toBeInTheDocument();
 
-      await userEvent.click(screen.getByRole('tab', { name: 'Freebets' }));
+      await userEvent.click(screen.getByRole('switch', { name: 'Pay with freebets' }));
 
       expect(screen.queryByText(/Acca Boost/)).not.toBeInTheDocument();
     });
@@ -649,12 +649,12 @@ describe('BetSlipPanel', () => {
       useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
       renderPanel();
 
-      await userEvent.click(await screen.findByRole('tab', { name: 'Freebets' }));
-      expect(screen.getByRole('tab', { name: 'Freebets' })).toHaveAttribute('aria-selected', 'true');
+      await userEvent.click(await screen.findByRole('switch', { name: 'Pay with freebets' }));
+      expect(screen.getByRole('switch', { name: 'Pay with freebets' })).toHaveAttribute('aria-checked', 'true');
 
       await userEvent.click(screen.getByRole('tab', { name: 'Singles' }));
 
-      expect(screen.getByRole('tab', { name: 'Cash' })).toHaveAttribute('aria-selected', 'true');
+      expect(screen.getByRole('switch', { name: 'Pay with freebets' })).toHaveAttribute('aria-checked', 'false');
       expect(screen.queryByText('Choose a freebet')).not.toBeInTheDocument();
     });
   });

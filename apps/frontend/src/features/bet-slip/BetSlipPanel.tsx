@@ -734,25 +734,18 @@ export function BetSlipPanel({
       <div className="space-y-3">
         {confirmation && <p className="text-sm text-brand">{confirmation}</p>}
         {freebets && freebets.length > 0 && (
-          <div className="tab-pill w-full" role="tablist" aria-label="Payment method">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={!isFreebetMode}
-              className={`tab-pill-btn${!isFreebetMode ? ' active' : ''}`}
-              onClick={() => setPayMethod('cash')}
-            >
+          <div className="flex items-center justify-center gap-3">
+            <span className={cn('text-xs font-semibold', !isFreebetMode ? 'text-text-primary' : 'text-text-muted')}>
               Cash
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={isFreebetMode}
-              className={`tab-pill-btn${isFreebetMode ? ' active' : ''}`}
-              onClick={() => setPayMethod('freebet')}
-            >
+            </span>
+            <Switch
+              checked={isFreebetMode}
+              onChange={(checked) => setPayMethod(checked ? 'freebet' : 'cash')}
+              ariaLabel="Pay with freebets"
+            />
+            <span className={cn('text-xs font-semibold', isFreebetMode ? 'text-text-primary' : 'text-text-muted')}>
               Freebets
-            </button>
+            </span>
           </div>
         )}
         {showTabs && (
