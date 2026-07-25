@@ -44,25 +44,27 @@ function GroupedMatchRow({ match }: GroupedMatchRowProps) {
       onMouseEnter={() => prefetchMatchDetail(match.id)}
       onTouchStart={() => prefetchMatchDetail(match.id)}
     >
-      <div className="flex items-center gap-2">
-        <Link
-          to={matchHref}
-          className="flex min-w-0 flex-1 items-center gap-2"
-          aria-label={matchLabel}
-          onClick={(event) => event.stopPropagation()}
-        >
+      <Link
+        to={matchHref}
+        className="block"
+        aria-label={matchLabel}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <div className="flex items-start gap-2">
           <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
             <TeamColorAccent colorHex={teamColors.get(match.homeTeam)} />
-            <span className="min-w-0 truncate font-semibold">{homeTeamLabel}</span>
+            <span className="min-w-0 text-center font-semibold">{homeTeamLabel}</span>
           </span>
-          <span className="shrink-0 text-xs font-bold text-text-muted tabular-nums">vs</span>
+          <span className="mt-0.5 shrink-0 text-xs font-bold text-text-muted tabular-nums">vs</span>
           <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
-            <span className="min-w-0 truncate font-semibold">{awayTeamLabel}</span>
+            <span className="min-w-0 text-center font-semibold">{awayTeamLabel}</span>
             <TeamColorAccent colorHex={teamColors.get(match.awayTeam)} />
           </span>
-        </Link>
-        <span className="shrink-0 text-xs font-semibold text-highlight">{formatKickoff(new Date(match.kickoff))}</span>
-      </div>
+        </div>
+        <p className="mt-1 text-center text-xs font-semibold text-highlight">
+          {formatKickoff(new Date(match.kickoff))}
+        </p>
+      </Link>
       {matchResult ? (
         <div className="mt-3">
           <MarketSelections
