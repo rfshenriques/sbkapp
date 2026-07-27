@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { BetSlipPanel } from '../features/bet-slip/BetSlipPanel';
+import { BetPlacedModal } from '../features/bet-slip/BetPlacedModal';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { invalidAccumulatorReason } from '../features/bet-slip/accumulatorValidity';
 import { BetDetailModal } from '../features/bet-history/BetDetailModal';
@@ -424,6 +425,7 @@ export function AppShell() {
       <PasskeyEnrollmentModal />
       <BetDetailModal />
       <WinCelebrationModal />
+      <BetPlacedModal />
 
       {/* Mobile-only: sports navigation takes over the space between the
           header and bottom nav like its own page, rather than a partial

@@ -150,3 +150,14 @@ export function AccountIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** Share action (BetPlacedModal) - an upward arrow out of a tray, the standard share glyph. */
+export function ShareIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M10 12.5V4" />
+      <path d="M6.8 7.2 10 4l3.2 3.2" />
+      <path d="M4.5 11v4a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-4" />
+    </svg>
+  );
+}

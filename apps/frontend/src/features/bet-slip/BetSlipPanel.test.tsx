@@ -8,6 +8,7 @@ import { useAuthModalStore } from '../auth/authModalStore';
 import { useBrandStore } from '../brand/brandStore';
 import { useInsufficientFundsModalStore } from '../wallet/insufficientFundsModalStore';
 import { BetSlipPanel, type BetSlipPanelProps } from './BetSlipPanel';
+import { useBetPlacedModalStore } from './betPlacedModalStore';
 import { useBetSlipStore } from './betSlipStore';
 
 function renderPanel(props: BetSlipPanelProps = {}) {
@@ -60,6 +61,7 @@ beforeEach(() => {
   useAuthModalStore.setState({ mode: null });
   useBrandStore.setState({ brandId: undefined });
   useInsufficientFundsModalStore.setState({ isOpen: false });
+  useBetPlacedModalStore.setState({ summary: null });
 });
 
 afterEach(() => {
@@ -641,7 +643,7 @@ describe('BetSlipPanel', () => {
       await userEvent.type(stakeInput, '3');
       await userEvent.click(screen.getByRole('button', { name: 'Place Bet' }));
 
-      await screen.findByText(/Bet placed!/);
+      await waitFor(() => expect(useBetPlacedModalStore.getState().summary).not.toBeNull());
       const betCall = fetchMock.mock.calls.find((call) => call[0] === '/backend/bets')!;
       const [, init] = betCall as [string, RequestInit];
       expect(JSON.parse(init.body as string)).toEqual({
@@ -742,9 +744,13 @@ describe('BetSlipPanel', () => {
     await userEvent.type(stakeInput, '10');
     await userEvent.click(screen.getByRole('button', { name: 'Place Bet' }));
 
-    expect(
-      await screen.findByText(/Bet placed! Stake 10.00, potential payout 52.50/),
-    ).toBeInTheDocument();
+    await waitFor(() => expect(useBetPlacedModalStore.getState().summary).not.toBeNull());
+    expect(useBetPlacedModalStore.getState().summary).toEqual({
+      stakeCents: 1000,
+      potentialPayoutCents: 5250,
+      combinedOdds: 5.25,
+      betCount: 1,
+    });
     expect(useBetSlipStore.getState().selections).toEqual([]);
 
     const betCall = fetchMock.mock.calls.find((call) => call[0] === '/backend/bets')!;
@@ -888,7 +894,13 @@ describe('BetSlipPanel', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Place Bet' }));
 
-    await screen.findByText(/Bet placed!/);
+    await waitFor(() => expect(useBetPlacedModalStore.getState().summary).not.toBeNull());
+    expect(useBetPlacedModalStore.getState().summary).toEqual({
+      stakeCents: 2000,
+      potentialPayoutCents: 4200,
+      combinedOdds: null,
+      betCount: 2,
+    });
     expect(useBetSlipStore.getState().selections).toEqual([]);
     const betCalls = fetchMock.mock.calls.filter((call) => call[0] === '/backend/bets');
     expect(betCalls).toHaveLength(2);

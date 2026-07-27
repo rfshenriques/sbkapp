@@ -93,6 +93,73 @@ describe('useWinCelebrationDetector', () => {
     await waitFor(() => expect(useWinCelebrationStore.getState().betId).toBe('bet-1'));
   });
 
+  it('celebrates a bet that settled to WON moments before the very first load', async () => {
+    const justNow = new Date().toISOString();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify([buildBet({ status: 'WON', settledPayoutCents: 2000, settledAt: justNow })]),
+          { status: 200 },
+        ),
+      ),
+    );
+    const queryClient = new QueryClient();
+
+    renderDetector(queryClient);
+
+    await waitFor(() => expect(useWinCelebrationStore.getState().betId).toBe('bet-1'));
+  });
+
+  it('does not celebrate a bet that was already WON long before the first load', async () => {
+    const longAgo = new Date(Date.now() - 60 * 60_000).toISOString();
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify([buildBet({ status: 'WON', settledPayoutCents: 2000, settledAt: longAgo })]),
+          { status: 200 },
+        ),
+      ),
+    );
+    const queryClient = new QueryClient();
+
+    renderDetector(queryClient);
+
+    await waitFor(() => expect(queryClient.getQueryData(betsQueryKey)).toBeDefined());
+    expect(useWinCelebrationStore.getState().betId).toBeNull();
+  });
+
+  it('celebrates both bets in turn when two settle to WON in the same poll', async () => {
+    let statusA: 'PENDING' | 'WON' = 'PENDING';
+    let statusB: 'PENDING' | 'WON' = 'PENDING';
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(async () =>
+        new Response(
+          JSON.stringify([
+            buildBet({ id: 'bet-1', status: statusA, settledPayoutCents: statusA === 'WON' ? 2000 : null }),
+            buildBet({ id: 'bet-2', status: statusB, settledPayoutCents: statusB === 'WON' ? 3000 : null }),
+          ]),
+          { status: 200 },
+        ),
+      ),
+    );
+    const queryClient = new QueryClient();
+
+    renderDetector(queryClient);
+    await waitFor(() => expect(queryClient.getQueryData(betsQueryKey)).toBeDefined());
+
+    statusA = 'WON';
+    statusB = 'WON';
+    await queryClient.invalidateQueries({ queryKey: betsQueryKey });
+    await waitFor(() => expect(useWinCelebrationStore.getState().betId).toBe('bet-1'));
+
+    useWinCelebrationStore.setState({ betId: null });
+    await queryClient.invalidateQueries({ queryKey: betsQueryKey });
+    await waitFor(() => expect(useWinCelebrationStore.getState().betId).toBe('bet-2'));
+  });
+
   it('does not re-celebrate a bet already recorded as celebrated', async () => {
     localStorage.setItem('sbkapp:celebrated-bet-ids', JSON.stringify(['bet-1']));
     let status: 'PENDING' | 'WON' = 'PENDING';

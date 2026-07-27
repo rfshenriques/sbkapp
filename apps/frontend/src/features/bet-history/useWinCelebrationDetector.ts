@@ -4,6 +4,11 @@ import { useWinCelebrationStore } from './winCelebrationStore';
 
 const STORAGE_KEY = 'sbkapp:celebrated-bet-ids';
 const MAX_STORED_IDS = 200;
+// A bet settled just before this hook's first poll of a fresh mount (e.g.
+// staff settled it moments before the player opened/refreshed the app)
+// still deserves a celebration - anything older than this is assumed
+// already seen on a prior visit, so it's not replayed.
+const RECENT_WIN_THRESHOLD_MS = 2 * 60_000;
 
 function loadCelebratedIds(): Set<string> {
   try {
@@ -29,33 +34,68 @@ function markCelebrated(betId: string) {
 /**
  * Watches useBets() (polled - see useBets) for a bet that flips from
  * PENDING to WON while the player is in the app, and opens
- * WinCelebrationModal for it once. Never fires for a bet that was already
- * WON on this hook's first render - only a transition witnessed live
- * counts, otherwise every login would replay every past win. Runs once at
- * the AppShell level so it fires regardless of which page the player is
+ * WinCelebrationModal for it once. Also covers a bet that settled to WON
+ * just before this hook's first poll of a fresh mount (RECENT_WIN_THRESHOLD_MS)
+ * - otherwise a player who opens/refreshes the app right after staff settle
+ * their bet would never see a celebration, since no live transition would
+ * ever be witnessed. Anything older than that on first load is assumed
+ * already seen on a prior visit and never replayed. Runs once at the
+ * AppShell level so it fires regardless of which page the player is
  * currently on.
  */
 export function useWinCelebrationDetector() {
   const { data: bets } = useBets();
+  const betId = useWinCelebrationStore((state) => state.betId);
   const openCelebration = useWinCelebrationStore((state) => state.open);
   const previousStatusesRef = useRef<Map<string, string> | null>(null);
+  // Ids detected this poll but not shown yet because another celebration was
+  // already open - drained by the effect below as each one closes. A plain
+  // ref (not state) since queuing must never itself trigger a re-render/re-run
+  // of the detection effect.
+  const queueRef = useRef<string[]>([]);
 
   useEffect(() => {
     if (!bets) return;
     const previous = previousStatusesRef.current;
+    const celebrated = loadCelebratedIds();
+    const newlyWon: string[] = [];
 
     if (previous) {
-      const celebrated = loadCelebratedIds();
       for (const bet of bets) {
-        const previousStatus = previous.get(bet.id);
-        if (previousStatus === 'PENDING' && bet.status === 'WON' && !celebrated.has(bet.id)) {
-          markCelebrated(bet.id);
-          openCelebration(bet.id);
-          break;
+        if (previous.get(bet.id) === 'PENDING' && bet.status === 'WON' && !celebrated.has(bet.id)) {
+          newlyWon.push(bet.id);
         }
       }
+    } else {
+      const now = Date.now();
+      const recentWin = bets.find(
+        (bet) =>
+          bet.status === 'WON' &&
+          bet.settledAt !== null &&
+          !celebrated.has(bet.id) &&
+          now - new Date(bet.settledAt).getTime() < RECENT_WIN_THRESHOLD_MS,
+      );
+      if (recentWin) newlyWon.push(recentWin.id);
+    }
+
+    for (const id of newlyWon) {
+      markCelebrated(id);
+      queueRef.current.push(id);
+    }
+
+    if (queueRef.current.length > 0 && useWinCelebrationStore.getState().betId === null) {
+      openCelebration(queueRef.current.shift()!);
     }
 
     previousStatusesRef.current = new Map(bets.map((bet) => [bet.id, bet.status]));
   }, [bets, openCelebration]);
+
+  // If several bets settled in the same poll, show them one after another
+  // as each celebration is dismissed, instead of only ever showing the
+  // first and losing the rest.
+  useEffect(() => {
+    if (betId === null && queueRef.current.length > 0) {
+      openCelebration(queueRef.current.shift()!);
+    }
+  }, [betId, openCelebration]);
 }

@@ -15,6 +15,7 @@ import { BalancePills } from '../wallet/BalancePills';
 import { useInsufficientFundsModalStore } from '../wallet/insufficientFundsModalStore';
 import { betsQueryKey } from '../bet-history/useBets';
 import { BetHistoryList } from '../bet-history/BetHistoryList';
+import { useBetPlacedModalStore } from './betPlacedModalStore';
 import { calculateAccaBoost, type AccaBoostConfig } from './accaBoost';
 import { useAccaBoostConfig } from './useAccaBoostConfig';
 import { evaluateAccaRollbackEligibility, type AccaRollbackConfig } from './accaRollback';
@@ -373,20 +374,14 @@ function SingleBetRow({ selection, stake, onStakeChange, showStake }: SingleBetR
   );
 }
 
-function CompactEmptyState({ confirmation }: { confirmation: string | null }) {
-  return (
-    <div className="space-y-3">
-      {confirmation && <p className="text-sm text-brand">{confirmation}</p>}
-      <p className="text-sm text-text-secondary">Your bet slip is empty.</p>
-    </div>
-  );
+function CompactEmptyState() {
+  return <p className="text-sm text-text-secondary">Your bet slip is empty.</p>;
 }
 
 /** Desktop's persistent panel is never "just gone" - fills the available height and nudges toward browsing instead of sitting blank. */
-function PromotionalEmptyState({ confirmation }: { confirmation: string | null }) {
+function PromotionalEmptyState() {
   return (
     <EmptyState
-      above={confirmation && <p className="text-sm text-brand">{confirmation}</p>}
       title="Add selections to your bet slip"
       description="Pick an odd on any match to start building a bet."
       ctaLabel="Browse matches"
@@ -425,7 +420,7 @@ export function BetSlipPanel({
   // independently of every other row but all placed together by the one
   // bottom button (see placeSinglesMutation below).
   const [singleStakes, setSingleStakes] = useState<Record<string, string>>({});
-  const [confirmation, setConfirmation] = useState<string | null>(null);
+  const openBetPlacedModal = useBetPlacedModalStore((state) => state.open);
   const [panelView, setPanelView] = useState<PanelView>('slip');
   // Fresh per mount (the mobile drawer remounts this on every open), so a
   // slip with 2+ selections always opens straight to Accumulator - unless
@@ -499,9 +494,12 @@ export function BetSlipPanel({
     onSuccess: (bet) => {
       clear();
       resetPayMethod();
-      setConfirmation(
-        `Bet placed! Stake ${(bet.stakeCents / 100).toFixed(2)}, potential payout ${(bet.potentialPayoutCents / 100).toFixed(2)}.`,
-      );
+      openBetPlacedModal({
+        stakeCents: bet.stakeCents,
+        potentialPayoutCents: bet.potentialPayoutCents,
+        combinedOdds: Number(bet.combinedOdds),
+        betCount: 1,
+      });
       void queryClient.invalidateQueries({ queryKey: walletQueryKey });
       void queryClient.invalidateQueries({ queryKey: betsQueryKey });
       void queryClient.invalidateQueries({ queryKey: freebetsQueryKey });
@@ -533,9 +531,12 @@ export function BetSlipPanel({
       resetPayMethod();
       const totalStakeCents = bets.reduce((total, bet) => total + bet.stakeCents, 0);
       const totalPayoutCents = bets.reduce((total, bet) => total + bet.potentialPayoutCents, 0);
-      setConfirmation(
-        `Bet placed! Stake ${(totalStakeCents / 100).toFixed(2)}, potential payout ${(totalPayoutCents / 100).toFixed(2)}.`,
-      );
+      openBetPlacedModal({
+        stakeCents: totalStakeCents,
+        potentialPayoutCents: totalPayoutCents,
+        combinedOdds: bets.length === 1 ? Number(bets[0]!.combinedOdds) : null,
+        betCount: bets.length,
+      });
       void queryClient.invalidateQueries({ queryKey: walletQueryKey });
       void queryClient.invalidateQueries({ queryKey: betsQueryKey });
       void queryClient.invalidateQueries({ queryKey: freebetsQueryKey });
@@ -665,16 +666,10 @@ export function BetSlipPanel({
   if (panelView === 'history') {
     mainContent = <BetHistoryList />;
   } else if (selections.length === 0) {
-    mainContent =
-      emptyStateVariant === 'promotional' ? (
-        <PromotionalEmptyState confirmation={confirmation} />
-      ) : (
-        <CompactEmptyState confirmation={confirmation} />
-      );
+    mainContent = emptyStateVariant === 'promotional' ? <PromotionalEmptyState /> : <CompactEmptyState />;
   } else {
     mainContent = (
       <div className="space-y-3">
-        {confirmation && <p className="text-sm text-brand">{confirmation}</p>}
         {showTabs && (
           <div className="flex items-center justify-between border-b border-border">
             <div className="flex gap-4" role="tablist" aria-label="Bet slip mode">
@@ -882,7 +877,6 @@ export function BetSlipPanel({
             className="w-full"
             disabled={!isValid || isPending}
             onClick={() => {
-              setConfirmation(null);
               if (tab === 'accumulator') {
                 placeAccumulatorMutation.mutate({
                   selections,
