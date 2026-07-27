@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../features/auth/authStore';
 import { useAuthModalStore } from '../features/auth/authModalStore';
+import { useBetPlacedModalStore } from '../features/bet-slip/betPlacedModalStore';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { RegisterDeepLink } from '../features/auth/AuthDeepLink';
 import { AppShell } from './AppShell';
@@ -54,6 +55,7 @@ beforeEach(() => {
   useBetSlipStore.setState({ selections: [] });
   useAuthStore.setState({ accessToken: null, user: null, isInitialized: false });
   useAuthModalStore.setState({ mode: null });
+  useBetPlacedModalStore.setState({ summary: null });
   // Not logged in by default - the silent-refresh call on mount finds no session.
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
 });
@@ -143,6 +145,20 @@ describe('AppShell', () => {
 
     // Two elements share this label: the backdrop and the modal's own ✕ button.
     expect(screen.getAllByRole('button', { name: 'Close bet slip' }).length).toBeGreaterThan(0);
+  });
+
+  it('auto-closes the mobile bet slip sheet once a bet is placed, so the confirmation is not stacked on top of it', async () => {
+    useBetSlipStore.setState({ selections: [homeSelection] });
+    renderShell();
+
+    await userEvent.click(screen.getByRole('button', { name: /Single/ }));
+    expect(screen.getAllByRole('button', { name: 'Close bet slip' }).length).toBeGreaterThan(0);
+
+    useBetPlacedModalStore.setState({
+      summary: { stakeCents: 1000, potentialPayoutCents: 2100, combinedOdds: 2.1, betCount: 1 },
+    });
+
+    await waitFor(() => expect(screen.queryAllByRole('button', { name: 'Close bet slip' })).toHaveLength(0));
   });
 
   it('the desktop sports navigation column is always rendered', async () => {

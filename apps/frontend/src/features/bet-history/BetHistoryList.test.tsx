@@ -161,7 +161,7 @@ describe('BetHistoryList', () => {
     expect(await screen.findByText('Accumulator (2)')).toBeInTheDocument();
   });
 
-  it('shows a Freebet tag for a freebet-funded bet', async () => {
+  it('shows the freebet icon next to the stake for a freebet-funded bet, not a text tag', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(new Response(JSON.stringify([buildBet({ fundedByFreebets: true })]), { status: 200 })),
@@ -169,7 +169,8 @@ describe('BetHistoryList', () => {
 
     renderList();
 
-    expect(await screen.findByText('Freebet')).toBeInTheDocument();
+    expect(await screen.findByRole('img', { name: 'Funded by freebet' })).toBeInTheDocument();
+    expect(screen.queryByText('Freebet')).not.toBeInTheDocument();
   });
 
   it('shows the pre-insurance payout struck through next to the insured one', async () => {

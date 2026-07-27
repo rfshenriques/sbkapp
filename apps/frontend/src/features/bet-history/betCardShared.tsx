@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { MoneyBeforeAfter } from '../../components/ui/MoneyBeforeAfter';
-import { ClockIcon } from '../../components/ui/NavIcons';
+import { ClockIcon, FreebetBadgeIcon } from '../../components/ui/NavIcons';
+import { OddsBadge } from '../../components/ui/OddsBadge';
 import { betStatusBadgeClasses, betStatusLabel, betStatusTextClasses } from '../../lib/betStatus';
 import type { PlacedBet, PlacedBetSelection } from '../../lib/backendApi';
 
@@ -47,21 +48,44 @@ export function SelectionStatusDot({ status }: { status: PlacedBetSelection['sta
   );
 }
 
-export function SelectionRow({ selection }: { selection: PlacedBetSelection }) {
+/**
+ * oddsVariant 'badge' is only for a single (non-accumulator) bet's own odds
+ * - the highlight pill from the bet-placed confirmation modal, reused here
+ * as that bet's headline price (see BetSelectionsList). A leg inside an
+ * expanded accumulator always stays 'plain' - only the one combined-odds
+ * figure gets the badge treatment there (see BetFooterSummary).
+ */
+export function SelectionRow({
+  selection,
+  oddsVariant = 'plain',
+}: {
+  selection: PlacedBetSelection;
+  oddsVariant?: 'plain' | 'badge';
+}) {
   return (
     <div className="text-sm">
       <p className="text-xs text-text-muted">{selection.matchLabel}</p>
-      <p>
+      <p className="flex flex-wrap items-center gap-1.5">
         <span className={betStatusTextClasses(selection.status)}>
           {selection.marketName}: {selection.selectionName}
-        </span>{' '}
-        <span className="text-text-secondary">@ {Number(selection.odds).toFixed(2)}</span>
+        </span>
+        {oddsVariant === 'badge' ? (
+          <OddsBadge className="px-1.5 py-0.5 text-xs">{Number(selection.odds).toFixed(2)}</OddsBadge>
+        ) : (
+          <span className="text-text-secondary">@ {Number(selection.odds).toFixed(2)}</span>
+        )}
       </p>
     </div>
   );
 }
 
-/** Status badge + type/freebet/insured/boosted tags - the same cluster shown atop a bet everywhere it appears (list card, full detail, win celebration). */
+/**
+ * Status badge + type/insured/boosted tags - the same cluster shown atop a
+ * bet everywhere it appears (list card, full detail, win celebration).
+ * Freebet-funded is no longer a text tag here - see BetFooterSummary, which
+ * shows the same circular F badge used everywhere else (BalancePills, the
+ * bet slip's freebet toggle) right next to the stake amount instead.
+ */
 export function BetBadgesRow({ bet }: { bet: PlacedBet }) {
   const isAccumulator = bet.selections.length > 1;
   return (
@@ -72,7 +96,6 @@ export function BetBadgesRow({ bet }: { bet: PlacedBet }) {
         {betStatusLabel(bet.status)}
       </span>
       <BetTag>{isAccumulator ? `Accumulator (${bet.selections.length})` : 'Single'}</BetTag>
-      {bet.fundedByFreebets && <BetTag>Freebet</BetTag>}
       {bet.insuranceCostPercent > 0 && <BetTag>Insured</BetTag>}
       {bet.accaBoostPercent > 0 && <BetTag>Boosted +{bet.accaBoostPercent}%</BetTag>}
     </div>
@@ -105,17 +128,20 @@ export function BetFooterSummary({ bet }: { bet: PlacedBet }) {
 
   return (
     <div className="flex items-center justify-between border-t border-border pt-2 text-sm">
-      <span className="text-text-secondary">
-        Stake {formatEuros(bet.stakeCents)}
-        {isAccumulator &&
-          (bet.accaBoostPercent > 0 ? (
-            <>
-              {' '}
-              · Combined odds {unboostedCombinedOdds(bet).toFixed(2)} &rarr; {Number(bet.combinedOdds).toFixed(2)}
-            </>
-          ) : (
-            ` · Combined odds ${Number(bet.combinedOdds).toFixed(2)}`
-          ))}
+      <span className="flex flex-wrap items-center gap-1 text-text-secondary">
+        {bet.fundedByFreebets && (
+          <FreebetBadgeIcon width={15} height={15} className="shrink-0" role="img" aria-label="Funded by freebet" />
+        )}
+        <span>Stake {formatEuros(bet.stakeCents)}</span>
+        {isAccumulator && (
+          <span className="flex items-center gap-1">
+            <span>· Combined odds</span>
+            {bet.accaBoostPercent > 0 && (
+              <span className="text-xs line-through decoration-1">{unboostedCombinedOdds(bet).toFixed(2)}</span>
+            )}
+            <OddsBadge className="px-1.5 py-0.5 text-xs">{Number(bet.combinedOdds).toFixed(2)}</OddsBadge>
+          </span>
+        )}
       </span>
       <span className="font-semibold">
         {showInsuranceBeforeAfter ? (
@@ -132,13 +158,14 @@ export function BetFooterSummary({ bet }: { bet: PlacedBet }) {
 
 /** Every selection, always expanded, with its own status dot - the "receipt" body shared by the full detail modal and step 2 of the win celebration flow. */
 export function BetSelectionsList({ bet }: { bet: PlacedBet }) {
+  const oddsVariant = bet.selections.length === 1 ? 'badge' : 'plain';
   return (
     <div className="space-y-2">
       {bet.selections.map((selection) => (
         <div key={selection.id} className="flex items-start gap-2">
           <SelectionStatusDot status={selection.status} />
           <div className="flex-1">
-            <SelectionRow selection={selection} />
+            <SelectionRow selection={selection} oddsVariant={oddsVariant} />
           </div>
         </div>
       ))}

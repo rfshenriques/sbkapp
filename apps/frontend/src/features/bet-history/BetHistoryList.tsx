@@ -67,7 +67,7 @@ function BetCard({ bet }: { bet: PlacedBet }) {
       ) : (
         <div className="space-y-1">
           {bet.selections.map((selection) => (
-            <SelectionRow key={selection.id} selection={selection} />
+            <SelectionRow key={selection.id} selection={selection} oddsVariant="badge" />
           ))}
         </div>
       )}

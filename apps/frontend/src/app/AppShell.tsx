@@ -4,6 +4,7 @@ import { BottomSheet } from '../components/ui/BottomSheet';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { BetSlipPanel } from '../features/bet-slip/BetSlipPanel';
 import { BetPlacedModal } from '../features/bet-slip/BetPlacedModal';
+import { useBetPlacedModalStore } from '../features/bet-slip/betPlacedModalStore';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { invalidAccumulatorReason } from '../features/bet-slip/accumulatorValidity';
 import { BetDetailModal } from '../features/bet-history/BetDetailModal';
@@ -47,6 +48,15 @@ export function AppShell() {
   const brandQuery = useBrandTheme();
   const [isSlipOpen, setIsSlipOpen] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
+  const betPlacedSummary = useBetPlacedModalStore((state) => state.summary);
+  // Placing a bet opens BetPlacedModal on top of everything else - the
+  // mobile bet slip bottom sheet needs to close itself first, otherwise the
+  // confirmation stacks on top of it instead of replacing it.
+  useEffect(() => {
+    if (betPlacedSummary) {
+      setIsSlipOpen(false);
+    }
+  }, [betPlacedSummary]);
   const selections = useBetSlipStore((state) => state.selections);
   const { isAuthenticated, isInitialized } = useAuth();
   const authModalMode = useAuthModalStore((state) => state.mode);

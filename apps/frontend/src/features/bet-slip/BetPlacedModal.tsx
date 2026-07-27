@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { ShareIcon } from '../../components/ui/NavIcons';
+import { OddsBadge } from '../../components/ui/OddsBadge';
 import { useBetPlacedModalStore } from './betPlacedModalStore';
 
 function formatEuros(cents: number): string {
@@ -101,9 +102,7 @@ export function BetPlacedModal() {
         <div className="text-right">
           <p className="text-xs text-text-secondary">{combinedOdds !== null ? 'Odds' : 'Bets placed'}</p>
           {combinedOdds !== null ? (
-            <span className="inline-block rounded-lg bg-highlight px-2 py-0.5 font-display text-lg text-black">
-              {combinedOdds.toFixed(2)}
-            </span>
+            <OddsBadge className="px-2 py-0.5 text-lg">{combinedOdds.toFixed(2)}</OddsBadge>
           ) : (
             <p className="font-display text-lg">{betCount}</p>
           )}
