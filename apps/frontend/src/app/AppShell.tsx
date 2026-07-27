@@ -5,6 +5,9 @@ import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { BetSlipPanel } from '../features/bet-slip/BetSlipPanel';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { invalidAccumulatorReason } from '../features/bet-slip/accumulatorValidity';
+import { BetDetailModal } from '../features/bet-history/BetDetailModal';
+import { useWinCelebrationDetector } from '../features/bet-history/useWinCelebrationDetector';
+import { WinCelebrationModal } from '../features/bet-history/WinCelebrationModal';
 import { useBrandTheme } from '../features/brand/useBrandTheme';
 import { Footer } from '../features/footer/Footer';
 import { AccountMenu } from '../features/auth/AccountMenu';
@@ -39,6 +42,7 @@ const SWIPE_THRESHOLD_PX = 60;
 
 export function AppShell() {
   useBootstrapAuth();
+  useWinCelebrationDetector();
   const brandQuery = useBrandTheme();
   const [isSlipOpen, setIsSlipOpen] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
@@ -414,6 +418,8 @@ export function AppShell() {
       <DepositModal />
       <InsufficientFundsModal />
       <PasskeyEnrollmentModal />
+      <BetDetailModal />
+      <WinCelebrationModal />
 
       {/* Mobile-only: sports navigation takes over the space between the
           header and bottom nav like its own page, rather than a partial

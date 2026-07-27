@@ -7,6 +7,7 @@ import { useAuthStore } from '../auth/authStore';
 import { useAuthModalStore } from '../auth/authModalStore';
 import type { PlacedBet } from '../../lib/backendApi';
 import { BetHistoryList, type BetHistoryFilter } from './BetHistoryList';
+import { useBetDetailModalStore } from './betDetailModalStore';
 
 function buildBet(overrides: Partial<PlacedBet> = {}): PlacedBet {
   return {
@@ -59,6 +60,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  useBetDetailModalStore.setState({ betId: null });
 });
 
 describe('BetHistoryList', () => {
@@ -94,6 +96,19 @@ describe('BetHistoryList', () => {
     expect(screen.getByText(/Match Result: Home/)).toBeInTheDocument();
     expect(screen.getByText('OPEN')).toBeInTheDocument();
     expect(screen.getByText('Potential €20.00')).toBeInTheDocument();
+  });
+
+  it('opens the bet detail modal with this bet\'s id when "View details" is clicked', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify([buildBet({ id: 'bet-42' })]), { status: 200 })),
+    );
+
+    renderList();
+    await screen.findByText('Arsenal vs Chelsea');
+    await userEvent.click(screen.getByRole('button', { name: 'View details' }));
+
+    expect(useBetDetailModalStore.getState().betId).toBe('bet-42');
   });
 
   it('shows the settled payout instead of "potential" for a settled bet', async () => {
