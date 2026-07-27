@@ -1,5 +1,4 @@
 import type { SVGProps } from 'react';
-import { useContrastColor } from '../../lib/useContrastColor';
 
 /**
  * Bottom-nav icons as small inline SVGs (not emoji) so they can be
@@ -109,30 +108,20 @@ export function WalletIcon(props: IconProps) {
 }
 
 /**
- * Freebets balance - a solid circular badge with a bold "F", distinct from
- * the plain-stroke wallet icon used for cash. Unlike the other icons here
- * it's filled, not stroke-only, and always fills with --color-highlight
+ * Freebets balance - a solid circular badge with a bold italic "F", distinct
+ * from the plain-stroke wallet icon used for cash. Unlike the other icons
+ * here it's filled, not stroke-only, and always fills with --color-highlight
  * directly (this is a general accent/status indicator, not a CTA, so it
- * never uses --color-brand) rather than taking a color via `currentColor` -
- * that lets it also pick the ring/letter's own color (see useContrastColor)
- * to match, since a brand can set --color-highlight to something light
- * enough that a fixed white ring/letter would disappear into it.
+ * never uses --color-brand) rather than taking a color via `currentColor`.
+ * Ring/letter are fixed white rather than auto-picked per-brand contrast -
+ * chosen after comparing options directly against this brand's highlight.
  */
 export function FreebetBadgeIcon(props: IconProps) {
-  const contrast = useContrastColor('--color-highlight');
   return (
     <svg viewBox="0 0 20 20" {...props}>
       <circle cx="10" cy="10" r="9" fill="var(--color-highlight)" />
-      <circle cx="10" cy="10" r="9" fill="none" stroke={contrast} strokeWidth="1.3" />
-      <text
-        x="10"
-        y="14"
-        textAnchor="middle"
-        fontSize="10.5"
-        fontWeight="800"
-        fontStyle="italic"
-        fill={contrast}
-      >
+      <circle cx="10" cy="10" r="9" fill="none" stroke="white" strokeWidth="1.3" />
+      <text x="10" y="14" textAnchor="middle" fontSize="10.5" fontWeight="800" fontStyle="italic" fill="white">
         F
       </text>
     </svg>
