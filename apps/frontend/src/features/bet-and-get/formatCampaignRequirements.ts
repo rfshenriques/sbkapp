@@ -1,6 +1,9 @@
 import type { BetAndGetCampaign } from '../../lib/backendApi';
 
-type RequirementFields = Pick<BetAndGetCampaign, 'minStakeCents' | 'minOddsPerLeg' | 'betType' | 'minSelections'>;
+type RequirementFields = Pick<BetAndGetCampaign, 'minStakeCents' | 'minOddsPerLeg' | 'betType' | 'minSelections'> & {
+  /** Only present on BetAndGetCampaign - DepositCampaign (the other caller of this shared formatter) has no such condition. */
+  minCombinedOdds?: number | null;
+};
 
 /** Short, player-facing phrases for whichever qualifying conditions a campaign actually has set - an unset condition is simply omitted, never shown as "no minimum". */
 export function formatCampaignRequirements(campaign: RequirementFields): string[] {
@@ -11,6 +14,9 @@ export function formatCampaignRequirements(campaign: RequirementFields): string[
   }
   if (campaign.minOddsPerLeg !== null) {
     requirements.push(`Min odds ${campaign.minOddsPerLeg.toFixed(2)} per leg`);
+  }
+  if (campaign.minCombinedOdds != null) {
+    requirements.push(`Min combined odds ${campaign.minCombinedOdds.toFixed(2)}`);
   }
   if (campaign.betType === 'SINGLES_ONLY') {
     requirements.push('Singles only');

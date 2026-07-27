@@ -8,6 +8,7 @@ import { AccaRollbackService } from '../acca-rollback/acca-rollback.service';
 import { calculateAccaRollbackReward } from '../acca-rollback/acca-rollback';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
+import { betQualifiesForCampaign } from '../bet-and-get/bet-and-get';
 import { BoostService } from '../boosts/boost.service';
 import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.service';
 import { FreebetService } from '../freebets/freebet.service';
@@ -218,18 +219,35 @@ export class PamService {
    * redemption (see DepositCampaignService.resolvePendingBetRedemption) -
    * that half is simply null for a logged-out preview, same as a
    * PLAYER-scoped stake-limit override not applying yet.
+   *
+   * `insuranceOptIn` mirrors placeBet's own insuranceApplies gate - an
+   * insured bet never links to a campaign (see placeBet), so the preview
+   * must agree and simply show nothing rather than promise a reward the
+   * actual placement would never grant.
    */
   async previewCampaign(
     userId: string | null,
     brandId: string,
     selections: BetSelectionDto[],
     stakeCents: number,
+    insuranceOptIn = false,
   ): Promise<{
     betAndGetCampaignName: string | null;
     betAndGetCampaignRewardCents: number | null;
     depositCampaignName: string | null;
     depositCampaignRewardCents: number | null;
   }> {
+    const insuranceBetConfig = await this.insuranceBetService.getConfig(brandId);
+    const insuranceApplies = insuranceOptIn && insuranceBetConfig.enabled;
+    if (insuranceApplies) {
+      return {
+        betAndGetCampaignName: null,
+        betAndGetCampaignRewardCents: null,
+        depositCampaignName: null,
+        depositCampaignRewardCents: null,
+      };
+    }
+
     const matchesById = await this.fetchMatchesByMatchId(selections);
     const qualifyingBet = { stakeCents, legOdds: selections.map((selection) => selection.odds) };
 
@@ -501,14 +519,20 @@ export class PamService {
     // condition change never retroactively relabels an already-placed bet.
     // A player who's already exhausted their redemptions for this campaign
     // simply doesn't link to it at all, same as not qualifying by scope.
-    const applicableCampaign = await this.betAndGetCampaignService.resolveApplicableCampaign(
-      brandId,
-      dto.selections.map((selection) => {
-        const match = matchesById.get(selection.matchId)!;
-        return { sport: match.sport, competition: match.competition, matchId: selection.matchId };
-      }),
-      { stakeCents: dto.stakeCents, legOdds: dto.selections.map((selection) => selection.odds) },
-    );
+    // An insured bet never links to any campaign at all - stacking a
+    // guaranteed stake-back with a Bet & Get/deposit campaign reward would
+    // be double-bonusing the same bet, same reasoning that already keeps
+    // insurance apart from acca boost above.
+    const applicableCampaign = insuranceApplies
+      ? null
+      : await this.betAndGetCampaignService.resolveApplicableCampaign(
+          brandId,
+          dto.selections.map((selection) => {
+            const match = matchesById.get(selection.matchId)!;
+            return { sport: match.sport, competition: match.competition, matchId: selection.matchId };
+          }),
+          { stakeCents: dto.stakeCents, legOdds: dto.selections.map((selection) => selection.odds) },
+        );
     const betAndGetCampaign =
       applicableCampaign && (await this.betAndGetCampaignService.canRedeem(applicableCampaign, userId))
         ? applicableCampaign
@@ -519,10 +543,12 @@ export class PamService {
     // exists - created back when the qualifying deposit was made - so
     // there's no separate canRedeem check here, the redemption's mere
     // existence already represents a consumed slot.
-    const depositCampaignRedemption = await this.depositCampaignService.resolvePendingBetRedemption(userId, {
-      stakeCents: dto.stakeCents,
-      legOdds: dto.selections.map((selection) => selection.odds),
-    });
+    const depositCampaignRedemption = insuranceApplies
+      ? null
+      : await this.depositCampaignService.resolvePendingBetRedemption(userId, {
+          stakeCents: dto.stakeCents,
+          legOdds: dto.selections.map((selection) => selection.odds),
+        });
 
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
@@ -923,7 +949,19 @@ export class PamService {
           ((outcome.overallStatus === 'WON' && campaign.triggerOnWon) ||
             (outcome.overallStatus === 'LOST' && campaign.triggerOnLost) ||
             (outcome.overallStatus === 'VOID' && campaign.triggerOnVoid));
-        if (campaign && outcomeTriggersCampaign) {
+        // A VOID leg is excluded from the odds product by computeBetOutcome
+        // (treated as 1.00, not its own status) - re-check the campaign's
+        // conditions against the surviving non-void legs so a void that
+        // drops the bet below the required selection count or combined
+        // odds cancels the reward, even though the outcome status alone
+        // would still trigger it.
+        const effectiveLegOdds = updatedBet.selections
+          .filter((betSelection) => betSelection.status !== 'VOID')
+          .map((betSelection) => Number(betSelection.odds));
+        const stillQualifies =
+          campaign !== null &&
+          betQualifiesForCampaign(campaign, { stakeCents: updatedBet.stakeCents, legOdds: effectiveLegOdds });
+        if (campaign && outcomeTriggersCampaign && stillQualifies) {
           await this.freebetService.grantSystem(
             {
               userId: updatedBet.userId,

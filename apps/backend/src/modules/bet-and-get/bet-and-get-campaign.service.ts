@@ -16,6 +16,7 @@ export interface CreateBetAndGetCampaignInput {
   triggerOnVoid?: boolean;
   minStakeCents?: number | null;
   minOddsPerLeg?: number | null;
+  minCombinedOdds?: number | null;
   betType?: BetAndGetBetType;
   minSelections?: number | null;
   allowMultipleRedemptions?: boolean;
@@ -101,6 +102,7 @@ export class BetAndGetCampaignService {
         triggerOnVoid: input.triggerOnVoid ?? false,
         minStakeCents: input.minStakeCents ?? null,
         minOddsPerLeg: input.minOddsPerLeg ?? null,
+        minCombinedOdds: input.minCombinedOdds ?? null,
         betType: input.betType ?? 'EITHER',
         minSelections: input.minSelections ?? null,
         allowMultipleRedemptions: input.allowMultipleRedemptions ?? false,

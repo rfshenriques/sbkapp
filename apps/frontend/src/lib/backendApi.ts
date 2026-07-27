@@ -314,6 +314,8 @@ export interface BetAndGetCampaign {
   triggerOnVoid: boolean;
   minStakeCents: number | null;
   minOddsPerLeg: number | null;
+  /** Combined/accumulator price (product of all legs' odds), distinct from minOddsPerLeg's per-leg floor. */
+  minCombinedOdds: number | null;
   betType: BetAndGetBetType;
   minSelections: number | null;
 }
@@ -564,11 +566,12 @@ export async function previewCampaign(
   brandId: string,
   selections: PlaceBetSelection[],
   stakeCents: number,
+  insuranceOptIn?: boolean,
 ): Promise<CampaignPreview> {
   const response = await fetch(`${BASE_URL}/public/campaign-preview/${encodeURIComponent(brandId)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...optionalAuthHeaders() },
-    body: JSON.stringify({ selections, stakeCents }),
+    body: JSON.stringify({ selections, stakeCents, insuranceOptIn }),
   });
   if (!response.ok) {
     throw new Error(`Failed to preview campaign: ${response.status}`);

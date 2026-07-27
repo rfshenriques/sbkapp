@@ -359,6 +359,8 @@ interface SingleBetRowProps {
    * together" needs every row's amount at once.
    */
   showStake: boolean;
+  /** Mirrors PlaceBetDto.insuranceOptIn - an insured bet never links to a campaign, so this row's own qualification preview must agree. */
+  insuranceOptIn: boolean;
 }
 
 /**
@@ -368,11 +370,11 @@ interface SingleBetRowProps {
  * exactly one, fixed at the bottom of the panel, regardless of how many
  * rows there are.
  */
-function SingleBetRow({ selection, stake, onStakeChange, showStake }: SingleBetRowProps) {
+function SingleBetRow({ selection, stake, onStakeChange, showStake, insuranceOptIn }: SingleBetRowProps) {
   const removeSelection = useBetSlipStore((state) => state.removeSelection);
   const stakeId = useId();
   const stakeLimitPreview = useStakeLimitPreview([selection]);
-  const campaignPreview = useCampaignPreview([selection], Math.round(Number(stake) * 100));
+  const campaignPreview = useCampaignPreview([selection], Math.round(Number(stake) * 100), insuranceOptIn);
 
   return (
     <Card className="fade-in-up space-y-2 border-border bg-surface-2">
@@ -635,10 +637,15 @@ export function BetSlipPanel({
   const combinedOdds = accaBoost.boostedCombinedOdds;
   const stakeCents = Math.round(Number(stake) * 100);
   const isStakeValid = Number.isFinite(stakeCents) && stakeCents > 0;
-  const accumulatorCampaignPreview = useCampaignPreview(tab === 'accumulator' ? selections : [], stakeCents);
+  const accumulatorCampaignPreview = useCampaignPreview(
+    tab === 'accumulator' ? selections : [],
+    stakeCents,
+    insuranceOptIn,
+  );
   const singleSelectionCampaignPreview = useCampaignPreview(
     singleSelection ? [singleSelection] : [],
     singleSelection ? Math.round(Number(getSingleStake(singleSelection)) * 100) : 0,
+    insuranceOptIn,
   );
   // Payout is always stake x odds (see PamService.settleSelection - a
   // freebet win credits the full stake x odds by default, per Brand.
@@ -778,6 +785,7 @@ export function BetSlipPanel({
                 stake={getSingleStake(selection)}
                 onStakeChange={(value) => setSingleStake(selection, value)}
                 showStake={selections.length > 1}
+                insuranceOptIn={insuranceOptIn}
               />
             ))}
           </div>
@@ -884,7 +892,9 @@ export function BetSlipPanel({
         {!isFreebetMode && insuranceBetConfig.enabled && selections.length > 0 && !insuranceIneligible && (
           <div className="rounded-xl border border-border bg-surface-2 p-2.5 text-xs">
             <div className="flex items-center justify-between gap-2">
-              <span className="font-medium text-text-secondary">Insure this bet</span>
+              <span className="font-display font-bold tracking-wide text-text-secondary uppercase italic">
+                Insure this bet
+              </span>
               <Switch checked={insuranceOptIn} onChange={setInsuranceOptIn} ariaLabel="Insure this bet" />
             </div>
             {/* grid-rows 0fr->1fr trick: only way to animate to/from an

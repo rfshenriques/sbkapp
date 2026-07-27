@@ -10,6 +10,7 @@ import {
 const NO_CONDITIONS: CampaignConditions = {
   minStakeCents: null,
   minOddsPerLeg: null,
+  minCombinedOdds: null,
   betType: 'EITHER',
   minSelections: null,
 };
@@ -106,6 +107,17 @@ describe('betQualifiesForCampaign', () => {
     expect(betQualifiesForCampaign(conditions, { stakeCents: 1_000, legOdds: [2.0, 1.5] })).toBe(true);
   });
 
+  it('rejects an accumulator whose combined odds are under minCombinedOdds', () => {
+    const conditions = { ...NO_CONDITIONS, minCombinedOdds: 3.0 };
+    expect(betQualifiesForCampaign(conditions, { stakeCents: 1_000, legOdds: [1.44, 1.3, 1.6] })).toBe(false);
+    expect(betQualifiesForCampaign(conditions, { stakeCents: 1_000, legOdds: [1.44, 1.3, 1.75] })).toBe(true);
+  });
+
+  it('minCombinedOdds is distinct from minOddsPerLeg - passes even when no single leg clears the bar', () => {
+    const conditions = { ...NO_CONDITIONS, minCombinedOdds: 3.0 };
+    expect(betQualifiesForCampaign(conditions, { stakeCents: 1_000, legOdds: [1.5, 1.5, 1.4] })).toBe(true);
+  });
+
   it('SINGLES_ONLY rejects an accumulator', () => {
     const conditions = { ...NO_CONDITIONS, betType: 'SINGLES_ONLY' as const };
     expect(betQualifiesForCampaign(conditions, { stakeCents: 1_000, legOdds: [2.0, 2.0] })).toBe(false);
@@ -133,6 +145,7 @@ describe('betQualifiesForCampaign', () => {
     const conditions: CampaignConditions = {
       minStakeCents: 1_000,
       minOddsPerLeg: 1.5,
+      minCombinedOdds: null,
       betType: 'ACCUMULATOR_ONLY',
       minSelections: 3,
     };

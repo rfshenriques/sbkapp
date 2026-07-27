@@ -20,6 +20,18 @@ describe('formatCampaignRequirements', () => {
     ).toEqual(['Min odds 1.50 per leg']);
   });
 
+  it('formats a minimum combined odds', () => {
+    expect(
+      formatCampaignRequirements({
+        minStakeCents: null,
+        minOddsPerLeg: null,
+        minCombinedOdds: 3.0,
+        betType: 'EITHER',
+        minSelections: null,
+      }),
+    ).toEqual(['Min combined odds 3.00']);
+  });
+
   it('formats singles-only', () => {
     expect(
       formatCampaignRequirements({ minStakeCents: null, minOddsPerLeg: null, betType: 'SINGLES_ONLY', minSelections: null }),

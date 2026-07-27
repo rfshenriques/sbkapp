@@ -130,6 +130,7 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
   const [rewardAmountText, setRewardAmountText] = useState(centsToDisplay(campaign.rewardAmountCents));
   const [minStakeText, setMinStakeText] = useState(campaign.minStakeCents != null ? centsToDisplay(campaign.minStakeCents) : '');
   const [minOddsText, setMinOddsText] = useState(campaign.minOddsPerLeg?.toString() ?? '');
+  const [minCombinedOddsText, setMinCombinedOddsText] = useState(campaign.minCombinedOdds?.toString() ?? '');
   const [minSelectionsText, setMinSelectionsText] = useState(campaign.minSelections?.toString() ?? '');
   const [maxRedemptionsText, setMaxRedemptionsText] = useState(campaign.maxRedemptionsPerPlayer?.toString() ?? '');
   const [startAtText, setStartAtText] = useState(isoToLocalInputValue(campaign.startAt));
@@ -140,6 +141,7 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
     setRewardAmountText(centsToDisplay(campaign.rewardAmountCents));
     setMinStakeText(campaign.minStakeCents != null ? centsToDisplay(campaign.minStakeCents) : '');
     setMinOddsText(campaign.minOddsPerLeg?.toString() ?? '');
+    setMinCombinedOddsText(campaign.minCombinedOdds?.toString() ?? '');
     setMinSelectionsText(campaign.minSelections?.toString() ?? '');
     setMaxRedemptionsText(campaign.maxRedemptionsPerPlayer?.toString() ?? '');
     setStartAtText(isoToLocalInputValue(campaign.startAt));
@@ -294,7 +296,7 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div>
           <label className="block text-xs text-text-secondary" htmlFor={`min-stake-${campaign.id}`}>
             Min stake (£)
@@ -325,6 +327,26 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
             onChange={(event) => {
               setMinOddsText(event.target.value);
               setDraft({ ...draft, minOddsPerLeg: event.target.value === '' ? null : Number(event.target.value) });
+            }}
+            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs text-text-secondary" htmlFor={`min-combined-odds-${campaign.id}`}>
+            Min combined odds
+          </label>
+          <input
+            id={`min-combined-odds-${campaign.id}`}
+            type="text"
+            inputMode="decimal"
+            value={minCombinedOddsText}
+            placeholder="No minimum"
+            onChange={(event) => {
+              setMinCombinedOddsText(event.target.value);
+              setDraft({
+                ...draft,
+                minCombinedOdds: event.target.value === '' ? null : Number(event.target.value),
+              });
             }}
             className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
           />

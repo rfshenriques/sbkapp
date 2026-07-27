@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsInt, Min, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsBoolean, IsInt, IsOptional, Min, ValidateNested } from 'class-validator';
 import { BetSelectionDto } from './place-bet.dto';
 
 export class PreviewCampaignDto {
@@ -13,4 +13,9 @@ export class PreviewCampaignDto {
   @IsInt()
   @Min(1)
   stakeCents!: number;
+
+  /** Mirrors PlaceBetDto.insuranceOptIn - an insured bet never links to a campaign (see PamService.placeBet), so the preview must agree. */
+  @IsOptional()
+  @IsBoolean()
+  insuranceOptIn?: boolean;
 }

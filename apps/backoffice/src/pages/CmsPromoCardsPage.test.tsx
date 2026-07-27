@@ -21,6 +21,7 @@ const campaign: BetAndGetCampaign = {
   triggerOnVoid: false,
   minStakeCents: null,
   minOddsPerLeg: null,
+  minCombinedOdds: null,
   betType: 'EITHER',
   minSelections: null,
   allowMultipleRedemptions: false,

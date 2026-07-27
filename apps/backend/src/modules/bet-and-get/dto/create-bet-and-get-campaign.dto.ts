@@ -52,6 +52,9 @@ export class CreateBetAndGetCampaignDto {
   minOddsPerLeg?: number | null;
 
   @IsOptional()
+  minCombinedOdds?: number | null;
+
+  @IsOptional()
   @IsIn(BET_TYPES)
   betType?: BetAndGetBetType;
 

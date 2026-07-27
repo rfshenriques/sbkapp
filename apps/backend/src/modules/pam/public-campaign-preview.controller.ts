@@ -26,6 +26,12 @@ export class PublicCampaignPreviewController {
     @Headers('authorization') authorization?: string,
   ) {
     const payload = await this.optionalPlayerAuthService.resolve(authorization);
-    return this.pamService.previewCampaign(payload?.sub ?? null, brandId, dto.selections, dto.stakeCents);
+    return this.pamService.previewCampaign(
+      payload?.sub ?? null,
+      brandId,
+      dto.selections,
+      dto.stakeCents,
+      dto.insuranceOptIn,
+    );
   }
 }

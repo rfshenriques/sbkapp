@@ -57,6 +57,13 @@ export function isCampaignScheduledActive(campaign: CampaignSchedule, now: Date 
 export interface CampaignConditions {
   minStakeCents: number | null;
   minOddsPerLeg: number | null;
+  /**
+   * Combined/accumulator price (product of all legs' odds), distinct from
+   * minOddsPerLeg's per-leg floor. Optional (not just nullable) because
+   * DepositCampaign, the other consumer of this shared interface, has no
+   * such column at all - absent is treated identically to null.
+   */
+  minCombinedOdds?: number | null;
   betType: 'SINGLES_ONLY' | 'ACCUMULATOR_ONLY' | 'EITHER';
   minSelections: number | null;
 }
@@ -79,6 +86,12 @@ export function betQualifiesForCampaign(conditions: CampaignConditions, bet: Qua
   }
   if (conditions.minOddsPerLeg !== null && bet.legOdds.some((odds) => odds < conditions.minOddsPerLeg!)) {
     return false;
+  }
+  if (conditions.minCombinedOdds != null) {
+    const combinedOdds = bet.legOdds.reduce((product, odds) => product * odds, 1);
+    if (combinedOdds < conditions.minCombinedOdds) {
+      return false;
+    }
   }
 
   const isAccumulator = bet.legOdds.length > 1;

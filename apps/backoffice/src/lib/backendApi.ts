@@ -1260,6 +1260,8 @@ export interface BetAndGetCampaign {
   triggerOnVoid: boolean;
   minStakeCents: number | null;
   minOddsPerLeg: number | null;
+  /** Combined/accumulator price (product of all legs' odds), distinct from minOddsPerLeg's per-leg floor. */
+  minCombinedOdds: number | null;
   betType: BetAndGetBetType;
   minSelections: number | null;
   allowMultipleRedemptions: boolean;

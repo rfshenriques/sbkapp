@@ -208,9 +208,14 @@ export function AppShell() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {/* transform-gpu + will-change-transform force this fixed element onto
+          its own compositing layer - without it, iOS Safari's fixed
+          positioning can visually drift with scrolled content once a
+          backdrop-blur element like this one has to repaint every scroll
+          frame (a well-known Safari fixed+backdrop-filter interaction). */}
       <header
         ref={headerRef}
-        className="app-header fixed inset-x-0 top-0 z-30 border-b border-border bg-background/90 backdrop-blur"
+        className="app-header fixed inset-x-0 top-0 z-30 transform-gpu border-b border-border bg-background/90 backdrop-blur will-change-transform"
       >
         <div className="mx-auto grid max-w-[1680px] grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3">
           <NavLink to="/" className="flex shrink-0 items-center gap-2">
@@ -375,8 +380,10 @@ export function AppShell() {
         </button>
       )}
 
+      {/* Same GPU-layer fix as the header above - the fixed bottom nav shares
+          the identical backdrop-blur + fixed-positioning combination. */}
       <nav
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-border bg-background/95 px-1 py-1.5 backdrop-blur sm:hidden"
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 transform-gpu border-t border-border bg-background/95 px-1 py-1.5 backdrop-blur will-change-transform sm:hidden"
         style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
         aria-label="App navigation"
       >

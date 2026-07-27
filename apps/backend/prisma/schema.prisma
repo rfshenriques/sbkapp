@@ -1067,14 +1067,20 @@ model BetAndGetCampaign {
   triggerOnVoid Boolean          @default(false)
 
   /**
-   * All four qualifying-condition fields are optional independently - null means that condition doesn't restrict anything.
+   * All five qualifying-condition fields are optional independently - null means that condition doesn't restrict anything.
    */
   minStakeCents Int?
   /**
    * Every leg's own odds must be at least this - same convention as AccaBoostConfig.minOddsPerLeg.
    */
   minOddsPerLeg Float?
-  betType       BetAndGetBetType @default(EITHER)
+  /**
+   * The accumulator's combined price (product of all legs' odds) must be at
+   * least this - distinct from minOddsPerLeg, which checks each leg
+   * individually. A "treble at 3.00" promo needs this, not a per-leg floor.
+   */
+  minCombinedOdds Float?
+  betType         BetAndGetBetType @default(EITHER)
   /**
    * Only checked when the bet is an accumulator (2+ selections).
    */
