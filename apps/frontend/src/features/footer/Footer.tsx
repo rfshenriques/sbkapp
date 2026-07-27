@@ -20,7 +20,7 @@ function ImageListRow({
           key={item.id}
           src={`/backend/public/brand-image-list/${brandId}/item/${item.id}`}
           alt={alt}
-          className="h-8 w-auto object-contain opacity-80 grayscale transition hover:opacity-100 hover:grayscale-0"
+          className="h-8 w-auto object-contain"
         />
       ))}
     </div>
