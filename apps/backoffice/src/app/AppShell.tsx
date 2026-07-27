@@ -42,6 +42,7 @@ const NAV_GROUPS: NavGroup[] = [
       { to: '/acca-boost', label: 'Acca boost', roles: ['ADMIN', 'TRADING'] },
       { to: '/acca-rollback', label: 'Acca rollback', roles: ['ADMIN', 'TRADING'] },
       { to: '/insurance-bet', label: 'Insurance bet', roles: ['ADMIN', 'TRADING'] },
+      { to: '/freebets', label: 'Freebets', roles: ['ADMIN', 'CRM'] },
     ],
   },
   {
@@ -56,10 +57,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: 'CRM',
-    items: [
-      { to: '/player-segments', label: 'Player segments', roles: ['ADMIN', 'CRM'] },
-      { to: '/freebets', label: 'Freebets', roles: ['ADMIN', 'CRM'] },
-    ],
+    items: [{ to: '/player-segments', label: 'Player segments', roles: ['ADMIN', 'CRM'] }],
   },
   {
     label: 'Customization',
