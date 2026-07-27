@@ -360,6 +360,8 @@ export interface DepositCampaign {
   minOddsPerLeg: number | null;
   betType: BetAndGetBetType;
   minSelections: number | null;
+  /** Optional scheduling window (see Brand admin) - only present when the campaign was given an end time; drives the modal's countdown. */
+  endAt?: string | null;
 }
 
 /** A single deposit campaign by id - backs a deposit-linked promo card's click-through. See apps/backend's PublicDepositCampaignController. */

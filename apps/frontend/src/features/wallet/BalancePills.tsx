@@ -52,7 +52,7 @@ export function BalancePills({ cashCents, freebetsCents, className, activeKind, 
           )}
           title="Freebets balance"
         >
-          <FreebetBadgeIcon width={15} height={15} className="shrink-0 text-highlight" />
+          <FreebetBadgeIcon width={15} height={15} className="shrink-0" />
           <span className="font-semibold text-text-primary">€{formatCents(freebetsCents)}</span>
         </span>
       )}

@@ -81,6 +81,45 @@ describe('DepositCampaignModal', () => {
     expect(screen.getByLabelText('Deposit amount (€)')).toHaveValue('10.00');
   });
 
+  it('shows a big hero figure for a FIXED reward', () => {
+    useDepositCampaignModalStore.setState({ campaign: fixedCampaign });
+    renderModal();
+    expect(screen.getByText('€5.00')).toBeInTheDocument();
+    expect(screen.getByText('in Freebets')).toBeInTheDocument();
+  });
+
+  it('shows percent + cap as the hero figure for a PERCENTAGE reward', () => {
+    const percentageCampaign: DepositCampaign = {
+      ...fixedCampaign,
+      id: 'deposit-campaign-3',
+      rewardType: 'PERCENTAGE',
+      fixedRewardAmountCents: null,
+      rewardPercent: 50,
+      rewardCapCents: 2_000,
+    };
+    useDepositCampaignModalStore.setState({ campaign: percentageCampaign });
+    renderModal();
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('in Freebets, up to €20.00')).toBeInTheDocument();
+  });
+
+  it('shows no countdown when the campaign has no endAt', () => {
+    useDepositCampaignModalStore.setState({ campaign: fixedCampaign });
+    renderModal();
+    expect(screen.queryByText(/left$/)).not.toBeInTheDocument();
+  });
+
+  it('shows a ticking countdown when the campaign has a real endAt', () => {
+    const timedCampaign: DepositCampaign = {
+      ...fixedCampaign,
+      id: 'deposit-campaign-4',
+      endAt: new Date(Date.now() + 65_000).toISOString(),
+    };
+    useDepositCampaignModalStore.setState({ campaign: timedCampaign });
+    renderModal();
+    expect(screen.getByText(/^01:0\d left$/)).toBeInTheDocument();
+  });
+
   it('shows bet requirements when the campaign requires a qualifying bet', () => {
     useDepositCampaignModalStore.setState({ campaign: requiresBetCampaign });
     renderModal();
