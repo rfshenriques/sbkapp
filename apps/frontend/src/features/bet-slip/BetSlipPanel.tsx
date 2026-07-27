@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { EmptyState } from '../../components/ui/EmptyState';
+import { FreebetBadgeIcon } from '../../components/ui/NavIcons';
 import { MoneyBeforeAfter } from '../../components/ui/MoneyBeforeAfter';
 import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
@@ -239,12 +240,13 @@ function StakeLimitAlert({ stakeCents, preview }: { stakeCents: number; preview:
 /**
  * Previews which campaign(s) PamService.placeBet would actually link this
  * bet to (see /public/campaign-preview and useCampaignPreview) - shown
- * before the player places the bet, mirroring the same "Qualified for X"
- * wording BetCampaignNotes uses in bet history so a campaign always reads
- * the same wherever it's mentioned. A bet can qualify for a Bet & Get
+ * before the player places the bet. A bet can qualify for a Bet & Get
  * campaign and fulfil a pending deposit campaign redemption at once (they're
  * independent), so both render when both apply. Renders nothing while
- * loading or when neither applies - never a fabricated qualification.
+ * loading or when neither applies - never a fabricated qualification. Green
+ * (the app's fixed WON/success color, --color-price-up - not a brand token)
+ * since this is a positive confirmation, distinct from the highlight-colored
+ * badges used for neutral campaign mentions elsewhere.
  */
 function CampaignQualificationNote({ preview }: { preview: CampaignPreview | null }) {
   if (!preview) {
@@ -264,10 +266,15 @@ function CampaignQualificationNote({ preview }: { preview: CampaignPreview | nul
       {notes.map((note) => (
         <p
           key={note.name}
-          className="rounded-xl border border-highlight/40 bg-highlight/10 p-2.5 text-xs font-semibold text-highlight"
+          className="flex flex-wrap items-center gap-1 rounded-xl border border-price-up/40 bg-price-up/10 p-2.5 text-xs font-semibold text-price-up"
         >
-          🎁 Qualifies for {note.name}
-          {note.rewardCents !== null && ` - get ${(note.rewardCents / 100).toFixed(2)} € as a freebet`}
+          <span>✅ Qualifies for {note.name} to get</span>
+          {note.rewardCents !== null && (
+            <>
+              <FreebetBadgeIcon width={14} height={14} className="shrink-0" />
+              <span>{(note.rewardCents / 100).toFixed(2)} € in Freebets</span>
+            </>
+          )}
         </p>
       ))}
     </div>
@@ -361,6 +368,8 @@ interface SingleBetRowProps {
   showStake: boolean;
   /** Mirrors PlaceBetDto.insuranceOptIn - an insured bet never links to a campaign, so this row's own qualification preview must agree. */
   insuranceOptIn: boolean;
+  /** Mirrors PlaceBetDto.useFreebets - a freebet-funded bet never links to a campaign, so this row's own qualification preview must agree. */
+  isFreebetMode: boolean;
 }
 
 /**
@@ -370,11 +379,16 @@ interface SingleBetRowProps {
  * exactly one, fixed at the bottom of the panel, regardless of how many
  * rows there are.
  */
-function SingleBetRow({ selection, stake, onStakeChange, showStake, insuranceOptIn }: SingleBetRowProps) {
+function SingleBetRow({ selection, stake, onStakeChange, showStake, insuranceOptIn, isFreebetMode }: SingleBetRowProps) {
   const removeSelection = useBetSlipStore((state) => state.removeSelection);
   const stakeId = useId();
   const stakeLimitPreview = useStakeLimitPreview([selection]);
-  const campaignPreview = useCampaignPreview([selection], Math.round(Number(stake) * 100), insuranceOptIn);
+  const campaignPreview = useCampaignPreview(
+    [selection],
+    Math.round(Number(stake) * 100),
+    insuranceOptIn,
+    isFreebetMode,
+  );
 
   return (
     <Card className="fade-in-up space-y-2 border-border bg-surface-2">
@@ -641,11 +655,13 @@ export function BetSlipPanel({
     tab === 'accumulator' ? selections : [],
     stakeCents,
     insuranceOptIn,
+    isFreebetMode,
   );
   const singleSelectionCampaignPreview = useCampaignPreview(
     singleSelection ? [singleSelection] : [],
     singleSelection ? Math.round(Number(getSingleStake(singleSelection)) * 100) : 0,
     insuranceOptIn,
+    isFreebetMode,
   );
   // Payout is always stake x odds (see PamService.settleSelection - a
   // freebet win credits the full stake x odds by default, per Brand.
@@ -786,6 +802,7 @@ export function BetSlipPanel({
                 onStakeChange={(value) => setSingleStake(selection, value)}
                 showStake={selections.length > 1}
                 insuranceOptIn={insuranceOptIn}
+                isFreebetMode={isFreebetMode}
               />
             ))}
           </div>

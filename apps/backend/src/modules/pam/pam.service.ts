@@ -220,10 +220,10 @@ export class PamService {
    * that half is simply null for a logged-out preview, same as a
    * PLAYER-scoped stake-limit override not applying yet.
    *
-   * `insuranceOptIn` mirrors placeBet's own insuranceApplies gate - an
-   * insured bet never links to a campaign (see placeBet), so the preview
-   * must agree and simply show nothing rather than promise a reward the
-   * actual placement would never grant.
+   * `insuranceOptIn` and `useFreebets` mirror placeBet's own exclusion gate
+   * - neither an insured nor a freebet-funded bet ever links to a campaign
+   * (see placeBet), so the preview must agree and simply show nothing
+   * rather than promise a reward the actual placement would never grant.
    */
   async previewCampaign(
     userId: string | null,
@@ -231,6 +231,7 @@ export class PamService {
     selections: BetSelectionDto[],
     stakeCents: number,
     insuranceOptIn = false,
+    useFreebets = false,
   ): Promise<{
     betAndGetCampaignName: string | null;
     betAndGetCampaignRewardCents: number | null;
@@ -239,7 +240,7 @@ export class PamService {
   }> {
     const insuranceBetConfig = await this.insuranceBetService.getConfig(brandId);
     const insuranceApplies = insuranceOptIn && insuranceBetConfig.enabled;
-    if (insuranceApplies) {
+    if (insuranceApplies || useFreebets) {
       return {
         betAndGetCampaignName: null,
         betAndGetCampaignRewardCents: null,
@@ -519,11 +520,12 @@ export class PamService {
     // condition change never retroactively relabels an already-placed bet.
     // A player who's already exhausted their redemptions for this campaign
     // simply doesn't link to it at all, same as not qualifying by scope.
-    // An insured bet never links to any campaign at all - stacking a
-    // guaranteed stake-back with a Bet & Get/deposit campaign reward would
-    // be double-bonusing the same bet, same reasoning that already keeps
-    // insurance apart from acca boost above.
-    const applicableCampaign = insuranceApplies
+    // A freebet-funded or insured bet never links to any campaign at all -
+    // stacking a reward on top of a bet that already carries a freebet
+    // stake or a guaranteed stake-back would be double-bonusing the same
+    // bet, same reasoning that already keeps these apart from acca boost.
+    const campaignsExcluded = useFreebets || insuranceApplies;
+    const applicableCampaign = campaignsExcluded
       ? null
       : await this.betAndGetCampaignService.resolveApplicableCampaign(
           brandId,
@@ -543,7 +545,7 @@ export class PamService {
     // exists - created back when the qualifying deposit was made - so
     // there's no separate canRedeem check here, the redemption's mere
     // existence already represents a consumed slot.
-    const depositCampaignRedemption = insuranceApplies
+    const depositCampaignRedemption = campaignsExcluded
       ? null
       : await this.depositCampaignService.resolvePendingBetRedemption(userId, {
           stakeCents: dto.stakeCents,

@@ -32,6 +32,7 @@ export class PublicCampaignPreviewController {
       dto.selections,
       dto.stakeCents,
       dto.insuranceOptIn,
+      dto.useFreebets,
     );
   }
 }

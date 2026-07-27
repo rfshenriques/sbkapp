@@ -567,11 +567,12 @@ export async function previewCampaign(
   selections: PlaceBetSelection[],
   stakeCents: number,
   insuranceOptIn?: boolean,
+  useFreebets?: boolean,
 ): Promise<CampaignPreview> {
   const response = await fetch(`${BASE_URL}/public/campaign-preview/${encodeURIComponent(brandId)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...optionalAuthHeaders() },
-    body: JSON.stringify({ selections, stakeCents, insuranceOptIn }),
+    body: JSON.stringify({ selections, stakeCents, insuranceOptIn, useFreebets }),
   });
   if (!response.ok) {
     throw new Error(`Failed to preview campaign: ${response.status}`);

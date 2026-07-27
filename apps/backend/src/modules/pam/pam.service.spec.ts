@@ -981,6 +981,33 @@ describe('PamService', () => {
         }),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
+
+    it('never links a freebet-funded bet to a Bet & Get campaign, even one it would otherwise qualify for', async () => {
+      const campaign = await betAndGetCampaignService.create(
+        testBrandId,
+        { name: 'CL Bet & Get', rewardAmountCents: 500 },
+        TEST_ACTOR,
+      );
+      await betAndGetCampaignService.setScopes(
+        testBrandId,
+        campaign.id,
+        [{ scopeType: 'SPORT', scopeValue: 'Football' }],
+        TEST_ACTOR,
+      );
+      await betAndGetCampaignService.update(testBrandId, campaign.id, { enabled: true }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+      const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      await freebetService.grant(testBrandId, { identifier: user.username, amountCents: 1_000 }, TEST_ACTOR);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+        useFreebets: true,
+      });
+
+      expect(bet.betAndGetCampaignId).toBeNull();
+      expect(await prisma.freebetGrant.findFirst({ where: { sourceBetId: bet.id, source: 'BET_AND_GET' } })).toBeNull();
+    });
   });
 
   describe('bet & get', () => {
@@ -1443,6 +1470,23 @@ describe('PamService', () => {
       );
 
       expect(preview.betAndGetCampaignName).toBe('CL Bet & Get');
+    });
+
+    it('previews nothing when funded by freebets, even for an otherwise-qualifying bet', async () => {
+      const campaign = await createEnabledBetAndGetCampaign();
+      const userId = await createTestUser(100_000);
+
+      const preview = await pamService.previewCampaign(
+        userId,
+        testBrandId,
+        [buildSelection({ odds: 2.0 })],
+        1_000,
+        false,
+        true,
+      );
+
+      expect(preview.betAndGetCampaignName).toBeNull();
+      expect(campaign.name).toBe('CL Bet & Get');
     });
   });
 

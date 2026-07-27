@@ -595,11 +595,14 @@ describe('BetSlipPanel', () => {
         depositCampaignRewardCents: null,
       });
       useBetSlipStore.setState({ selections: [homeSelection] });
-      renderPanel();
+      const { container } = renderPanel();
 
-      expect(
-        await screen.findByText('🎁 Qualifies for CL Bet & Get - get 10.00 € as a freebet'),
-      ).toBeInTheDocument();
+      const note = await screen.findByText('CL Bet & Get', { exact: false });
+      expect(note.closest('p')).toHaveClass('text-price-up');
+      expect(container.querySelector('p.text-price-up')).toHaveTextContent(
+        '✅ Qualifies for CL Bet & Get to get',
+      );
+      expect(container.querySelector('p.text-price-up')).toHaveTextContent('10.00 € in Freebets');
     });
 
     it('shows both a Bet & Get and a deposit campaign qualification at once', async () => {
@@ -611,14 +614,15 @@ describe('BetSlipPanel', () => {
         depositCampaignRewardCents: 2500,
       });
       useBetSlipStore.setState({ selections: [homeSelection] });
-      renderPanel();
+      const { container } = renderPanel();
 
-      expect(
-        await screen.findByText('🎁 Qualifies for CL Bet & Get - get 10.00 € as a freebet'),
-      ).toBeInTheDocument();
-      expect(
-        await screen.findByText('🎁 Qualifies for Welcome Deposit Bonus - get 25.00 € as a freebet'),
-      ).toBeInTheDocument();
+      await screen.findByText('CL Bet & Get', { exact: false });
+      const notes = container.querySelectorAll('p.text-price-up');
+      expect(notes).toHaveLength(2);
+      expect(notes[0]).toHaveTextContent('✅ Qualifies for CL Bet & Get to get');
+      expect(notes[0]).toHaveTextContent('10.00 € in Freebets');
+      expect(notes[1]).toHaveTextContent('✅ Qualifies for Welcome Deposit Bonus to get');
+      expect(notes[1]).toHaveTextContent('25.00 € in Freebets');
     });
   });
 
@@ -721,6 +725,57 @@ describe('BetSlipPanel', () => {
         stakeCents: 300,
         useFreebets: true,
       });
+    });
+
+    it('never shows a campaign qualification note in freebet mode, even for an otherwise-qualifying bet', async () => {
+      const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = typeof input === 'string' ? input : input.toString();
+        const method = init?.method ?? 'GET';
+        if (method === 'GET' && url === '/backend/freebets') {
+          return new Response(
+            JSON.stringify([{ id: 'grant-1', amountCents: 1000, remainingCents: 1000, expiresAt: null }]),
+            { status: 200 },
+          );
+        }
+        if (method === 'GET' && url === '/backend/wallet') {
+          return new Response(JSON.stringify({ balanceCents: 100000 }), { status: 200 });
+        }
+        if (method === 'GET' && url === '/backend/public/acca-boost-config/brand-1') {
+          return new Response(
+            JSON.stringify({ boostPercentPerLeg: 0, minSelections: 99, minOddsPerLeg: 1, enabled: false }),
+            { status: 200 },
+          );
+        }
+        if (method === 'POST' && url === '/backend/public/campaign-preview/brand-1') {
+          // Mirrors PamService.previewCampaign's own gate - null out the
+          // campaign whenever useFreebets is set on the request, same as
+          // the real backend does, so this test exercises the actual
+          // request/response contract rather than a hand-picked fixture.
+          const body = JSON.parse(init!.body as string);
+          return new Response(
+            JSON.stringify(
+              body.useFreebets
+                ? { betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null }
+                : { betAndGetCampaignName: 'CL Bet & Get', betAndGetCampaignRewardCents: 1000, depositCampaignName: null, depositCampaignRewardCents: null },
+            ),
+            { status: 200 },
+          );
+        }
+        return new Response(null, { status: 404 });
+      });
+      vi.stubGlobal('fetch', fetchMock);
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      await screen.findByText('✅ Qualifies for CL Bet & Get to get', { exact: false });
+      await userEvent.click(screen.getByRole('switch', { name: 'Pay with freebets' }));
+
+      await waitFor(() => expect(screen.queryByText(/Qualifies for/)).not.toBeInTheDocument());
+      const previewCall = fetchMock.mock.calls
+        .filter((call) => call[0] === '/backend/public/campaign-preview/brand-1')
+        .at(-1)!;
+      const [, init] = previewCall as [string, RequestInit];
+      expect(JSON.parse(init.body as string)).toMatchObject({ useFreebets: true });
     });
 
     it('hides the Acca Boost bar in freebet mode even for a qualifying accumulator', async () => {

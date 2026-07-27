@@ -18,4 +18,9 @@ export class PreviewCampaignDto {
   @IsOptional()
   @IsBoolean()
   insuranceOptIn?: boolean;
+
+  /** Mirrors PlaceBetDto.useFreebets - a freebet-funded bet never links to a campaign (see PamService.placeBet), so the preview must agree. */
+  @IsOptional()
+  @IsBoolean()
+  useFreebets?: boolean;
 }
