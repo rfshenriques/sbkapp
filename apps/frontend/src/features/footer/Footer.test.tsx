@@ -73,7 +73,7 @@ describe('Footer', () => {
     stubFetch();
     renderFooter();
 
-    expect(await screen.findByRole('link', { name: 'Promotions' })).toHaveAttribute('href', '/promotions');
+    expect(await screen.findByRole('link', { name: 'Challenges' })).toHaveAttribute('href', '/challenges');
     expect(screen.getByRole('link', { name: 'Live' })).toHaveAttribute('href', '/live');
     expect(screen.getByRole('link', { name: 'Responsible Gambling' })).toHaveAttribute(
       'href',
@@ -86,7 +86,7 @@ describe('Footer', () => {
     stubFetch();
     renderFooter();
 
-    await screen.findByRole('link', { name: 'Promotions' });
+    await screen.findByRole('link', { name: 'Challenges' });
     expect(screen.queryByText('Sponsors')).not.toBeInTheDocument();
     expect(screen.queryByText('Payment methods')).not.toBeInTheDocument();
   });

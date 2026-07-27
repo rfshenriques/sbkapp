@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { TrophyIcon } from '../../components/ui/NavIcons';
 import * as backendApi from '../../lib/backendApi';
 import type { PromoCardItem } from '../../lib/backendApi';
 import { useDepositCampaignModalStore } from '../deposit-campaigns/depositCampaignModalStore';
@@ -17,11 +18,17 @@ export interface PromoCardTileProps {
  * same modal the post-login trigger uses (see DepositCampaignModal). A card
  * with neither id set is purely decorative (no link). See apps/backend's
  * PromoCardService and the backoffice's CMS Promo Cards page.
+ *
+ * The bright highlight-colored ring and trophy corner badge mark this as a
+ * "challenge" (see ChallengesPage) - decorative framing only, since neither
+ * campaign type has a real progress/status field to render (no fabricated
+ * "expired"/"won" state).
  */
 export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) {
   const openDepositCampaignModal = useDepositCampaignModalStore((state) => state.open);
   const [isLoadingDepositCampaign, setIsLoadingDepositCampaign] = useState(false);
   const hasCaption = Boolean(card.title || card.subtitle);
+  const isChallenge = Boolean(card.betAndGetCampaignId || card.depositCampaignId);
 
   const content = (
     <>
@@ -37,6 +44,13 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
         alt={card.title ?? ''}
         className="absolute inset-0 h-full w-full object-cover"
       />
+      {isChallenge && (
+        <TrophyIcon
+          width={22}
+          height={22}
+          className="absolute right-3 top-3 text-highlight drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
+        />
+      )}
       {hasCaption && (
         <>
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
@@ -49,11 +63,13 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
     </>
   );
 
+  const frameClassName = isChallenge ? 'border-2 border-highlight' : '';
+
   if (card.betAndGetCampaignId) {
     return (
       <Link
         to={`/campaigns/${card.betAndGetCampaignId}`}
-        className={`relative block overflow-hidden rounded-3xl ${className ?? ''}`}
+        className={`relative block overflow-hidden rounded-3xl ${frameClassName} ${className ?? ''}`}
       >
         {content}
       </Link>
@@ -79,7 +95,7 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
         type="button"
         onClick={() => void handleClick()}
         disabled={isLoadingDepositCampaign}
-        className={`relative block w-full overflow-hidden rounded-3xl text-left disabled:cursor-wait ${className ?? ''}`}
+        className={`relative block w-full overflow-hidden rounded-3xl text-left disabled:cursor-wait ${frameClassName} ${className ?? ''}`}
       >
         {content}
       </button>

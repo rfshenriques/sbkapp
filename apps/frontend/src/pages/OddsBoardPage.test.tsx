@@ -237,7 +237,7 @@ describe('OddsBoardPage', () => {
     expect(screen.queryByRole('link', { name: /Football Home/ })).not.toBeInTheDocument();
   });
 
-  it('renders CMS promo cards in the same Promotions slot as the Match of the day row, replacing the static Welcome Bonus card', async () => {
+  it('renders CMS promo cards in the same Challenges slot as the Match of the day row, replacing the static Welcome Bonus card', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === `/backend/public/matches/${TEST_BRAND_ID}`) {
@@ -265,10 +265,10 @@ describe('OddsBoardPage', () => {
 
     renderPage();
 
-    // The "Promotions" aria-label is the desktop right-hand slot next to
+    // The "Challenges" aria-label is the desktop right-hand slot next to
     // Match of the day - it should carry the real card, not a whole new
     // section, and the old static Welcome Bonus copy should be gone.
-    const promoSlot = await screen.findByRole('group', { name: 'Promotions' });
+    const promoSlot = await screen.findByRole('group', { name: 'Challenges' });
     expect(within(promoSlot).getByText('Champions League Promo')).toBeInTheDocument();
     expect(within(promoSlot).getByRole('link')).toHaveAttribute('href', '/campaigns/campaign-1');
     expect(screen.queryByText('Welcome Bonus')).not.toBeInTheDocument();
@@ -277,7 +277,7 @@ describe('OddsBoardPage', () => {
   it('falls back to the static Welcome Bonus card in that same slot when the brand has no promo cards', async () => {
     renderPage();
 
-    const promoSlot = await screen.findByRole('group', { name: 'Promotions' });
+    const promoSlot = await screen.findByRole('group', { name: 'Challenges' });
     expect(within(promoSlot).getByText('Welcome Bonus')).toBeInTheDocument();
   });
 });

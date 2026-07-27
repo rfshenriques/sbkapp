@@ -26,11 +26,11 @@ export function SearchIcon(props: IconProps) {
   );
 }
 
-export function HomeIcon(props: IconProps) {
+/** Highlights tab - the homepage of standout/live matches, a flame rather than a house. */
+export function FireIcon(props: IconProps) {
   return (
     <svg {...baseProps} {...props}>
-      <path d="M3 9.5 10 3l7 6.5" />
-      <path d="M5 8.5V17h10V8.5" />
+      <path d="M10 2.5c2.2 2.8 4.5 5.6 4.5 8.7a4.5 4.5 0 0 1-9 0c0-1.3.4-2.4 1-3.4.1 1.3.9 2.1 1.8 2.1.9 0 1.3-.7 1.1-1.7-.3-1.6.2-3.6 1.6-5.7Z" />
     </svg>
   );
 }
@@ -73,14 +73,26 @@ export function SpecialsIcon(props: IconProps) {
   );
 }
 
-export function PromotionsIcon(props: IconProps) {
+/**
+ * Challenges tab - a trophy, solid-filled like FreebetBadgeIcon rather than
+ * stroke-only like its baseProps siblings, so it reads clearly as a small
+ * accent both in the nav strip and as the corner badge on a challenge card
+ * (see PromoCardTile). Color comes from `currentColor`/className, not a
+ * fixed fill, so it still follows the nav's active/inactive text color.
+ */
+export function TrophyIcon(props: IconProps) {
   return (
-    <svg {...baseProps} {...props}>
-      <rect x="3.5" y="8" width="13" height="9" rx="1" />
-      <path d="M3.5 11.5h13" />
-      <path d="M10 8v9" />
-      <path d="M10 8C8.5 8 7 7.3 7 5.8A1.8 1.8 0 0 1 8.8 4C9.8 4 10 5.5 10 8Z" />
-      <path d="M10 8c1.5 0 3-.7 3-2.2A1.8 1.8 0 0 0 11.2 4C10.2 4 10 5.5 10 8Z" />
+    <svg viewBox="0 0 20 20" fill="currentColor" {...props}>
+      <path d="M6 3h8v4.5a4 4 0 0 1-8 0V3Z" />
+      <path
+        d="M6 4.5H4a2 2 0 0 0 2 3.3M14 4.5h2a2 2 0 0 1-2 3.3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+      <path d="M9.2 10.8h1.6v2.4H9.2z" />
+      <path d="M7 15.6h6l-.6-1.7H7.6l-.6 1.7Z" />
     </svg>
   );
 }

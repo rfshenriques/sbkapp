@@ -7,9 +7,11 @@ import { usePromoCards } from '../features/promo-cards/usePromoCards';
 /**
  * Renders whatever CMS-managed promo cards the brand has set up (see the
  * backoffice's Promo Cards page) - honest "nothing yet" empty state when
- * there are none, rather than fabricated promo content.
+ * there are none, rather than fabricated promo content. Each card is a
+ * "challenge": a real Bet & Get or deposit campaign with a reward attached
+ * (see PromoCardTile) - this page is just the full list of them.
  */
-export default function PromotionsPage() {
+export default function ChallengesPage() {
   const { data: promoCards, isPending } = usePromoCards();
   const brandId = useBrandStore((state) => state.brandId);
   const hasCards = Boolean(promoCards && promoCards.length > 0 && brandId);
@@ -22,11 +24,11 @@ export default function PromotionsPage() {
           <i></i>
           <i></i>
         </span>
-        <h1 className="font-display text-lg">Promotions</h1>
+        <h1 className="font-display text-lg">Challenges</h1>
       </div>
 
       {isPending ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Loading promotions" role="status">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Loading challenges" role="status">
           <Skeleton className="h-48 w-full" />
           <Skeleton className="h-48 w-full" />
         </div>
@@ -37,7 +39,7 @@ export default function PromotionsPage() {
           ))}
         </div>
       ) : (
-        <Card className="text-text-secondary">No active promotions right now - check back soon.</Card>
+        <Card className="text-text-secondary">No active challenges right now - check back soon.</Card>
       )}
     </div>
   );

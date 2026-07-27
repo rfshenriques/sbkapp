@@ -15,12 +15,12 @@ export interface HorizontalScrollerProps {
 
 /**
  * Shared shell for every horizontally-scrolling content block (Live now,
- * Match of the day, Promotions, ...) - snap scrolling plus two things
+ * Match of the day, Challenges, ...) - snap scrolling plus two things
  * layered on top: dot indicators (both breakpoints, so a swipeable block
  * doesn't look like "that's everything") and desktop-only overlay left/
  * right arrow buttons, since a mouse has no swipe gesture. Both only
  * appear when there's actually more than one item to move between - a
- * single-item block (today's reality for Match of the day/Promotions
+ * single-item block (today's reality for Match of the day/Challenges
  * until the CMS lets staff add more) renders with neither.
  */
 export function HorizontalScroller({

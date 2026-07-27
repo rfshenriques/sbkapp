@@ -13,7 +13,7 @@ const CampaignMatchesPage = lazy(() => import('../pages/CampaignMatchesPage'));
 const BrowsePage = lazy(() => import('../pages/BrowsePage'));
 const SportPage = lazy(() => import('../pages/SportPage'));
 const MyBetsPage = lazy(() => import('../pages/MyBetsPage'));
-const PromotionsPage = lazy(() => import('../pages/PromotionsPage'));
+const ChallengesPage = lazy(() => import('../pages/ChallengesPage'));
 const BoostsPage = lazy(() => import('../pages/BoostsPage'));
 const SpecialsPage = lazy(() => import('../pages/SpecialsPage'));
 const ResponsibleGamblingPage = lazy(() => import('../pages/ResponsibleGamblingPage'));
@@ -32,7 +32,7 @@ export const routes: RouteObject[] = [
       { path: 'sports/:sport', Component: SportPage },
       { path: 'live', Component: SportPage },
       { path: 'my-bets', Component: MyBetsPage },
-      { path: 'promotions', Component: PromotionsPage },
+      { path: 'challenges', Component: ChallengesPage },
       { path: 'boosts', Component: BoostsPage },
       { path: 'specials', Component: SpecialsPage },
       { path: 'responsible-gambling', Component: ResponsibleGamblingPage },

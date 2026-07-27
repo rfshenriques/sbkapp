@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useBrandStore } from '../features/brand/brandStore';
-import PromotionsPage from './PromotionsPage';
+import ChallengesPage from './ChallengesPage';
 
 const TEST_BRAND_ID = 'brand-1';
 
@@ -25,7 +25,7 @@ function renderPage() {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <PromotionsPage />
+        <ChallengesPage />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -40,21 +40,21 @@ afterEach(() => {
   useBrandStore.setState({ brandId: undefined });
 });
 
-describe('PromotionsPage', () => {
+describe('ChallengesPage', () => {
   it('shows a loading skeleton instead of the empty state while the fetch is in flight', () => {
     stubFetch([]);
     renderPage();
 
-    expect(screen.getByRole('status', { name: 'Loading promotions' })).toBeInTheDocument();
-    expect(screen.queryByText(/No active promotions right now/)).not.toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading challenges' })).toBeInTheDocument();
+    expect(screen.queryByText(/No active challenges right now/)).not.toBeInTheDocument();
   });
 
   it('shows an honest empty state rather than fabricated promo content', async () => {
     stubFetch([]);
     renderPage();
 
-    expect(screen.getByRole('heading', { name: 'Promotions' })).toBeInTheDocument();
-    expect(await screen.findByText(/No active promotions right now/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Challenges' })).toBeInTheDocument();
+    expect(await screen.findByText(/No active challenges right now/)).toBeInTheDocument();
   });
 
   it('renders promo cards linking to their campaign when the brand has some', async () => {
@@ -73,6 +73,6 @@ describe('PromotionsPage', () => {
     expect(await screen.findByText('Champions League Promo')).toBeInTheDocument();
     expect(screen.getByText('Bet & get €10')).toBeInTheDocument();
     expect(screen.getByRole('link')).toHaveAttribute('href', '/campaigns/campaign-1');
-    expect(screen.queryByText(/No active promotions right now/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/No active challenges right now/)).not.toBeInTheDocument();
   });
 });

@@ -178,7 +178,7 @@ export interface HomepageCarouselConfig {
   autoScrollSeconds: number;
 }
 
-/** Whether/how fast to auto-advance the homepage's "Match of the day + Promotions" row - see apps/backend's HomepageCarouselModule. */
+/** Whether/how fast to auto-advance the homepage's "Match of the day + Challenges" row - see apps/backend's HomepageCarouselModule. */
 export async function getHomepageCarouselConfig(brandId: string): Promise<HomepageCarouselConfig> {
   const response = await fetch(`${BASE_URL}/public/homepage-carousel-config/${encodeURIComponent(brandId)}`);
   if (!response.ok) {
@@ -412,7 +412,7 @@ export interface PromoCardItem {
   depositCampaignId: string | null;
 }
 
-/** CMS-managed promo cards for the homepage/Promotions page - see apps/backend's PublicPromoCardController. */
+/** CMS-managed promo cards for the homepage/Challenges page - see apps/backend's PublicPromoCardController. */
 export async function getPromoCards(brandId: string): Promise<PromoCardItem[]> {
   const response = await fetch(`${BASE_URL}/public/promo-cards/${encodeURIComponent(brandId)}`, {
     headers: optionalAuthHeaders(),

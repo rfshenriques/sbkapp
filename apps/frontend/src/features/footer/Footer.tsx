@@ -71,8 +71,8 @@ export function Footer() {
 
         <div className="flex flex-col gap-4 border-t border-border pt-6 sm:flex-row sm:items-start sm:justify-between">
           <nav className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-text-secondary" aria-label="Footer">
-            <Link to="/promotions" className="hover:text-text-primary">
-              Promotions
+            <Link to="/challenges" className="hover:text-text-primary">
+              Challenges
             </Link>
             <Link to="/live" className="hover:text-text-primary">
               Live

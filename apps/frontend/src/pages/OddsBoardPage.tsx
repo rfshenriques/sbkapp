@@ -256,7 +256,7 @@ export default function OddsBoardPage() {
   const liveCapped = liveMatches.slice(0, MAX_HOMEPAGE_ITEMS);
   const upcomingCapped = upcomingForSport.slice(0, MAX_HOMEPAGE_ITEMS);
 
-  // The "Promotions" slot next to Match of the day: staff-managed CMS promo
+  // The "Challenges" slot next to Match of the day: staff-managed CMS promo
   // cards (see the backoffice's Promo Cards page) when the brand has any,
   // otherwise the static Welcome Bonus card that's always been there - the
   // slot itself never disappears or moves, it's swipeable within itself
@@ -314,7 +314,7 @@ export default function OddsBoardPage() {
             <div className="min-w-0 sm:w-72 sm:shrink-0">
               <HorizontalScroller
                 itemCount={promoSlotCount}
-                ariaLabel="Promotions"
+                ariaLabel="Challenges"
                 className="min-w-0"
                 autoScrollSeconds={autoScrollSeconds}
               >

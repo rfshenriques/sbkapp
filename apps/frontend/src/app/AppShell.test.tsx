@@ -78,16 +78,16 @@ describe('AppShell', () => {
     expect(screen.getByRole('tab', { name: 'Bet History' })).toBeInTheDocument();
   });
 
-  it('has Home, Live, My Bets, and Promotions links plus a Search button in the mobile bottom nav', () => {
+  it('has Highlights, Live, My Bets, and Challenges links plus a Search button in the mobile bottom nav', () => {
     renderShell();
 
     const nav = screen.getByRole('navigation', { name: 'App navigation' });
-    expect(within(nav).getByRole('link', { name: /Home/ })).toHaveAttribute('href', '/');
+    expect(within(nav).getByRole('link', { name: /Highlights/ })).toHaveAttribute('href', '/');
     expect(within(nav).getByRole('link', { name: /Live/ })).toHaveAttribute('href', '/live');
     expect(within(nav).getByRole('link', { name: /My Bets/ })).toHaveAttribute('href', '/my-bets');
-    expect(within(nav).getByRole('link', { name: /Promotions/ })).toHaveAttribute(
+    expect(within(nav).getByRole('link', { name: /Challenges/ })).toHaveAttribute(
       'href',
-      '/promotions',
+      '/challenges',
     );
     expect(within(nav).getByRole('button', { name: /Search/ })).toBeInTheDocument();
   });
