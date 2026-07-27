@@ -157,9 +157,9 @@ export class FreebetService {
     });
   }
 
-  /** ACTIVE, unexpired, not-yet-fully-drawn-down grants only - what a player can actually fund a bet with right now, oldest-expiring first (the order spendFromBalance draws them down in). */
+  /** ACTIVE, unexpired, not-yet-fully-drawn-down grants only - what a player can actually fund a bet with right now, oldest-expiring first (the order spendFromBalance draws them down in). Each grant is annotated with the source campaign's name where applicable, for the player-facing "you were credited freebets from campaign Y" modal. */
   async listActive(userId: string, brandId: string) {
-    return this.prisma.freebetGrant.findMany({
+    const grants = await this.prisma.freebetGrant.findMany({
       where: {
         userId,
         brandId,
@@ -169,6 +169,41 @@ export class FreebetService {
       },
       orderBy: [{ expiresAt: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
     });
+    const campaignNameById = await this.campaignNamesById(grants);
+    return grants.map((grant) => ({
+      ...grant,
+      campaignName: grant.sourceCampaignId ? (campaignNameById.get(grant.sourceCampaignId) ?? null) : null,
+    }));
+  }
+
+  /**
+   * FreebetGrant.sourceCampaignId is a plain string, not a Prisma relation -
+   * it points to either BetAndGetCampaign.id or DepositCampaign.id depending
+   * on `source`, so the name has to be resolved with a manual batch lookup
+   * rather than an include/select.
+   */
+  private async campaignNamesById(grants: { source: FreebetSource; sourceCampaignId: string | null }[]) {
+    const betAndGetIds = grants
+      .filter((grant) => grant.source === 'BET_AND_GET' && grant.sourceCampaignId)
+      .map((grant) => grant.sourceCampaignId as string);
+    const depositCampaignIds = grants
+      .filter((grant) => grant.source === 'DEPOSIT_CAMPAIGN' && grant.sourceCampaignId)
+      .map((grant) => grant.sourceCampaignId as string);
+
+    const [betAndGetCampaigns, depositCampaigns] = await Promise.all([
+      betAndGetIds.length
+        ? this.prisma.betAndGetCampaign.findMany({ where: { id: { in: betAndGetIds } }, select: { id: true, name: true } })
+        : [],
+      depositCampaignIds.length
+        ? this.prisma.depositCampaign.findMany({ where: { id: { in: depositCampaignIds } }, select: { id: true, name: true } })
+        : [],
+    ]);
+
+    const campaignNameById = new Map<string, string>();
+    for (const campaign of [...betAndGetCampaigns, ...depositCampaigns]) {
+      campaignNameById.set(campaign.id, campaign.name);
+    }
+    return campaignNameById;
   }
 
   /** Sum of active/unexpired grants' remaining balance - the pooled freebets wallet total a bet's typed stake can draw from (see spendFromBalance). */

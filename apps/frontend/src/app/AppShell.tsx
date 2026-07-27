@@ -22,6 +22,10 @@ import { DepositModal } from '../features/deposit/DepositModal';
 import { useDepositModalStore } from '../features/deposit/depositModalStore';
 import { BalancePills } from '../features/wallet/BalancePills';
 import { InsufficientFundsModal } from '../features/wallet/InsufficientFundsModal';
+import { HEADER_FREEBETS_BALANCE_ID } from '../features/wallet/balanceTargetIds';
+import { FreebetCreditedModal } from '../features/wallet/FreebetCreditedModal';
+import { FreebetFlyOverlay } from '../features/wallet/FreebetFlyOverlay';
+import { useFreebetGrantDetector } from '../features/wallet/useFreebetGrantDetector';
 import { useWallet } from '../features/wallet/useWallet';
 import { sumFreebetsCents, useFreebets } from '../features/wallet/useFreebets';
 import { Sidebar } from '../features/navigation/Sidebar';
@@ -44,6 +48,7 @@ const SWIPE_THRESHOLD_PX = 60;
 export function AppShell() {
   useBootstrapAuth();
   useWinCelebrationDetector();
+  useFreebetGrantDetector();
   const brandQuery = useBrandTheme();
   const [isSlipOpen, setIsSlipOpen] = useState(false);
   const [isNavOpen, setIsNavOpen] = useState(false);
@@ -271,6 +276,7 @@ export function AppShell() {
                     cashCents={wallet.balanceCents}
                     freebetsCents={freebetsCents}
                     onAddFunds={openDepositModal}
+                    freebetsTargetId={HEADER_FREEBETS_BALANCE_ID}
                   />
                 )}
                 <AccountMenu />
@@ -463,6 +469,8 @@ export function AppShell() {
       <InsufficientFundsModal />
       <PasskeyEnrollmentModal />
       <WinCelebrationModal />
+      <FreebetCreditedModal />
+      <FreebetFlyOverlay />
       <BetPlacedModal />
 
       {/* Mobile-only: sports navigation takes over the space between the

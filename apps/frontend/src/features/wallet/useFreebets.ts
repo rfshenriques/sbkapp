@@ -10,6 +10,10 @@ export function useFreebets() {
     queryKey: freebetsQueryKey,
     queryFn: getFreebets,
     enabled: isAuthenticated,
+    // Grants land server-side (campaign placement/settlement) with the
+    // player just sitting in the app - poll so useFreebetGrantDetector
+    // actually has something to detect, same reasoning as useBets.
+    refetchInterval: 20_000,
   });
 }
 

@@ -129,6 +129,46 @@ describe('FreebetService', () => {
     expect(expired).toBeTruthy();
   });
 
+  it('listActive resolves campaignName for BET_AND_GET and DEPOSIT_CAMPAIGN grants, null otherwise', async () => {
+    const betAndGetCampaign = await prisma.betAndGetCampaign.create({
+      data: { brandId: brandAId, name: 'Weekend Boost', rewardAmountCents: 500 },
+    });
+    const depositCampaign = await prisma.depositCampaign.create({
+      data: {
+        brandId: brandAId,
+        name: 'First Deposit Bonus',
+        minDepositAmountCents: 1000,
+        rewardType: 'FIXED',
+        fixedRewardAmountCents: 2000,
+      },
+    });
+
+    await service.grantSystem({
+      userId,
+      brandId: brandAId,
+      amountCents: 500,
+      source: 'BET_AND_GET',
+      sourceCampaignId: betAndGetCampaign.id,
+    });
+    await service.grantSystem({
+      userId,
+      brandId: brandAId,
+      amountCents: 2000,
+      source: 'DEPOSIT_CAMPAIGN',
+      sourceCampaignId: depositCampaign.id,
+    });
+    await service.grantSystem({ userId, brandId: brandAId, amountCents: 100, source: 'ACCA_ROLLBACK' });
+
+    const activeGrants = await service.listActive(userId, brandAId);
+    const byCampaignId = new Map(activeGrants.map((grant) => [grant.sourceCampaignId, grant.campaignName]));
+    expect(byCampaignId.get(betAndGetCampaign.id)).toBe('Weekend Boost');
+    expect(byCampaignId.get(depositCampaign.id)).toBe('First Deposit Bonus');
+    expect(activeGrants.find((grant) => grant.source === 'ACCA_ROLLBACK')?.campaignName).toBeNull();
+
+    await prisma.betAndGetCampaign.delete({ where: { id: betAndGetCampaign.id } });
+    await prisma.depositCampaign.delete({ where: { id: depositCampaign.id } });
+  });
+
   it('balanceCents sums only active/unexpired grants remaining balance', async () => {
     await service.grant(brandAId, { identifier: username, amountCents: 1000 }, TEST_ACTOR);
     await service.grant(brandAId, { identifier: username, amountCents: 500 }, TEST_ACTOR);

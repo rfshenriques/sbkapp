@@ -1,5 +1,7 @@
+import { RollingBalance } from '../../components/ui/RollingBalance';
 import { FreebetBadgeIcon, WalletIcon } from '../../components/ui/NavIcons';
 import { cn } from '../../lib/cn';
+import { useFreebetFlyStore } from './freebetFlyStore';
 import { formatCents } from './useWallet';
 
 interface BalancePillsProps {
@@ -10,6 +12,13 @@ interface BalancePillsProps {
   activeKind?: 'cash' | 'freebets';
   /** Renders a small brand-colored "+" button inside the cash pill itself - the header's add-funds entry point. Omitted anywhere that action doesn't apply (the bet slip). */
   onAddFunds?: () => void;
+  /**
+   * DOM id to give the freebets pill and the fly-animation target to aim
+   * at - only passed by the header's own BalancePills usage (AppShell), so
+   * FreebetFlyOverlay's icons and the RollingBalance swap below only ever
+   * apply to that one instance, never the bet slip's separate pill.
+   */
+  freebetsTargetId?: string;
 }
 
 /**
@@ -20,7 +29,20 @@ interface BalancePillsProps {
  * Freebets stay hidden at zero rather than showing a permanent "€0.00"
  * pill that's never actionable for most players.
  */
-export function BalancePills({ cashCents, freebetsCents, className, activeKind, onAddFunds }: BalancePillsProps) {
+export function BalancePills({
+  cashCents,
+  freebetsCents,
+  className,
+  activeKind,
+  onAddFunds,
+  freebetsTargetId,
+}: BalancePillsProps) {
+  const flyActive = useFreebetFlyStore((state) => state.active);
+  const flyTargetId = useFreebetFlyStore((state) => state.targetId);
+  const flyFromCents = useFreebetFlyStore((state) => state.fromCents);
+  const flyToCents = useFreebetFlyStore((state) => state.toCents);
+  const isFlyTarget = flyActive && freebetsTargetId !== undefined && flyTargetId === freebetsTargetId;
+
   return (
     <span className={`flex items-center gap-1.5 ${className ?? ''}`}>
       <span
@@ -46,6 +68,7 @@ export function BalancePills({ cashCents, freebetsCents, className, activeKind, 
       </span>
       {freebetsCents > 0 && (
         <span
+          id={freebetsTargetId}
           className={cn(
             'flex items-center gap-1 rounded-full border bg-surface-2 px-2 py-1 text-xs text-text-secondary',
             activeKind === 'freebets' ? 'border-highlight' : 'border-transparent',
@@ -53,7 +76,9 @@ export function BalancePills({ cashCents, freebetsCents, className, activeKind, 
           title="Freebets balance"
         >
           <FreebetBadgeIcon width={15} height={15} className="shrink-0" />
-          <span className="font-semibold text-text-primary">€{formatCents(freebetsCents)}</span>
+          <span className="font-semibold text-text-primary">
+            €{isFlyTarget ? <RollingBalance fromCents={flyFromCents} toCents={flyToCents} /> : formatCents(freebetsCents)}
+          </span>
         </span>
       )}
     </span>

@@ -65,12 +65,19 @@ export interface PlaceBetPayload {
   insuranceOptIn?: boolean;
 }
 
+export type FreebetSource = 'MANUAL' | 'ACCA_ROLLBACK' | 'INSURANCE_BET' | 'BET_AND_GET' | 'DEPOSIT_CAMPAIGN';
+
 /** One grant toward a player's pooled freebets balance - always ACTIVE, unexpired, and not yet fully drawn down (see PamService.getFreebets/FreebetService.listActive). remainingCents (not amountCents) is what's actually still spendable. */
 export interface Freebet {
   id: string;
   amountCents: number;
   remainingCents: number;
   expiresAt: string | null;
+  createdAt: string;
+  source: FreebetSource;
+  sourceCampaignId: string | null;
+  /** Resolved name of the BET_AND_GET/DEPOSIT_CAMPAIGN campaign that granted this, null for other sources or if the campaign is no longer found. */
+  campaignName: string | null;
 }
 
 export type BetStatus = 'PENDING' | 'WON' | 'LOST' | 'VOID';
