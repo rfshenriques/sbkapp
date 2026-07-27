@@ -100,6 +100,6 @@ describe('SpecialsPage', () => {
     ]);
     renderSpecialsPage();
 
-    expect(await screen.findByText('Max stake: €25.00 · Singles only')).toBeInTheDocument();
+    expect(await screen.findByText('Max stake: 25.00 € · Singles only')).toBeInTheDocument();
   });
 });

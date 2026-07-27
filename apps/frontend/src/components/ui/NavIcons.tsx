@@ -124,7 +124,15 @@ export function FreebetBadgeIcon(props: IconProps) {
     <svg viewBox="0 0 20 20" {...props}>
       <circle cx="10" cy="10" r="9" fill="var(--color-highlight)" />
       <circle cx="10" cy="10" r="9" fill="none" stroke={contrast} strokeWidth="1.3" />
-      <text x="10" y="14" textAnchor="middle" fontSize="10.5" fontWeight="800" fill={contrast}>
+      <text
+        x="10"
+        y="14"
+        textAnchor="middle"
+        fontSize="10.5"
+        fontWeight="800"
+        fontStyle="italic"
+        fill={contrast}
+      >
         F
       </text>
     </svg>

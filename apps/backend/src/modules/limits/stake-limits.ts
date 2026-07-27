@@ -110,7 +110,7 @@ export interface PlayerExposure {
  * own sport/country/competition/market/tier), and the bet's effective cap
  * is the smallest one found - a book's real exposure on an accumulator is
  * bounded by whichever leg is most restrictive, e.g. one leg capped at
- * €1000 and another at €400 means the whole bet is capped at €400.
+ * 1000 € and another at 400 € means the whole bet is capped at 400 €.
  *
  * When `player` is supplied and a PLAYER-scoped row exists for their
  * userId, that row overrides the market/league/sport/global cascade

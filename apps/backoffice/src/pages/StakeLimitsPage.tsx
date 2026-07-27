@@ -163,10 +163,10 @@ function LimitRow({ limit }: { limit: StakeLimit }) {
       <td className="py-2 pr-4">{limit.scope === 'GLOBAL' ? '—' : limit.scopeValue}</td>
       <td className="py-2 pr-4">{limit.tier === 0 ? 'All' : limit.tier}</td>
       <td className="py-2 pr-4">
-        {limit.maxStakeCents === null ? '—' : `€${(limit.maxStakeCents / 100).toFixed(2)}`}
+        {limit.maxStakeCents === null ? '—' : `${(limit.maxStakeCents / 100).toFixed(2)} €`}
       </td>
       <td className="py-2 pr-4">
-        {limit.maxLiabilityCents === null ? '—' : `€${(limit.maxLiabilityCents / 100).toFixed(2)}`}
+        {limit.maxLiabilityCents === null ? '—' : `${(limit.maxLiabilityCents / 100).toFixed(2)} €`}
       </td>
       <td className="py-2 pr-4 text-right">
         <Button variant="danger" disabled={removeMutation.isPending} onClick={() => removeMutation.mutate()}>
@@ -250,7 +250,7 @@ export default function StakeLimitsPage() {
         Max stake and max liability per sport/country/league/market, optionally narrowed to one pricing
         tier. The most specific matching row wins for each field independently (market beats league beats
         country beats sport beats global). An accumulator uses the smallest cap across all of its legs -
-        one leg capped at €1000 and another at €400 caps the whole bet at €400. Download the current
+        one leg capped at 1000 € and another at 400 € caps the whole bet at 400 €. Download the current
         limits as Excel, edit them there, and re-upload - the uploaded file replaces the brand's whole
         limit set.
       </p>

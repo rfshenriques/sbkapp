@@ -157,7 +157,7 @@ describe('SettlementPage', () => {
     expect(screen.getByText('Insured')).toBeInTheDocument();
     expect(screen.getByText('Boosted +10%')).toBeInTheDocument();
     expect(screen.getByText('Qualified for CL Bet & Get')).toBeInTheDocument();
-    expect(screen.getByText('€5.00 refunded as a freebet (Acca Rollback)')).toBeInTheDocument();
+    expect(screen.getByText('5.00 € refunded as a freebet (Acca Rollback)')).toBeInTheDocument();
     expect(screen.getByText('6.00')).toBeInTheDocument();
     expect(screen.getByText(/6\.60/)).toBeInTheDocument();
   });

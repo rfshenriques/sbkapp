@@ -193,7 +193,7 @@ export function LimitsAudienceEditor({
           <div className="mb-1 flex items-center justify-between text-xs text-text-muted">
             <span>Liability used</span>
             <span>
-              €{((currentLiabilityCents ?? 0) / 100).toFixed(2)} / €{((maxLiabilityCents ?? 0) / 100).toFixed(2)}
+              {((currentLiabilityCents ?? 0) / 100).toFixed(2)} € / {((maxLiabilityCents ?? 0) / 100).toFixed(2)} €
             </span>
           </div>
           <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface">

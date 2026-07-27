@@ -54,7 +54,7 @@ describe('FreebetCreditedModal', () => {
 
     renderModal();
 
-    expect(await screen.findByText('€15.00')).toBeInTheDocument();
+    expect(await screen.findByText('15.00 €')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Weekend Boost' })).toBeInTheDocument();
     expect(screen.getByText(/credited freebets from the "Weekend Boost" campaign/)).toBeInTheDocument();
   });
@@ -71,7 +71,7 @@ describe('FreebetCreditedModal', () => {
     useFreebetCreditedModalStore.setState({ grantId: 'grant-1' });
 
     renderModal();
-    await screen.findByText('€15.00');
+    await screen.findByText('15.00 €');
     await userEvent.click(screen.getByRole('button', { name: 'Get my freebets' }));
 
     expect(useFreebetCreditedModalStore.getState().grantId).toBeNull();

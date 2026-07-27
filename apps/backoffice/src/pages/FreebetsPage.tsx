@@ -99,9 +99,9 @@ function FreebetRow({ grant, identifier }: { grant: backendApi.FreebetGrant; ide
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-background px-3 py-2 text-sm">
       <div className="min-w-0">
         <span className="font-semibold">
-          €{formatEuros(grant.amountCents)}
+          {formatEuros(grant.amountCents)} €
           {grant.status === 'ACTIVE' && grant.remainingCents < grant.amountCents && (
-            <span className="font-normal text-text-secondary"> (€{formatEuros(grant.remainingCents)} left)</span>
+            <span className="font-normal text-text-secondary"> ({formatEuros(grant.remainingCents)} € left)</span>
           )}
         </span>{' '}
         <span className={`rounded px-1.5 py-0.5 text-xs ${statusBadgeClasses(grant.status)}`}>{grant.status}</span>

@@ -7,7 +7,7 @@ export function formatCampaignRequirements(campaign: RequirementFields): string[
   const requirements: string[] = [];
 
   if (campaign.minStakeCents !== null) {
-    requirements.push(`Min stake €${(campaign.minStakeCents / 100).toFixed(2)}`);
+    requirements.push(`Min stake ${(campaign.minStakeCents / 100).toFixed(2)} €`);
   }
   if (campaign.minOddsPerLeg !== null) {
     requirements.push(`Min odds ${campaign.minOddsPerLeg.toFixed(2)} per leg`);

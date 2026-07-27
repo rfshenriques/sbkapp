@@ -97,7 +97,7 @@ describe('BetHistoryList', () => {
     expect(screen.getByText('Match Result')).toBeInTheDocument();
     expect(screen.getByText('OPEN')).toBeInTheDocument();
     expect(screen.getByText('Potential payout')).toBeInTheDocument();
-    expect(screen.getByText('€20.00')).toBeInTheDocument();
+    expect(screen.getByText('20.00 €')).toBeInTheDocument();
   });
 
   it('shows the settled payout instead of "potential" for a settled bet', async () => {
@@ -110,7 +110,7 @@ describe('BetHistoryList', () => {
     renderList();
 
     expect(await screen.findByText('Payout')).toBeInTheDocument();
-    expect(screen.getByText('€19.50')).toBeInTheDocument();
+    expect(screen.getByText('19.50 €')).toBeInTheDocument();
   });
 
   it('lists open bets before settled ones', async () => {
@@ -215,8 +215,8 @@ describe('BetHistoryList', () => {
     renderList();
 
     expect(await screen.findByText('Insured')).toBeInTheDocument();
-    expect(screen.getByText('€20.00')).toBeInTheDocument();
-    expect(screen.getByText('€18.00')).toBeInTheDocument();
+    expect(screen.getByText('20.00 €')).toBeInTheDocument();
+    expect(screen.getByText('18.00 €')).toBeInTheDocument();
   });
 
   it('shows the unboosted combined odds struck through next to the boosted one for a boosted accumulator', async () => {
@@ -313,7 +313,7 @@ describe('BetHistoryList', () => {
 
     renderList();
 
-    expect(await screen.findByText('Qualified for CL Bet & Get - €10.00 freebet')).toBeInTheDocument();
+    expect(await screen.findByText('Qualified for CL Bet & Get - 10.00 € freebet')).toBeInTheDocument();
   });
 
   it('shows both a Bet & Get and a deposit campaign qualification at once', async () => {
@@ -336,8 +336,8 @@ describe('BetHistoryList', () => {
 
     renderList();
 
-    expect(await screen.findByText('Qualified for CL Bet & Get - €10.00 freebet')).toBeInTheDocument();
-    expect(await screen.findByText('Qualified for Welcome Deposit Bonus - €25.00 freebet')).toBeInTheDocument();
+    expect(await screen.findByText('Qualified for CL Bet & Get - 10.00 € freebet')).toBeInTheDocument();
+    expect(await screen.findByText('Qualified for Welcome Deposit Bonus - 25.00 € freebet')).toBeInTheDocument();
   });
 
   it('shows the acca rollback refund amount', async () => {
@@ -350,7 +350,7 @@ describe('BetHistoryList', () => {
 
     renderList();
 
-    expect(await screen.findByText('€5.00 refunded as a freebet (Acca Rollback)')).toBeInTheDocument();
+    expect(await screen.findByText('5.00 € refunded as a freebet (Acca Rollback)')).toBeInTheDocument();
   });
 
   describe('filter', () => {

@@ -183,7 +183,7 @@ describe('MatchDetailPage', () => {
 
     renderAt('match-8b');
 
-    expect(await screen.findByText('Max stake: €15.00 · Singles only')).toBeInTheDocument();
+    expect(await screen.findByText('Max stake: 15.00 € · Singles only')).toBeInTheDocument();
   });
 
   it('shows a Boosts section above Match Result, listing every boosted selection on the match', async () => {
@@ -223,9 +223,9 @@ describe('MatchDetailPage', () => {
     // row below (same rule as the player Boosts page vs. the match page),
     // so scope to the Boosts section itself rather than the whole page.
     const boostsSection = boostsHeading.closest('div')!.parentElement!;
-    expect(within(boostsSection).getByText('Max stake for boosted price: €50.00')).toBeInTheDocument();
+    expect(within(boostsSection).getByText('Max stake for boosted price: 50.00 €')).toBeInTheDocument();
     expect(
-      within(boostsSection).getByRole('button', { name: /Home boosted to 2.40, was 1.85, max stake €50.00/ }),
+      within(boostsSection).getByRole('button', { name: /Home boosted to 2.40, was 1.85, max stake 50.00 €/ }),
     ).toBeInTheDocument();
   });
 

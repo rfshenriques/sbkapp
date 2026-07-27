@@ -3,7 +3,7 @@ import { Card } from './ui/Card';
 import type { Bet, BetSelection } from '../lib/backendApi';
 
 export function formatCents(cents: number): string {
-  return `€${(cents / 100).toFixed(2)}`;
+  return `${(cents / 100).toFixed(2)} €`;
 }
 
 /**

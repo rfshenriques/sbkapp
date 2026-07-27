@@ -5,7 +5,7 @@ import { OddsBadge } from '../../components/ui/OddsBadge';
 import { useBetPlacedModalStore } from './betPlacedModalStore';
 
 function formatEuros(cents: number): string {
-  return `€${(cents / 100).toFixed(2)}`;
+  return `${(cents / 100).toFixed(2)} €`;
 }
 
 /**
@@ -130,7 +130,7 @@ export function BetPlacedModal() {
               className="rounded-xl border border-highlight/40 bg-highlight/10 p-2.5 text-xs font-semibold text-highlight"
             >
               🎁 Qualifies for {note.name}
-              {note.rewardCents !== null && ` - get €${(note.rewardCents / 100).toFixed(2)} as a freebet`}
+              {note.rewardCents !== null && ` - get ${(note.rewardCents / 100).toFixed(2)} € as a freebet`}
             </p>
           ))}
         </div>

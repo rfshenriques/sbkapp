@@ -66,8 +66,8 @@ describe('StakeLimitsPage', () => {
 
     const row = (await screen.findByText('Football')).closest('tr')!;
     expect(within(row).getByText('Sport')).toBeInTheDocument();
-    expect(within(row).getByText('€1000.00')).toBeInTheDocument();
-    expect(within(row).getByText('€5000.00')).toBeInTheDocument();
+    expect(within(row).getByText('1000.00 €')).toBeInTheDocument();
+    expect(within(row).getByText('5000.00 €')).toBeInTheDocument();
   });
 
   it('adds a new limit via POST', async () => {

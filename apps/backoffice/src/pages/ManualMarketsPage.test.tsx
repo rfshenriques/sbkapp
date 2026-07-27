@@ -396,7 +396,7 @@ describe('ManualMarketsPage', () => {
     await userEvent.click(await screen.findByText(/Arsenal vs Chelsea/));
 
     expect(await screen.findByText('Liability used')).toBeInTheDocument();
-    expect(screen.getByText('€50.00 / €100.00')).toBeInTheDocument();
+    expect(screen.getByText('50.00 € / 100.00 €')).toBeInTheDocument();
   });
 
   it('checking "Will be live" sends staysLiveDuringInplay: true to the limits endpoint', async () => {

@@ -26,8 +26,8 @@ describe('BetPlacedModal', () => {
     render(<BetPlacedModal />);
 
     expect(screen.getByText('Bet placed')).toBeInTheDocument();
-    expect(screen.getByText('€52.50')).toBeInTheDocument();
-    expect(screen.getByText('€10.00')).toBeInTheDocument();
+    expect(screen.getByText('52.50 €')).toBeInTheDocument();
+    expect(screen.getByText('10.00 €')).toBeInTheDocument();
     expect(screen.getByText('Odds')).toBeInTheDocument();
     expect(screen.getByText('5.25')).toBeInTheDocument();
     expect(screen.queryByText('Bets placed')).not.toBeInTheDocument();
@@ -78,7 +78,7 @@ describe('BetPlacedModal', () => {
     await userEvent.click(screen.getByRole('button', { name: /Share/ }));
 
     expect(share).toHaveBeenCalledWith({
-      text: 'I just placed a bet! Stake €10.00 at odds 5.25 - potential payout €52.50.',
+      text: 'I just placed a bet! Stake 10.00 € at odds 5.25 - potential payout 52.50 €.',
     });
   });
 
@@ -93,7 +93,7 @@ describe('BetPlacedModal', () => {
     await userEvent.click(screen.getByRole('button', { name: /Share/ }));
 
     expect(writeText).toHaveBeenCalledWith(
-      'I just placed 2 bets! Total stake €20.00 - total potential payout €42.00.',
+      'I just placed 2 bets! Total stake 20.00 € - total potential payout 42.00 €.',
     );
     expect(await screen.findByText('Copied to clipboard')).toBeInTheDocument();
   });
@@ -113,7 +113,7 @@ describe('BetPlacedModal', () => {
     });
     render(<BetPlacedModal />);
 
-    expect(screen.getByText('🎁 Qualifies for CL Bet & Get - get €10.00 as a freebet')).toBeInTheDocument();
+    expect(screen.getByText('🎁 Qualifies for CL Bet & Get - get 10.00 € as a freebet')).toBeInTheDocument();
   });
 
   it('shows both a Bet & Get and a deposit campaign qualification at once', () => {
@@ -131,8 +131,8 @@ describe('BetPlacedModal', () => {
     });
     render(<BetPlacedModal />);
 
-    expect(screen.getByText('🎁 Qualifies for CL Bet & Get - get €10.00 as a freebet')).toBeInTheDocument();
-    expect(screen.getByText('🎁 Qualifies for Welcome Deposit Bonus - get €25.00 as a freebet')).toBeInTheDocument();
+    expect(screen.getByText('🎁 Qualifies for CL Bet & Get - get 10.00 € as a freebet')).toBeInTheDocument();
+    expect(screen.getByText('🎁 Qualifies for Welcome Deposit Bonus - get 25.00 € as a freebet')).toBeInTheDocument();
   });
 
   it('shows no campaign section when the placed bet qualified for none', () => {

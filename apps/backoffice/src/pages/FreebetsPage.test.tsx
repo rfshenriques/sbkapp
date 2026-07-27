@@ -62,7 +62,7 @@ describe('FreebetsPage', () => {
     await userEvent.type(screen.getByLabelText('Player email or username'), 'alice');
     await userEvent.click(screen.getByRole('button', { name: 'Look up' }));
 
-    expect(await screen.findByText('€10.00')).toBeInTheDocument();
+    expect(await screen.findByText('10.00 €')).toBeInTheDocument();
     expect(screen.getByText('ACTIVE')).toBeInTheDocument();
     expect(screen.getByText(/Granted by crm_alice/)).toBeInTheDocument();
     expect(screen.getByText(/Goodwill gesture/)).toBeInTheDocument();
@@ -132,7 +132,7 @@ describe('FreebetsPage', () => {
     renderPage();
     await userEvent.type(screen.getByLabelText('Player email or username'), 'alice');
     await userEvent.click(screen.getByRole('button', { name: 'Look up' }));
-    await screen.findByText('€10.00');
+    await screen.findByText('10.00 €');
 
     await userEvent.click(screen.getByRole('button', { name: 'Void' }));
 

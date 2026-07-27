@@ -101,7 +101,7 @@ export default function SpecialsPage() {
                             <p className="mt-1.5 text-[11px] text-text-secondary">
                               {[
                                 market.maxStakeCents !== undefined
-                                  ? `Max stake: €${(market.maxStakeCents / 100).toFixed(2)}`
+                                  ? `Max stake: ${(market.maxStakeCents / 100).toFixed(2)} €`
                                   : null,
                                 market.singlesOnly ? 'Singles only' : null,
                               ]

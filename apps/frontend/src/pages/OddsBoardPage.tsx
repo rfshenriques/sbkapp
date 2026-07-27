@@ -211,7 +211,7 @@ function PromoCard({ className }: { className?: string }) {
         <span className="inline-flex w-fit items-center gap-2 rounded-full bg-black/30 px-3 py-1 text-[11px] font-bold uppercase tracking-widest backdrop-blur-sm">
           Welcome Bonus
         </span>
-        <p className="font-display text-2xl leading-tight">Get up to €50 in bonus bets</p>
+        <p className="font-display text-2xl leading-tight">Get up to 50 € in bonus bets</p>
         <p className="text-sm text-white/80">Sign up and place your first bet on us.</p>
         <button type="button" onClick={() => openAuthModal('register')} className="btn-primary mt-2 w-fit">
           Claim now

@@ -77,14 +77,14 @@ describe('DepositCampaignModal', () => {
     renderModal();
 
     expect(screen.getByText('First Deposit Bonus')).toBeInTheDocument();
-    expect(screen.getByText('Deposit €10.00 or more and get a €5.00 freebet.')).toBeInTheDocument();
+    expect(screen.getByText('Deposit 10.00 € or more and get a 5.00 € freebet.')).toBeInTheDocument();
     expect(screen.getByLabelText('Deposit amount (€)')).toHaveValue('10.00');
   });
 
   it('shows a big hero figure for a FIXED reward', () => {
     useDepositCampaignModalStore.setState({ campaign: fixedCampaign });
     renderModal();
-    expect(screen.getByText('€5.00')).toBeInTheDocument();
+    expect(screen.getByText('5.00 €')).toBeInTheDocument();
     expect(screen.getByText('in Freebets')).toBeInTheDocument();
   });
 
@@ -100,7 +100,7 @@ describe('DepositCampaignModal', () => {
     useDepositCampaignModalStore.setState({ campaign: percentageCampaign });
     renderModal();
     expect(screen.getByText('50%')).toBeInTheDocument();
-    expect(screen.getByText('in Freebets, up to €20.00')).toBeInTheDocument();
+    expect(screen.getByText('in Freebets, up to 20.00 €')).toBeInTheDocument();
   });
 
   it('shows no countdown when the campaign has no endAt', () => {
@@ -125,7 +125,7 @@ describe('DepositCampaignModal', () => {
     renderModal();
 
     expect(screen.getByText(/Freebet credited once your qualifying bet wins/)).toBeInTheDocument();
-    expect(screen.getByText('Min stake €5.00')).toBeInTheDocument();
+    expect(screen.getByText('Min stake 5.00 €')).toBeInTheDocument();
   });
 
   it('submits the deposit and shows a granted-reward confirmation', async () => {
@@ -147,7 +147,7 @@ describe('DepositCampaignModal', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Deposit' }));
 
     expect(
-      await screen.findByText('Deposit successful! A €5.00 freebet has been added to your account.'),
+      await screen.findByText('Deposit successful! A 5.00 € freebet has been added to your account.'),
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument();
   });

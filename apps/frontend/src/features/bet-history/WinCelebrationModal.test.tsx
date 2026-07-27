@@ -73,7 +73,7 @@ describe('WinCelebrationModal', () => {
     renderModal();
 
     expect(await screen.findByText('Congratulations!')).toBeInTheDocument();
-    expect(screen.getByText('€20.00')).toBeInTheDocument();
+    expect(screen.getByText('20.00 €')).toBeInTheDocument();
     expect(screen.queryByText('Arsenal vs Chelsea')).not.toBeInTheDocument();
   });
 

@@ -72,7 +72,7 @@ describe('BoostsPage', () => {
     expect(screen.getByText('Arsenal vs Chelsea')).toBeInTheDocument();
     expect(screen.getByText('2.00')).toBeInTheDocument();
     expect(screen.getByText('2.10')).toBeInTheDocument();
-    expect(screen.getByText(/Max stake for boosted price: €100.00/)).toBeInTheDocument();
+    expect(screen.getByText(/Max stake for boosted price: 100.00 €/)).toBeInTheDocument();
   });
 
   it('clicking the boosted odds adds it to the bet slip', async () => {

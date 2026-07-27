@@ -56,7 +56,7 @@ export function FreebetCreditedModal() {
       <div className="space-y-5">
         <div className="flex flex-col items-center gap-2 py-2 text-center">
           <FreebetBadgeIcon width={56} height={56} />
-          <p className="font-display text-5xl leading-none">€{formatCents(grant.amountCents)}</p>
+          <p className="font-display text-5xl leading-none">{formatCents(grant.amountCents)} €</p>
           <p className="text-sm font-semibold text-text-secondary">in Freebets</p>
         </div>
         <p className="text-center text-sm font-medium text-highlight">

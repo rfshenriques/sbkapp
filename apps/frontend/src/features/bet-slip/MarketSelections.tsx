@@ -37,7 +37,7 @@ function SelectionButton({ selection, label, isSelected, isSuspended, onSelect }
           : isBoosted
             ? `${label} boosted to ${selection.odds.toFixed(2)}, was ${selection.originalOdds!.toFixed(2)}${
                 selection.maxStakeCents !== undefined
-                  ? `, max stake €${(selection.maxStakeCents / 100).toFixed(2)}`
+                  ? `, max stake ${(selection.maxStakeCents / 100).toFixed(2)} €`
                   : ''
               }`
             : undefined

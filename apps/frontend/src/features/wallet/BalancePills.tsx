@@ -26,7 +26,7 @@ interface BalancePillsProps {
  * freebets - the one balance display shared by the header and the bet
  * slip, mobile and desktop alike, so a player sees the same two pills
  * wherever a balance shows up rather than a different format per surface.
- * Freebets stay hidden at zero rather than showing a permanent "€0.00"
+ * Freebets stay hidden at zero rather than showing a permanent "0.00 €"
  * pill that's never actionable for most players.
  */
 export function BalancePills({
@@ -53,7 +53,7 @@ export function BalancePills({
         title="Cash balance (paper)"
       >
         <WalletIcon width={14} height={14} className="shrink-0" />
-        <span className="font-semibold text-text-primary">€{formatCents(cashCents)}</span>
+        <span className="font-semibold text-text-primary">{formatCents(cashCents)} €</span>
         {onAddFunds && (
           <button
             type="button"
@@ -77,7 +77,7 @@ export function BalancePills({
         >
           <FreebetBadgeIcon width={15} height={15} className="shrink-0" />
           <span className="font-semibold text-text-primary">
-            €{isFlyTarget ? <RollingBalance fromCents={flyFromCents} toCents={flyToCents} /> : formatCents(freebetsCents)}
+            {isFlyTarget ? <RollingBalance fromCents={flyFromCents} toCents={flyToCents} /> : formatCents(freebetsCents)} €
           </span>
         </span>
       )}

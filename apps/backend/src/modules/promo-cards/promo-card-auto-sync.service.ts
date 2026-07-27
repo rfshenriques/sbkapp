@@ -98,7 +98,7 @@ export class PromoCardAutoSyncService {
       brandId,
       { betAndGetCampaignId: campaign.id },
       campaign.name,
-      `Bet & get €${formatCents(campaign.rewardAmountCents)}`,
+      `Bet & get ${formatCents(campaign.rewardAmountCents)} €`,
       actor,
     );
   }
@@ -109,8 +109,8 @@ export class PromoCardAutoSyncService {
     }
     const subtitle =
       campaign.rewardType === 'FIXED'
-        ? `Deposit & get €${formatCents(campaign.fixedRewardAmountCents ?? 0)}`
-        : `Get ${campaign.rewardPercent}% back, up to €${formatCents(campaign.rewardCapCents ?? 0)}`;
+        ? `Deposit & get ${formatCents(campaign.fixedRewardAmountCents ?? 0)} €`
+        : `Get ${campaign.rewardPercent}% back, up to ${formatCents(campaign.rewardCapCents ?? 0)} €`;
     await this.ensureCard(brandId, { depositCampaignId: campaign.id }, campaign.name, subtitle, actor);
   }
 }

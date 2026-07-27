@@ -204,8 +204,8 @@ export default function BrandDetailPage() {
                     checked={freebetStakeReturnedOnWin}
                     onChange={(event) => setFreebetStakeReturnedOnWin(event.target.checked)}
                   />
-                  Freebet stake is returned on a win (e.g. a €10 freebet at odds 9.00 pays €90 total,
-                  not just €80 in net winnings) - either way winnings always land in the player's cash
+                  Freebet stake is returned on a win (e.g. a 10 € freebet at odds 9.00 pays 90 € total,
+                  not just 80 € in net winnings) - either way winnings always land in the player's cash
                   balance, never back into freebets.
                 </label>
               </div>

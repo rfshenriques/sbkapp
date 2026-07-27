@@ -116,7 +116,7 @@ describe('BetSlipPanel', () => {
     useBetSlipStore.setState({ selections: [noveltySelection] });
     renderPanel();
 
-    expect(screen.getByText('Max stake: €20.00 · Singles only')).toBeInTheDocument();
+    expect(screen.getByText('Max stake: 20.00 € · Singles only')).toBeInTheDocument();
   });
 
   it("shows just 'Singles only' when a singles-only manual market has no configured max stake", () => {
@@ -177,8 +177,8 @@ describe('BetSlipPanel', () => {
       expect(screen.getByText('10.50')).toBeInTheDocument();
       expect(screen.getByText('12.08')).toBeInTheDocument();
       // Default stake 10.00: base potential winnings 105.00, boosted 120.80.
-      expect(screen.getByText('€105.00')).toBeInTheDocument();
-      expect(screen.getByText('€120.80')).toBeInTheDocument();
+      expect(screen.getByText('105.00 €')).toBeInTheDocument();
+      expect(screen.getByText('120.80 €')).toBeInTheDocument();
     });
 
     it('shows a disqualified message when a leg is under the minimum odds, even with enough selections', async () => {
@@ -450,9 +450,9 @@ describe('BetSlipPanel', () => {
 
       await userEvent.click(toggle);
 
-      // 21.00 - 10% cost -> 18.90, shown as a before/after (€21.00 -> €18.90).
-      expect(await screen.findByText('€18.90')).toBeInTheDocument();
-      expect(screen.getByText('€21.00')).toBeInTheDocument();
+      // 21.00 - 10% cost -> 18.90, shown as a before/after (21.00 € -> 18.90 €).
+      expect(await screen.findByText('18.90 €')).toBeInTheDocument();
+      expect(screen.getByText('21.00 €')).toBeInTheDocument();
     });
 
     it('hides the toggle entirely for a boosted selection', async () => {
@@ -513,7 +513,7 @@ describe('BetSlipPanel', () => {
       renderPanel();
 
       // Default stake is 10.00 -> 1000 cents, under the 5000-cent cap.
-      expect(await screen.findByText('Max stake for this bet: €50.00')).toBeInTheDocument();
+      expect(await screen.findByText('Max stake for this bet: 50.00 €')).toBeInTheDocument();
       expect(screen.queryByText(/Stake exceeds/)).not.toBeInTheDocument();
     });
 
@@ -525,7 +525,7 @@ describe('BetSlipPanel', () => {
 
       // Default stake is 10.00 -> 1000 cents, over the 500-cent cap.
       expect(
-        await screen.findByText('Stake exceeds the maximum allowed for this bet (max €5.00, stake limit)'),
+        await screen.findByText('Stake exceeds the maximum allowed for this bet (max 5.00 €, stake limit)'),
       ).toBeInTheDocument();
     });
 
@@ -536,7 +536,7 @@ describe('BetSlipPanel', () => {
       renderPanel();
 
       expect(
-        await screen.findByText('Stake exceeds the maximum allowed for this bet (max €4.00, liability limit)'),
+        await screen.findByText('Stake exceeds the maximum allowed for this bet (max 4.00 €, liability limit)'),
       ).toBeInTheDocument();
     });
 
@@ -548,7 +548,7 @@ describe('BetSlipPanel', () => {
 
       await userEvent.click(screen.getByRole('tab', { name: /Singles/ }));
 
-      expect(await screen.findAllByText('Stake exceeds the maximum allowed for this bet (max €5.00, stake limit)')).toHaveLength(2);
+      expect(await screen.findAllByText('Stake exceeds the maximum allowed for this bet (max 5.00 €, stake limit)')).toHaveLength(2);
     });
   });
 
@@ -598,7 +598,7 @@ describe('BetSlipPanel', () => {
       renderPanel();
 
       expect(
-        await screen.findByText('🎁 Qualifies for CL Bet & Get - get €10.00 as a freebet'),
+        await screen.findByText('🎁 Qualifies for CL Bet & Get - get 10.00 € as a freebet'),
       ).toBeInTheDocument();
     });
 
@@ -614,10 +614,10 @@ describe('BetSlipPanel', () => {
       renderPanel();
 
       expect(
-        await screen.findByText('🎁 Qualifies for CL Bet & Get - get €10.00 as a freebet'),
+        await screen.findByText('🎁 Qualifies for CL Bet & Get - get 10.00 € as a freebet'),
       ).toBeInTheDocument();
       expect(
-        await screen.findByText('🎁 Qualifies for Welcome Deposit Bonus - get €25.00 as a freebet'),
+        await screen.findByText('🎁 Qualifies for Welcome Deposit Bonus - get 25.00 € as a freebet'),
       ).toBeInTheDocument();
     });
   });

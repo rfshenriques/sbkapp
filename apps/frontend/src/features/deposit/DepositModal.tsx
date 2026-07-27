@@ -89,7 +89,7 @@ export function DepositModal() {
               disabled={isSubmitting || !isValidAmount}
               className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isSubmitting ? 'Depositing…' : `Deposit €${isValidAmount ? formatCents(amountCents) : '0.00'}`}
+              {isSubmitting ? 'Depositing…' : `Deposit ${isValidAmount ? formatCents(amountCents) : '0.00'} €`}
             </button>
             <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-text-muted">
               <LockIcon width={12} height={12} />
@@ -102,12 +102,12 @@ export function DepositModal() {
       {result ? (
         result.redemption ? (
           <p className="text-center text-sm text-text-primary">
-            Deposit successful! A €{formatCents(result.redemption.rewardAmountCents)} freebet has been added to
+            Deposit successful! A {formatCents(result.redemption.rewardAmountCents)} € freebet has been added to
             your account.
           </p>
         ) : (
           <p className="text-center text-sm text-text-secondary">
-            Your deposit of €{formatCents(result.deposit.amountCents)} was successful.
+            Your deposit of {formatCents(result.deposit.amountCents)} € was successful.
           </p>
         )
       ) : (
@@ -141,7 +141,7 @@ export function DepositModal() {
                 onClick={() => setAmount(String(preset))}
                 className={`tab justify-center${Number(amount) === preset ? ' active' : ''}`}
               >
-                €{preset}
+                {preset} €
               </button>
             ))}
           </div>

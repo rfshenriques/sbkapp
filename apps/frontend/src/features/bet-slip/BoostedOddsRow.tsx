@@ -53,7 +53,7 @@ export function BoostedOddsRow({
         </p>
         {maxStakeCents !== undefined && (
           <p className="text-[11px] text-text-secondary">
-            Max stake for boosted price: €{(maxStakeCents / 100).toFixed(2)}
+            Max stake for boosted price: {(maxStakeCents / 100).toFixed(2)} €
           </p>
         )}
       </div>
@@ -69,7 +69,7 @@ export function BoostedOddsRow({
             suspended
               ? `${selectionName} suspended`
               : `${selectionName} boosted to ${odds.toFixed(2)}, was ${previousOdds.toFixed(2)}${
-                  maxStakeCents !== undefined ? `, max stake €${(maxStakeCents / 100).toFixed(2)}` : ''
+                  maxStakeCents !== undefined ? `, max stake ${(maxStakeCents / 100).toFixed(2)} €` : ''
                 }`
           }
           className={`odd-btn${isSelected ? ' selected' : ''}${suspended ? ' suspended' : ''}`}

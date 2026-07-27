@@ -22,7 +22,7 @@ function RegisterPromoFallback({ size }: { size: 'mobile' | 'desktop' }) {
         Welcome Bonus
       </span>
       <p className={`font-display leading-tight ${size === 'mobile' ? 'text-lg' : 'text-2xl'}`}>
-        Get up to €50 in bonus bets
+        Get up to 50 € in bonus bets
       </p>
     </div>
   );

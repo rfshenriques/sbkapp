@@ -162,13 +162,13 @@ export class PamService {
     const limit = await this.resolveStakeLimit(userId, brandId, dto.selections, matchesById);
     if (limit.maxStakeCents !== null && dto.stakeCents > limit.maxStakeCents) {
       throw new BadRequestException(
-        `Stake exceeds the maximum allowed for this bet (max €${formatEuros(limit.maxStakeCents)})`,
+        `Stake exceeds the maximum allowed for this bet (max ${formatEuros(limit.maxStakeCents)} €)`,
       );
     }
     const liabilityCents = potentialPayoutCents - dto.stakeCents;
     if (limit.maxLiabilityCents !== null && liabilityCents > limit.maxLiabilityCents) {
       throw new BadRequestException(
-        `Potential liability exceeds the maximum allowed for this bet (max €${formatEuros(limit.maxLiabilityCents)})`,
+        `Potential liability exceeds the maximum allowed for this bet (max ${formatEuros(limit.maxLiabilityCents)} €)`,
       );
     }
   }
@@ -311,7 +311,7 @@ export class PamService {
 
       if (market.maxStakeCents !== null && dto.stakeCents > market.maxStakeCents) {
         throw new BadRequestException(
-          `Stake exceeds the maximum allowed for ${market.name} (max €${formatEuros(market.maxStakeCents)})`,
+          `Stake exceeds the maximum allowed for ${market.name} (max ${formatEuros(market.maxStakeCents)} €)`,
         );
       }
 
@@ -321,7 +321,7 @@ export class PamService {
         market.currentLiabilityCents + legLiabilityCents > market.maxLiabilityCents
       ) {
         throw new BadRequestException(
-          `This bet would exceed the maximum liability allowed for ${market.name} (max €${formatEuros(market.maxLiabilityCents)})`,
+          `This bet would exceed the maximum liability allowed for ${market.name} (max ${formatEuros(market.maxLiabilityCents)} €)`,
         );
       }
 
@@ -363,7 +363,7 @@ export class PamService {
 
       if (boost.maxStakeCents !== null && dto.stakeCents > boost.maxStakeCents) {
         throw new BadRequestException(
-          `Stake exceeds the maximum allowed for this boosted price (max €${formatEuros(boost.maxStakeCents)})`,
+          `Stake exceeds the maximum allowed for this boosted price (max ${formatEuros(boost.maxStakeCents)} €)`,
         );
       }
 
@@ -373,7 +373,7 @@ export class PamService {
         boost.currentLiabilityCents + legLiabilityCents > boost.maxLiabilityCents
       ) {
         throw new BadRequestException(
-          `This bet would exceed the maximum liability allowed for this boosted price (max €${formatEuros(boost.maxLiabilityCents)})`,
+          `This bet would exceed the maximum liability allowed for this boosted price (max ${formatEuros(boost.maxLiabilityCents)} €)`,
         );
       }
 

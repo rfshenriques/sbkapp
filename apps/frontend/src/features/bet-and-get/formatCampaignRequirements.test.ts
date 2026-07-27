@@ -11,7 +11,7 @@ describe('formatCampaignRequirements', () => {
   it('formats a minimum stake in euros', () => {
     expect(
       formatCampaignRequirements({ minStakeCents: 1000, minOddsPerLeg: null, betType: 'EITHER', minSelections: null }),
-    ).toEqual(['Min stake €10.00']);
+    ).toEqual(['Min stake 10.00 €']);
   });
 
   it('formats a minimum odds per leg', () => {
@@ -41,7 +41,7 @@ describe('formatCampaignRequirements', () => {
   it('combines every set condition', () => {
     expect(
       formatCampaignRequirements({ minStakeCents: 500, minOddsPerLeg: 1.2, betType: 'SINGLES_ONLY', minSelections: null }),
-    ).toEqual(['Min stake €5.00', 'Min odds 1.20 per leg', 'Singles only']);
+    ).toEqual(['Min stake 5.00 €', 'Min odds 1.20 per leg', 'Singles only']);
   });
 });
 
