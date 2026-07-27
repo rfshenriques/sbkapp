@@ -24,7 +24,7 @@ import { InsufficientFundsModal } from '../features/wallet/InsufficientFundsModa
 import { useWallet } from '../features/wallet/useWallet';
 import { sumFreebetsCents, useFreebets } from '../features/wallet/useFreebets';
 import { Sidebar } from '../features/navigation/Sidebar';
-import { HomeIcon, LiveIcon, MyBetsIcon, PromotionsIcon, SearchIcon } from '../components/ui/NavIcons';
+import { FireIcon, LiveIcon, MyBetsIcon, SearchIcon, TrophyIcon } from '../components/ui/NavIcons';
 import { useScrollLock } from '../lib/useScrollLock';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
@@ -35,7 +35,7 @@ const NAV_STOPS: Array<{ kind: 'search' } | { kind: 'route'; path: string }> = [
   { kind: 'route', path: '/' },
   { kind: 'route', path: '/live' },
   { kind: 'route', path: '/my-bets' },
-  { kind: 'route', path: '/promotions' },
+  { kind: 'route', path: '/challenges' },
 ];
 
 const SWIPE_THRESHOLD_PX = 60;
@@ -101,16 +101,20 @@ export function AppShell() {
   // viewport) while the drawer is open.
   useScrollLock(isNavOpen);
 
-  // Clicking a Link inside a horizontally-scroll-snapped carousel (the
-  // homepage's mobile Featured/Promo card pair) leaves <body> - which the
-  // page-wide overflow-x: hidden rule makes an accidental scroll
-  // container even though it's never meant to scroll - offset sideways
-  // by however far that carousel had snapped, surviving the navigation
-  // since body itself doesn't unmount between routes. Nothing in the app
-  // ever wants body scrolled horizontally, so force it back to 0 on every
-  // route change rather than chasing the exact browser mechanism that set it.
+  // <body> - not <html>/window - is the actual scroll container (the
+  // page-wide overflow-x: hidden rule on body promotes its overflow-y to
+  // auto per spec) and it never unmounts between routes, so both its
+  // scroll offsets survive a navigation instead of resetting like a fresh
+  // page load would. Horizontally that shows up as a carousel's snapped
+  // offset leaking into whatever page loads next (see the Featured/Promo
+  // card pair); vertically it shows up as e.g. opening a match from partway
+  // down the homepage landing on the match page already scrolled past its
+  // own sticky header. Nothing in the app ever wants either carried across
+  // a route change, so force both back to 0 on every one.
   useEffect(() => {
     document.body.scrollLeft = 0;
+    document.body.scrollTop = 0;
+    window.scrollTo(0, 0);
   }, [location.pathname]);
 
   // Swipe left/right between the 5 bottom-nav destinations, mobile only.
@@ -195,8 +199,8 @@ export function AppShell() {
                 `flex items-center gap-1.5 text-sm font-semibold ${isActive ? 'text-highlight' : 'text-text-secondary hover:text-text-primary'}`
               }
             >
-              <HomeIcon width={16} height={16} />
-              Home
+              <FireIcon width={16} height={16} />
+              Highlights
             </NavLink>
             <NavLink
               to="/live"
@@ -217,13 +221,13 @@ export function AppShell() {
               My Bets
             </NavLink>
             <NavLink
-              to="/promotions"
+              to="/challenges"
               className={({ isActive }) =>
                 `flex items-center gap-1.5 text-sm font-semibold ${isActive ? 'text-highlight' : 'text-text-secondary hover:text-text-primary'}`
               }
             >
-              <PromotionsIcon width={16} height={16} />
-              Promotions
+              <TrophyIcon width={16} height={16} />
+              Challenges
             </NavLink>
           </nav>
 
@@ -347,8 +351,8 @@ export function AppShell() {
             `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
           }
         >
-          <HomeIcon width={19} height={19} />
-          Home
+          <FireIcon width={19} height={19} />
+          Highlights
         </NavLink>
         <NavLink
           to="/live"
@@ -371,14 +375,14 @@ export function AppShell() {
           My Bets
         </NavLink>
         <NavLink
-          to="/promotions"
+          to="/challenges"
           onClick={() => setIsNavOpen(false)}
           className={({ isActive }) =>
             `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
           }
         >
-          <PromotionsIcon width={19} height={19} />
-          Promotions
+          <TrophyIcon width={19} height={19} />
+          Challenges
         </NavLink>
       </nav>
 
