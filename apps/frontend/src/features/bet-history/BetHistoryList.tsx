@@ -49,9 +49,14 @@ function BetCard({ bet }: { bet: PlacedBet }) {
             </span>
           </button>
           {isExpanded && (
-            <div className="space-y-1 border-t border-border pt-2">
+            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
               {bet.selections.map((selection) => (
-                <SelectionRow key={selection.id} selection={selection} />
+                <div key={selection.id} className="flex items-start gap-2 p-2.5">
+                  <SelectionStatusDot status={selection.status} />
+                  <div className="min-w-0 flex-1">
+                    <SelectionRow selection={selection} dense />
+                  </div>
+                </div>
               ))}
             </div>
           )}

@@ -206,6 +206,59 @@ export class PamService {
     };
   }
 
+  /**
+   * The bet slip's own preview of which campaign(s), if any, this exact bet
+   * would link to at placement (see the matching resolution inside
+   * placeBet below) - so the player can see "you'll get €X" before
+   * committing, same soft-auth shape as previewStakeLimit. A bet can link
+   * to a Bet & Get campaign AND a deposit campaign redemption at once (they're
+   * independent fields on Bet), so both are previewed and returned
+   * together rather than picking one. Deposit campaign redemptions are
+   * matched against a specific already-logged-in player's own pending
+   * redemption (see DepositCampaignService.resolvePendingBetRedemption) -
+   * that half is simply null for a logged-out preview, same as a
+   * PLAYER-scoped stake-limit override not applying yet.
+   */
+  async previewCampaign(
+    userId: string | null,
+    brandId: string,
+    selections: BetSelectionDto[],
+    stakeCents: number,
+  ): Promise<{
+    betAndGetCampaignName: string | null;
+    betAndGetCampaignRewardCents: number | null;
+    depositCampaignName: string | null;
+    depositCampaignRewardCents: number | null;
+  }> {
+    const matchesById = await this.fetchMatchesByMatchId(selections);
+    const qualifyingBet = { stakeCents, legOdds: selections.map((selection) => selection.odds) };
+
+    const applicableCampaign = await this.betAndGetCampaignService.resolveApplicableCampaign(
+      brandId,
+      selections.map((selection) => {
+        const match = matchesById.get(selection.matchId)!;
+        return { sport: match.sport, competition: match.competition, matchId: selection.matchId };
+      }),
+      qualifyingBet,
+    );
+    const betAndGetCampaign =
+      applicableCampaign &&
+      (userId === null || (await this.betAndGetCampaignService.canRedeem(applicableCampaign, userId)))
+        ? applicableCampaign
+        : null;
+
+    const depositCampaignRedemption = userId
+      ? await this.depositCampaignService.resolvePendingBetRedemption(userId, qualifyingBet)
+      : null;
+
+    return {
+      betAndGetCampaignName: betAndGetCampaign?.name ?? null,
+      betAndGetCampaignRewardCents: betAndGetCampaign?.rewardAmountCents ?? null,
+      depositCampaignName: depositCampaignRedemption?.depositCampaign.name ?? null,
+      depositCampaignRewardCents: depositCampaignRedemption?.rewardAmountCents ?? null,
+    };
+  }
+
   /** What a player already has riding on their own currently-PENDING bets - see PlayerExposure in stake-limits.ts. */
   private async buildPlayerExposure(userId: string): Promise<PlayerExposure> {
     const pending = await this.prisma.bet.findMany({
@@ -602,7 +655,15 @@ export class PamService {
         );
       }
 
-      return bet;
+      return {
+        ...bet,
+        betAndGetCampaignName: betAndGetCampaign?.name ?? null,
+        betAndGetCampaignRewardCents: betAndGetCampaign?.rewardAmountCents ?? null,
+        depositCampaignName: depositCampaignRedemption?.depositCampaign.name ?? null,
+        depositCampaignRewardCents: depositCampaignRedemption?.rewardAmountCents ?? null,
+        // Acca rollback is only ever known once the bet settles - never at placement.
+        accaRollbackRewardCents: null,
+      };
     });
   }
 
@@ -611,7 +672,7 @@ export class PamService {
       where: { userId },
       include: {
         selections: true,
-        betAndGetCampaign: { select: { name: true } },
+        betAndGetCampaign: { select: { name: true, rewardAmountCents: true } },
         depositCampaignRedemption: { include: { depositCampaign: { select: { name: true } } } },
       },
       orderBy: { createdAt: 'desc' },
@@ -664,7 +725,7 @@ export class PamService {
       include: {
         selections: true,
         user: { select: { id: true, username: true, email: true } },
-        betAndGetCampaign: { select: { name: true } },
+        betAndGetCampaign: { select: { name: true, rewardAmountCents: true } },
         depositCampaignRedemption: { include: { depositCampaign: { select: { name: true } } } },
       },
       orderBy: { createdAt: 'asc' },
@@ -712,8 +773,8 @@ export class PamService {
   private async enrichBetsWithRollbackReward<
     T extends {
       id: string;
-      betAndGetCampaign: { name: string } | null;
-      depositCampaignRedemption: { depositCampaign: { name: string } } | null;
+      betAndGetCampaign: { name: string; rewardAmountCents: number } | null;
+      depositCampaignRedemption: { depositCampaign: { name: string }; rewardAmountCents: number } | null;
     },
   >(bets: T[]) {
     const betIds = bets.map((bet) => bet.id);
@@ -730,7 +791,9 @@ export class PamService {
       return {
         ...rest,
         betAndGetCampaignName: betAndGetCampaign?.name ?? null,
+        betAndGetCampaignRewardCents: betAndGetCampaign?.rewardAmountCents ?? null,
         depositCampaignName: depositCampaignRedemption?.depositCampaign.name ?? null,
+        depositCampaignRewardCents: depositCampaignRedemption?.rewardAmountCents ?? null,
         accaRollbackRewardCents: rollbackRewardByBetId.get(bet.id) ?? null,
       };
     });

@@ -21,7 +21,7 @@ describe('BetPlacedModal', () => {
 
   it('shows the potential payout, stake, and combined odds for a single accumulator', () => {
     useBetPlacedModalStore.setState({
-      summary: { stakeCents: 1000, potentialPayoutCents: 5250, combinedOdds: 5.25, betCount: 1 },
+      summary: { stakeCents: 1000, potentialPayoutCents: 5250, combinedOdds: 5.25, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null },
     });
     render(<BetPlacedModal />);
 
@@ -35,7 +35,7 @@ describe('BetPlacedModal', () => {
 
   it('shows a bet count instead of odds when several singles were placed at once', () => {
     useBetPlacedModalStore.setState({
-      summary: { stakeCents: 2000, potentialPayoutCents: 4200, combinedOdds: null, betCount: 2 },
+      summary: { stakeCents: 2000, potentialPayoutCents: 4200, combinedOdds: null, betCount: 2, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null },
     });
     render(<BetPlacedModal />);
 
@@ -46,7 +46,7 @@ describe('BetPlacedModal', () => {
 
   it('closes when the close button is clicked', async () => {
     useBetPlacedModalStore.setState({
-      summary: { stakeCents: 1000, potentialPayoutCents: 2100, combinedOdds: 2.1, betCount: 1 },
+      summary: { stakeCents: 1000, potentialPayoutCents: 2100, combinedOdds: 2.1, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null },
     });
     render(<BetPlacedModal />);
 
@@ -58,7 +58,7 @@ describe('BetPlacedModal', () => {
 
   it('closes when Bet again is clicked', async () => {
     useBetPlacedModalStore.setState({
-      summary: { stakeCents: 1000, potentialPayoutCents: 2100, combinedOdds: 2.1, betCount: 1 },
+      summary: { stakeCents: 1000, potentialPayoutCents: 2100, combinedOdds: 2.1, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null },
     });
     render(<BetPlacedModal />);
 
@@ -71,7 +71,7 @@ describe('BetPlacedModal', () => {
     const share = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { ...navigator, share });
     useBetPlacedModalStore.setState({
-      summary: { stakeCents: 1000, potentialPayoutCents: 5250, combinedOdds: 5.25, betCount: 1 },
+      summary: { stakeCents: 1000, potentialPayoutCents: 5250, combinedOdds: 5.25, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null },
     });
     render(<BetPlacedModal />);
 
@@ -86,7 +86,7 @@ describe('BetPlacedModal', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { ...navigator, share: undefined, clipboard: { writeText } });
     useBetPlacedModalStore.setState({
-      summary: { stakeCents: 2000, potentialPayoutCents: 4200, combinedOdds: null, betCount: 2 },
+      summary: { stakeCents: 2000, potentialPayoutCents: 4200, combinedOdds: null, betCount: 2, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null },
     });
     render(<BetPlacedModal />);
 
@@ -96,5 +96,51 @@ describe('BetPlacedModal', () => {
       'I just placed 2 bets! Total stake €20.00 - total potential payout €42.00.',
     );
     expect(await screen.findByText('Copied to clipboard')).toBeInTheDocument();
+  });
+
+  it('shows the campaign name and reward once the placed bet qualified for one', () => {
+    useBetPlacedModalStore.setState({
+      summary: {
+        stakeCents: 1000,
+        potentialPayoutCents: 2100,
+        combinedOdds: 2.1,
+        betCount: 1,
+        betAndGetCampaignName: 'CL Bet & Get',
+        betAndGetCampaignRewardCents: 1000,
+        depositCampaignName: null,
+        depositCampaignRewardCents: null,
+      },
+    });
+    render(<BetPlacedModal />);
+
+    expect(screen.getByText('🎁 Qualifies for CL Bet & Get - get €10.00 as a freebet')).toBeInTheDocument();
+  });
+
+  it('shows both a Bet & Get and a deposit campaign qualification at once', () => {
+    useBetPlacedModalStore.setState({
+      summary: {
+        stakeCents: 1000,
+        potentialPayoutCents: 2100,
+        combinedOdds: 2.1,
+        betCount: 1,
+        betAndGetCampaignName: 'CL Bet & Get',
+        betAndGetCampaignRewardCents: 1000,
+        depositCampaignName: 'Welcome Deposit Bonus',
+        depositCampaignRewardCents: 2500,
+      },
+    });
+    render(<BetPlacedModal />);
+
+    expect(screen.getByText('🎁 Qualifies for CL Bet & Get - get €10.00 as a freebet')).toBeInTheDocument();
+    expect(screen.getByText('🎁 Qualifies for Welcome Deposit Bonus - get €25.00 as a freebet')).toBeInTheDocument();
+  });
+
+  it('shows no campaign section when the placed bet qualified for none', () => {
+    useBetPlacedModalStore.setState({
+      summary: { stakeCents: 1000, potentialPayoutCents: 2100, combinedOdds: 2.1, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null },
+    });
+    render(<BetPlacedModal />);
+
+    expect(screen.queryByText(/Qualifies for/)).not.toBeInTheDocument();
   });
 });

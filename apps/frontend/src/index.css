@@ -33,6 +33,11 @@
   --color-price-up: #2ed573;
   --color-price-down: #ef4444;
   --color-danger: #ef4444;
+  /* A LOST-but-insured bet isn't a real loss to the player (the stake comes
+     back as a freebet - see PamService.settleSelection's INSURANCE_BET
+     grant), so it gets its own fixed color rather than reading as a plain
+     loss alongside every other price-down LOST bet. */
+  --color-insured: #38bdf8;
 
   --font-display: 'Saira Condensed', sans-serif;
   --font-sans: 'Archivo', system-ui, sans-serif;

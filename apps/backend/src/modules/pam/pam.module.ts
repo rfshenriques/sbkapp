@@ -18,6 +18,7 @@ import { MarketSuspensionService } from './market-suspension.service';
 import { PamAdminController } from './pam-admin.controller';
 import { PamController } from './pam.controller';
 import { PamService } from './pam.service';
+import { PublicCampaignPreviewController } from './public-campaign-preview.controller';
 import { PublicCompetitionSuspensionController } from './public-competition-suspension.controller';
 import { PublicMarketSuspensionController } from './public-market-suspension.controller';
 import { PublicStakeLimitPreviewController } from './public-stake-limit-preview.controller';
@@ -44,6 +45,7 @@ import { PublicStakeLimitPreviewController } from './public-stake-limit-preview.
     CompetitionSuspensionAdminController,
     PublicCompetitionSuspensionController,
     PublicStakeLimitPreviewController,
+    PublicCampaignPreviewController,
   ],
   providers: [PamService, MarketSuspensionService, CompetitionSuspensionService, OddsEngineClient],
 })

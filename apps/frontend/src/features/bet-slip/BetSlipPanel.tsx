@@ -23,9 +23,10 @@ import { useAccaRollbackConfig } from './useAccaRollbackConfig';
 import { calculateInsuredPayout } from './insuranceBet';
 import { useInsuranceBetConfig } from './useInsuranceBetConfig';
 import { useStakeLimitPreview } from './useStakeLimitPreview';
+import { useCampaignPreview } from './useCampaignPreview';
 import { hasInsuranceIneligibleSelection, hasSameEventSelections, invalidAccumulatorReason } from './accumulatorValidity';
 import { useBetSlipStore, type BetSlipSelection } from './betSlipStore';
-import type { StakeLimitPreview } from '../../lib/backendApi';
+import type { CampaignPreview, StakeLimitPreview } from '../../lib/backendApi';
 
 type PayMethod = 'cash' | 'freebet';
 
@@ -235,6 +236,44 @@ function StakeLimitAlert({ stakeCents, preview }: { stakeCents: number; preview:
   );
 }
 
+/**
+ * Previews which campaign(s) PamService.placeBet would actually link this
+ * bet to (see /public/campaign-preview and useCampaignPreview) - shown
+ * before the player places the bet, mirroring the same "Qualified for X"
+ * wording BetCampaignNotes uses in bet history so a campaign always reads
+ * the same wherever it's mentioned. A bet can qualify for a Bet & Get
+ * campaign and fulfil a pending deposit campaign redemption at once (they're
+ * independent), so both render when both apply. Renders nothing while
+ * loading or when neither applies - never a fabricated qualification.
+ */
+function CampaignQualificationNote({ preview }: { preview: CampaignPreview | null }) {
+  if (!preview) {
+    return null;
+  }
+  const notes = [
+    { name: preview.betAndGetCampaignName, rewardCents: preview.betAndGetCampaignRewardCents },
+    { name: preview.depositCampaignName, rewardCents: preview.depositCampaignRewardCents },
+  ].filter((note): note is { name: string; rewardCents: number | null } => note.name !== null);
+
+  if (notes.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {notes.map((note) => (
+        <p
+          key={note.name}
+          className="rounded-xl border border-highlight/40 bg-highlight/10 p-2.5 text-xs font-semibold text-highlight"
+        >
+          🎁 Qualifies for {note.name}
+          {note.rewardCents !== null && ` - get €${(note.rewardCents / 100).toFixed(2)} as a freebet`}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 interface StakeFieldProps {
   stakeId: string;
   stake: string;
@@ -333,6 +372,7 @@ function SingleBetRow({ selection, stake, onStakeChange, showStake }: SingleBetR
   const removeSelection = useBetSlipStore((state) => state.removeSelection);
   const stakeId = useId();
   const stakeLimitPreview = useStakeLimitPreview([selection]);
+  const campaignPreview = useCampaignPreview([selection], Math.round(Number(stake) * 100));
 
   return (
     <Card className="fade-in-up space-y-2 border-border bg-surface-2">
@@ -368,6 +408,7 @@ function SingleBetRow({ selection, stake, onStakeChange, showStake }: SingleBetR
             hideOdds
           />
           <StakeLimitAlert stakeCents={Math.round(Number(stake) * 100)} preview={stakeLimitPreview} />
+          <CampaignQualificationNote preview={campaignPreview} />
         </>
       )}
     </Card>
@@ -499,6 +540,10 @@ export function BetSlipPanel({
         potentialPayoutCents: bet.potentialPayoutCents,
         combinedOdds: Number(bet.combinedOdds),
         betCount: 1,
+        betAndGetCampaignName: bet.betAndGetCampaignName,
+        betAndGetCampaignRewardCents: bet.betAndGetCampaignRewardCents,
+        depositCampaignName: bet.depositCampaignName,
+        depositCampaignRewardCents: bet.depositCampaignRewardCents,
       });
       void queryClient.invalidateQueries({ queryKey: walletQueryKey });
       void queryClient.invalidateQueries({ queryKey: betsQueryKey });
@@ -531,11 +576,17 @@ export function BetSlipPanel({
       resetPayMethod();
       const totalStakeCents = bets.reduce((total, bet) => total + bet.stakeCents, 0);
       const totalPayoutCents = bets.reduce((total, bet) => total + bet.potentialPayoutCents, 0);
+      const betAndGetBet = bets.find((bet) => bet.betAndGetCampaignName !== null);
+      const depositCampaignBet = bets.find((bet) => bet.depositCampaignName !== null);
       openBetPlacedModal({
         stakeCents: totalStakeCents,
         potentialPayoutCents: totalPayoutCents,
         combinedOdds: bets.length === 1 ? Number(bets[0]!.combinedOdds) : null,
         betCount: bets.length,
+        betAndGetCampaignName: betAndGetBet?.betAndGetCampaignName ?? null,
+        betAndGetCampaignRewardCents: betAndGetBet?.betAndGetCampaignRewardCents ?? null,
+        depositCampaignName: depositCampaignBet?.depositCampaignName ?? null,
+        depositCampaignRewardCents: depositCampaignBet?.depositCampaignRewardCents ?? null,
       });
       void queryClient.invalidateQueries({ queryKey: walletQueryKey });
       void queryClient.invalidateQueries({ queryKey: betsQueryKey });
@@ -584,6 +635,11 @@ export function BetSlipPanel({
   const combinedOdds = accaBoost.boostedCombinedOdds;
   const stakeCents = Math.round(Number(stake) * 100);
   const isStakeValid = Number.isFinite(stakeCents) && stakeCents > 0;
+  const accumulatorCampaignPreview = useCampaignPreview(tab === 'accumulator' ? selections : [], stakeCents);
+  const singleSelectionCampaignPreview = useCampaignPreview(
+    singleSelection ? [singleSelection] : [],
+    singleSelection ? Math.round(Number(getSingleStake(singleSelection)) * 100) : 0,
+  );
   // Payout is always stake x odds (see PamService.settleSelection - a
   // freebet win credits the full stake x odds by default, per Brand.
   // freebetStakeReturnedOnWin), never a net-winnings figure.
@@ -805,6 +861,7 @@ export function BetSlipPanel({
               invalid={Boolean(accumulatorInvalidReason)}
             />
             <StakeLimitAlert stakeCents={stakeCents} preview={accumulatorStakeLimitPreview} />
+            <CampaignQualificationNote preview={accumulatorCampaignPreview} />
           </>
         )}
         {singleSelection && (
@@ -821,6 +878,7 @@ export function BetSlipPanel({
               stakeCents={Math.round(Number(getSingleStake(singleSelection)) * 100)}
               preview={singleSelectionStakeLimitPreview}
             />
+            <CampaignQualificationNote preview={singleSelectionCampaignPreview} />
           </>
         )}
         {!isFreebetMode && insuranceBetConfig.enabled && selections.length > 0 && !insuranceIneligible && (

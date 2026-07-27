@@ -106,8 +106,12 @@ export interface PlacedBet {
   accaBoostPercent: number;
   /** Name of the Bet & Get campaign this bet qualified for, if any - resolved once at placement, frozen even if the campaign later changes. */
   betAndGetCampaignName: string | null;
+  /** The Bet & Get campaign's fixed freebet reward, in cents - null exactly when betAndGetCampaignName is null. */
+  betAndGetCampaignRewardCents: number | null;
   /** Name of the deposit campaign this bet fulfilled the bet-requirement for, if any. */
   depositCampaignName: string | null;
+  /** The deposit campaign redemption's own freebet reward, in cents (fixed or percentage-derived - see computeDepositReward) - null exactly when depositCampaignName is null. */
+  depositCampaignRewardCents: number | null;
   /** How much was refunded as a freebet via the acca rollback promotion, if this bet triggered one - derived, not a property of the bet itself (see PamService.enrichBetsWithRollbackReward). */
   accaRollbackRewardCents: number | null;
 }
@@ -530,6 +534,39 @@ export async function previewStakeLimit(
     throw new Error(`Failed to preview stake limit: ${response.status}`);
   }
   return (await response.json()) as StakeLimitPreview;
+}
+
+export interface CampaignPreview {
+  /** Name of the Bet & Get campaign this exact bet would link to at placement, if any - null when none applies (or the player has already exhausted their redemptions - see PamService.previewCampaign). */
+  betAndGetCampaignName: string | null;
+  betAndGetCampaignRewardCents: number | null;
+  /** Name of the deposit campaign redemption this exact bet would fulfil, if any - always null for a logged-out preview, since a redemption is tied to a specific already-logged-in player. */
+  depositCampaignName: string | null;
+  depositCampaignRewardCents: number | null;
+}
+
+/**
+ * A preview of which campaign(s) PamService.placeBet would link this exact
+ * bet (selections + stake) to, so the bet slip can show "you'll qualify for
+ * X" before the player places it - see PamService.previewCampaign, which
+ * this mirrors. Soft-authenticated like previewStakeLimit; a logged-out
+ * preview still resolves a Bet & Get campaign match (scope/conditions don't
+ * need a player) but never a deposit campaign one.
+ */
+export async function previewCampaign(
+  brandId: string,
+  selections: PlaceBetSelection[],
+  stakeCents: number,
+): Promise<CampaignPreview> {
+  const response = await fetch(`${BASE_URL}/public/campaign-preview/${encodeURIComponent(brandId)}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...optionalAuthHeaders() },
+    body: JSON.stringify({ selections, stakeCents }),
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to preview campaign: ${response.status}`);
+  }
+  return (await response.json()) as CampaignPreview;
 }
 
 export type BrandImageListKind = 'SPONSOR_LOGO' | 'PAYMENT_METHOD';

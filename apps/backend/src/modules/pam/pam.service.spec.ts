@@ -1011,6 +1011,8 @@ describe('PamService', () => {
       });
 
       expect(bet.betAndGetCampaignId).toBe(campaign.id);
+      expect(bet.betAndGetCampaignName).toBe(campaign.name);
+      expect(bet.betAndGetCampaignRewardCents).toBe(500);
       const grant = await prisma.freebetGrant.findFirstOrThrow({ where: { sourceBetId: bet.id, source: 'BET_AND_GET' } });
       expect(grant.amountCents).toBe(500);
       expect(grant.sourceCampaignId).toBe(campaign.id);
@@ -1142,6 +1144,8 @@ describe('PamService', () => {
       });
 
       expect(bet.depositCampaignRedemptionId).not.toBeNull();
+      expect(bet.depositCampaignName).toBe(campaign.name);
+      expect(bet.depositCampaignRewardCents).toBe(500);
       const grant = await prisma.freebetGrant.findFirstOrThrow({
         where: { sourceBetId: bet.id, source: 'DEPOSIT_CAMPAIGN' },
       });
@@ -1213,6 +1217,131 @@ describe('PamService', () => {
       expect(bet.depositCampaignRedemptionId).toBeNull();
       const stillPending = await prisma.depositCampaignRedemption.findUniqueOrThrow({ where: { id: redemption.id } });
       expect(stillPending.status).toBe('PENDING_BET');
+    });
+  });
+
+  describe('previewCampaign', () => {
+    async function createEnabledBetAndGetCampaign(
+      overrides: Partial<Parameters<typeof betAndGetCampaignService.create>[1]> = {},
+    ) {
+      const campaign = await betAndGetCampaignService.create(
+        testBrandId,
+        { name: 'CL Bet & Get', rewardAmountCents: 500, ...overrides },
+        TEST_ACTOR,
+      );
+      await betAndGetCampaignService.setScopes(
+        testBrandId,
+        campaign.id,
+        [{ scopeType: 'SPORT', scopeValue: 'Football' }],
+        TEST_ACTOR,
+      );
+      return betAndGetCampaignService.update(testBrandId, campaign.id, { enabled: true }, TEST_ACTOR);
+    }
+
+    async function createPendingDepositRedemption(
+      userId: string,
+      overrides: Partial<Parameters<typeof depositCampaignService.create>[1]> = {},
+    ) {
+      const campaign = await depositCampaignService.create(
+        testBrandId,
+        {
+          name: 'Deposit + Bet',
+          minDepositAmountCents: 1_000,
+          rewardType: 'FIXED',
+          fixedRewardAmountCents: 750,
+          requiresBet: true,
+          trigger: 'PLACEMENT',
+          ...overrides,
+        },
+        TEST_ACTOR,
+      );
+      await depositCampaignService.update(testBrandId, campaign.id, { enabled: true }, TEST_ACTOR);
+      const deposit = await prisma.deposit.create({ data: { userId, brandId: testBrandId, amountCents: 1_000 } });
+      await prisma.depositCampaignRedemption.create({
+        data: {
+          depositCampaignId: campaign.id,
+          userId,
+          brandId: testBrandId,
+          depositId: deposit.id,
+          rewardAmountCents: 750,
+          status: 'PENDING_BET',
+        },
+      });
+      return campaign;
+    }
+
+    it('previews the Bet & Get campaign and reward a qualifying bet would link to, without placing it', async () => {
+      const campaign = await createEnabledBetAndGetCampaign();
+      const userId = await createTestUser(100_000);
+
+      const preview = await pamService.previewCampaign(userId, testBrandId, [buildSelection({ odds: 2.0 })], 1_000);
+
+      expect(preview.betAndGetCampaignName).toBe(campaign.name);
+      expect(preview.betAndGetCampaignRewardCents).toBe(500);
+      expect(preview.depositCampaignName).toBeNull();
+      expect(preview.depositCampaignRewardCents).toBeNull();
+    });
+
+    it('previews the pending deposit campaign redemption a qualifying bet would fulfil', async () => {
+      const userId = await createTestUser(100_000);
+      const campaign = await createPendingDepositRedemption(userId);
+
+      const preview = await pamService.previewCampaign(userId, testBrandId, [buildSelection({ odds: 2.0 })], 1_000);
+
+      expect(preview.depositCampaignName).toBe(campaign.name);
+      expect(preview.depositCampaignRewardCents).toBe(750);
+    });
+
+    it('previews both at once when a bet qualifies for a Bet & Get campaign and fulfils a pending deposit redemption', async () => {
+      const userId = await createTestUser(100_000);
+      await createEnabledBetAndGetCampaign();
+      await createPendingDepositRedemption(userId);
+
+      const preview = await pamService.previewCampaign(userId, testBrandId, [buildSelection({ odds: 2.0 })], 1_000);
+
+      expect(preview.betAndGetCampaignName).not.toBeNull();
+      expect(preview.depositCampaignName).not.toBeNull();
+    });
+
+    it('returns all nulls when nothing qualifies', async () => {
+      const userId = await createTestUser(100_000);
+
+      const preview = await pamService.previewCampaign(userId, testBrandId, [buildSelection({ odds: 2.0 })], 1_000);
+
+      expect(preview).toEqual({
+        betAndGetCampaignName: null,
+        betAndGetCampaignRewardCents: null,
+        depositCampaignName: null,
+        depositCampaignRewardCents: null,
+      });
+    });
+
+    it('still previews a Bet & Get campaign match for a logged-out browser, but never a deposit campaign', async () => {
+      const campaign = await createEnabledBetAndGetCampaign();
+
+      const preview = await pamService.previewCampaign(null, testBrandId, [buildSelection({ odds: 2.0 })], 1_000);
+
+      expect(preview.betAndGetCampaignName).toBe(campaign.name);
+      expect(preview.depositCampaignName).toBeNull();
+    });
+
+    it('does not preview a Bet & Get campaign the player has already exhausted their redemptions for', async () => {
+      const campaign = await createEnabledBetAndGetCampaign();
+      const userId = await createTestUser(100_000);
+      await prisma.freebetGrant.create({
+        data: {
+          userId,
+          brandId: testBrandId,
+          amountCents: 500,
+          remainingCents: 500,
+          source: 'BET_AND_GET',
+          sourceCampaignId: campaign.id,
+        },
+      });
+
+      const preview = await pamService.previewCampaign(userId, testBrandId, [buildSelection({ odds: 2.0 })], 1_000);
+
+      expect(preview.betAndGetCampaignName).toBeNull();
     });
   });
 

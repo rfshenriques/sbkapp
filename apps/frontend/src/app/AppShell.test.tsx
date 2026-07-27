@@ -155,7 +155,16 @@ describe('AppShell', () => {
     expect(screen.getAllByRole('button', { name: 'Close bet slip' }).length).toBeGreaterThan(0);
 
     useBetPlacedModalStore.setState({
-      summary: { stakeCents: 1000, potentialPayoutCents: 2100, combinedOdds: 2.1, betCount: 1 },
+      summary: {
+        stakeCents: 1000,
+        potentialPayoutCents: 2100,
+        combinedOdds: 2.1,
+        betCount: 1,
+        betAndGetCampaignName: null,
+        betAndGetCampaignRewardCents: null,
+        depositCampaignName: null,
+        depositCampaignRewardCents: null,
+      },
     });
 
     await waitFor(() => expect(screen.queryAllByRole('button', { name: 'Close bet slip' })).toHaveLength(0));

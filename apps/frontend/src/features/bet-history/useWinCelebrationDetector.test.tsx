@@ -22,7 +22,9 @@ function buildBet(overrides: Partial<PlacedBet> = {}): PlacedBet {
     insuranceCostPercent: 0,
     accaBoostPercent: 0,
     betAndGetCampaignName: null,
+    betAndGetCampaignRewardCents: null,
     depositCampaignName: null,
+    depositCampaignRewardCents: null,
     accaRollbackRewardCents: null,
     selections: [
       {

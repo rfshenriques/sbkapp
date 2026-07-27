@@ -30,7 +30,20 @@ export function BetPlacedModal() {
     return null;
   }
 
-  const { stakeCents, potentialPayoutCents, combinedOdds, betCount } = summary;
+  const {
+    stakeCents,
+    potentialPayoutCents,
+    combinedOdds,
+    betCount,
+    betAndGetCampaignName,
+    betAndGetCampaignRewardCents,
+    depositCampaignName,
+    depositCampaignRewardCents,
+  } = summary;
+  const campaignNotes = [
+    { name: betAndGetCampaignName, rewardCents: betAndGetCampaignRewardCents },
+    { name: depositCampaignName, rewardCents: depositCampaignRewardCents },
+  ].filter((note): note is { name: string; rewardCents: number | null } => note.name !== null);
 
   async function handleShare() {
     const text =
@@ -108,6 +121,20 @@ export function BetPlacedModal() {
           )}
         </div>
       </div>
+
+      {campaignNotes.length > 0 && (
+        <div className="space-y-1.5 border-t border-border pt-4">
+          {campaignNotes.map((note) => (
+            <p
+              key={note.name}
+              className="rounded-xl border border-highlight/40 bg-highlight/10 p-2.5 text-xs font-semibold text-highlight"
+            >
+              🎁 Qualifies for {note.name}
+              {note.rewardCents !== null && ` - get €${(note.rewardCents / 100).toFixed(2)} as a freebet`}
+            </p>
+          ))}
+        </div>
+      )}
     </BottomSheet>
   );
 }

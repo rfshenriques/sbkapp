@@ -41,11 +41,26 @@ const DISPLAY_LABEL: Record<'pending' | 'won' | 'lost' | 'void', string> = {
   void: 'VOID',
 };
 
-export function betStatusBadgeClasses(status: BetStatus | SelectionStatus): string {
+/**
+ * A LOST bet that was insured (bet.insuranceCostPercent > 0 - see
+ * PamService.settleSelection's INSURANCE_BET grant) isn't a real loss to the
+ * player - the stake comes back as a freebet - so it gets the fixed
+ * --color-insured treatment instead of reading as a plain price-down loss.
+ * Only ever applies at bet level (insurance is a whole-bet opt-in, never
+ * per-selection), so callers pass `insured` only for a bet's own status, not
+ * an individual leg's.
+ */
+export function betStatusBadgeClasses(status: BetStatus | SelectionStatus, insured = false): string {
+  if (insured && STATUS_KEY[status] === 'lost') {
+    return 'bg-insured/20 text-insured';
+  }
   return BADGE_CLASSES[STATUS_KEY[status]];
 }
 
-export function betStatusTextClasses(status: BetStatus | SelectionStatus): string {
+export function betStatusTextClasses(status: BetStatus | SelectionStatus, insured = false): string {
+  if (insured && STATUS_KEY[status] === 'lost') {
+    return 'text-insured';
+  }
   return TEXT_CLASSES[STATUS_KEY[status]];
 }
 

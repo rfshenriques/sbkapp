@@ -23,7 +23,9 @@ function buildBet(overrides: Partial<PlacedBet> = {}): PlacedBet {
     insuranceCostPercent: 0,
     accaBoostPercent: 0,
     betAndGetCampaignName: null,
+    betAndGetCampaignRewardCents: null,
     depositCampaignName: null,
+    depositCampaignRewardCents: null,
     accaRollbackRewardCents: null,
     selections: [
       {
@@ -259,26 +261,53 @@ describe('BetHistoryList', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Show selections' }));
 
     expect(screen.getByText('Home')).toBeInTheDocument();
-    expect(screen.getByText('Arsenal')).toBeInTheDocument();
+    expect(screen.getByText('Arsenal vs Chelsea')).toBeInTheDocument();
     expect(screen.getByText('Away')).toBeInTheDocument();
-    expect(screen.getByText('Liverpool')).toBeInTheDocument();
+    expect(screen.getByText('Liverpool vs Man City')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Hide selections' }));
 
     expect(screen.queryByText('Home')).not.toBeInTheDocument();
   });
 
-  it('shows which campaign a bet qualified for', async () => {
+  it('shows which campaign a bet qualified for, and its reward amount', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn().mockResolvedValue(
-        new Response(JSON.stringify([buildBet({ betAndGetCampaignName: 'CL Bet & Get' })]), { status: 200 }),
+        new Response(
+          JSON.stringify([buildBet({ betAndGetCampaignName: 'CL Bet & Get', betAndGetCampaignRewardCents: 1000 })]),
+          { status: 200 },
+        ),
       ),
     );
 
     renderList();
 
-    expect(await screen.findByText('Qualified for CL Bet & Get')).toBeInTheDocument();
+    expect(await screen.findByText('Qualified for CL Bet & Get - €10.00 freebet')).toBeInTheDocument();
+  });
+
+  it('shows both a Bet & Get and a deposit campaign qualification at once', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify([
+            buildBet({
+              betAndGetCampaignName: 'CL Bet & Get',
+              betAndGetCampaignRewardCents: 1000,
+              depositCampaignName: 'Welcome Deposit Bonus',
+              depositCampaignRewardCents: 2500,
+            }),
+          ]),
+          { status: 200 },
+        ),
+      ),
+    );
+
+    renderList();
+
+    expect(await screen.findByText('Qualified for CL Bet & Get - €10.00 freebet')).toBeInTheDocument();
+    expect(await screen.findByText('Qualified for Welcome Deposit Bonus - €25.00 freebet')).toBeInTheDocument();
   });
 
   it('shows the acca rollback refund amount', async () => {

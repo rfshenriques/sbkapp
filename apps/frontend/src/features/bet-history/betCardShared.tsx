@@ -81,19 +81,33 @@ function MatchInfoBox({ matchLabel }: { matchLabel: string }) {
  * as that bet's headline price (see BetSelectionsList). A leg inside an
  * expanded accumulator always stays 'plain' - only the one combined-odds
  * figure gets the badge treatment there (see BetFooterSummary).
+ *
+ * `dense` drops the bordered MatchInfoBox in favor of a single muted text
+ * line - the boxed match-info row reads fine as the sole selection on a
+ * single-bet card or in the dedicated full-screen receipt (BetDetailModal/
+ * WinCelebrationModal), but repeated once per leg inside an inline
+ * accumulator accordion (see BetHistoryList's BetCard) it turned every leg
+ * into its own floating mini-card, with no visual link between them. Dense
+ * rows are meant to sit inside one shared bordered/divided container instead
+ * (see BetCard's expanded-legs list) so the whole accumulator reads as one
+ * connected list.
  */
 export function SelectionRow({
   selection,
   oddsVariant = 'plain',
+  dense = false,
 }: {
   selection: PlacedBetSelection;
   oddsVariant?: 'plain' | 'badge';
+  dense?: boolean;
 }) {
   return (
-    <div className="space-y-1.5 text-sm">
+    <div className={dense ? 'space-y-0.5 text-sm' : 'space-y-1.5 text-sm'}>
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className={`font-display text-base leading-tight ${betStatusTextClasses(selection.status)}`}>
+          <p
+            className={`font-display leading-tight ${dense ? 'text-sm' : 'text-base'} ${betStatusTextClasses(selection.status)}`}
+          >
             {selection.selectionName}
           </p>
           <p className="text-xs text-text-secondary">{selection.marketName}</p>
@@ -104,7 +118,11 @@ export function SelectionRow({
           <span className="shrink-0 text-text-secondary">{Number(selection.odds).toFixed(2)}</span>
         )}
       </div>
-      <MatchInfoBox matchLabel={selection.matchLabel} />
+      {dense ? (
+        <p className="text-xs text-text-muted">{selection.matchLabel}</p>
+      ) : (
+        <MatchInfoBox matchLabel={selection.matchLabel} />
+      )}
     </div>
   );
 }
@@ -120,7 +138,8 @@ export function SelectionRow({
  */
 export function BetCardHeader({ bet }: { bet: PlacedBet }) {
   const isAccumulator = bet.selections.length > 1;
-  const hasExtraTags = bet.insuranceCostPercent > 0 || bet.accaBoostPercent > 0;
+  const isInsured = bet.insuranceCostPercent > 0;
+  const hasExtraTags = isInsured || bet.accaBoostPercent > 0;
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between gap-2">
@@ -128,7 +147,7 @@ export function BetCardHeader({ bet }: { bet: PlacedBet }) {
           {isAccumulator ? `Accumulator (${bet.selections.length})` : 'Single'}
         </span>
         <span
-          className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest ${betStatusBadgeClasses(bet.status)}`}
+          className={`rounded-full px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest ${betStatusBadgeClasses(bet.status, isInsured)}`}
         >
           {betStatusLabel(bet.status)}
         </span>
@@ -143,15 +162,30 @@ export function BetCardHeader({ bet }: { bet: PlacedBet }) {
   );
 }
 
-/** Qualified-for-campaign / acca-rollback-refund notes - omitted entirely when neither applies. */
+/**
+ * Qualified-for-campaign / acca-rollback-refund notes - omitted entirely
+ * when none apply. A bet can qualify for a Bet & Get campaign and fulfil a
+ * pending deposit campaign redemption at once (independent FK fields on
+ * Bet - see PamService.placeBet), so both render when both apply, each
+ * naming its own reward amount rather than just the campaign name.
+ */
 export function BetCampaignNotes({ bet }: { bet: PlacedBet }) {
-  const campaignName = bet.betAndGetCampaignName ?? bet.depositCampaignName;
-  if (!campaignName && bet.accaRollbackRewardCents === null) {
+  const campaignNotes = [
+    { name: bet.betAndGetCampaignName, rewardCents: bet.betAndGetCampaignRewardCents },
+    { name: bet.depositCampaignName, rewardCents: bet.depositCampaignRewardCents },
+  ].filter((note): note is { name: string; rewardCents: number | null } => note.name !== null);
+
+  if (campaignNotes.length === 0 && bet.accaRollbackRewardCents === null) {
     return null;
   }
   return (
     <>
-      {campaignName && <p className="text-xs text-highlight">Qualified for {campaignName}</p>}
+      {campaignNotes.map((note) => (
+        <p key={note.name} className="text-xs text-highlight">
+          Qualified for {note.name}
+          {note.rewardCents !== null && ` - ${formatEuros(note.rewardCents)} freebet`}
+        </p>
+      ))}
       {bet.accaRollbackRewardCents !== null && (
         <p className="text-xs text-highlight">
           {formatEuros(bet.accaRollbackRewardCents)} refunded as a freebet (Acca Rollback)
@@ -166,6 +200,12 @@ export function BetFooterSummary({ bet }: { bet: PlacedBet }) {
   const isAccumulator = bet.selections.length > 1;
   const payoutCents = displayedPayoutCents(bet);
   const showInsuranceBeforeAfter = bet.insuranceCostPercent > 0 && payoutCents > 0;
+  // A LOST insured bet never carries any of its stake in settledPayoutCents
+  // (computeBetOutcome always pays 0 on LOST) - the stake instead comes back
+  // as a separate freebet grant equal to bet.stakeCents (see
+  // PamService.settleSelection's INSURANCE_BET grant), so that's what
+  // belongs in the payout row here, not a bare "€0.00".
+  const isInsuredLoss = bet.status === 'LOST' && bet.insuranceCostPercent > 0;
 
   return (
     <div className="space-y-1.5 border-t border-border pt-2 text-sm">
@@ -194,7 +234,18 @@ export function BetFooterSummary({ bet }: { bet: PlacedBet }) {
       <div className="flex items-center justify-between">
         <span className="text-text-secondary">{bet.status === 'PENDING' ? 'Potential payout' : 'Payout'}</span>
         <span className="font-semibold">
-          {showInsuranceBeforeAfter ? (
+          {isInsuredLoss ? (
+            <span className="flex items-center gap-1.5">
+              <FreebetBadgeIcon
+                width={15}
+                height={15}
+                className="shrink-0"
+                role="img"
+                aria-label="Stake refunded as a freebet"
+              />
+              {formatEuros(bet.stakeCents)}
+            </span>
+          ) : showInsuranceBeforeAfter ? (
             <MoneyBeforeAfter beforeCents={uninsuredPayoutCents(bet)} afterCents={payoutCents} />
           ) : (
             formatEuros(payoutCents)

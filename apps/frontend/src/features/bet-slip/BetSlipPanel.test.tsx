@@ -552,6 +552,76 @@ describe('BetSlipPanel', () => {
     });
   });
 
+  describe('campaign qualification preview', () => {
+    function stubCampaignPreview(preview: {
+      betAndGetCampaignName: string | null;
+      betAndGetCampaignRewardCents: number | null;
+      depositCampaignName: string | null;
+      depositCampaignRewardCents: number | null;
+    }) {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          const method = init?.method ?? 'GET';
+          if (method === 'POST' && url === '/backend/public/campaign-preview/brand-1') {
+            return new Response(JSON.stringify(preview), { status: 200 });
+          }
+          return new Response(null, { status: 404 });
+        }),
+      );
+    }
+
+    it('shows nothing when the bet qualifies for no campaign', () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubCampaignPreview({
+        betAndGetCampaignName: null,
+        betAndGetCampaignRewardCents: null,
+        depositCampaignName: null,
+        depositCampaignRewardCents: null,
+      });
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      expect(screen.queryByText(/Qualifies for/)).not.toBeInTheDocument();
+    });
+
+    it('names the campaign and its freebet reward once the preview resolves', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubCampaignPreview({
+        betAndGetCampaignName: 'CL Bet & Get',
+        betAndGetCampaignRewardCents: 1000,
+        depositCampaignName: null,
+        depositCampaignRewardCents: null,
+      });
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      expect(
+        await screen.findByText('🎁 Qualifies for CL Bet & Get - get €10.00 as a freebet'),
+      ).toBeInTheDocument();
+    });
+
+    it('shows both a Bet & Get and a deposit campaign qualification at once', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubCampaignPreview({
+        betAndGetCampaignName: 'CL Bet & Get',
+        betAndGetCampaignRewardCents: 1000,
+        depositCampaignName: 'Welcome Deposit Bonus',
+        depositCampaignRewardCents: 2500,
+      });
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      expect(
+        await screen.findByText('🎁 Qualifies for CL Bet & Get - get €10.00 as a freebet'),
+      ).toBeInTheDocument();
+      expect(
+        await screen.findByText('🎁 Qualifies for Welcome Deposit Bonus - get €25.00 as a freebet'),
+      ).toBeInTheDocument();
+    });
+  });
+
   describe('freebets', () => {
     function stubFreebetsAndAccaBoost(
       freebets: { id: string; amountCents: number; remainingCents: number; expiresAt: string | null }[],
@@ -900,6 +970,10 @@ describe('BetSlipPanel', () => {
       potentialPayoutCents: 4200,
       combinedOdds: null,
       betCount: 2,
+      betAndGetCampaignName: null,
+      betAndGetCampaignRewardCents: null,
+      depositCampaignName: null,
+      depositCampaignRewardCents: null,
     });
     expect(useBetSlipStore.getState().selections).toEqual([]);
     const betCalls = fetchMock.mock.calls.filter((call) => call[0] === '/backend/bets');

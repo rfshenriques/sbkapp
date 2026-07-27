@@ -6,6 +6,18 @@ export interface PlacedBetSummary {
   /** Null when this placement was several independent single bets at once - there's no one combined price to show for those, see BetPlacedModal. */
   combinedOdds: number | null;
   betCount: number;
+  /**
+   * Campaign qualification, if any - mirrors PlacedBet's own fields (see
+   * backendApi.ts). For a multi-singles placement these are the first
+   * qualifying bet of each kind among the batch (see BetSlipPanel's
+   * placeSinglesMutation), since different singles could in principle match
+   * different campaigns but the confirmation modal only has room for one
+   * note per kind.
+   */
+  betAndGetCampaignName: string | null;
+  betAndGetCampaignRewardCents: number | null;
+  depositCampaignName: string | null;
+  depositCampaignRewardCents: number | null;
 }
 
 interface BetPlacedModalState {
