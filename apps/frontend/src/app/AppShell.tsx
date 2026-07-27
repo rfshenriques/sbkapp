@@ -199,7 +199,7 @@ export function AppShell() {
 
   return (
     <div
-      className="min-h-screen pb-20 sm:pb-0"
+      className="flex min-h-screen flex-col pb-20 sm:pb-0"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
@@ -292,7 +292,14 @@ export function AppShell() {
       </header>
       <div style={{ height: headerHeight }} aria-hidden="true" />
 
-      <div className="mx-auto flex max-w-[1680px] gap-4 p-4">
+      {/* flex-1 so this row (not the page itself) absorbs any leftover
+          vertical space - without it, a short page's content ends and
+          Footer immediately follows partway up the viewport instead of
+          being pinned to its bottom edge. On a page whose content is
+          already taller than the viewport this is a no-op: flex-1 can't
+          shrink content below its own height, so Footer just lands at the
+          true end of content as before. */}
+      <div className="mx-auto flex w-full max-w-[1680px] flex-1 gap-4 p-4">
         {/* Desktop: sports navigation is a persistent left column, same
             convention as the bet slip's persistent right column - the
             mobile drawer below is sm:hidden so the two never coexist.
