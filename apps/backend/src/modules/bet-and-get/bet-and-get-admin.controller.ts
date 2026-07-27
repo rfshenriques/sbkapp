@@ -3,6 +3,7 @@ import { Roles } from '../admin/roles.decorator';
 import { RolesGuard } from '../admin/roles.guard';
 import { StaffJwtAuthGuard } from '../admin/staff-jwt-auth.guard';
 import type { StaffJwtPayload } from '../admin/staff-jwt.strategy';
+import { PromoCardAutoSyncService } from '../promo-cards/promo-card-auto-sync.service';
 import { BetAndGetCampaignService } from './bet-and-get-campaign.service';
 import { CreateBetAndGetCampaignDto } from './dto/create-bet-and-get-campaign.dto';
 import { SetCampaignScopesDto } from './dto/set-campaign-scopes.dto';
@@ -16,7 +17,10 @@ interface AuthenticatedStaffRequest {
 @Roles('ADMIN', 'TRADING')
 @Controller('admin/bet-and-get-campaigns')
 export class BetAndGetAdminController {
-  constructor(private readonly betAndGetCampaignService: BetAndGetCampaignService) {}
+  constructor(
+    private readonly betAndGetCampaignService: BetAndGetCampaignService,
+    private readonly promoCardAutoSyncService: PromoCardAutoSyncService,
+  ) {}
 
   @Get()
   list(@Req() req: AuthenticatedStaffRequest) {
@@ -29,19 +33,23 @@ export class BetAndGetAdminController {
   }
 
   @Post()
-  create(@Body() dto: CreateBetAndGetCampaignDto, @Req() req: AuthenticatedStaffRequest) {
+  async create(@Body() dto: CreateBetAndGetCampaignDto, @Req() req: AuthenticatedStaffRequest) {
     const { startAt, endAt, ...rest } = dto;
-    return this.betAndGetCampaignService.create(
+    const actor = { id: req.user.sub, username: req.user.username, brandId: req.user.brandId };
+    const campaign = await this.betAndGetCampaignService.create(
       req.user.brandId,
       { ...rest, startAt: startAt ? new Date(startAt) : null, endAt: endAt ? new Date(endAt) : null },
-      { id: req.user.sub, username: req.user.username, brandId: req.user.brandId },
+      actor,
     );
+    await this.promoCardAutoSyncService.ensureForBetAndGetCampaign(req.user.brandId, campaign, actor);
+    return campaign;
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateBetAndGetCampaignDto, @Req() req: AuthenticatedStaffRequest) {
+  async update(@Param('id') id: string, @Body() dto: UpdateBetAndGetCampaignDto, @Req() req: AuthenticatedStaffRequest) {
     const { startAt, endAt, ...rest } = dto;
-    return this.betAndGetCampaignService.update(
+    const actor = { id: req.user.sub, username: req.user.username, brandId: req.user.brandId };
+    const campaign = await this.betAndGetCampaignService.update(
       req.user.brandId,
       id,
       {
@@ -49,8 +57,10 @@ export class BetAndGetAdminController {
         ...(startAt !== undefined ? { startAt: startAt ? new Date(startAt) : null } : {}),
         ...(endAt !== undefined ? { endAt: endAt ? new Date(endAt) : null } : {}),
       },
-      { id: req.user.sub, username: req.user.username, brandId: req.user.brandId },
+      actor,
     );
+    await this.promoCardAutoSyncService.ensureForBetAndGetCampaign(req.user.brandId, campaign, actor);
+    return campaign;
   }
 
   @Delete(':id')

@@ -3,6 +3,7 @@ import { Roles } from '../admin/roles.decorator';
 import { RolesGuard } from '../admin/roles.guard';
 import { StaffJwtAuthGuard } from '../admin/staff-jwt-auth.guard';
 import type { StaffJwtPayload } from '../admin/staff-jwt.strategy';
+import { PromoCardAutoSyncService } from '../promo-cards/promo-card-auto-sync.service';
 import { DepositCampaignService } from './deposit-campaign.service';
 import { CreateDepositCampaignDto } from './dto/create-deposit-campaign.dto';
 import { UpdateDepositCampaignDto } from './dto/update-deposit-campaign.dto';
@@ -15,7 +16,10 @@ interface AuthenticatedStaffRequest {
 @Roles('ADMIN', 'TRADING')
 @Controller('admin/deposit-campaigns')
 export class DepositCampaignAdminController {
-  constructor(private readonly depositCampaignService: DepositCampaignService) {}
+  constructor(
+    private readonly depositCampaignService: DepositCampaignService,
+    private readonly promoCardAutoSyncService: PromoCardAutoSyncService,
+  ) {}
 
   @Get()
   list(@Req() req: AuthenticatedStaffRequest) {
@@ -28,19 +32,23 @@ export class DepositCampaignAdminController {
   }
 
   @Post()
-  create(@Body() dto: CreateDepositCampaignDto, @Req() req: AuthenticatedStaffRequest) {
+  async create(@Body() dto: CreateDepositCampaignDto, @Req() req: AuthenticatedStaffRequest) {
     const { startAt, endAt, ...rest } = dto;
-    return this.depositCampaignService.create(
+    const actor = { id: req.user.sub, username: req.user.username, brandId: req.user.brandId };
+    const campaign = await this.depositCampaignService.create(
       req.user.brandId,
       { ...rest, startAt: startAt ? new Date(startAt) : null, endAt: endAt ? new Date(endAt) : null },
-      { id: req.user.sub, username: req.user.username, brandId: req.user.brandId },
+      actor,
     );
+    await this.promoCardAutoSyncService.ensureForDepositCampaign(req.user.brandId, campaign, actor);
+    return campaign;
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateDepositCampaignDto, @Req() req: AuthenticatedStaffRequest) {
+  async update(@Param('id') id: string, @Body() dto: UpdateDepositCampaignDto, @Req() req: AuthenticatedStaffRequest) {
     const { startAt, endAt, ...rest } = dto;
-    return this.depositCampaignService.update(
+    const actor = { id: req.user.sub, username: req.user.username, brandId: req.user.brandId };
+    const campaign = await this.depositCampaignService.update(
       req.user.brandId,
       id,
       {
@@ -48,8 +56,10 @@ export class DepositCampaignAdminController {
         ...(startAt !== undefined ? { startAt: startAt ? new Date(startAt) : null } : {}),
         ...(endAt !== undefined ? { endAt: endAt ? new Date(endAt) : null } : {}),
       },
-      { id: req.user.sub, username: req.user.username, brandId: req.user.brandId },
+      actor,
     );
+    await this.promoCardAutoSyncService.ensureForDepositCampaign(req.user.brandId, campaign, actor);
+    return campaign;
   }
 
   @Delete(':id')

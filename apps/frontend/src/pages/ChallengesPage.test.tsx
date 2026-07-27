@@ -66,6 +66,9 @@ describe('ChallengesPage', () => {
         subtitle: 'Bet & get €10',
         sortOrder: 0,
         betAndGetCampaignId: 'campaign-1',
+        depositCampaignId: null,
+        hasImage: true,
+        status: 'ACTIVE',
       },
     ]);
     renderPage();
@@ -74,5 +77,45 @@ describe('ChallengesPage', () => {
     expect(screen.getByText('Bet & get €10')).toBeInTheDocument();
     expect(screen.getByRole('link')).toHaveAttribute('href', '/campaigns/campaign-1');
     expect(screen.queryByText(/No active challenges right now/)).not.toBeInTheDocument();
+  });
+
+  it('renders a no-image auto-created card as its own row, separate from the imaged-card grid', async () => {
+    stubFetch([
+      {
+        id: 'card-auto',
+        mimeType: null,
+        title: 'Weekend Boost',
+        subtitle: 'Bet & get €10',
+        sortOrder: 0,
+        betAndGetCampaignId: 'campaign-1',
+        depositCampaignId: null,
+        hasImage: false,
+        status: 'ACTIVE',
+      },
+    ]);
+    renderPage();
+
+    expect(await screen.findByText('Weekend Boost')).toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('shows an "Early ended" section for cards past their campaign endAt', async () => {
+    stubFetch([
+      {
+        id: 'card-ended',
+        mimeType: 'image/png',
+        title: 'Last Week Boost',
+        subtitle: null,
+        sortOrder: 0,
+        betAndGetCampaignId: 'campaign-2',
+        depositCampaignId: null,
+        hasImage: true,
+        status: 'EARLY_ENDED',
+      },
+    ]);
+    renderPage();
+
+    expect(await screen.findByText('Early ended')).toBeInTheDocument();
+    expect(screen.getByText('Last Week Boost')).toBeInTheDocument();
   });
 });

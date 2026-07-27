@@ -260,17 +260,22 @@ export default function OddsBoardPage() {
   // cards (see the backoffice's Promo Cards page) when the brand has any,
   // otherwise the static Welcome Bonus card that's always been there - the
   // slot itself never disappears or moves, it's swipeable within itself
-  // once there's more than one real card.
-  const hasCmsPromoCards = Boolean(promoCards && promoCards.length > 0 && brandId);
+  // once there's more than one real card. Only active, imaged cards belong
+  // here - a no-image auto-created banner (see PromoCardTile) is a short
+  // strip, not a fixed-aspect photo, so it doesn't fit this slot's carousel
+  // (it still shows in full on the Challenges page); an early-ended card
+  // is a Challenges-page-only concept too.
+  const homepagePromoCards = (promoCards ?? []).filter((card) => card.status === 'ACTIVE' && card.hasImage);
+  const hasCmsPromoCards = Boolean(homepagePromoCards.length > 0 && brandId);
   function promoSlotItems(className: string) {
     if (hasCmsPromoCards) {
-      return promoCards!.map((card) => (
+      return homepagePromoCards.map((card) => (
         <PromoCardTile key={card.id} card={card} brandId={brandId as string} className={className} />
       ));
     }
     return [<PromoCard key="static-welcome-bonus" className={className} />];
   }
-  const promoSlotCount = hasCmsPromoCards ? promoCards!.length : 1;
+  const promoSlotCount = hasCmsPromoCards ? homepagePromoCards.length : 1;
   const autoScrollSeconds =
     carouselConfig?.enabled && carouselConfig.autoScrollSeconds > 0 ? carouselConfig.autoScrollSeconds : undefined;
 

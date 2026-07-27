@@ -4,6 +4,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { ANONYMOUS_VIEWER, type AudienceViewer } from '../audience/audience';
 import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
 import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.service';
 import { PromoCardService } from './promo-card.service';
@@ -126,7 +127,7 @@ describe('PromoCardService', () => {
     const card = await service.add(brandAId, Buffer.from('bytes'), 'image/png', {}, TEST_ACTOR);
 
     const fetched = await service.getItemData(brandAId, card.id);
-    expect(Buffer.from(fetched!.data).toString()).toBe('bytes');
+    expect(Buffer.from(fetched!.data!).toString()).toBe('bytes');
   });
 
   it('updates title/subtitle/campaign link without touching the image', async () => {
@@ -142,7 +143,7 @@ describe('PromoCardService', () => {
 
     expect(updated).toMatchObject({ title: 'Live', betAndGetCampaignId: campaign.id });
     const fetched = await service.getItemData(brandAId, card.id);
-    expect(Buffer.from(fetched!.data).toString()).toBe('bytes');
+    expect(Buffer.from(fetched!.data!).toString()).toBe('bytes');
   });
 
   it('updating with betAndGetCampaignId: null unlinks the card from its campaign', async () => {
@@ -306,7 +307,19 @@ describe('PromoCardService', () => {
 
   describe('listForViewer', () => {
     let userId: string;
+    let userViewer: AudienceViewer;
     const createdUserIds: string[] = [];
+
+    /** create() always makes a disabled campaign (schema default) - only update() can flip enabled, so these go through both to get a live one for listForViewer to see. */
+    async function createEnabledBetAndGetCampaign(input: Parameters<BetAndGetCampaignService['create']>[1]) {
+      const campaign = await campaignService.create(brandAId, input, TEST_ACTOR);
+      return campaignService.update(brandAId, campaign.id, { enabled: true }, TEST_ACTOR);
+    }
+
+    async function createEnabledDepositCampaign(input: Parameters<DepositCampaignService['create']>[1]) {
+      const campaign = await depositCampaignService.create(brandAId, input, TEST_ACTOR);
+      return depositCampaignService.update(brandAId, campaign.id, { enabled: true }, TEST_ACTOR);
+    }
 
     beforeEach(async () => {
       const unique = randomUUID();
@@ -320,6 +333,7 @@ describe('PromoCardService', () => {
         },
       });
       userId = user.id;
+      userViewer = { isLoggedIn: true, segmentIds: [] };
       createdUserIds.push(user.id);
     });
 
@@ -329,28 +343,29 @@ describe('PromoCardService', () => {
     });
 
     it('shows every card to a logged-out viewer, unfiltered', async () => {
-      const campaign = await campaignService.create(brandAId, { name: 'BNG', rewardAmountCents: 1_000 }, TEST_ACTOR);
+      const campaign = await createEnabledBetAndGetCampaign({ name: 'BNG', rewardAmountCents: 1_000 });
       await service.add(brandAId, Buffer.from('a'), 'image/png', { betAndGetCampaignId: campaign.id }, TEST_ACTOR);
 
-      expect(await service.listForViewer(brandAId, null)).toHaveLength(1);
+      expect(await service.listForViewer(brandAId, ANONYMOUS_VIEWER, null)).toHaveLength(1);
     });
 
     it('hides a card linked to a Bet & Get campaign the player already redeemed', async () => {
-      const campaign = await campaignService.create(brandAId, { name: 'BNG', rewardAmountCents: 1_000 }, TEST_ACTOR);
+      const campaign = await createEnabledBetAndGetCampaign({ name: 'BNG', rewardAmountCents: 1_000 });
       await service.add(brandAId, Buffer.from('a'), 'image/png', { betAndGetCampaignId: campaign.id }, TEST_ACTOR);
       await prisma.freebetGrant.create({
         data: { userId, brandId: brandAId, amountCents: 1_000, remainingCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
       });
 
-      expect(await service.listForViewer(brandAId, userId)).toEqual([]);
+      expect(await service.listForViewer(brandAId, userViewer, userId)).toEqual([]);
     });
 
     it('hides a card linked to a Deposit campaign the player already redeemed', async () => {
-      const campaign = await depositCampaignService.create(
-        brandAId,
-        { name: 'Deposit', minDepositAmountCents: 5_000, rewardType: 'FIXED', fixedRewardAmountCents: 1_000 },
-        TEST_ACTOR,
-      );
+      const campaign = await createEnabledDepositCampaign({
+        name: 'Deposit',
+        minDepositAmountCents: 5_000,
+        rewardType: 'FIXED',
+        fixedRewardAmountCents: 1_000,
+      });
       await service.add(brandAId, Buffer.from('a'), 'image/png', { depositCampaignId: campaign.id }, TEST_ACTOR);
       const deposit = await prisma.deposit.create({ data: { userId, brandId: brandAId, amountCents: 5_000 } });
       await prisma.depositCampaignRedemption.create({
@@ -364,27 +379,48 @@ describe('PromoCardService', () => {
         },
       });
 
-      expect(await service.listForViewer(brandAId, userId)).toEqual([]);
+      expect(await service.listForViewer(brandAId, userViewer, userId)).toEqual([]);
     });
 
     it('still shows a card whose campaign allows multiple redemptions, up to the cap', async () => {
-      const campaign = await campaignService.create(
-        brandAId,
-        { name: 'BNG', rewardAmountCents: 1_000, allowMultipleRedemptions: true, maxRedemptionsPerPlayer: 2 },
-        TEST_ACTOR,
-      );
+      const campaign = await createEnabledBetAndGetCampaign({
+        name: 'BNG',
+        rewardAmountCents: 1_000,
+        allowMultipleRedemptions: true,
+        maxRedemptionsPerPlayer: 2,
+      });
       await service.add(brandAId, Buffer.from('a'), 'image/png', { betAndGetCampaignId: campaign.id }, TEST_ACTOR);
       await prisma.freebetGrant.create({
         data: { userId, brandId: brandAId, amountCents: 1_000, remainingCents: 1_000, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
       });
 
-      expect(await service.listForViewer(brandAId, userId)).toHaveLength(1);
+      expect(await service.listForViewer(brandAId, userViewer, userId)).toHaveLength(1);
     });
 
     it('still shows a decorative card (no campaign link) regardless of the viewer', async () => {
       await service.add(brandAId, Buffer.from('a'), 'image/png', {}, TEST_ACTOR);
 
-      expect(await service.listForViewer(brandAId, userId)).toHaveLength(1);
+      expect(await service.listForViewer(brandAId, userViewer, userId)).toHaveLength(1);
+    });
+
+    it('hides a card whose campaign is disabled', async () => {
+      const campaign = await campaignService.create(brandAId, { name: 'BNG', rewardAmountCents: 1_000 }, TEST_ACTOR);
+      await service.add(brandAId, Buffer.from('a'), 'image/png', { betAndGetCampaignId: campaign.id }, TEST_ACTOR);
+
+      expect(await service.listForViewer(brandAId, ANONYMOUS_VIEWER, null)).toEqual([]);
+    });
+
+    it('shows an early-ended card with EARLY_ENDED status rather than hiding it', async () => {
+      const campaign = await createEnabledBetAndGetCampaign({
+        name: 'BNG',
+        rewardAmountCents: 1_000,
+        endAt: new Date(Date.now() - 60_000),
+      });
+      await service.add(brandAId, Buffer.from('a'), 'image/png', { betAndGetCampaignId: campaign.id }, TEST_ACTOR);
+
+      const cards = await service.listForViewer(brandAId, ANONYMOUS_VIEWER, null);
+      expect(cards).toHaveLength(1);
+      expect(cards[0]?.status).toBe('EARLY_ENDED');
     });
   });
 });

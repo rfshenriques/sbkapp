@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { TrophyIcon } from '../../components/ui/NavIcons';
 import * as backendApi from '../../lib/backendApi';
 import type { PromoCardItem } from '../../lib/backendApi';
+import { useContrastColor } from '../../lib/useContrastColor';
 import { useDepositCampaignModalStore } from '../deposit-campaigns/depositCampaignModalStore';
 
 export interface PromoCardTileProps {
@@ -12,25 +13,33 @@ export interface PromoCardTileProps {
 }
 
 /**
- * One CMS-managed promo card image, with an optional title/subtitle scrim
- * and an optional click-through to its linked campaign - a Bet & Get
- * campaign navigates to its matches page, a deposit campaign reopens the
- * same modal the post-login trigger uses (see DepositCampaignModal). A card
- * with neither id set is purely decorative (no link). See apps/backend's
+ * One CMS-managed promo card, with an optional title/subtitle and an
+ * optional click-through to its linked campaign - a Bet & Get campaign
+ * navigates to its matches page, a deposit campaign reopens the same modal
+ * the post-login trigger uses (see DepositCampaignModal). A card with
+ * neither id set is purely decorative (no link). See apps/backend's
  * PromoCardService and the backoffice's CMS Promo Cards page.
  *
+ * `hasImage: false` (see PromoCardAutoSyncService) means a campaign went
+ * live before staff uploaded any artwork for it - rendered as a short,
+ * full-width brand-color banner instead of a photo, so the campaign is
+ * still discoverable without a CMS step being a prerequisite. `EARLY_ENDED`
+ * cards (endAt already passed) render grayscale - see ChallengesPage's
+ * "Early ended" section.
+ *
  * The bright highlight-colored ring and trophy corner badge mark this as a
- * "challenge" (see ChallengesPage) - decorative framing only, since neither
- * campaign type has a real progress/status field to render (no fabricated
- * "expired"/"won" state).
+ * "challenge" - decorative framing only, since neither campaign type has a
+ * real progress field to render (no fabricated "won" state).
  */
 export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) {
   const openDepositCampaignModal = useDepositCampaignModalStore((state) => state.open);
   const [isLoadingDepositCampaign, setIsLoadingDepositCampaign] = useState(false);
+  const brandContrast = useContrastColor('--color-brand');
   const hasCaption = Boolean(card.title || card.subtitle);
   const isChallenge = Boolean(card.betAndGetCampaignId || card.depositCampaignId);
+  const isEarlyEnded = card.status === 'EARLY_ENDED';
 
-  const content = (
+  const content = card.hasImage ? (
     <>
       {/* Absolutely positioned (matching the static fallback PromoCard's
           own image) so the uploaded image's intrinsic aspect ratio never
@@ -61,9 +70,23 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
         </>
       )}
     </>
+  ) : (
+    <div
+      className="flex min-h-[5.5rem] w-full flex-col items-center justify-center gap-0.5 px-4 py-3 text-center"
+      style={{ backgroundColor: 'var(--color-brand)', color: brandContrast }}
+    >
+      {isChallenge && <TrophyIcon width={18} height={18} className="mb-0.5" style={{ color: brandContrast }} />}
+      {card.title && <p className="font-display text-lg leading-tight">{card.title}</p>}
+      {card.subtitle && <p className="text-sm opacity-85">{card.subtitle}</p>}
+    </div>
   );
 
-  const frameClassName = isChallenge ? 'border-2 border-highlight' : '';
+  const frameClassName = [
+    isChallenge ? 'border-2 border-highlight' : '',
+    isEarlyEnded ? 'grayscale' : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   if (card.betAndGetCampaignId) {
     return (

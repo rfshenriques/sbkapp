@@ -16,6 +16,16 @@ export default function ChallengesPage() {
   const brandId = useBrandStore((state) => state.brandId);
   const hasCards = Boolean(promoCards && promoCards.length > 0 && brandId);
 
+  // No-image cards (a campaign that went live before staff uploaded
+  // artwork - see PromoCardTile) get their own short full-width row rather
+  // than sitting in the 2-col image grid, which assumes a photo's aspect
+  // ratio. Early-ended cards (real endAt already passed) move to their own
+  // grayscale section below rather than disappearing outright.
+  const activeCards = (promoCards ?? []).filter((card) => card.status === 'ACTIVE');
+  const activeImaged = activeCards.filter((card) => card.hasImage);
+  const activeNoImage = activeCards.filter((card) => !card.hasImage);
+  const earlyEnded = (promoCards ?? []).filter((card) => card.status === 'EARLY_ENDED');
+
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
@@ -33,10 +43,34 @@ export default function ChallengesPage() {
           <Skeleton className="h-48 w-full" />
         </div>
       ) : hasCards ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          {promoCards!.map((card) => (
-            <PromoCardTile key={card.id} card={card} brandId={brandId!} className="h-48" />
+        <div className="space-y-4">
+          {activeNoImage.map((card) => (
+            <PromoCardTile key={card.id} card={card} brandId={brandId!} />
           ))}
+
+          {activeImaged.length > 0 && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {activeImaged.map((card) => (
+                <PromoCardTile key={card.id} card={card} brandId={brandId!} className="h-48" />
+              ))}
+            </div>
+          )}
+
+          {earlyEnded.length > 0 && (
+            <div>
+              <p className="mb-3 text-xs font-bold tracking-wide text-text-muted uppercase">Early ended</p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {earlyEnded.map((card) => (
+                  <PromoCardTile
+                    key={card.id}
+                    card={card}
+                    brandId={brandId!}
+                    className={card.hasImage ? 'h-48' : ''}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <Card className="text-text-secondary">No active challenges right now - check back soon.</Card>

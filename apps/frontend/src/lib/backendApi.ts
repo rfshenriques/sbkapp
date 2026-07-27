@@ -402,14 +402,20 @@ export async function recordDeposit(amountCents: number): Promise<DepositResult>
   return parseJsonOrThrow(response, `Failed to record deposit: ${response.status}`);
 }
 
+export type PromoCardStatus = 'ACTIVE' | 'EARLY_ENDED';
+
 export interface PromoCardItem {
   id: string;
-  mimeType: string;
+  mimeType: string | null;
   title: string | null;
   subtitle: string | null;
   sortOrder: number;
   betAndGetCampaignId: string | null;
   depositCampaignId: string | null;
+  /** False for a card auto-created for a campaign with no staff-uploaded image yet - see PromoCardTile. */
+  hasImage: boolean;
+  /** Live-computed from the linked campaign, never persisted - DISABLED campaigns are already dropped server-side, so this is only ever ACTIVE or EARLY_ENDED. */
+  status: PromoCardStatus;
 }
 
 /** CMS-managed promo cards for the homepage/Challenges page - see apps/backend's PublicPromoCardController. */

@@ -14,6 +14,8 @@ const decorativeCard: PromoCardItem = {
   sortOrder: 0,
   betAndGetCampaignId: null,
   depositCampaignId: null,
+  hasImage: true,
+  status: 'ACTIVE',
 };
 
 function stubFetch(handler: (url: string) => Response | undefined) {
@@ -48,6 +50,20 @@ describe('PromoCardTile', () => {
     );
 
     expect(screen.getByRole('link')).toHaveAttribute('href', '/campaigns/campaign-1');
+  });
+
+  it('renders a no-image card as a brand-color banner, no <img>', () => {
+    render(
+      <MemoryRouter>
+        <PromoCardTile
+          card={{ ...decorativeCard, hasImage: false, mimeType: null, betAndGetCampaignId: 'campaign-1' }}
+          brandId="brand-1"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByText('Welcome offer')).toBeInTheDocument();
   });
 
   it('fetches and opens the deposit campaign modal for a deposit-linked card', async () => {

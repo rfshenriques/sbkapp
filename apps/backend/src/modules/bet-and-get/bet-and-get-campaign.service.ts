@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { BetAndGetBetType, BetAndGetScopeType, BetAndGetTrigger } from '@prisma/client';
+import type { AudienceMode, BetAndGetBetType, BetAndGetScopeType, BetAndGetTrigger } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { betQualifiesForCampaign, matchIsInCampaignScope, type ScopeMatchInput } from './bet-and-get';
@@ -20,6 +20,8 @@ export interface CreateBetAndGetCampaignInput {
   minSelections?: number | null;
   allowMultipleRedemptions?: boolean;
   maxRedemptionsPerPlayer?: number | null;
+  audienceMode?: AudienceMode;
+  segmentIds?: string[];
 }
 
 export type UpdateBetAndGetCampaignInput = Partial<CreateBetAndGetCampaignInput> & { enabled?: boolean };
@@ -29,7 +31,7 @@ export interface SetCampaignScopeInput {
   scopeValue: string;
 }
 
-const campaignInclude = { scopes: true } as const;
+const campaignInclude = { scopes: true, segments: true } as const;
 
 /**
  * "Bet & Get" fixed-amount campaigns - see BetAndGetCampaign in
@@ -103,6 +105,8 @@ export class BetAndGetCampaignService {
         minSelections: input.minSelections ?? null,
         allowMultipleRedemptions: input.allowMultipleRedemptions ?? false,
         maxRedemptionsPerPlayer: input.maxRedemptionsPerPlayer ?? null,
+        audienceMode: input.audienceMode ?? 'ALL',
+        segments: input.segmentIds ? { create: input.segmentIds.map((segmentId) => ({ segmentId })) } : undefined,
       },
       include: campaignInclude,
     });
@@ -121,9 +125,16 @@ export class BetAndGetCampaignService {
   async update(brandId: string, id: string, input: UpdateBetAndGetCampaignInput, actor: AuditActor) {
     await this.findOwned(brandId, id);
 
+    const { segmentIds, ...rest } = input;
+
     const campaign = await this.prisma.betAndGetCampaign.update({
       where: { id },
-      data: input,
+      data: {
+        ...rest,
+        ...(segmentIds !== undefined
+          ? { segments: { deleteMany: {}, create: segmentIds.map((segmentId) => ({ segmentId })) } }
+          : {}),
+      },
       include: campaignInclude,
     });
 

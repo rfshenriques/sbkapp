@@ -419,10 +419,11 @@ model PlayerSegment {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members          PlayerSegmentMember[]
-  manualMarkets    ManualMarketSegment[]
-  boosts           BoostSegment[]
-  depositCampaigns DepositCampaignSegment[]
+  members            PlayerSegmentMember[]
+  manualMarkets      ManualMarketSegment[]
+  boosts             BoostSegment[]
+  depositCampaigns   DepositCampaignSegment[]
+  betAndGetCampaigns BetAndGetCampaignSegment[]
 
   @@unique([brandId, name])
   @@index([brandId])
@@ -1085,18 +1086,37 @@ model BetAndGetCampaign {
   allowMultipleRedemptions Boolean @default(false)
   maxRedemptionsPerPlayer  Int?
 
+  /**
+   * Who this campaign (and its auto-managed promo card, see PromoCard) is
+   * shown/available to - same pattern as Boost/ManualMarket/DepositCampaign
+   * audience targeting.
+   */
+  audienceMode AudienceMode               @default(ALL)
+  segments     BetAndGetCampaignSegment[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   scopes     BetAndGetCampaignScope[]
   bets       Bet[]
   /**
-   * CMS-managed cards (homepage/Promotions page) that link to this campaign - see PromoCard. A campaign can have zero, one, or several pointing at it.
+   * CMS-managed cards (homepage/Challenges page) that link to this campaign - see PromoCard. A campaign can have zero, one, or several pointing at it.
    */
   promoCards PromoCard[]
 
   @@index([brandId])
   @@map("bet_and_get_campaigns")
+}
+
+model BetAndGetCampaignSegment {
+  id         String            @id @default(uuid())
+  campaignId String
+  campaign   BetAndGetCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  segmentId  String
+  segment    PlayerSegment     @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, segmentId])
+  @@map("bet_and_get_campaign_segments")
 }
 
 /**
@@ -1120,31 +1140,40 @@ model BetAndGetCampaignScope {
 
 /**
  * A CMS-managed promotional card - shown on the homepage and/or the
- * Promotions page (apps/frontend), byte-stored like BrandImage. Optionally
+ * Challenges page (apps/frontend), byte-stored like BrandImage. Optionally
  * links to a BetAndGetCampaign (clicking takes the player straight to that
  * campaign's scoped matches) or a DepositCampaign (clicking reopens the
  * deposit campaign modal) - never both at once, enforced by the service
- * layer, not the DB. A card with no link is purely decorative. sortOrder is
- * staff-controlled, same drag-reorder convention as
- * BrandImageListItem/CompetitionRanking.
+ * layer, not the DB. A card with no link is purely decorative and never
+ * auto-managed. sortOrder is staff-controlled, same drag-reorder convention
+ * as BrandImageListItem/CompetitionRanking.
+ * data/mimeType are optional: a card auto-created for a campaign that has
+ * no staff-uploaded image yet (see PromoCardService.ensureAutoCardForCampaign)
+ * has neither, and the frontend renders it as a short brand-color banner
+ * instead of a photo. autoCreated distinguishes those system-managed rows
+ * from ones a staff member deliberately created, so the sync logic never
+ * touches/duplicates a staff member's own card. Both campaign relations
+ * cascade-delete their card - a deleted campaign's promo (auto or manual,
+ * with or without an image) should stop existing, not just unlink.
  */
 model PromoCard {
-  id        String   @id @default(uuid())
-  brandId   String
-  brand     Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  data      Bytes
-  mimeType  String
-  title     String?
-  subtitle  String?
-  sortOrder Int
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String   @id @default(uuid())
+  brandId     String
+  brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  data        Bytes?
+  mimeType    String?
+  title       String?
+  subtitle    String?
+  sortOrder   Int
+  autoCreated Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   betAndGetCampaignId String?
-  betAndGetCampaign   BetAndGetCampaign? @relation(fields: [betAndGetCampaignId], references: [id], onDelete: SetNull)
+  betAndGetCampaign   BetAndGetCampaign? @relation(fields: [betAndGetCampaignId], references: [id], onDelete: Cascade)
 
   depositCampaignId String?
-  depositCampaign   DepositCampaign? @relation(fields: [depositCampaignId], references: [id], onDelete: SetNull)
+  depositCampaign   DepositCampaign? @relation(fields: [depositCampaignId], references: [id], onDelete: Cascade)
 
   @@index([brandId, sortOrder])
   @@map("promo_cards")

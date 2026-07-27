@@ -1,8 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { resolveAudience, type AudienceViewer } from '../audience/audience';
 import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
 import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.service';
+import { campaignPromoStatus, type PromoCardStatus } from './promo-card-status';
 
 /** Metadata only - never the image bytes, so listing stays a small JSON response. */
 const METADATA_SELECT = {
@@ -12,11 +14,28 @@ const METADATA_SELECT = {
   title: true,
   subtitle: true,
   sortOrder: true,
+  autoCreated: true,
   betAndGetCampaignId: true,
   depositCampaignId: true,
   createdAt: true,
   updatedAt: true,
 } as const;
+
+export interface PromoCardForViewer {
+  id: string;
+  brandId: string;
+  mimeType: string | null;
+  title: string | null;
+  subtitle: string | null;
+  sortOrder: number;
+  autoCreated: boolean;
+  betAndGetCampaignId: string | null;
+  depositCampaignId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  hasImage: boolean;
+  status: PromoCardStatus;
+}
 
 export interface PromoCardFields {
   title?: string | null;
@@ -52,39 +71,67 @@ export class PromoCardService {
   }
 
   /**
-   * Every card the player-facing homepage/Promotions page should actually
-   * show - same as list() for a logged-out viewer (no redemption history to
-   * check), but drops any card linked to a campaign this player has already
-   * exhausted their redemptions on (see BetAndGetCampaignService.canRedeem /
-   * DepositCampaignService.canRedeem - both respect allowMultipleRedemptions
-   * and maxRedemptionsPerPlayer), so a player never keeps seeing a promo for
-   * a reward they can't get again.
+   * Every card the player-facing homepage/Challenges page should actually
+   * show for this viewer, each annotated with its live-computed `status`
+   * and whether it has a real image (`hasImage` - false for an
+   * auto-created card, see PromoCardAutoSyncService). A card with no
+   * linked campaign is purely decorative and always ACTIVE/visible.
+   *
+   * A linked card is dropped entirely (not just marked DISABLED) when:
+   * the viewer isn't in the campaign's target audience (resolveAudience),
+   * its computed status is DISABLED (campaign off or not started yet -
+   * EARLY_ENDED still shows, just grayed out on the frontend), or - for a
+   * logged-in viewer only - they've already exhausted their redemptions on
+   * it (see BetAndGetCampaignService.canRedeem / DepositCampaignService.
+   * canRedeem), so a player never keeps seeing a promo for a reward they
+   * can't get again.
    */
-  async listForViewer(brandId: string, userId: string | null) {
+  async listForViewer(brandId: string, viewer: AudienceViewer, userId: string | null): Promise<PromoCardForViewer[]> {
     const cards = await this.list(brandId);
-    if (!userId) {
-      return cards;
-    }
 
     const visible = await Promise.all(
-      cards.map(async (card) => {
+      cards.map(async (card): Promise<PromoCardForViewer | null> => {
+        const hasImage = card.mimeType !== null;
+
         if (card.betAndGetCampaignId) {
           const campaign = await this.betAndGetCampaignService.get(brandId, card.betAndGetCampaignId);
-          if (!(await this.betAndGetCampaignService.canRedeem(campaign, userId))) {
+          const inAudience = resolveAudience(
+            campaign.audienceMode,
+            campaign.segments.map((segment) => segment.segmentId),
+            viewer,
+          );
+          const status = campaignPromoStatus(campaign);
+          if (!inAudience || status === 'DISABLED') {
             return null;
           }
+          if (userId && !(await this.betAndGetCampaignService.canRedeem(campaign, userId))) {
+            return null;
+          }
+          return { ...card, hasImage, status };
         }
+
         if (card.depositCampaignId) {
           const campaign = await this.depositCampaignService.get(brandId, card.depositCampaignId);
-          if (!(await this.depositCampaignService.canRedeem(campaign, userId))) {
+          const inAudience = resolveAudience(
+            campaign.audienceMode,
+            campaign.segments.map((segment) => segment.segmentId),
+            viewer,
+          );
+          const status = campaignPromoStatus(campaign);
+          if (!inAudience || status === 'DISABLED') {
             return null;
           }
+          if (userId && !(await this.depositCampaignService.canRedeem(campaign, userId))) {
+            return null;
+          }
+          return { ...card, hasImage, status };
         }
-        return card;
+
+        return { ...card, hasImage, status: 'ACTIVE' };
       }),
     );
 
-    return visible.filter((card): card is NonNullable<typeof card> => card !== null);
+    return visible.filter((card): card is PromoCardForViewer => card !== null);
   }
 
   /** A card can only ever link to a campaign owned by its own brand - never validated by trusting the id alone. Linking to both campaign types at once isn't allowed - a card promotes exactly one campaign. */
