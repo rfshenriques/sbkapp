@@ -71,21 +71,6 @@ body {
   overflow-x: hidden;
 }
 
-/* useScrollLock pins <body> itself to position:fixed while a modal/drawer
-   is open (see there for why plain overflow:hidden isn't enough on iOS).
-   That breaks position:sticky descendants - the app header has nothing
-   left to stick against once its scrolling ancestor stops scrolling, and
-   just renders at its true (now off-screen) document position. Switching
-   it to position:fixed for the lock's duration keeps it viewport-anchored
-   instead, matching the drawer/bottom-nav/CTA button, which are already
-   fixed. */
-body.scroll-locked .app-header {
-  position: fixed;
-  top: 0;
-  right: 0;
-  left: 0;
-}
-
 /* Stays scrollable, just never shows a scrollbar track/thumb - so an
    overflowing block never has to reserve or lose width to one. */
 .scrollbar-hide {

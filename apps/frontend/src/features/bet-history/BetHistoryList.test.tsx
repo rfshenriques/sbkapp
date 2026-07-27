@@ -7,7 +7,6 @@ import { useAuthStore } from '../auth/authStore';
 import { useAuthModalStore } from '../auth/authModalStore';
 import type { PlacedBet } from '../../lib/backendApi';
 import { BetHistoryList, type BetHistoryFilter } from './BetHistoryList';
-import { useBetDetailModalStore } from './betDetailModalStore';
 
 function buildBet(overrides: Partial<PlacedBet> = {}): PlacedBet {
   return {
@@ -62,7 +61,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  useBetDetailModalStore.setState({ betId: null });
 });
 
 describe('BetHistoryList', () => {
@@ -94,26 +92,12 @@ describe('BetHistoryList', () => {
 
     renderList();
 
-    expect(await screen.findByText('Arsenal')).toBeInTheDocument();
-    expect(screen.getByText('Chelsea')).toBeInTheDocument();
+    expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Match Result')).toBeInTheDocument();
     expect(screen.getByText('OPEN')).toBeInTheDocument();
     expect(screen.getByText('Potential payout')).toBeInTheDocument();
     expect(screen.getByText('€20.00')).toBeInTheDocument();
-  });
-
-  it('opens the bet detail modal with this bet\'s id when "View details" is clicked', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(new Response(JSON.stringify([buildBet({ id: 'bet-42' })]), { status: 200 })),
-    );
-
-    renderList();
-    await screen.findByText('Arsenal');
-    await userEvent.click(screen.getByRole('button', { name: 'View details' }));
-
-    expect(useBetDetailModalStore.getState().betId).toBe('bet-42');
   });
 
   it('shows the settled payout instead of "potential" for a settled bet', async () => {
@@ -179,6 +163,48 @@ describe('BetHistoryList', () => {
     expect(screen.queryByText('Freebet')).not.toBeInTheDocument();
   });
 
+  it('shares a rendered bet image via the Web Share API when Share is clicked', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify([buildBet({ status: 'WON', settledPayoutCents: 2000 })]), { status: 200 })),
+    );
+    const fakeContext = {
+      scale: vi.fn(),
+      fillRect: vi.fn(),
+      beginPath: vi.fn(),
+      moveTo: vi.fn(),
+      lineTo: vi.fn(),
+      arcTo: vi.fn(),
+      arc: vi.fn(),
+      closePath: vi.fn(),
+      fill: vi.fn(),
+      stroke: vi.fn(),
+      fillText: vi.fn(),
+      measureText: vi.fn(() => ({ width: 40 })),
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+      font: '',
+      textAlign: 'left',
+      textBaseline: 'alphabetic',
+    };
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(fakeContext as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, 'toBlob').mockImplementation(function (
+      this: HTMLCanvasElement,
+      callback: BlobCallback,
+    ) {
+      callback(new Blob(['fake-png'], { type: 'image/png' }));
+    });
+    const share = vi.fn().mockResolvedValue(undefined);
+    const canShare = vi.fn().mockReturnValue(true);
+    vi.stubGlobal('navigator', { ...navigator, share, canShare });
+
+    renderList();
+    await userEvent.click(await screen.findByRole('button', { name: /share/i }));
+
+    expect(share).toHaveBeenCalledWith(expect.objectContaining({ files: expect.any(Array) }));
+  });
+
   it('shows the pre-insurance payout struck through next to the insured one', async () => {
     const insuredBet = buildBet({ insuranceCostPercent: 10, potentialPayoutCents: 1800 });
     vi.stubGlobal(
@@ -228,11 +254,11 @@ describe('BetHistoryList', () => {
     renderList();
 
     expect(await screen.findByText('Home')).toBeInTheDocument();
-    expect(screen.getByText('Arsenal')).toBeInTheDocument();
+    expect(screen.getByText('Arsenal vs Chelsea')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /show selections/i })).not.toBeInTheDocument();
   });
 
-  it('collapses an accumulator by default, hiding per-selection detail until expanded', async () => {
+  it('toggles an accumulator\'s per-selection detail via the Show/Hide selections control', async () => {
     const accaBet = buildBet({
       id: 'acca',
       selections: [
@@ -255,11 +281,15 @@ describe('BetHistoryList', () => {
     renderList();
 
     expect(await screen.findByText('Accumulator (2)')).toBeInTheDocument();
-    expect(screen.queryByText('Home')).not.toBeInTheDocument();
-    expect(screen.queryByText('Away')).not.toBeInTheDocument();
+    // The leg list animates open/closed (see the grid-rows trick in
+    // BetHistoryList) rather than mounting/unmounting, so it's always in the
+    // document - collapsed state is asserted via aria-expanded instead of
+    // absence from the DOM.
+    expect(screen.getByRole('button', { name: 'Show selections' })).toHaveAttribute('aria-expanded', 'false');
 
     await userEvent.click(screen.getByRole('button', { name: 'Show selections' }));
 
+    expect(screen.getByRole('button', { name: 'Hide selections' })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByText('Home')).toBeInTheDocument();
     expect(screen.getByText('Arsenal vs Chelsea')).toBeInTheDocument();
     expect(screen.getByText('Away')).toBeInTheDocument();
@@ -267,7 +297,7 @@ describe('BetHistoryList', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Hide selections' }));
 
-    expect(screen.queryByText('Home')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Show selections' })).toHaveAttribute('aria-expanded', 'false');
   });
 
   it('shows which campaign a bet qualified for, and its reward amount', async () => {

@@ -4,29 +4,10 @@ import { ClockIcon, FreebetBadgeIcon, ShareIcon } from '../../components/ui/NavI
 import { OddsBadge } from '../../components/ui/OddsBadge';
 import { betStatusBadgeClasses, betStatusLabel, betStatusTextClasses } from '../../lib/betStatus';
 import type { PlacedBet, PlacedBetSelection } from '../../lib/backendApi';
+import { displayedPayoutCents, formatEuros, uninsuredPayoutCents, unboostedCombinedOdds } from './betMoney';
+import { shareBetImage } from './shareBetImage';
 
-export function formatEuros(cents: number): string {
-  return `€${(cents / 100).toFixed(2)}`;
-}
-
-/**
- * combinedOdds/potentialPayoutCents already have any acca boost/insurance
- * baked in as of placement time (see PamService.placeBet) - the
- * pre-boost/pre-insurance values are re-derived here rather than stored
- * redundantly, same "recompute, don't trust a stored derived value"
- * convention PamService.settleSelection itself follows.
- */
-export function unboostedCombinedOdds(bet: PlacedBet): number {
-  return Number(bet.combinedOdds) / (1 + bet.accaBoostPercent / 100);
-}
-
-export function displayedPayoutCents(bet: PlacedBet): number {
-  return bet.status === 'PENDING' ? bet.potentialPayoutCents : (bet.settledPayoutCents ?? 0);
-}
-
-export function uninsuredPayoutCents(bet: PlacedBet): number {
-  return Math.round(displayedPayoutCents(bet) / (1 - bet.insuranceCostPercent / 100));
-}
+export { displayedPayoutCents, formatEuros, uninsuredPayoutCents, unboostedCombinedOdds } from './betMoney';
 
 export function BetTag({ children }: { children: ReactNode }) {
   return (
@@ -76,21 +57,22 @@ function MatchInfoBox({ matchLabel }: { matchLabel: string }) {
 }
 
 /**
- * oddsVariant 'badge' is only for a single (non-accumulator) bet's own odds
- * - the highlight pill from the bet-placed confirmation modal, reused here
- * as that bet's headline price (see BetSelectionsList). A leg inside an
- * expanded accumulator always stays 'plain' - only the one combined-odds
- * figure gets the badge treatment there (see BetFooterSummary).
+ * oddsVariant 'badge' is only for the full-screen "receipt" view (see
+ * BetSelectionsList, used by WinCelebrationModal) - the highlight pill from
+ * the bet-placed confirmation modal, reused there as a single bet's
+ * headline price. Every other context (an accumulator leg, or a bet-history
+ * card - see SelectionLegRow) stays 'plain'; the one combined-odds figure
+ * gets the badge treatment instead (see BetFooterSummary).
  *
  * `dense` drops the bordered MatchInfoBox in favor of a single muted text
- * line - the boxed match-info row reads fine as the sole selection on a
- * single-bet card or in the dedicated full-screen receipt (BetDetailModal/
- * WinCelebrationModal), but repeated once per leg inside an inline
- * accumulator accordion (see BetHistoryList's BetCard) it turned every leg
- * into its own floating mini-card, with no visual link between them. Dense
- * rows are meant to sit inside one shared bordered/divided container instead
- * (see BetCard's expanded-legs list) so the whole accumulator reads as one
- * connected list.
+ * line - the boxed match-info row reads fine in the dedicated full-screen
+ * receipt, but repeated once per leg inside an inline accumulator accordion
+ * (see BetHistoryList's BetCard) it turned every leg into its own floating
+ * mini-card, with no visual link between them. Dense rows are meant to sit
+ * inside one shared bordered/divided container instead (see
+ * SelectionLegList) so a bet history card reads as one connected list,
+ * whether it's a single bet's lone selection or an accumulator's full leg
+ * list.
  */
 export function SelectionRow({
   selection,
@@ -123,6 +105,36 @@ export function SelectionRow({
       ) : (
         <MatchInfoBox matchLabel={selection.matchLabel} />
       )}
+    </div>
+  );
+}
+
+/**
+ * One leg's row inside a bordered/divided list - dot, dense SelectionRow.
+ * Used identically for every leg of an expanded accumulator (see
+ * BetHistoryList's BetCard) and for a single (non-accumulator) bet's own
+ * lone selection, so a single bet reads as visually identical to one leg of
+ * an accumulator rather than getting its own separate treatment (badge
+ * odds, boxed match info) the way it used to.
+ */
+export function SelectionLegRow({ selection }: { selection: PlacedBetSelection }) {
+  return (
+    <div className="flex items-start gap-2 p-2.5">
+      <SelectionStatusDot status={selection.status} />
+      <div className="min-w-0 flex-1">
+        <SelectionRow selection={selection} dense />
+      </div>
+    </div>
+  );
+}
+
+/** A bordered, internally-divided container of SelectionLegRows - one shared shape for a single bet's lone selection and an expanded accumulator's full leg list. */
+export function SelectionLegList({ selections }: { selections: PlacedBetSelection[] }) {
+  return (
+    <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+      {selections.map((selection) => (
+        <SelectionLegRow key={selection.id} selection={selection} />
+      ))}
     </div>
   );
 }
@@ -266,7 +278,18 @@ function shareTextForBet(bet: PlacedBet): string {
   return `My bet on ${selection.selectionName} (${selection.marketName}) ${outcome} - stake ${formatEuros(bet.stakeCents)} at odds ${Number(selection.odds).toFixed(2)}${bet.status === 'WON' ? `, payout ${formatEuros(payoutCents)}` : ''}.`;
 }
 
-/** Settled-bet-only share action - Web Share API with a clipboard fallback, same pattern as BetPlacedModal's own Share button. Omitted for a still-PENDING bet, matching the reference (which shows Cashout, not Share, for an open bet - we have neither a real cashout feature to build, so that slot is simply empty for an open bet). */
+/**
+ * Settled-bet-only share action - renders the bet as an image (see
+ * shareBetImage.ts) and shares that via the Web Share API's file support,
+ * falling back to downloading the PNG when the browser can't share files
+ * directly (most desktop browsers), and to the old text-only Web
+ * Share/clipboard flow if image generation itself fails for any reason
+ * (defensive - canvas support is effectively universal, but never worth a
+ * broken Share button over). Omitted for a still-PENDING bet, matching the
+ * reference (which shows Cashout, not Share, for an open bet - we have
+ * neither a real cashout feature to build, so that slot is simply empty for
+ * an open bet).
+ */
 export function ShareBetButton({ bet }: { bet: PlacedBet }) {
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -274,7 +297,7 @@ export function ShareBetButton({ bet }: { bet: PlacedBet }) {
     return null;
   }
 
-  async function handleShare() {
+  async function shareAsText() {
     const text = shareTextForBet(bet);
     if (navigator.share) {
       try {
@@ -291,6 +314,17 @@ export function ShareBetButton({ bet }: { bet: PlacedBet }) {
       } catch {
         // Best-effort only.
       }
+    }
+  }
+
+  async function handleShare() {
+    try {
+      const result = await shareBetImage(bet, shareTextForBet(bet));
+      if (result === 'downloaded') {
+        setFeedback('Image saved - share it from your downloads');
+      }
+    } catch {
+      await shareAsText();
     }
   }
 
@@ -343,7 +377,7 @@ export function BetSelectionsList({ bet }: { bet: PlacedBet }) {
   );
 }
 
-/** The full bet "receipt" - header, every selection, campaign/rollback notes, footer summary, share, ref/date. Shared by BetDetailModal and step 2 of WinCelebrationModal so the two never drift apart. */
+/** The full bet "receipt" - header, every selection, campaign/rollback notes, footer summary, share, ref/date. Used by step 2 of WinCelebrationModal. */
 export function BetReceipt({ bet }: { bet: PlacedBet }) {
   return (
     <div className="space-y-3">

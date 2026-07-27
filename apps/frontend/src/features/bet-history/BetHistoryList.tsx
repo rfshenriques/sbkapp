@@ -3,6 +3,7 @@ import { Card } from '../../components/ui/Card';
 import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { cn } from '../../lib/cn';
 import type { PlacedBet } from '../../lib/backendApi';
 import { useAuth } from '../auth/useAuth';
 import { useAuthModalStore } from '../auth/authModalStore';
@@ -11,11 +12,10 @@ import {
   BetCampaignNotes,
   BetFooterSummary,
   BetReferenceFooter,
-  SelectionRow,
+  SelectionLegList,
   SelectionStatusDot,
   ShareBetButton,
 } from './betCardShared';
-import { useBetDetailModalStore } from './betDetailModalStore';
 import { sortBetsForHistory } from './sortBetsForHistory';
 import { useBets } from './useBets';
 
@@ -24,7 +24,6 @@ export type BetHistoryFilter = 'OPEN' | 'WON' | 'FINISHED';
 function BetCard({ bet }: { bet: PlacedBet }) {
   const isAccumulator = bet.selections.length > 1;
   const [isExpanded, setIsExpanded] = useState(false);
-  const openDetail = useBetDetailModalStore((state) => state.open);
 
   return (
     <Card className="space-y-2">
@@ -48,39 +47,28 @@ function BetCard({ bet }: { bet: PlacedBet }) {
               <ChevronIcon width={14} height={14} className={isExpanded ? 'rotate-180' : ''} />
             </span>
           </button>
-          {isExpanded && (
-            <div className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-              {bet.selections.map((selection) => (
-                <div key={selection.id} className="flex items-start gap-2 p-2.5">
-                  <SelectionStatusDot status={selection.status} />
-                  <div className="min-w-0 flex-1">
-                    <SelectionRow selection={selection} dense />
-                  </div>
-                </div>
-              ))}
+          {/* grid-rows 0fr->1fr trick (same one BetSlipPanel's insurance
+              toggle uses) - the only way to animate to/from an intrinsic
+              ("auto") height with a plain CSS transition, since the leg
+              list's height depends on how many selections the bet has. */}
+          <div
+            className={cn(
+              'mt-3 grid transition-[grid-template-rows] duration-300 ease-out',
+              isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+            )}
+          >
+            <div className="overflow-hidden">
+              <SelectionLegList selections={bet.selections} />
             </div>
-          )}
+          </div>
         </div>
       ) : (
-        <div className="space-y-1">
-          {bet.selections.map((selection) => (
-            <SelectionRow key={selection.id} selection={selection} oddsVariant="badge" />
-          ))}
-        </div>
+        <SelectionLegList selections={bet.selections} />
       )}
 
       <BetCampaignNotes bet={bet} />
       <BetFooterSummary bet={bet} />
       <ShareBetButton bet={bet} />
-
-      <button
-        type="button"
-        onClick={() => openDetail(bet.id)}
-        className="w-full text-center text-xs font-semibold text-text-secondary hover:text-text-primary"
-      >
-        View details
-      </button>
-
       <BetReferenceFooter bet={bet} />
     </Card>
   );

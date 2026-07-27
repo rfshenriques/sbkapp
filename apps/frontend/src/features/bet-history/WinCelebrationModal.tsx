@@ -7,8 +7,8 @@ import { useWinCelebrationStore } from './winCelebrationStore';
 /**
  * Two-step full-screen moment triggered by useWinCelebrationDetector right
  * after a bet flips to WON: step 1 is a plain congratulations + the amount
- * won, step 2 hands off to the same BetReceipt used by BetDetailModal so
- * the two views never show different numbers for the same bet.
+ * won, step 2 hands off to the shared BetReceipt "receipt" view so this
+ * never shows different numbers than the rest of the app for the same bet.
  */
 export function WinCelebrationModal() {
   const betId = useWinCelebrationStore((state) => state.betId);

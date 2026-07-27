@@ -41,27 +41,38 @@ const DISPLAY_LABEL: Record<'pending' | 'won' | 'lost' | 'void', string> = {
   void: 'VOID',
 };
 
+export type BetStatusCategory = 'pending' | 'won' | 'lost' | 'void' | 'insured';
+
 /**
  * A LOST bet that was insured (bet.insuranceCostPercent > 0 - see
  * PamService.settleSelection's INSURANCE_BET grant) isn't a real loss to the
- * player - the stake comes back as a freebet - so it gets the fixed
- * --color-insured treatment instead of reading as a plain price-down loss.
- * Only ever applies at bet level (insurance is a whole-bet opt-in, never
- * per-selection), so callers pass `insured` only for a bet's own status, not
- * an individual leg's.
+ * player - the stake comes back as a freebet - so it gets its own category
+ * (the fixed --color-insured treatment) instead of reading as a plain
+ * price-down loss. Only ever applies at bet level (insurance is a
+ * whole-bet opt-in, never per-selection), so callers pass `insured` only
+ * for a bet's own status, not an individual leg's. The single source of
+ * truth for every other status->color mapping in this file, including the
+ * canvas-based share image (see shareBetImage.ts), which can't use Tailwind
+ * classes and needs the raw color instead.
  */
-export function betStatusBadgeClasses(status: BetStatus | SelectionStatus, insured = false): string {
+export function betStatusCategory(status: BetStatus | SelectionStatus, insured = false): BetStatusCategory {
   if (insured && STATUS_KEY[status] === 'lost') {
-    return 'bg-insured/20 text-insured';
+    return 'insured';
   }
-  return BADGE_CLASSES[STATUS_KEY[status]];
+  return STATUS_KEY[status];
+}
+
+const INSURED_BADGE_CLASSES = 'bg-insured/20 text-insured';
+const INSURED_TEXT_CLASSES = 'text-insured';
+
+export function betStatusBadgeClasses(status: BetStatus | SelectionStatus, insured = false): string {
+  const category = betStatusCategory(status, insured);
+  return category === 'insured' ? INSURED_BADGE_CLASSES : BADGE_CLASSES[category];
 }
 
 export function betStatusTextClasses(status: BetStatus | SelectionStatus, insured = false): string {
-  if (insured && STATUS_KEY[status] === 'lost') {
-    return 'text-insured';
-  }
-  return TEXT_CLASSES[STATUS_KEY[status]];
+  const category = betStatusCategory(status, insured);
+  return category === 'insured' ? INSURED_TEXT_CLASSES : TEXT_CLASSES[category];
 }
 
 export function betStatusLabel(status: BetStatus | SelectionStatus): string {

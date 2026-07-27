@@ -7,7 +7,6 @@ import { BetPlacedModal } from '../features/bet-slip/BetPlacedModal';
 import { useBetPlacedModalStore } from '../features/bet-slip/betPlacedModalStore';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { invalidAccumulatorReason } from '../features/bet-slip/accumulatorValidity';
-import { BetDetailModal } from '../features/bet-history/BetDetailModal';
 import { useWinCelebrationDetector } from '../features/bet-history/useWinCelebrationDetector';
 import { WinCelebrationModal } from '../features/bet-history/WinCelebrationModal';
 import { useBrandTheme } from '../features/brand/useBrandTheme';
@@ -68,6 +67,25 @@ export function AppShell() {
   const navigate = useNavigate();
   const location = useLocation();
   const touchStartRef = useRef<{ x: number; y: number; skip: boolean } | null>(null);
+
+  // The header is position:fixed (see below) so it never scrolls away, even
+  // mid-momentum-scroll on iOS - unlike position:sticky it can't ever detach
+  // from the top edge. Fixed removes it from normal document flow though, so
+  // a spacer of the same height has to hold its place, otherwise page
+  // content would render underneath it. Measured via ResizeObserver rather
+  // than a hardcoded height - the header's own content (brand logo vs text,
+  // wallet balance pills, auth buttons) can change without warning.
+  const headerRef = useRef<HTMLElement>(null);
+  const [headerHeight, setHeaderHeight] = useState(0);
+  useEffect(() => {
+    const header = headerRef.current;
+    if (!header) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setHeaderHeight(entry.contentRect.height);
+    });
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
 
   const brandName = brandQuery.data?.name ?? 'Sportsbook';
   const combinedOdds = selections.reduce((total, selection) => total * selection.odds, 1);
@@ -185,7 +203,10 @@ export function AppShell() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <header className="app-header sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur">
+      <header
+        ref={headerRef}
+        className="app-header fixed inset-x-0 top-0 z-30 border-b border-border bg-background/90 backdrop-blur"
+      >
         <div className="mx-auto grid max-w-[1680px] grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3">
           <NavLink to="/" className="flex shrink-0 items-center gap-2">
             {brandQuery.data?.logoUrl ? (
@@ -269,6 +290,7 @@ export function AppShell() {
           </div>
         </div>
       </header>
+      <div style={{ height: headerHeight }} aria-hidden="true" />
 
       <div className="mx-auto flex max-w-[1680px] gap-4 p-4">
         {/* Desktop: sports navigation is a persistent left column, same
@@ -433,7 +455,6 @@ export function AppShell() {
       <DepositModal />
       <InsufficientFundsModal />
       <PasskeyEnrollmentModal />
-      <BetDetailModal />
       <WinCelebrationModal />
       <BetPlacedModal />
 

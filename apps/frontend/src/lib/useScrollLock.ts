@@ -26,13 +26,6 @@ export function useScrollLock(active: boolean) {
     body.style.top = `-${scrollY}px`;
     body.style.width = '100%';
     body.style.overflow = 'hidden';
-    // Pinning the body itself takes it out of normal scrolling, which
-    // breaks any position:sticky descendant (the app header) - sticky has
-    // nothing left to "stick" against and just renders at its true
-    // document position, off-screen above the now-shifted body. This class
-    // lets index.css switch the header to position:fixed for the lock's
-    // duration, so it stays viewport-anchored like the drawer/nav already
-    // are (see the .app-header rule).
     body.classList.add('scroll-locked');
 
     return () => {
