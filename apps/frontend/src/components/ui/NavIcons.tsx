@@ -110,16 +110,16 @@ export function WalletIcon(props: IconProps) {
 /**
  * Freebets balance - a solid circular badge with a bold italic "F", distinct
  * from the plain-stroke wallet icon used for cash. Unlike the other icons
- * here it's filled, not stroke-only, and always fills with --color-highlight
- * directly (this is a general accent/status indicator, not a CTA, so it
- * never uses --color-brand) rather than taking a color via `currentColor`.
- * Ring/letter are fixed white rather than auto-picked per-brand contrast -
- * chosen after comparing options directly against this brand's highlight.
+ * here it's filled, not stroke-only, and fills with --color-brand directly
+ * (an explicit, deliberate exception to the brand-color-is-CTA-only
+ * convention elsewhere in this codebase - chosen after comparing options
+ * directly) rather than taking a color via `currentColor`. Ring/letter are
+ * fixed white rather than auto-picked per-brand contrast, same reasoning.
  */
 export function FreebetBadgeIcon(props: IconProps) {
   return (
     <svg viewBox="0 0 20 20" {...props}>
-      <circle cx="10" cy="10" r="9" fill="var(--color-highlight)" />
+      <circle cx="10" cy="10" r="9" fill="var(--color-brand)" />
       <circle cx="10" cy="10" r="9" fill="none" stroke="white" strokeWidth="1.3" />
       <text x="10" y="14" textAnchor="middle" fontSize="10.5" fontWeight="800" fontStyle="italic" fill="white">
         F
