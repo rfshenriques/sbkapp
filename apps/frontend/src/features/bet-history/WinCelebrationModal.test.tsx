@@ -83,7 +83,8 @@ describe('WinCelebrationModal', () => {
     await screen.findByText('Congratulations!');
     await userEvent.click(screen.getByRole('button', { name: 'See bet' }));
 
-    expect(screen.getByText('Arsenal vs Chelsea')).toBeInTheDocument();
+    expect(screen.getByText('Arsenal')).toBeInTheDocument();
+    expect(screen.getByText('Chelsea')).toBeInTheDocument();
     expect(screen.queryByText('Congratulations!')).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Done' })).toBeInTheDocument();
   });

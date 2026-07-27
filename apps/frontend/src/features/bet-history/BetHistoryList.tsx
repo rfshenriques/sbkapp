@@ -7,11 +7,13 @@ import type { PlacedBet } from '../../lib/backendApi';
 import { useAuth } from '../auth/useAuth';
 import { useAuthModalStore } from '../auth/authModalStore';
 import {
-  BetBadgesRow,
+  BetCardHeader,
   BetCampaignNotes,
   BetFooterSummary,
+  BetReferenceFooter,
   SelectionRow,
   SelectionStatusDot,
+  ShareBetButton,
 } from './betCardShared';
 import { useBetDetailModalStore } from './betDetailModalStore';
 import { sortBetsForHistory } from './sortBetsForHistory';
@@ -26,17 +28,7 @@ function BetCard({ bet }: { bet: PlacedBet }) {
 
   return (
     <Card className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <BetBadgesRow bet={bet} />
-        <span className="text-xs text-text-muted">
-          {new Date(bet.createdAt).toLocaleString(undefined, {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-          })}
-        </span>
-      </div>
+      <BetCardHeader bet={bet} />
 
       {isAccumulator ? (
         <div>
@@ -74,6 +66,7 @@ function BetCard({ bet }: { bet: PlacedBet }) {
 
       <BetCampaignNotes bet={bet} />
       <BetFooterSummary bet={bet} />
+      <ShareBetButton bet={bet} />
 
       <button
         type="button"
@@ -82,6 +75,8 @@ function BetCard({ bet }: { bet: PlacedBet }) {
       >
         View details
       </button>
+
+      <BetReferenceFooter bet={bet} />
     </Card>
   );
 }

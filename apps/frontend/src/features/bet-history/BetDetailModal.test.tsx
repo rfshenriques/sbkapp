@@ -71,8 +71,10 @@ describe('BetDetailModal', () => {
     renderModal();
 
     expect(await screen.findByText('Bet details')).toBeInTheDocument();
-    expect(screen.getByText('Arsenal vs Chelsea')).toBeInTheDocument();
-    expect(screen.getByText('Payout €20.00')).toBeInTheDocument();
+    expect(screen.getByText('Arsenal')).toBeInTheDocument();
+    expect(screen.getByText('Chelsea')).toBeInTheDocument();
+    expect(screen.getByText('Payout')).toBeInTheDocument();
+    expect(screen.getByText('€20.00')).toBeInTheDocument();
   });
 
   it('closes when the close button is clicked', async () => {

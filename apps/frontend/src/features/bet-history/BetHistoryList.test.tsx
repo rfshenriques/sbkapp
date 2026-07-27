@@ -92,10 +92,13 @@ describe('BetHistoryList', () => {
 
     renderList();
 
-    expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
-    expect(screen.getByText(/Match Result: Home/)).toBeInTheDocument();
+    expect(await screen.findByText('Arsenal')).toBeInTheDocument();
+    expect(screen.getByText('Chelsea')).toBeInTheDocument();
+    expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(screen.getByText('Match Result')).toBeInTheDocument();
     expect(screen.getByText('OPEN')).toBeInTheDocument();
-    expect(screen.getByText('Potential €20.00')).toBeInTheDocument();
+    expect(screen.getByText('Potential payout')).toBeInTheDocument();
+    expect(screen.getByText('€20.00')).toBeInTheDocument();
   });
 
   it('opens the bet detail modal with this bet\'s id when "View details" is clicked', async () => {
@@ -105,7 +108,7 @@ describe('BetHistoryList', () => {
     );
 
     renderList();
-    await screen.findByText('Arsenal vs Chelsea');
+    await screen.findByText('Arsenal');
     await userEvent.click(screen.getByRole('button', { name: 'View details' }));
 
     expect(useBetDetailModalStore.getState().betId).toBe('bet-42');
@@ -120,7 +123,8 @@ describe('BetHistoryList', () => {
 
     renderList();
 
-    expect(await screen.findByText('Payout €19.50')).toBeInTheDocument();
+    expect(await screen.findByText('Payout')).toBeInTheDocument();
+    expect(screen.getByText('€19.50')).toBeInTheDocument();
   });
 
   it('lists open bets before settled ones', async () => {
@@ -221,7 +225,8 @@ describe('BetHistoryList', () => {
 
     renderList();
 
-    expect(await screen.findByText('Arsenal vs Chelsea')).toBeInTheDocument();
+    expect(await screen.findByText('Home')).toBeInTheDocument();
+    expect(screen.getByText('Arsenal')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /show selections/i })).not.toBeInTheDocument();
   });
 
@@ -248,17 +253,19 @@ describe('BetHistoryList', () => {
     renderList();
 
     expect(await screen.findByText('Accumulator (2)')).toBeInTheDocument();
-    expect(screen.queryByText('Arsenal vs Chelsea')).not.toBeInTheDocument();
-    expect(screen.queryByText('Liverpool vs Man City')).not.toBeInTheDocument();
+    expect(screen.queryByText('Home')).not.toBeInTheDocument();
+    expect(screen.queryByText('Away')).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Show selections' }));
 
-    expect(screen.getByText('Arsenal vs Chelsea')).toBeInTheDocument();
-    expect(screen.getByText('Liverpool vs Man City')).toBeInTheDocument();
+    expect(screen.getByText('Home')).toBeInTheDocument();
+    expect(screen.getByText('Arsenal')).toBeInTheDocument();
+    expect(screen.getByText('Away')).toBeInTheDocument();
+    expect(screen.getByText('Liverpool')).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Hide selections' }));
 
-    expect(screen.queryByText('Arsenal vs Chelsea')).not.toBeInTheDocument();
+    expect(screen.queryByText('Home')).not.toBeInTheDocument();
   });
 
   it('shows which campaign a bet qualified for', async () => {
