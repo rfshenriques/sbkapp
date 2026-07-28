@@ -352,7 +352,16 @@ export function AppShell() {
             the sport/country/competition tree and Top Competitions list
             need more room to stay readable than the compact bet slip does. */}
         <aside className="hidden sm:block sm:w-96 sm:shrink-0">
-          <div className="scrollbar-hide sticky top-16 max-h-[calc(100vh-4.5rem)] overflow-y-auto rounded-2xl border border-border bg-surface p-4">
+          {/* h-full (not just max-h) so this stretches to match the row's
+              tallest column (usually main) instead of collapsing to its own
+              content height - without it, a short main content area (or a
+              short sports tree) left this looking like a stubby box with
+              dead page background beneath it rather than a full column.
+              min-h-0 stops the flex item's default content-based min-height
+              from fighting the max-h cap, which would otherwise force the
+              whole row (and page) taller than the viewport again - the
+              exact bug the max-h switch above already fixed once. */}
+          <div className="scrollbar-hide sticky top-16 h-full max-h-[calc(100vh-4.5rem)] min-h-0 overflow-y-auto rounded-2xl border border-border bg-surface p-4">
             <Sidebar />
           </div>
         </aside>
@@ -367,17 +376,18 @@ export function AppShell() {
 
         {/* Desktop: the bet slip is always visible on the right, not a
             click-to-open drawer - the mobile drawer below is sm:hidden so
-            the two never coexist. max-h (not a fixed h-) so the empty
-            promotional state still gets room to center itself on pages tall
-            enough to reach the viewport cap, same as the Sidebar aside above
-            - a fixed height here used to force every page (even a bare 404)
-            to be viewport-tall, pushing Footer below the fold regardless of
-            how little the page actually had to show. BetSlipPanel owns its
-            own scroll region and keeps the stake/payout calculator fixed at
-            the bottom - this wrapper just gives it a bounded height to work
+            the two never coexist. h-full + max-h (not a fixed h-) so
+            BetSlipPanel's "promotional" empty state - which is built as a
+            full-height, CTA-driven layout (see its own h-full min-h-0 root,
+            BetSlipPanel.tsx) - actually gets a parent with a definite height
+            to fill and center within, capped at the viewport so a very tall
+            column can't push the whole page (and Footer) past the fold the
+            way a fixed height here used to. BetSlipPanel owns its own
+            scroll region and keeps the stake/payout calculator fixed at the
+            bottom - this wrapper just gives it a bounded height to work
             within, no overflow of its own. */}
         <aside className="hidden sm:block sm:w-80 sm:shrink-0">
-          <div className="sticky top-16 flex max-h-[calc(100vh-4.5rem)] flex-col rounded-2xl border border-border bg-surface p-4">
+          <div className="sticky top-16 flex h-full max-h-[calc(100vh-4.5rem)] min-h-0 flex-col rounded-2xl border border-border bg-surface p-4">
             <BetSlipPanel showHistoryTab emptyStateVariant="promotional" />
           </div>
         </aside>
