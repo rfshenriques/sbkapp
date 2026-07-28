@@ -18,6 +18,7 @@ import { PromoCardTile } from '../features/promo-cards/PromoCardTile';
 import { usePromoCards } from '../features/promo-cards/usePromoCards';
 import { useHomepageCarouselConfig } from '../features/promo-cards/useHomepageCarouselConfig';
 import { useTeamColors } from '../features/odds-board/useTeamColors';
+import { fallbackTeamColor } from '../lib/fallbackTeamColor';
 import { formatKickoff } from '../lib/formatKickoff';
 import { sortSportsByPriority } from '../lib/sportPriority';
 import { staggerDelay } from '../lib/staggerDelay';
@@ -33,16 +34,13 @@ function initials(name: string): string {
   return (words[0]![0]! + words[1]![0]!).toUpperCase();
 }
 
-/** Circular initials badge - fills with the team's admin-assigned color (see Team Colors backoffice) when there is one, a neutral surface otherwise rather than guessing one. */
-function TeamBadge({ name, colorHex }: { name: string; colorHex: string | undefined }) {
+/** Circular initials badge - fills with the team's admin-assigned color (see Team Colors backoffice) when there is one, a deterministic per-team fallback color otherwise. */
+function TeamBadge({ name, colorHex }: { name: string; colorHex: string }) {
   return (
     <span
       aria-hidden="true"
-      className={cn(
-        'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white sm:h-9 sm:w-9 sm:text-xs',
-        !colorHex && 'bg-surface-2',
-      )}
-      style={colorHex ? { backgroundColor: colorHex } : undefined}
+      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white sm:h-9 sm:w-9 sm:text-xs"
+      style={{ backgroundColor: colorHex }}
     >
       {initials(name)}
     </span>
@@ -124,7 +122,7 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
           >
             <span className="flex flex-col gap-3">
               <span className="flex items-center gap-3">
-                <TeamBadge name={homeTeamLabel} colorHex={teamColors.get(match.homeTeam)} />
+                <TeamBadge name={homeTeamLabel} colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)} />
                 <Link
                   to={href}
                   className="font-display text-base leading-tight font-bold hover:underline sm:text-lg"
@@ -134,7 +132,7 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
                 </Link>
               </span>
               <span className="flex items-center gap-3">
-                <TeamBadge name={awayTeamLabel} colorHex={teamColors.get(match.awayTeam)} />
+                <TeamBadge name={awayTeamLabel} colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)} />
                 <Link
                   to={href}
                   className="font-display text-base leading-tight font-bold hover:underline sm:text-lg"

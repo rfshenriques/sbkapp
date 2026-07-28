@@ -7,6 +7,7 @@ import { matchQueryKey } from '../match-detail/useMatch';
 import type { Match } from '@sportsbook/shared';
 import { stubOddsEngineFetch, TEST_BRAND_ID } from '../../test/mockOddsEngine';
 import { useBetSlipStore } from '../bet-slip/betSlipStore';
+import { fallbackTeamColor } from '../../lib/fallbackTeamColor';
 import { MatchCard } from './MatchCard';
 
 const baseMatch: Match = {
@@ -166,7 +167,7 @@ describe('MatchCard', () => {
     expect(await screen.findByText('Match detail page')).toBeInTheDocument();
   });
 
-  it('shows a colored edge marker only for teams with a backoffice-assigned color', async () => {
+  it('shows a colored edge marker for every team - the backoffice color when assigned, a deterministic fallback otherwise', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === '/backend/public/team-colors') {
@@ -180,11 +181,16 @@ describe('MatchCard', () => {
 
     const markers = await waitFor(() => {
       const found = container.querySelectorAll('[aria-hidden="true"][style*="background-color"]');
-      expect(found.length).toBeGreaterThan(0);
+      expect(found).toHaveLength(2);
       return found;
     });
-    expect(markers).toHaveLength(1);
-    expect(markers[0]).toHaveStyle({ backgroundColor: '#EF0107' });
+    // Both markers render immediately with a fallback color even before the
+    // team-colors fetch resolves, so wait for Arsenal's real assigned color
+    // specifically (same DOM node throughout - just its style updating)
+    // rather than just "some marker exists".
+    await waitFor(() => expect(markers[0]).toHaveStyle({ backgroundColor: '#EF0107' }));
+    // Chelsea (no backoffice color) keeps its deterministic fallback.
+    expect(markers[1]).toHaveStyle({ backgroundColor: fallbackTeamColor('Chelsea') });
   });
 
   it('does not navigate when clicking an odds button - only the selection toggles', async () => {

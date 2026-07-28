@@ -8,6 +8,7 @@ import { stubOddsEngineFetch, TEST_BRAND_ID } from '../test/mockOddsEngine';
 import { mockMatches } from '../mocks/matches';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { useBrandStore } from '../features/brand/brandStore';
+import { fallbackTeamColor } from '../lib/fallbackTeamColor';
 import OddsBoardPage from './OddsBoardPage';
 
 function buildMatch(overrides: Partial<Match> = {}): Match {
@@ -23,6 +24,15 @@ function buildMatch(overrides: Partial<Match> = {}): Match {
     markets: [],
     ...overrides,
   };
+}
+
+/** jsdom serializes an inline `backgroundColor: '#RRGGBB'` style as `rgb(r, g, b)` - convert to match against it in attribute selectors. */
+function hexToRgb(hex: string): string {
+  const value = hex.replace('#', '');
+  const r = parseInt(value.slice(0, 2), 16);
+  const g = parseInt(value.slice(2, 4), 16);
+  const b = parseInt(value.slice(4, 6), 16);
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 /** 13 Football matches (earliest overall, so one becomes "Featured") + 2 Ice Hockey. */
@@ -117,7 +127,7 @@ describe('OddsBoardPage', () => {
     expect(useBetSlipStore.getState().selections).toHaveLength(1);
   });
 
-  it('shows a colored edge marker on the featured card only for teams with a backoffice-assigned color', async () => {
+  it('shows a colored edge marker on the featured card for every team - the backoffice color when assigned, a deterministic fallback otherwise', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === `/backend/public/matches/${TEST_BRAND_ID}`) {
@@ -132,19 +142,31 @@ describe('OddsBoardPage', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    const { container } = renderPage();
+    renderPage();
 
-    await screen.findAllByRole('heading', { name: 'Real Madrid vs Barcelona' });
-    const markers = await waitFor(() => {
-      const found = container.querySelectorAll('[aria-hidden="true"][style*="background-color"]');
-      expect(found.length).toBeGreaterThan(0);
-      return found;
+    // The featured card's <h1> wraps both team badges directly - scoping to
+    // it (rather than the whole page) avoids counting some other match's
+    // marker that happens to land on the same fallback color by chance.
+    const headings = await screen.findAllByRole('heading', { name: 'Real Madrid vs Barcelona' });
+    // jsdom serializes inline colors as rgb(), not the hex they were set
+    // with - match on that instead of the literal hex string.
+    const realMadridRgb = hexToRgb('#FEBE10');
+    const barcelonaRgb = hexToRgb(fallbackTeamColor('Barcelona'));
+    // Every marker renders immediately with a fallback color even before
+    // the team-colors fetch resolves, so wait for Real Madrid's real
+    // assigned color specifically rather than just "some marker exists".
+    await waitFor(() => {
+      for (const heading of headings) {
+        expect(heading.querySelector(`[aria-hidden="true"][style*="${realMadridRgb}"]`)).toBeInTheDocument();
+      }
     });
-    // One marker per featured-card copy (mobile + desktop - see the comment
-    // in the test above).
-    expect(markers).toHaveLength(2);
-    expect(markers[0]).toHaveStyle({ backgroundColor: '#FEBE10' });
-    expect(markers[1]).toHaveStyle({ backgroundColor: '#FEBE10' });
+    // One marker per team per featured-card copy (mobile + desktop): Real
+    // Madrid's real assigned color, Barcelona's deterministic fallback (not
+    // left uncolored).
+    for (const heading of headings) {
+      expect(heading.querySelectorAll(`[aria-hidden="true"][style*="${realMadridRgb}"]`)).toHaveLength(1);
+      expect(heading.querySelectorAll(`[aria-hidden="true"][style*="${barcelonaRgb}"]`)).toHaveLength(1);
+    }
   });
 
   it('features the next-earliest match with a match-result market, without dropping the earliest one that lacks it', async () => {

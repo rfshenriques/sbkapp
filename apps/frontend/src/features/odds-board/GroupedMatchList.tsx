@@ -7,6 +7,7 @@ import { MarketSelections } from '../bet-slip/MarketSelections';
 import { useDisplayNames } from '../display-names/useDisplayNames';
 import { usePrefetchMatchDetail } from './usePrefetchMatchDetail';
 import { useTeamColors } from './useTeamColors';
+import { fallbackTeamColor } from '../../lib/fallbackTeamColor';
 import { formatKickoff } from '../../lib/formatKickoff';
 import type { Match } from '@sportsbook/shared';
 import type { SportGroup } from '../../lib/groupMatchesBySportAndCompetition';
@@ -52,13 +53,13 @@ function GroupedMatchRow({ match }: GroupedMatchRowProps) {
       >
         <div className="flex items-start gap-2">
           <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
-            <TeamColorAccent colorHex={teamColors.get(match.homeTeam)} />
+            <TeamColorAccent colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)} />
             <span className="min-w-0 text-center font-semibold">{homeTeamLabel}</span>
           </span>
           <span className="mt-0.5 shrink-0 text-xs font-bold text-text-muted tabular-nums">vs</span>
           <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
             <span className="min-w-0 text-center font-semibold">{awayTeamLabel}</span>
-            <TeamColorAccent colorHex={teamColors.get(match.awayTeam)} />
+            <TeamColorAccent colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)} />
           </span>
         </div>
         <p className="mt-1 text-center text-xs font-semibold text-highlight">

@@ -15,6 +15,7 @@ import { useLiveMatch } from '../features/match-detail/useLiveMatch';
 import { useMatch } from '../features/match-detail/useMatch';
 import { useMatches } from '../features/odds-board/useMatches';
 import { useTeamColors } from '../features/odds-board/useTeamColors';
+import { fallbackTeamColor } from '../lib/fallbackTeamColor';
 import { formatKickoff } from '../lib/formatKickoff';
 import { matchPeriodLabel } from '../lib/matchPeriodLabel';
 import type { Match } from '@sportsbook/shared';
@@ -28,35 +29,6 @@ function kickoffMeta(candidate: Match) {
   ) : (
     formatKickoff(new Date(candidate.kickoff))
   );
-}
-
-/**
- * A stand-in accent color for the header's team badges when no admin has
- * assigned that team a real one yet (see Team Colors backoffice) - without
- * this, the two-color layout only ever appeared for the handful of teams
- * someone had gotten around to coloring, and looked broken everywhere
- * else. Deterministic per team name (same team always gets the same
- * color), picked from a fixed brand-neutral palette rather than anything
- * resembling a real club color.
- */
-const FALLBACK_TEAM_COLORS = [
-  '#F87171',
-  '#FB923C',
-  '#FBBF24',
-  '#4ADE80',
-  '#2DD4BF',
-  '#38BDF8',
-  '#818CF8',
-  '#C084FC',
-  '#F472B6',
-];
-
-function fallbackTeamColor(name: string): string {
-  let hash = 0;
-  for (let index = 0; index < name.length; index += 1) {
-    hash = (hash * 31 + name.charCodeAt(index)) >>> 0;
-  }
-  return FALLBACK_TEAM_COLORS[hash % FALLBACK_TEAM_COLORS.length]!;
 }
 
 export default function MatchDetailPage() {
@@ -145,7 +117,7 @@ export default function MatchDetailPage() {
         segments={breadcrumbSegments}
         icon={
           <>
-            <BackButton className="-ml-1.5 shrink-0" />
+            <BackButton className="shrink-0" />
             <SportCountryBadge sport={match.sport} country={match.country} size={20} />
           </>
         }

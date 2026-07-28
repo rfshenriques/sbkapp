@@ -8,6 +8,7 @@ import { useDisplayNames } from '../display-names/useDisplayNames';
 import { usePrefetchMatchDetail } from './usePrefetchMatchDetail';
 import { useLiveMatch } from '../match-detail/useLiveMatch';
 import { useTeamColors } from './useTeamColors';
+import { fallbackTeamColor } from '../../lib/fallbackTeamColor';
 import { formatKickoff } from '../../lib/formatKickoff';
 import { matchPeriodLabel } from '../../lib/matchPeriodLabel';
 import type { Match } from '@sportsbook/shared';
@@ -74,14 +75,14 @@ export function MatchCard({ match, style }: MatchCardProps) {
               onClick={(event) => event.stopPropagation()}
             >
               <span className="flex items-center gap-1.5">
-                <TeamColorAccent colorHex={teamColors.get(match.homeTeam)} />
+                <TeamColorAccent colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)} />
                 <span className="min-w-0 flex-1 truncate font-semibold">{homeTeamLabel}</span>
                 <span className="shrink-0 font-display text-sm tabular-nums">
                   {liveState ? liveState.homeScore : '-'}
                 </span>
               </span>
               <span className="flex items-center gap-1.5">
-                <TeamColorAccent colorHex={teamColors.get(match.awayTeam)} />
+                <TeamColorAccent colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)} />
                 <span className="min-w-0 flex-1 truncate font-semibold">{awayTeamLabel}</span>
                 <span className="shrink-0 font-display text-sm tabular-nums">
                   {liveState ? liveState.awayScore : '-'}
@@ -99,13 +100,13 @@ export function MatchCard({ match, style }: MatchCardProps) {
               onClick={(event) => event.stopPropagation()}
             >
               <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
-                <TeamColorAccent colorHex={teamColors.get(match.homeTeam)} />
+                <TeamColorAccent colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)} />
                 <span className="min-w-0 truncate font-semibold">{homeTeamLabel}</span>
               </span>
               <span className="shrink-0 text-xs font-bold text-text-muted tabular-nums">vs</span>
               <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
                 <span className="min-w-0 truncate font-semibold">{awayTeamLabel}</span>
-                <TeamColorAccent colorHex={teamColors.get(match.awayTeam)} />
+                <TeamColorAccent colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)} />
               </span>
             </Link>
           )}
