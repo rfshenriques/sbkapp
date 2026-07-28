@@ -1,15 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { EmptyState } from '../components/ui/EmptyState';
 import { getMatchById } from '../lib/backendApi';
 import { useAuth } from '../features/auth/useAuth';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBrandStore } from '../features/brand/brandStore';
+import { useBetSlipSheetStore } from '../features/bet-slip/betSlipSheetStore';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { decodeSharedBetSelections } from '../features/bet-slip/sharedBetLink';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
-
-type Status = 'resolving' | 'done';
 
 /**
  * Landing page for a shared bet's deep link (see sharedBetLink.ts and
@@ -20,20 +19,22 @@ type Status = 'resolving' | 'done';
  * whose match/market/selection can no longer be found (settled, removed,
  * feed gone) is silently skipped rather than added half-broken. Requires
  * login first, same as placing any bet - a deep link is just a faster way to
- * fill the slip, not a way around auth. Stays mounted on this route through
- * the whole flow (unlike AuthDeepLink's immediate redirect) since it needs
- * to react to login completing before it can resolve anything.
+ * fill the slip, not a way around auth; the login sheet closes itself on
+ * success same as everywhere else (see LoginPage), and this effect then
+ * reacts to isAuthenticated flipping true to continue. Once resolved, opens
+ * the bet slip sheet directly and returns home - the slip itself, now
+ * showing what was just added, is the confirmation; no separate "N
+ * selections added" screen to click through first.
  */
 export default function SharedBetPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { isAuthenticated, isInitialized } = useAuth();
   const openAuthModal = useAuthModalStore((state) => state.open);
   const brandId = useBrandStore((state) => state.brandId);
   const addSelection = useBetSlipStore((state) => state.addSelection);
+  const openSlip = useBetSlipSheetStore((state) => state.open);
   const displayName = useDisplayNames();
-  const [status, setStatus] = useState<Status>('resolving');
-  const [addedCount, setAddedCount] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
   const hasResolvedRef = useRef(false);
   const hasPromptedLoginRef = useRef(false);
 
@@ -57,7 +58,6 @@ export default function SharedBetPage() {
 
     let cancelled = false;
     void (async () => {
-      let added = 0;
       for (const ref of refs) {
         const match = await getMatchById(brandId, ref.matchId).catch(() => undefined);
         const market = match?.markets.find((candidate) => candidate.id === ref.marketId);
@@ -77,19 +77,17 @@ export default function SharedBetPage() {
           maxStakeCents: selection.maxStakeCents ?? market.maxStakeCents,
           marketSinglesOnly: market.singlesOnly,
         });
-        added += 1;
       }
       if (!cancelled) {
-        setAddedCount(added);
-        setTotalCount(refs.length);
-        setStatus('done');
+        openSlip();
+        navigate('/', { replace: true });
       }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [refs, isInitialized, isAuthenticated, brandId, addSelection, displayName, openAuthModal]);
+  }, [refs, isInitialized, isAuthenticated, brandId, addSelection, displayName, openAuthModal, openSlip, navigate]);
 
   if (!refs) {
     return (
@@ -115,26 +113,5 @@ export default function SharedBetPage() {
     );
   }
 
-  if (status === 'resolving') {
-    return (
-      <EmptyState title="Adding selections…" description="Fetching today's odds for this bet." />
-    );
-  }
-
-  return (
-    <EmptyState
-      title={
-        addedCount === totalCount
-          ? `Added ${addedCount} selection${addedCount === 1 ? '' : 's'} to your bet slip`
-          : `Added ${addedCount} of ${totalCount} selections`
-      }
-      description={
-        addedCount < totalCount
-          ? `${totalCount - addedCount} selection${totalCount - addedCount === 1 ? '' : 's'} couldn't be added - it may no longer be available.`
-          : 'Open your bet slip to review and place it.'
-      }
-      ctaLabel="Continue"
-      ctaHref="/"
-    />
-  );
+  return <EmptyState title="Adding selections…" description="Fetching today's odds for this bet." />;
 }

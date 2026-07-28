@@ -5,6 +5,7 @@ import { LockIcon } from '../../components/ui/LockIcon';
 import { FreebetBadgeIcon, WalletIcon } from '../../components/ui/NavIcons';
 import * as backendApi from '../../lib/backendApi';
 import type { DepositResult } from '../../lib/backendApi';
+import { cn } from '../../lib/cn';
 import { formatRewardHeadline } from '../deposit-campaigns/DepositCampaignModal';
 import { useEligibleDepositCampaign } from '../deposit-campaigns/useEligibleDepositCampaign';
 import { freebetsQueryKey } from '../wallet/useFreebets';
@@ -42,6 +43,7 @@ export function DepositModal() {
 
   const amountCents = Math.round(Number(amount) * 100);
   const isValidAmount = Number.isFinite(amountCents) && amountCents > 0;
+  const meetsCampaignMinimum = Boolean(eligibleCampaign) && amountCents >= eligibleCampaign!.minDepositAmountCents;
 
   function handleClose() {
     close();
@@ -116,14 +118,39 @@ export function DepositModal() {
       ) : (
         <form id={DEPOSIT_FORM_ID} onSubmit={handleSubmit} className="space-y-6">
           {eligibleCampaign && (
-            <div className="flex items-center gap-3 rounded-xl border border-highlight/40 bg-highlight/10 p-3">
-              <FreebetBadgeIcon width={28} height={28} className="shrink-0" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-text-primary">{eligibleCampaign.name}</p>
-                <p className="text-xs font-semibold text-highlight">
-                  {formatRewardHeadline(eligibleCampaign).figure} {formatRewardHeadline(eligibleCampaign).caption}
-                </p>
+            <div
+              className={cn(
+                'rounded-xl border p-3 transition-all duration-300',
+                meetsCampaignMinimum
+                  ? 'scale-[1.02] border-price-up bg-price-up/15'
+                  : 'border-highlight/40 bg-highlight/10',
+              )}
+            >
+              <div className="flex items-center gap-3">
+                <FreebetBadgeIcon width={28} height={28} className="shrink-0" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-text-primary">{eligibleCampaign.name}</p>
+                  <p
+                    className={cn(
+                      'font-display text-2xl leading-none font-extrabold transition-colors duration-300',
+                      meetsCampaignMinimum ? 'text-price-up' : 'text-highlight',
+                    )}
+                  >
+                    {formatRewardHeadline(eligibleCampaign).figure}{' '}
+                    <span className="text-xs font-semibold">{formatRewardHeadline(eligibleCampaign).caption}</span>
+                  </p>
+                </div>
               </div>
+              <p
+                className={cn(
+                  'mt-2 text-xs font-semibold transition-colors duration-300',
+                  meetsCampaignMinimum ? 'text-price-up' : 'text-text-secondary',
+                )}
+              >
+                {meetsCampaignMinimum
+                  ? '✅ This deposit qualifies for the reward!'
+                  : `Deposit at least ${formatCents(eligibleCampaign.minDepositAmountCents)} € to unlock this reward.`}
+              </p>
             </div>
           )}
           <div className="flex flex-col items-center gap-1 border-b border-border py-3">

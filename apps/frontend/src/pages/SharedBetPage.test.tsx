@@ -1,10 +1,11 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../features/auth/authStore';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBrandStore } from '../features/brand/brandStore';
+import { useBetSlipSheetStore } from '../features/bet-slip/betSlipSheetStore';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { encodeSharedBetSelections } from '../features/bet-slip/sharedBetLink';
 import SharedBetPage from './SharedBetPage';
@@ -57,6 +58,7 @@ beforeEach(() => {
   useAuthModalStore.setState({ mode: null });
   useBrandStore.setState({ brandId: 'brand-1' });
   useBetSlipStore.setState({ selections: [], stake: '10.00', singleStakes: {} });
+  useBetSlipSheetStore.setState({ isOpen: false });
 });
 
 afterEach(() => {
@@ -95,7 +97,7 @@ describe('SharedBetPage', () => {
 
     renderPage(encodeSharedBetSelections([{ matchId: 'match-1', marketId: 'match-result', selectionId: 'home' }]));
 
-    expect(await screen.findByText('Added 1 selection to your bet slip')).toBeInTheDocument();
+    await waitFor(() => expect(useBetSlipSheetStore.getState().isOpen).toBe(true));
     expect(useBetSlipStore.getState().selections).toEqual([
       {
         matchId: 'match-1',
@@ -125,7 +127,7 @@ describe('SharedBetPage', () => {
 
     renderPage(encodeSharedBetSelections([{ matchId: 'match-1', marketId: 'match-result', selectionId: 'home' }]));
 
-    expect(await screen.findByText('Added 0 of 1 selections')).toBeInTheDocument();
+    await waitFor(() => expect(useBetSlipSheetStore.getState().isOpen).toBe(true));
     expect(useBetSlipStore.getState().selections).toEqual([]);
   });
 });

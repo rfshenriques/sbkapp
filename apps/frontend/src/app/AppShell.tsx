@@ -5,6 +5,7 @@ import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { BetSlipPanel } from '../features/bet-slip/BetSlipPanel';
 import { BetPlacedModal } from '../features/bet-slip/BetPlacedModal';
 import { useBetPlacedModalStore } from '../features/bet-slip/betPlacedModalStore';
+import { useBetSlipSheetStore } from '../features/bet-slip/betSlipSheetStore';
 import { getSingleStake, useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { useCampaignPreview } from '../features/bet-slip/useCampaignPreview';
 import { invalidAccumulatorReason } from '../features/bet-slip/accumulatorValidity';
@@ -52,7 +53,9 @@ export function AppShell() {
   useWinCelebrationDetector();
   useFreebetGrantDetector();
   const brandQuery = useBrandTheme();
-  const [isSlipOpen, setIsSlipOpen] = useState(false);
+  const isSlipOpen = useBetSlipSheetStore((state) => state.isOpen);
+  const openSlip = useBetSlipSheetStore((state) => state.open);
+  const closeSlip = useBetSlipSheetStore((state) => state.close);
   const [isNavOpen, setIsNavOpen] = useState(false);
   const betPlacedSummary = useBetPlacedModalStore((state) => state.summary);
   // Placing a bet opens BetPlacedModal on top of everything else - the
@@ -60,7 +63,7 @@ export function AppShell() {
   // confirmation stacks on top of it instead of replacing it.
   useEffect(() => {
     if (betPlacedSummary) {
-      setIsSlipOpen(false);
+      closeSlip();
     }
   }, [betPlacedSummary]);
   const selections = useBetSlipStore((state) => state.selections);
@@ -380,7 +383,7 @@ export function AppShell() {
       {selections.length > 0 && !isNavOpen && (
         <button
           type="button"
-          onClick={() => setIsSlipOpen(true)}
+          onClick={openSlip}
           // Cleared with the same env(safe-area-inset-bottom) the bottom nav
           // itself pads with, plus its own visible height - a plain bottom-14
           // sat right on top of (and got visually cut off by) the nav on
@@ -483,7 +486,7 @@ export function AppShell() {
         <div className="sm:hidden">
           <BottomSheet
             title="Bet Slip"
-            onClose={() => setIsSlipOpen(false)}
+            onClose={closeSlip}
             closeLabel="Close bet slip"
             bodyClassName="min-h-0 flex-1 p-4"
             // Taller than the default 80dvh - stake-limit alerts, acca

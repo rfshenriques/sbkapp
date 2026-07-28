@@ -179,7 +179,10 @@ body {
   color: var(--color-text-secondary);
 }
 .odd-btn.selected .prev-odds {
-  color: color-mix(in srgb, black 55%, transparent);
+  /* Was color-mix(...55%, transparent) - too close to the gold gradient's
+     own midtone to read as struck-through text (see player screenshots).
+     Solid, near-opaque black instead of a translucent mix. */
+  color: rgba(0, 0, 0, 0.8);
 }
 
 /* Whole-button flash when its price moves - bright, saturated green on a

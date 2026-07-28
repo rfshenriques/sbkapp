@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../features/auth/authStore';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBetPlacedModalStore } from '../features/bet-slip/betPlacedModalStore';
+import { useBetSlipSheetStore } from '../features/bet-slip/betSlipSheetStore';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { useBrandStore } from '../features/brand/brandStore';
 import { RegisterDeepLink } from '../features/auth/AuthDeepLink';
@@ -54,6 +55,7 @@ const awaySelection = {
 
 beforeEach(() => {
   useBetSlipStore.setState({ selections: [], stake: '10.00', singleStakes: {} });
+  useBetSlipSheetStore.setState({ isOpen: false });
   useAuthStore.setState({ accessToken: null, user: null, isInitialized: false });
   useAuthModalStore.setState({ mode: null });
   useBetPlacedModalStore.setState({ summary: null });

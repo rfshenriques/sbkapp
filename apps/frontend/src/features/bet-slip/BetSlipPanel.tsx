@@ -326,12 +326,12 @@ function StakeField({ stakeId, stake, onStakeChange, odds, hideOdds, previousOdd
         <span className="odd-btn selected shrink-0">
           <span className="odd-label">Odds</span>
           {invalid ? (
-            <span className="odd-value text-text-muted" aria-label="Odds not combinable">
+            <span className="odd-value" aria-label="Odds not combinable">
               /
             </span>
           ) : previousOdds !== undefined ? (
             <span className="flex items-center gap-1.5">
-              <span className="text-xs text-text-secondary line-through decoration-1">
+              <span className="prev-odds text-xs line-through decoration-1">
                 {previousOdds.toFixed(2)}
               </span>
               <span className="odd-value text-highlight">{odds.toFixed(2)}</span>

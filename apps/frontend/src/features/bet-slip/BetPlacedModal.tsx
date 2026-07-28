@@ -5,7 +5,7 @@ import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { ShareIcon } from '../../components/ui/NavIcons';
 import { OddsBadge } from '../../components/ui/OddsBadge';
 import { cn } from '../../lib/cn';
-import { BetFooterSummary, BetReferenceFooter, BetSelectionsList, SharePendingBetActions } from '../bet-history/betCardShared';
+import { BetFooterSummary, BetReferenceFooter, BetSelectionsList, BetTag, SharePendingBetActions } from '../bet-history/betCardShared';
 import { useBetPlacedModalStore } from './betPlacedModalStore';
 
 function formatEuros(cents: number): string {
@@ -126,6 +126,12 @@ export function BetPlacedModal() {
         <p className="font-display text-2xl">Done! Your bet has been placed.</p>
         <p className="text-sm text-text-secondary">Potential payout</p>
         <p className="font-display text-5xl leading-none">{formatEuros(potentialPayoutCents)}</p>
+        {bet && (bet.insuranceCostPercent > 0 || bet.accaBoostPercent > 0) && (
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
+            {bet.insuranceCostPercent > 0 && <BetTag>Insured</BetTag>}
+            {bet.accaBoostPercent > 0 && <BetTag>Boosted +{bet.accaBoostPercent}%</BetTag>}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between border-t border-border pt-4">

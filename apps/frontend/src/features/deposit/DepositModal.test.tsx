@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
+import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../auth/authStore';
 import { DepositModal } from './DepositModal';
@@ -58,6 +59,43 @@ describe('DepositModal', () => {
 
     expect(await screen.findByText('First Deposit Bonus')).toBeInTheDocument();
     expect(screen.getByText(/5\.00 €/)).toBeInTheDocument();
+  });
+
+  it('states the minimum deposit needed, then switches to a qualifying message once the typed amount meets it', async () => {
+    stubFetch((url) => {
+      if (url === '/backend/deposit-campaigns/eligible') {
+        return new Response(
+          JSON.stringify({
+            id: 'deposit-campaign-1',
+            name: 'First Deposit Bonus',
+            description: null,
+            minDepositAmountCents: 3_000,
+            rewardType: 'FIXED',
+            fixedRewardAmountCents: 500,
+            rewardPercent: null,
+            rewardCapCents: null,
+          }),
+          { status: 200 },
+        );
+      }
+      return undefined;
+    });
+
+    renderModal();
+    await screen.findByText('First Deposit Bonus');
+
+    // Default preselected amount (20 €) is below the 30 € minimum.
+    expect(screen.getByText('Deposit at least 30.00 € to unlock this reward.')).toBeInTheDocument();
+    expect(screen.queryByText('This deposit qualifies for the reward!', { exact: false })).not.toBeInTheDocument();
+
+    const amountInput = screen.getByLabelText('Amount');
+    await userEvent.clear(amountInput);
+    await userEvent.type(amountInput, '35');
+
+    expect(screen.getByText('This deposit qualifies for the reward!', { exact: false })).toBeInTheDocument();
+    expect(
+      screen.queryByText('Deposit at least 30.00 € to unlock this reward.'),
+    ).not.toBeInTheDocument();
   });
 
   it('shows no campaign card when the player has no eligible deposit campaign', async () => {

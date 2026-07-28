@@ -113,8 +113,8 @@ describe('BetPlacedModal', () => {
     });
     const { container } = render(<BetPlacedModal />);
 
-    expect(container.querySelector('p.text-highlight')).toHaveTextContent('🎁 Qualifies for CL Bet & Get to get');
-    expect(container.querySelector('p.text-highlight')).toHaveTextContent('10.00 € in Freebets');
+    expect(container.querySelector('div.text-highlight')).toHaveTextContent('🎁 Qualifies for CL Bet & Get');
+    expect(container.querySelector('div.text-highlight')).toHaveTextContent('10.00 € in Freebets');
   });
 
   it('shows both a Bet & Get and a deposit campaign qualification at once', () => {
@@ -132,11 +132,11 @@ describe('BetPlacedModal', () => {
     });
     const { container } = render(<BetPlacedModal />);
 
-    const notes = container.querySelectorAll('p.text-highlight');
+    const notes = container.querySelectorAll('div.text-highlight');
     expect(notes).toHaveLength(2);
-    expect(notes[0]).toHaveTextContent('🎁 Qualifies for CL Bet & Get to get');
+    expect(notes[0]).toHaveTextContent('🎁 Qualifies for CL Bet & Get');
     expect(notes[0]).toHaveTextContent('10.00 € in Freebets');
-    expect(notes[1]).toHaveTextContent('🎁 Qualifies for Welcome Deposit Bonus to get');
+    expect(notes[1]).toHaveTextContent('🎁 Qualifies for Welcome Deposit Bonus');
     expect(notes[1]).toHaveTextContent('25.00 € in Freebets');
   });
 
@@ -270,6 +270,46 @@ describe('BetPlacedModal', () => {
 
       expect(screen.queryByRole('button', { name: 'Bet details' })).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Copy/ })).not.toBeInTheDocument();
+    });
+
+    it('shows Insured and Boosted tags when the placed bet used either', () => {
+      useBetPlacedModalStore.setState({
+        summary: {
+          stakeCents: 1000,
+          potentialPayoutCents: 2100,
+          combinedOdds: 2.1,
+          betCount: 1,
+          betAndGetCampaignName: null,
+          betAndGetCampaignRewardCents: null,
+          depositCampaignName: null,
+          depositCampaignRewardCents: null,
+          bet: { ...bet, insuranceCostPercent: 10, accaBoostPercent: 5 },
+        },
+      });
+      render(<BetPlacedModal />);
+
+      expect(screen.getByText('Insured')).toBeInTheDocument();
+      expect(screen.getByText('Boosted +5%')).toBeInTheDocument();
+    });
+
+    it('shows no tags for a plain, uninsured, unboosted bet', () => {
+      useBetPlacedModalStore.setState({
+        summary: {
+          stakeCents: 1000,
+          potentialPayoutCents: 2100,
+          combinedOdds: 2.1,
+          betCount: 1,
+          betAndGetCampaignName: null,
+          betAndGetCampaignRewardCents: null,
+          depositCampaignName: null,
+          depositCampaignRewardCents: null,
+          bet,
+        },
+      });
+      render(<BetPlacedModal />);
+
+      expect(screen.queryByText('Insured')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Boosted/)).not.toBeInTheDocument();
     });
   });
 });

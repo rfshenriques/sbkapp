@@ -340,8 +340,8 @@ describe('BetHistoryList', () => {
     const { container } = renderList();
 
     await screen.findByText('CL Bet & Get', { exact: false });
-    expect(container.querySelector('p.text-highlight')).toHaveTextContent('🎁 Qualifies for CL Bet & Get to get');
-    expect(container.querySelector('p.text-highlight')).toHaveTextContent('10.00 € in Freebets');
+    expect(container.querySelector('div.text-highlight')).toHaveTextContent('🎁 Qualifies for CL Bet & Get');
+    expect(container.querySelector('div.text-highlight')).toHaveTextContent('10.00 € in Freebets');
   });
 
   it('shows both a Bet & Get and a deposit campaign qualification at once', async () => {
@@ -365,11 +365,11 @@ describe('BetHistoryList', () => {
     const { container } = renderList();
 
     await screen.findByText('CL Bet & Get', { exact: false });
-    const notes = container.querySelectorAll('p.text-highlight');
+    const notes = container.querySelectorAll('div.text-highlight');
     expect(notes).toHaveLength(2);
-    expect(notes[0]).toHaveTextContent('🎁 Qualifies for CL Bet & Get to get');
+    expect(notes[0]).toHaveTextContent('🎁 Qualifies for CL Bet & Get');
     expect(notes[0]).toHaveTextContent('10.00 € in Freebets');
-    expect(notes[1]).toHaveTextContent('🎁 Qualifies for Welcome Deposit Bonus to get');
+    expect(notes[1]).toHaveTextContent('🎁 Qualifies for Welcome Deposit Bonus');
     expect(notes[1]).toHaveTextContent('25.00 € in Freebets');
   });
 
