@@ -87,6 +87,21 @@ describe('usePushSubscription', () => {
     expect(backendApi.subscribePush).not.toHaveBeenCalled();
   });
 
+  it('surfaces a subscribe() failure as error instead of leaving it unhandled', async () => {
+    const { subscribe } = stubPushSubscription(null);
+    subscribe.mockRejectedValueOnce(new Error('The request is not allowed by the user agent.'));
+    vi.mocked(backendApi.getPushVapidPublicKey).mockResolvedValue('dGVzdC12YXBpZC1rZXk');
+
+    const { result } = renderHook(() => usePushSubscription());
+    await waitFor(() => expect(result.current.isSupported).toBe(true));
+
+    await result.current.enable();
+
+    await waitFor(() => expect(result.current.error).toBe('The request is not allowed by the user agent.'));
+    expect(result.current.isSubscribed).toBe(false);
+    expect(backendApi.subscribePush).not.toHaveBeenCalled();
+  });
+
   it('disable() unsubscribes both the backend record and the browser subscription', async () => {
     const unsubscribe = vi.fn().mockResolvedValue(true);
     const existing = { endpoint: 'https://push.example.com/existing', unsubscribe } as unknown as PushSubscription;

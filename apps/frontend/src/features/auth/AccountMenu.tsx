@@ -146,6 +146,7 @@ export function AccountMenu() {
                       id="push-toggle"
                     />
                   </div>
+                  {push.error && <p className="mt-2 text-xs text-danger">{push.error}</p>}
                 </div>
               )}
             </div>

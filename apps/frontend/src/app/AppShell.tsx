@@ -245,7 +245,10 @@ export function AppShell() {
         ref={headerRef}
         className="app-header fixed inset-x-0 top-0 z-30 transform-gpu border-b border-border bg-background/90 backdrop-blur will-change-transform"
       >
-        <div className="mx-auto grid max-w-[1680px] grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3">
+        <div
+          className="mx-auto grid max-w-[1680px] grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3"
+          style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}
+        >
           <NavLink to="/" className="flex shrink-0 items-center gap-2">
             {brandQuery.data?.logoUrl ? (
               <img src={brandQuery.data.logoUrl} alt={brandName} className="h-8 max-w-[10rem] object-contain" />

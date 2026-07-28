@@ -22,6 +22,7 @@ export function usePushSubscription() {
     isSupported ? Notification.permission : 'denied',
   );
   const [isSubscribed, setIsSubscribed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!checkIsSupported() || !isAuthenticated) {
@@ -45,33 +46,44 @@ export function usePushSubscription() {
     if (!checkIsSupported()) {
       return;
     }
-    // iOS/WebKit requires requestPermission() to run on the same tick as the
-    // triggering click - any await beforehand (even one that resolves
-    // instantly, like an already-ready service worker) can drop the
-    // transient user-activation flag, silently killing the prompt. Chrome
-    // has no such restriction, which is why this only breaks on iOS.
-    const permissionResult = await Notification.requestPermission();
-    setPermission(permissionResult);
-    if (permissionResult !== 'granted') {
-      return;
-    }
+    setError(null);
+    try {
+      // iOS/WebKit requires requestPermission() - and, per repeated real-
+      // device reports, pushManager.subscribe() too - to run within the
+      // same user-activation window as the triggering click. Fetching the
+      // service worker registration and the VAPID key in parallel with the
+      // permission prompt (rather than after it resolves) means nothing but
+      // already-settled values sits between the grant and subscribe(),
+      // instead of an extra network round trip that can silently drop the
+      // activation window and make subscribe() throw. Chrome has no such
+      // restriction, which is why this class of bug only shows up on iOS.
+      const [registration, vapidPublicKey, permissionResult] = await Promise.all([
+        navigator.serviceWorker.ready,
+        backendApi.getPushVapidPublicKey(),
+        Notification.requestPermission(),
+      ]);
+      setPermission(permissionResult);
+      if (permissionResult !== 'granted') {
+        return;
+      }
 
-    const registration = await navigator.serviceWorker.ready;
-    const vapidPublicKey = await backendApi.getPushVapidPublicKey();
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-    });
-    const json = subscription.toJSON();
-    if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) {
-      return;
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+      const json = subscription.toJSON();
+      if (!json.endpoint || !json.keys?.p256dh || !json.keys.auth) {
+        throw new Error('Push subscription is missing its endpoint or keys.');
+      }
+      await backendApi.subscribePush({
+        endpoint: json.endpoint,
+        keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
+        userAgent: navigator.userAgent,
+      });
+      setIsSubscribed(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to enable push notifications.');
     }
-    await backendApi.subscribePush({
-      endpoint: json.endpoint,
-      keys: { p256dh: json.keys.p256dh, auth: json.keys.auth },
-      userAgent: navigator.userAgent,
-    });
-    setIsSubscribed(true);
   }, []);
 
   const disable = useCallback(async () => {
@@ -87,5 +99,5 @@ export function usePushSubscription() {
     setIsSubscribed(false);
   }, []);
 
-  return { isSupported, permission, isSubscribed, enable, disable };
+  return { isSupported, permission, isSubscribed, error, enable, disable };
 }
