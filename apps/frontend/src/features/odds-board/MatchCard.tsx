@@ -17,9 +17,14 @@ interface MatchCardProps {
   match: Match;
   /** Passed through to the root Card - callers use this to stagger a list's entrance (see fade-in-up's animation-delay). */
   style?: CSSProperties;
+  /** Plays the entrance animation. Defaults to true; callers that re-render
+   * the same card list in place (e.g. switching a filter tab, not a genuine
+   * first paint) pass false so cards don't replay a fade/slide-up on every
+   * click. */
+  animate?: boolean;
 }
 
-export function MatchCard({ match, style }: MatchCardProps) {
+export function MatchCard({ match, style, animate = true }: MatchCardProps) {
   const matchResult = match.markets.find((market) => market.id === 'match-result');
   const prefetchMatchDetail = usePrefetchMatchDetail();
   const navigate = useNavigate();
@@ -37,7 +42,7 @@ export function MatchCard({ match, style }: MatchCardProps) {
       // bg-surface reads almost identically to the page's own bg-background
       // behind it (both near-black) - bg-surface-2 gives the card real
       // separation instead of nearly vanishing into the page.
-      className="fade-in-up cursor-pointer bg-surface-2 transition-colors hover:border-text-muted"
+      className={`${animate ? 'fade-in-up ' : ''}cursor-pointer bg-surface-2 transition-colors hover:border-text-muted`}
       style={style}
       onClick={() => navigate(matchHref)}
       onMouseEnter={() => prefetchMatchDetail(match.id)}

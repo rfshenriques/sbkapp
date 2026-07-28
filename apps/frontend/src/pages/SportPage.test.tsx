@@ -237,8 +237,10 @@ describe('SportPage', () => {
     renderAt('/sports/Football');
     await screen.findByRole('link', { name: 'Live Home vs Live Away' });
 
+    // Tomorrow/Soon have no matches in this fixture, so they don't render as
+    // dead tabs - only Live and Today (which has matches) show.
     const tabs = screen.getAllByRole('tab');
-    expect(tabs.map((tab) => tab.textContent)).toEqual(['Live', 'Today', 'Tomorrow', 'Soon']);
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Live', 'Today']);
 
     await userEvent.click(screen.getByRole('tab', { name: 'Live' }));
 
@@ -303,7 +305,7 @@ describe('SportPage', () => {
     expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('does not collapse the date tabs on the broad all-countries/all-leagues view, even with nothing near-term', async () => {
+  it('collapses to only the Soon tab on the broad all-countries/all-leagues view too, when nothing is near-term', async () => {
     stubOddsEngineFetch([
       buildMatch({
         id: 'far-out',
@@ -327,12 +329,12 @@ describe('SportPage', () => {
     renderAt('/sports/Football');
     await screen.findByRole('tab', { name: 'Soon' });
 
-    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
-      'Live',
-      'Today',
-      'Tomorrow',
-      'Soon',
-    ]);
+    // Live/Today/Tomorrow are all empty here, so only Soon (which actually
+    // has matches) renders as a tab, whatever the current scope is.
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(1);
+    expect(tabs[0]).toHaveTextContent('Soon');
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
   });
 
   it('filters to only live matches when the URL carries live=true, and uses "Live" as the heading', async () => {

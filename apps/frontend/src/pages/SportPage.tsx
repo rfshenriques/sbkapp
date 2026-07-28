@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { MatchCard } from '../features/odds-board/MatchCard';
 import { MatchListSkeleton } from '../features/odds-board/MatchListSkeleton';
@@ -48,10 +48,6 @@ export default function SportPage() {
   // narrowed further by its own country/competition breadcrumb instead.
   const [selectedSport, setSelectedSport] = useState<string | undefined>(undefined);
   const [dateFilter, setDateFilter] = useState<MatchFilter>('today');
-  // Redundant on /live itself - every match shown there is already live, so
-  // the tab would just duplicate "Today" - only worth offering as a quick
-  // shortcut on pages that mix live and upcoming matches together.
-  const showLiveFilter = !liveOnly;
 
   const { data: matches, isPending, isError } = useMatches();
   const { data: rankings } = useCompetitionRankings();
@@ -78,6 +74,18 @@ export default function SportPage() {
   );
   const sorted = filtered ? sortMatches(filtered, sortMode, rankByCompetition) : undefined;
   const visible = sorted?.slice(0, visibleCount);
+  // Cards should only play their entrance animation on the page's genuine
+  // first paint, not every time a filter/sort click swaps the list in
+  // place - otherwise every tab click replays a fade/stagger across the
+  // whole list, which reads as a fast, jittery flicker rather than a real
+  // loading transition.
+  const hasAnimatedOnceRef = useRef(false);
+  const shouldAnimateList = !hasAnimatedOnceRef.current;
+  useEffect(() => {
+    if (visible && visible.length > 0) {
+      hasAnimatedOnceRef.current = true;
+    }
+  });
   // The order toggle only makes sense once there's more than one competition
   // in view to reorder relative to each other - a single-competition list is
   // already as "important" as it gets.
@@ -125,10 +133,10 @@ export default function SportPage() {
     <SportIcon sport={decodedSport} size={22} />
   );
 
-  // Ignoring the date-bucket filter itself - used only to tell whether the
-  // country/competition currently in view has anything live/today/tomorrow
-  // at all. An off-season competition (next fixture weeks out) shouldn't
-  // force the player through three empty tabs before reaching "Soon".
+  // Ignoring the date-bucket filter itself - used to count how many matches
+  // fall into each tab (Live/Today/Tomorrow/Soon) so empty tabs can be
+  // hidden instead of sitting there dead. An off-season competition (next
+  // fixture weeks out) shouldn't show three empty tabs before "Soon".
   const scopedIgnoringDateFilter = matches?.filter(
     (match) =>
       (!countryFilter || match.country === countryFilter) &&
@@ -136,19 +144,33 @@ export default function SportPage() {
       (!liveOnly || match.isLive) &&
       (decodedSport === ALL_SPORTS ? !selectedSport || match.sport === selectedSport : match.sport === decodedSport),
   );
-  const hasNearTermMatches = (scopedIgnoringDateFilter ?? []).some((match) => matchDateBucket(match) !== 'soon');
-  // Only once a specific country or competition is selected - the broad
-  // umbrella views (all countries, all leagues) are expected to always have
-  // something live/today/tomorrow somewhere in them.
-  const isScopedToCountryOrCompetition = Boolean(activeCountry) || Boolean(competitionFilter);
-  const collapseToSoonOnly =
-    isScopedToCountryOrCompetition && scopedIgnoringDateFilter !== undefined && !hasNearTermMatches;
+  // matchDateBucket already buckets live matches as "today", so this single
+  // pass naturally keeps the Live and Today counts consistent with the
+  // actual per-match filter above (dateFilter === 'live' ? isLive : bucket === dateFilter).
+  const filterCounts = { live: 0, today: 0, tomorrow: 0, soon: 0 };
+  for (const match of scopedIgnoringDateFilter ?? []) {
+    if (match.isLive) filterCounts.live += 1;
+    filterCounts[matchDateBucket(match)] += 1;
+  }
+  // Redundant on /live itself - every match shown there is already live, so
+  // the tab would just duplicate "Today" - only worth offering as a quick
+  // shortcut on pages that mix live and upcoming matches together, and only
+  // once it actually has something in it.
+  const showLiveFilter = !liveOnly && filterCounts.live > 0;
+  const visibleDateFilters = DATE_FILTERS.filter(({ value }) => filterCounts[value] > 0);
 
+  // Once matches have loaded, if the active tab turns out to be empty, jump
+  // to the first tab (in on-screen order) that actually has matches, rather
+  // than leaving the player stranded on a dead tab.
   useEffect(() => {
-    if (collapseToSoonOnly && dateFilter !== 'soon') {
-      setDateFilter('soon');
+    if (!matches) return;
+    const activeCount = dateFilter === 'live' ? filterCounts.live : filterCounts[dateFilter];
+    if (activeCount > 0) return;
+    const fallback = showLiveFilter ? 'live' : DATE_FILTERS.find(({ value }) => filterCounts[value] > 0)?.value;
+    if (fallback && fallback !== dateFilter) {
+      setDateFilter(fallback);
     }
-  }, [collapseToSoonOnly, dateFilter]);
+  }, [matches, dateFilter, showLiveFilter, filterCounts.live, filterCounts.today, filterCounts.tomorrow, filterCounts.soon]);
 
   const breadcrumbSegments: BreadcrumbSegment[] = [
     { key: 'home', label: 'Home', href: '/' },
@@ -238,7 +260,7 @@ export default function SportPage() {
           aria-label="Filter matches by date"
           data-horizontal-scroll="true"
         >
-          {showLiveFilter && !collapseToSoonOnly && (
+          {showLiveFilter && (
             <button
               type="button"
               role="tab"
@@ -250,7 +272,7 @@ export default function SportPage() {
               Live
             </button>
           )}
-          {DATE_FILTERS.filter(({ value }) => !collapseToSoonOnly || value === 'soon').map(({ value, label }) => (
+          {visibleDateFilters.map(({ value, label }) => (
             <button
               key={value}
               type="button"
@@ -284,7 +306,7 @@ export default function SportPage() {
       {visible && visible.length > 0 && (
         <div className="space-y-3">
           {visible.map((match, index) => (
-            <MatchCard key={match.id} match={match} style={staggerDelay(index)} />
+            <MatchCard key={match.id} match={match} style={staggerDelay(index)} animate={shouldAnimateList} />
           ))}
         </div>
       )}
