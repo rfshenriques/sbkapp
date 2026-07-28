@@ -264,6 +264,35 @@ export class FreebetService {
     }
   }
 
+  /**
+   * Grants (any status) the player hasn't yet been shown a freebet-credited
+   * modal for - unlike listActive this deliberately ignores status/expiry,
+   * since a grant that expired or was spent before the player ever saw it
+   * still deserves the modal once. Queried once after login so a grant that
+   * happened while the player wasn't logged in at all still gets shown, not
+   * just one dropped by the frontend's same-session localStorage tracking.
+   */
+  async listUnseen(userId: string, brandId: string) {
+    const grants = await this.prisma.freebetGrant.findMany({
+      where: { userId, brandId, notifiedAt: null },
+      orderBy: { createdAt: 'asc' },
+    });
+    const campaignNameById = await this.campaignNamesById(grants);
+    return grants.map((grant) => ({
+      ...grant,
+      campaignName: grant.sourceCampaignId ? (campaignNameById.get(grant.sourceCampaignId) ?? null) : null,
+    }));
+  }
+
+  /** Marks grants as shown to the player so they never resurface on a later login - `userId` scopes so a player can only acknowledge their own grants. */
+  async acknowledge(userId: string, grantIds: string[]): Promise<void> {
+    if (grantIds.length === 0) return;
+    await this.prisma.freebetGrant.updateMany({
+      where: { id: { in: grantIds }, userId },
+      data: { notifiedAt: new Date() },
+    });
+  }
+
   /** Staff revokes an ACTIVE grant before it's used - `brandId` scopes so a staff member can never void another brand's grant. */
   async void(brandId: string, grantId: string, actor: AuditActor) {
     const grant = await this.prisma.freebetGrant.findUnique({ where: { id: grantId } });

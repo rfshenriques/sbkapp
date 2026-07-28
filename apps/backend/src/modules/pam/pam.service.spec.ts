@@ -1652,6 +1652,73 @@ describe('PamService', () => {
     expect(enrichedRollbackBet.accaRollbackRewardCents).toBe(500);
   });
 
+  describe('getUnseenCelebrations / acknowledgeCelebrations', () => {
+    it('returns a WON bet with winNotifiedAt still null, but not a PENDING one', async () => {
+      const userId = await createTestUser(100_000);
+      const wonBet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.1 })],
+        stakeCents: 1_000,
+      });
+      await pamService.settleSelection(testBrandId, wonBet.id, wonBet.selections[0]!.id, 'WON', TEST_ACTOR);
+      await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'match-2', odds: 1.8 })],
+        stakeCents: 500,
+      });
+
+      const { wonBets } = await pamService.getUnseenCelebrations(userId);
+      expect(wonBets).toHaveLength(1);
+      expect(wonBets[0]?.id).toBe(wonBet.id);
+    });
+
+    it('excludes a WON bet once its winNotifiedAt has been acknowledged', async () => {
+      const userId = await createTestUser(100_000);
+      const wonBet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.1 })],
+        stakeCents: 1_000,
+      });
+      await pamService.settleSelection(testBrandId, wonBet.id, wonBet.selections[0]!.id, 'WON', TEST_ACTOR);
+
+      await pamService.acknowledgeCelebrations(userId, [wonBet.id], []);
+
+      const { wonBets } = await pamService.getUnseenCelebrations(userId);
+      expect(wonBets).toHaveLength(0);
+    });
+
+    it('never lets a player acknowledge (or see) another player’s bet', async () => {
+      const userId = await createTestUser(100_000);
+      const otherUserId = await createTestUser(100_000);
+      const wonBet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.1 })],
+        stakeCents: 1_000,
+      });
+      await pamService.settleSelection(testBrandId, wonBet.id, wonBet.selections[0]!.id, 'WON', TEST_ACTOR);
+
+      await pamService.acknowledgeCelebrations(otherUserId, [wonBet.id], []);
+
+      const { wonBets } = await pamService.getUnseenCelebrations(userId);
+      expect(wonBets).toHaveLength(1);
+    });
+
+    it('returns an unseen freebet grant and excludes it once acknowledged', async () => {
+      const userId = await createTestUser(100_000);
+      const grant = await freebetService.grantSystem({
+        userId,
+        brandId: testBrandId,
+        amountCents: 500,
+        source: 'ACCA_ROLLBACK',
+      });
+
+      const firstRead = await pamService.getUnseenCelebrations(userId);
+      expect(firstRead.freebetGrants).toHaveLength(1);
+      expect(firstRead.freebetGrants[0]?.id).toBe(grant.id);
+
+      await pamService.acknowledgeCelebrations(userId, [], [grant.id]);
+
+      const secondRead = await pamService.getUnseenCelebrations(userId);
+      expect(secondRead.freebetGrants).toHaveLength(0);
+    });
+  });
+
   describe('settlement', () => {
     it('settling a single-selection bet WON credits the payout to the balance', async () => {
       const userId = await createTestUser(100_000);

@@ -297,7 +297,7 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
         <div>
           <label className="block text-xs text-text-secondary" htmlFor={`min-stake-${campaign.id}`}>
             Min stake (£)
@@ -384,6 +384,23 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
             }}
             className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm disabled:opacity-50"
           />
+        </div>
+        <div>
+          <label className="block text-xs text-text-secondary" htmlFor={`betting-timing-${campaign.id}`}>
+            Betting timing
+          </label>
+          <select
+            id={`betting-timing-${campaign.id}`}
+            value={draft.bettingTiming ?? 'EITHER'}
+            onChange={(event) =>
+              setDraft({ ...draft, bettingTiming: event.target.value as backendApi.BetAndGetTiming })
+            }
+            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+          >
+            <option value="EITHER">Either</option>
+            <option value="PREMATCH_ONLY">Prematch only</option>
+            <option value="INPLAY_ONLY">In-play only</option>
+          </select>
         </div>
       </div>
 

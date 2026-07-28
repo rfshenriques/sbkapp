@@ -3,6 +3,7 @@ import {
   betQualifiesForCampaign,
   isCampaignScheduledActive,
   matchIsInCampaignScope,
+  matchTimingQualifies,
   type CampaignConditions,
   type CampaignScope,
 } from './bet-and-get';
@@ -16,7 +17,7 @@ const NO_CONDITIONS: CampaignConditions = {
 };
 
 describe('matchIsInCampaignScope', () => {
-  const match = { sport: 'Football', competition: 'Champions League', matchId: 'match-1' };
+  const match = { sport: 'Football', competition: 'Champions League', matchId: 'match-1', isLive: false };
 
   it('matches a SPORT scope by sport name', () => {
     const scopes: CampaignScope[] = [{ scopeType: 'SPORT', scopeValue: 'Football' }];
@@ -52,6 +53,23 @@ describe('matchIsInCampaignScope', () => {
       { scopeType: 'COMPETITION', scopeValue: 'Champions League' },
     ];
     expect(matchIsInCampaignScope(scopes, match)).toBe(true);
+  });
+});
+
+describe('matchTimingQualifies', () => {
+  it('EITHER never restricts anything', () => {
+    expect(matchTimingQualifies('EITHER', true)).toBe(true);
+    expect(matchTimingQualifies('EITHER', false)).toBe(true);
+  });
+
+  it('PREMATCH_ONLY rejects a live match', () => {
+    expect(matchTimingQualifies('PREMATCH_ONLY', false)).toBe(true);
+    expect(matchTimingQualifies('PREMATCH_ONLY', true)).toBe(false);
+  });
+
+  it('INPLAY_ONLY rejects a prematch match', () => {
+    expect(matchTimingQualifies('INPLAY_ONLY', true)).toBe(true);
+    expect(matchTimingQualifies('INPLAY_ONLY', false)).toBe(false);
   });
 });
 

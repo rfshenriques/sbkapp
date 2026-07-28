@@ -3,8 +3,9 @@ import { renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../auth/authStore';
-import type { PlacedBet } from '../../lib/backendApi';
+import type { PlacedBet, UnseenCelebrations } from '../../lib/backendApi';
 import { betsQueryKey } from './useBets';
+import { useUnseenCelebrations } from './useUnseenCelebrations';
 import { useWinCelebrationDetector } from './useWinCelebrationDetector';
 import { useWinCelebrationStore } from './winCelebrationStore';
 
@@ -43,6 +44,32 @@ function buildBet(overrides: Partial<PlacedBet> = {}): PlacedBet {
   };
 }
 
+const EMPTY_UNSEEN: UnseenCelebrations = { wonBets: [], freebetGrants: [] };
+
+/** Routes /bets and /unseen-celebrations to their own handlers - both are fetched by this hook. */
+function stubFetch(options: {
+  bets?: () => PlacedBet[];
+  unseen?: () => UnseenCelebrations;
+  onAck?: (body: { betIds: string[]; freebetGrantIds: string[] }) => void;
+}) {
+  const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === 'string' ? input : input.toString();
+    if (url.endsWith('/unseen-celebrations/ack')) {
+      options.onAck?.(JSON.parse(init?.body as string));
+      return new Response(null, { status: 200 });
+    }
+    if (url.endsWith('/unseen-celebrations')) {
+      return new Response(JSON.stringify(options.unseen?.() ?? EMPTY_UNSEEN), { status: 200 });
+    }
+    if (url.endsWith('/bets')) {
+      return new Response(JSON.stringify(options.bets?.() ?? []), { status: 200 });
+    }
+    return new Response(null, { status: 404 });
+  });
+  vi.stubGlobal('fetch', fetchMock);
+  return fetchMock;
+}
+
 function renderDetector(queryClient: QueryClient) {
   function wrapper({ children }: { children: ReactNode }) {
     return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
@@ -52,7 +79,6 @@ function renderDetector(queryClient: QueryClient) {
 
 beforeEach(() => {
   useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
-  localStorage.clear();
 });
 
 afterEach(() => {
@@ -61,29 +87,31 @@ afterEach(() => {
 });
 
 describe('useWinCelebrationDetector', () => {
-  it('does not celebrate a bet that is already WON on first load', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(new Response(JSON.stringify([buildBet({ status: 'WON' })]), { status: 200 })),
-    );
+  it('does not celebrate a bet that is already WON on first load when it is not returned as unseen', async () => {
+    const fetchMock = stubFetch({ bets: () => [buildBet({ status: 'WON' })] });
     const queryClient = new QueryClient();
 
     renderDetector(queryClient);
 
     await waitFor(() => expect(queryClient.getQueryData(betsQueryKey)).toBeDefined());
     expect(useWinCelebrationStore.getState().betId).toBeNull();
+    expect(fetchMock).toHaveBeenCalled();
   });
 
-  it('opens the celebration modal when a bet flips from PENDING to WON', async () => {
+  it('opens the celebration modal for a bet returned by unseen-celebrations on first load, regardless of settlement age', async () => {
+    const longAgo = new Date(Date.now() - 60 * 60_000).toISOString();
+    const wonBet = buildBet({ status: 'WON', settledPayoutCents: 2000, settledAt: longAgo });
+    stubFetch({ bets: () => [wonBet], unseen: () => ({ wonBets: [wonBet], freebetGrants: [] }) });
+    const queryClient = new QueryClient();
+
+    renderDetector(queryClient);
+
+    await waitFor(() => expect(useWinCelebrationStore.getState().betId).toBe('bet-1'));
+  });
+
+  it('opens the celebration modal when a bet flips from PENDING to WON during a live poll', async () => {
     let status: 'PENDING' | 'WON' = 'PENDING';
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockImplementation(async () =>
-        new Response(JSON.stringify([buildBet({ status, settledPayoutCents: status === 'WON' ? 2000 : null })]), {
-          status: 200,
-        }),
-      ),
-    );
+    stubFetch({ bets: () => [buildBet({ status, settledPayoutCents: status === 'WON' ? 2000 : null })] });
     const queryClient = new QueryClient();
 
     renderDetector(queryClient);
@@ -95,168 +123,60 @@ describe('useWinCelebrationDetector', () => {
     await waitFor(() => expect(useWinCelebrationStore.getState().betId).toBe('bet-1'));
   });
 
-  it('celebrates a bet that settled to WON moments before the very first load', async () => {
-    const justNow = new Date().toISOString();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify([buildBet({ status: 'WON', settledPayoutCents: 2000, settledAt: justNow })]),
-          { status: 200 },
-        ),
-      ),
-    );
+  it('celebrates a live transition and a backend-unseen bet in turn, without duplicating either', async () => {
+    const unseenBet = buildBet({ id: 'bet-unseen', status: 'WON', settledPayoutCents: 2000 });
+    let liveStatus: 'PENDING' | 'WON' = 'PENDING';
+    stubFetch({
+      bets: () => [
+        unseenBet,
+        buildBet({ id: 'bet-live', status: liveStatus, settledPayoutCents: liveStatus === 'WON' ? 3000 : null }),
+      ],
+      unseen: () => ({ wonBets: [unseenBet], freebetGrants: [] }),
+    });
     const queryClient = new QueryClient();
 
     renderDetector(queryClient);
+    await waitFor(() => expect(useWinCelebrationStore.getState().betId).toBe('bet-unseen'));
 
-    await waitFor(() => expect(useWinCelebrationStore.getState().betId).toBe('bet-1'));
-  });
-
-  it('does not celebrate a bet that was already WON long before the first load', async () => {
-    const longAgo = new Date(Date.now() - 60 * 60_000).toISOString();
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify([buildBet({ status: 'WON', settledPayoutCents: 2000, settledAt: longAgo })]),
-          { status: 200 },
-        ),
-      ),
-    );
-    const queryClient = new QueryClient();
-
-    renderDetector(queryClient);
-
-    await waitFor(() => expect(queryClient.getQueryData(betsQueryKey)).toBeDefined());
-    expect(useWinCelebrationStore.getState().betId).toBeNull();
-  });
-
-  it('celebrates both bets in turn when two settle to WON in the same poll', async () => {
-    let statusA: 'PENDING' | 'WON' = 'PENDING';
-    let statusB: 'PENDING' | 'WON' = 'PENDING';
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockImplementation(async () =>
-        new Response(
-          JSON.stringify([
-            buildBet({ id: 'bet-1', status: statusA, settledPayoutCents: statusA === 'WON' ? 2000 : null }),
-            buildBet({ id: 'bet-2', status: statusB, settledPayoutCents: statusB === 'WON' ? 3000 : null }),
-          ]),
-          { status: 200 },
-        ),
-      ),
-    );
-    const queryClient = new QueryClient();
-
-    renderDetector(queryClient);
-    await waitFor(() => expect(queryClient.getQueryData(betsQueryKey)).toBeDefined());
-
-    statusA = 'WON';
-    statusB = 'WON';
+    liveStatus = 'WON';
     await queryClient.invalidateQueries({ queryKey: betsQueryKey });
-    await waitFor(() => expect(useWinCelebrationStore.getState().betId).toBe('bet-1'));
+    // Still showing the first celebration - the live transition is queued, not shown yet.
+    expect(useWinCelebrationStore.getState().betId).toBe('bet-unseen');
 
     useWinCelebrationStore.setState({ betId: null });
-    await queryClient.invalidateQueries({ queryKey: betsQueryKey });
-    await waitFor(() => expect(useWinCelebrationStore.getState().betId).toBe('bet-2'));
+    await waitFor(() => expect(useWinCelebrationStore.getState().betId).toBe('bet-live'));
   });
 
-  it('does not re-celebrate a bet already recorded as celebrated', async () => {
-    localStorage.setItem('sbkapp:celebrated-bet-ids', JSON.stringify(['bet-1']));
-    let status: 'PENDING' | 'WON' = 'PENDING';
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockImplementation(async () =>
-        new Response(JSON.stringify([buildBet({ status, settledPayoutCents: status === 'WON' ? 2000 : null })]), {
-          status: 200,
-        }),
-      ),
-    );
+  it('acknowledges the bet via the backend only once the celebration is actually dismissed', async () => {
+    const unseenBet = buildBet({ status: 'WON', settledPayoutCents: 2000 });
+    const acked: Array<{ betIds: string[]; freebetGrantIds: string[] }> = [];
+    stubFetch({
+      bets: () => [unseenBet],
+      unseen: () => ({ wonBets: [unseenBet], freebetGrants: [] }),
+      onAck: (body) => acked.push(body),
+    });
     const queryClient = new QueryClient();
 
     renderDetector(queryClient);
-    await waitFor(() => expect(queryClient.getQueryData(betsQueryKey)).toBeDefined());
-
-    status = 'WON';
-    await queryClient.invalidateQueries({ queryKey: betsQueryKey });
-    await waitFor(() => expect(queryClient.getQueryData<PlacedBet[]>(betsQueryKey)?.[0]?.status).toBe('WON'));
-
-    expect(useWinCelebrationStore.getState().betId).toBeNull();
-  });
-
-  it('does not permanently mark a bet celebrated until the celebration is actually dismissed', async () => {
-    let status: 'PENDING' | 'WON' = 'PENDING';
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockImplementation(async () =>
-        new Response(JSON.stringify([buildBet({ status, settledPayoutCents: status === 'WON' ? 2000 : null })]), {
-          status: 200,
-        }),
-      ),
-    );
-    const queryClient = new QueryClient();
-
-    renderDetector(queryClient);
-    await waitFor(() => expect(queryClient.getQueryData(betsQueryKey)).toBeDefined());
-
-    status = 'WON';
-    await queryClient.invalidateQueries({ queryKey: betsQueryKey });
     await waitFor(() => expect(useWinCelebrationStore.getState().betId).toBe('bet-1'));
 
-    // The modal is open but hasn't been dismissed yet - a same-session
-    // reload landing right here (e.g. the PWA auto-update's
-    // window.location.reload()) must not have already burned this bet into
-    // the permanent celebrated set, or the resumed celebration below would
-    // never fire.
-    expect(JSON.parse(localStorage.getItem('sbkapp:celebrated-bet-ids') ?? '[]')).not.toContain('bet-1');
-    expect(localStorage.getItem('sbkapp:pending-celebration-bet-id')).toBe('bet-1');
-  });
+    // The modal is open but hasn't been dismissed yet.
+    expect(acked).toHaveLength(0);
 
-  it('resumes an interrupted celebration on the next mount, regardless of how long ago the bet settled', async () => {
-    // Simulates a same-session reload (e.g. the PWA auto-update's
-    // window.location.reload() firing right after the app is foregrounded -
-    // see registerType: 'autoUpdate' in vite.config.ts) that lands between
-    // this hook detecting a win and the player actually dismissing the
-    // celebration for it: the pending marker survives (localStorage), the
-    // in-memory zustand store does not (reset to betId: null on remount).
-    const longAgo = new Date(Date.now() - 60 * 60_000).toISOString();
-    localStorage.setItem('sbkapp:pending-celebration-bet-id', 'bet-1');
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(
-          JSON.stringify([buildBet({ status: 'WON', settledPayoutCents: 2000, settledAt: longAgo })]),
-          { status: 200 },
-        ),
-      ),
-    );
-    const queryClient = new QueryClient();
-
-    renderDetector(queryClient);
-
-    await waitFor(() => expect(useWinCelebrationStore.getState().betId).toBe('bet-1'));
-
-    // Dismissing it now finally burns it into the permanent set and clears the pending marker.
     useWinCelebrationStore.setState({ betId: null });
-    await waitFor(() => expect(localStorage.getItem('sbkapp:pending-celebration-bet-id')).toBeNull());
-    expect(JSON.parse(localStorage.getItem('sbkapp:celebrated-bet-ids') ?? '[]')).toContain('bet-1');
+    await waitFor(() => expect(acked).toEqual([{ betIds: ['bet-1'], freebetGrantIds: [] }]));
   });
 
-  it('does not resume a pending celebration for a bet that was already recorded as celebrated', async () => {
-    localStorage.setItem('sbkapp:pending-celebration-bet-id', 'bet-1');
-    localStorage.setItem('sbkapp:celebrated-bet-ids', JSON.stringify(['bet-1']));
-    vi.stubGlobal(
-      'fetch',
-      vi.fn().mockResolvedValue(
-        new Response(JSON.stringify([buildBet({ status: 'WON', settledPayoutCents: 2000 })]), { status: 200 }),
-      ),
-    );
+  it('is disabled (fetches nothing) while unauthenticated', () => {
+    useAuthStore.setState({ accessToken: null, user: null, isInitialized: true });
+    const fetchMock = stubFetch({});
     const queryClient = new QueryClient();
 
-    renderDetector(queryClient);
+    const { result } = renderHook(() => useUnseenCelebrations(), {
+      wrapper: ({ children }) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>,
+    });
 
-    await waitFor(() => expect(queryClient.getQueryData(betsQueryKey)).toBeDefined());
-    expect(useWinCelebrationStore.getState().betId).toBeNull();
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

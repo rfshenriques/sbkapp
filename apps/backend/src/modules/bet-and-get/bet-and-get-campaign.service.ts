@@ -1,8 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { AudienceMode, BetAndGetBetType, BetAndGetScopeType, BetAndGetTrigger } from '@prisma/client';
+import type { AudienceMode, BetAndGetBetType, BetAndGetScopeType, BetAndGetTiming, BetAndGetTrigger } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
-import { betQualifiesForCampaign, matchIsInCampaignScope, type ScopeMatchInput } from './bet-and-get';
+import { betQualifiesForCampaign, matchIsInCampaignScope, matchTimingQualifies, type ScopeMatchInput } from './bet-and-get';
 
 export interface CreateBetAndGetCampaignInput {
   name: string;
@@ -19,6 +19,7 @@ export interface CreateBetAndGetCampaignInput {
   minCombinedOdds?: number | null;
   betType?: BetAndGetBetType;
   minSelections?: number | null;
+  bettingTiming?: BetAndGetTiming;
   allowMultipleRedemptions?: boolean;
   maxRedemptionsPerPlayer?: number | null;
   audienceMode?: AudienceMode;
@@ -105,6 +106,7 @@ export class BetAndGetCampaignService {
         minCombinedOdds: input.minCombinedOdds ?? null,
         betType: input.betType ?? 'EITHER',
         minSelections: input.minSelections ?? null,
+        bettingTiming: input.bettingTiming ?? 'EITHER',
         allowMultipleRedemptions: input.allowMultipleRedemptions ?? false,
         maxRedemptionsPerPlayer: input.maxRedemptionsPerPlayer ?? null,
         audienceMode: input.audienceMode ?? 'ALL',
@@ -189,16 +191,30 @@ export class BetAndGetCampaignService {
     return campaign;
   }
 
-  /** Every enabled campaign whose scope covers this one match - backs the public "campaigns for this match" lookup (match-detail context banner) and is reused by resolveApplicableCampaign below. */
+  /**
+   * Every enabled campaign whose scope covers this one match - backs the
+   * public "campaigns for this match" lookup (match-detail context banner).
+   * `timingBlocked` flags a campaign that's in scope but whose
+   * bettingTiming rejects this match's current live status (e.g. a
+   * PREMATCH_ONLY campaign once the match has kicked off), so the banner
+   * can explain why betting here won't qualify rather than showing nothing.
+   */
   async findActiveForMatch(brandId: string, match: ScopeMatchInput) {
     const campaigns = await this.listEnabled(brandId);
-    return campaigns.filter((campaign) => matchIsInCampaignScope(campaign.scopes, match));
+    return campaigns
+      .filter((campaign) => matchIsInCampaignScope(campaign.scopes, match))
+      .map((campaign) => ({
+        ...campaign,
+        timingBlocked: !matchTimingQualifies(campaign.bettingTiming, match.isLive),
+      }));
   }
 
   /**
    * The one campaign (if any) a bet with these selections/stake qualifies
    * for - every selection's match must fall within the campaign's scope
-   * (not just one leg), and the bet must meet the campaign's own
+   * (not just one leg) AND satisfy the campaign's bettingTiming (a
+   * PREMATCH_ONLY campaign rejects the whole bet if even one leg's match
+   * has already kicked off), and the bet must meet the campaign's own
    * conditions. Enabled campaigns are checked oldest-first and the bet
    * links to at most one, so overlapping campaigns never stack.
    */
@@ -211,8 +227,11 @@ export class BetAndGetCampaignService {
     return (
       campaigns.find(
         (campaign) =>
-          matches.every((match) => matchIsInCampaignScope(campaign.scopes, match)) &&
-          betQualifiesForCampaign(campaign, bet),
+          matches.every(
+            (match) =>
+              matchIsInCampaignScope(campaign.scopes, match) &&
+              matchTimingQualifies(campaign.bettingTiming, match.isLive),
+          ) && betQualifiesForCampaign(campaign, bet),
       ) ?? null
     );
   }

@@ -1236,6 +1236,7 @@ export async function voidFreebet(id: string): Promise<FreebetGrant> {
 
 export type BetAndGetTrigger = 'PLACEMENT' | 'SETTLEMENT';
 export type BetAndGetBetType = 'SINGLES_ONLY' | 'ACCUMULATOR_ONLY' | 'EITHER';
+export type BetAndGetTiming = 'PREMATCH_ONLY' | 'INPLAY_ONLY' | 'EITHER';
 export type BetAndGetScopeType = 'SPORT' | 'COMPETITION' | 'MATCH';
 
 export interface BetAndGetCampaignScope {
@@ -1264,6 +1265,8 @@ export interface BetAndGetCampaign {
   minCombinedOdds: number | null;
   betType: BetAndGetBetType;
   minSelections: number | null;
+  /** Restricts which selections' matches can qualify by whether they'd already kicked off at bet placement. */
+  bettingTiming: BetAndGetTiming;
   allowMultipleRedemptions: boolean;
   maxRedemptionsPerPlayer: number | null;
   createdAt: string;

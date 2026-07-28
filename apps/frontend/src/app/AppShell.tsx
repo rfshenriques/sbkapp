@@ -18,6 +18,7 @@ import { PasskeyEnrollmentModal } from '../features/auth/PasskeyEnrollmentModal'
 import { useAuth } from '../features/auth/useAuth';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBootstrapAuth } from '../features/auth/useBootstrapAuth';
+import { useForceLogout } from '../features/auth/useForceLogout';
 import { attemptBiometricLogin } from '../lib/webauthn';
 import { DepositCampaignModal } from '../features/deposit-campaigns/DepositCampaignModal';
 import { useEligibleDepositCampaign } from '../features/deposit-campaigns/useEligibleDepositCampaign';
@@ -50,6 +51,7 @@ const SWIPE_THRESHOLD_PX = 60;
 
 export function AppShell() {
   useBootstrapAuth();
+  useForceLogout();
   useWinCelebrationDetector();
   useFreebetGrantDetector();
   const brandQuery = useBrandTheme();

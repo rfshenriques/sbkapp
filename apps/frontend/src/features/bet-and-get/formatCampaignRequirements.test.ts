@@ -55,6 +55,45 @@ describe('formatCampaignRequirements', () => {
       formatCampaignRequirements({ minStakeCents: 500, minOddsPerLeg: 1.2, betType: 'SINGLES_ONLY', minSelections: null }),
     ).toEqual(['Min stake 5.00 €', 'Min odds 1.20 per leg', 'Singles only']);
   });
+
+  it('omits any timing phrase for EITHER or when unset', () => {
+    expect(
+      formatCampaignRequirements({
+        minStakeCents: null,
+        minOddsPerLeg: null,
+        betType: 'EITHER',
+        minSelections: null,
+        bettingTiming: 'EITHER',
+      }),
+    ).toEqual([]);
+    expect(
+      formatCampaignRequirements({ minStakeCents: null, minOddsPerLeg: null, betType: 'EITHER', minSelections: null }),
+    ).toEqual([]);
+  });
+
+  it('formats a prematch-only timing requirement', () => {
+    expect(
+      formatCampaignRequirements({
+        minStakeCents: null,
+        minOddsPerLeg: null,
+        betType: 'EITHER',
+        minSelections: null,
+        bettingTiming: 'PREMATCH_ONLY',
+      }),
+    ).toEqual(['Prematch bets only']);
+  });
+
+  it('formats an in-play-only timing requirement', () => {
+    expect(
+      formatCampaignRequirements({
+        minStakeCents: null,
+        minOddsPerLeg: null,
+        betType: 'EITHER',
+        minSelections: null,
+        bettingTiming: 'INPLAY_ONLY',
+      }),
+    ).toEqual(['In-play bets only']);
+  });
 });
 
 describe('formatCampaignTrigger', () => {

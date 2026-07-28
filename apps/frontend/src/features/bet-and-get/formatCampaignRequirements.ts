@@ -1,8 +1,9 @@
-import type { BetAndGetCampaign } from '../../lib/backendApi';
+import type { BetAndGetCampaign, BetAndGetTiming } from '../../lib/backendApi';
 
 type RequirementFields = Pick<BetAndGetCampaign, 'minStakeCents' | 'minOddsPerLeg' | 'betType' | 'minSelections'> & {
   /** Only present on BetAndGetCampaign - DepositCampaign (the other caller of this shared formatter) has no such condition. */
   minCombinedOdds?: number | null;
+  bettingTiming?: BetAndGetTiming;
 };
 
 /** Short, player-facing phrases for whichever qualifying conditions a campaign actually has set - an unset condition is simply omitted, never shown as "no minimum". */
@@ -26,6 +27,11 @@ export function formatCampaignRequirements(campaign: RequirementFields): string[
     );
   } else if (campaign.minSelections !== null) {
     requirements.push(`Min ${campaign.minSelections} selections if accumulator`);
+  }
+  if (campaign.bettingTiming === 'PREMATCH_ONLY') {
+    requirements.push('Prematch bets only');
+  } else if (campaign.bettingTiming === 'INPLAY_ONLY') {
+    requirements.push('In-play bets only');
   }
 
   return requirements;

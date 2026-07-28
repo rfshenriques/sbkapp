@@ -142,7 +142,7 @@ describe('BetAndGetCampaignService', () => {
       await service.setScopes(brandAId, outOfScope.id, [{ scopeType: 'SPORT', scopeValue: 'Basketball' }], TEST_ACTOR);
       await service.update(brandAId, outOfScope.id, { enabled: true }, TEST_ACTOR);
 
-      const match = { sport: 'Football', competition: 'EPL', matchId: 'match-1' };
+      const match = { sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: false };
       const active = await service.findActiveForMatch(brandAId, match);
 
       expect(active.map((campaign) => campaign.id)).toEqual([inScope.id]);
@@ -178,10 +178,29 @@ describe('BetAndGetCampaignService', () => {
       await service.setScopes(brandAId, currentlyRunning.id, [{ scopeType: 'SPORT', scopeValue: 'Football' }], TEST_ACTOR);
       await service.update(brandAId, currentlyRunning.id, { enabled: true }, TEST_ACTOR);
 
-      const match = { sport: 'Football', competition: 'EPL', matchId: 'match-1' };
+      const match = { sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: false };
       const active = await service.findActiveForMatch(brandAId, match);
 
       expect(active.map((campaign) => campaign.id)).toEqual([currentlyRunning.id]);
+    });
+
+    it('flags timingBlocked when the campaign is in scope but its bettingTiming rejects this match\'s live status', async () => {
+      const prematchOnly = await service.create(
+        brandAId,
+        { name: 'Prematch only', rewardAmountCents: 1_000, bettingTiming: 'PREMATCH_ONLY' },
+        TEST_ACTOR,
+      );
+      await service.setScopes(brandAId, prematchOnly.id, [{ scopeType: 'SPORT', scopeValue: 'Football' }], TEST_ACTOR);
+      await service.update(brandAId, prematchOnly.id, { enabled: true }, TEST_ACTOR);
+
+      const prematchMatch = { sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: false };
+      const liveMatch = { sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: true };
+
+      const [notBlocked] = await service.findActiveForMatch(brandAId, prematchMatch);
+      expect(notBlocked?.timingBlocked).toBe(false);
+
+      const [blocked] = await service.findActiveForMatch(brandAId, liveMatch);
+      expect(blocked?.timingBlocked).toBe(true);
     });
   });
 
@@ -195,8 +214,8 @@ describe('BetAndGetCampaignService', () => {
       await service.setScopes(brandAId, campaign.id, [{ scopeType: 'COMPETITION', scopeValue: 'Champions League' }], TEST_ACTOR);
       await service.update(brandAId, campaign.id, { enabled: true }, TEST_ACTOR);
 
-      const inScopeMatch = { sport: 'Football', competition: 'Champions League', matchId: 'match-1' };
-      const outOfScopeMatch = { sport: 'Football', competition: 'Premier League', matchId: 'match-2' };
+      const inScopeMatch = { sport: 'Football', competition: 'Champions League', matchId: 'match-1', isLive: false };
+      const outOfScopeMatch = { sport: 'Football', competition: 'Premier League', matchId: 'match-2', isLive: false };
 
       const resolved = await service.resolveApplicableCampaign(brandAId, [inScopeMatch], {
         stakeCents: 1_000,
@@ -218,13 +237,38 @@ describe('BetAndGetCampaignService', () => {
       expect(rejectedBySecondLegOutOfScope).toBeNull();
     });
 
+    it('rejects a bet on a live match against a PREMATCH_ONLY campaign, and vice versa for INPLAY_ONLY', async () => {
+      const prematchOnly = await service.create(
+        brandAId,
+        { name: 'Prematch only', rewardAmountCents: 1_000, bettingTiming: 'PREMATCH_ONLY' },
+        TEST_ACTOR,
+      );
+      await service.setScopes(brandAId, prematchOnly.id, [{ scopeType: 'SPORT', scopeValue: 'Football' }], TEST_ACTOR);
+      await service.update(brandAId, prematchOnly.id, { enabled: true }, TEST_ACTOR);
+
+      const prematchMatch = { sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: false };
+      const liveMatch = { sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: true };
+
+      const resolvedPrematch = await service.resolveApplicableCampaign(brandAId, [prematchMatch], {
+        stakeCents: 1_000,
+        legOdds: [2.0],
+      });
+      expect(resolvedPrematch?.id).toBe(prematchOnly.id);
+
+      const resolvedLive = await service.resolveApplicableCampaign(brandAId, [liveMatch], {
+        stakeCents: 1_000,
+        legOdds: [2.0],
+      });
+      expect(resolvedLive).toBeNull();
+    });
+
     it('never resolves a disabled campaign', async () => {
       const campaign = await service.create(brandAId, { name: 'CL Bet & Get', rewardAmountCents: 1_000 }, TEST_ACTOR);
       await service.setScopes(brandAId, campaign.id, [{ scopeType: 'SPORT', scopeValue: 'Football' }], TEST_ACTOR);
 
       const resolved = await service.resolveApplicableCampaign(
         brandAId,
-        [{ sport: 'Football', competition: 'EPL', matchId: 'match-1' }],
+        [{ sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: false }],
         { stakeCents: 1_000, legOdds: [2.0] },
       );
       expect(resolved).toBeNull();

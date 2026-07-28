@@ -1,7 +1,7 @@
 import { Controller, Get, Headers, NotFoundException, Param } from '@nestjs/common';
 import { PricedMatchesService } from '../margins/priced-matches.service';
 import { ViewerResolverService } from '../margins/viewer-resolver.service';
-import { matchIsInCampaignScope } from './bet-and-get';
+import { matchIsInCampaignScope, matchTimingQualifies } from './bet-and-get';
 import { BetAndGetCampaignService } from './bet-and-get-campaign.service';
 
 /**
@@ -38,7 +38,14 @@ export class BetAndGetPublicController {
 
     const viewer = await this.viewerResolverService.resolve(authorization);
     const matches = await this.pricedMatchesService.listForBrand(brandId, viewer);
-    return matches.filter((match) => matchIsInCampaignScope(campaign.scopes, { sport: match.sport, competition: match.competition, matchId: match.id }));
+    return matches.filter((match) =>
+      matchIsInCampaignScope(campaign.scopes, {
+        sport: match.sport,
+        competition: match.competition,
+        matchId: match.id,
+        isLive: match.isLive,
+      }) && matchTimingQualifies(campaign.bettingTiming, match.isLive),
+    );
   }
 
   /** Every enabled campaign covering this one match - backs the match-detail context banner ("this match qualifies for X - bet Y+ on Z odds to get a £W freebet"). */
@@ -54,6 +61,7 @@ export class BetAndGetPublicController {
       sport: match.sport,
       competition: match.competition,
       matchId: match.id,
+      isLive: match.isLive,
     });
   }
 }

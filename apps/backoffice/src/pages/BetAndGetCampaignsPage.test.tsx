@@ -24,6 +24,7 @@ const draftCampaign: BetAndGetCampaign = {
   minOddsPerLeg: null,
   minCombinedOdds: null,
   betType: 'EITHER',
+  bettingTiming: 'EITHER',
   minSelections: null,
   allowMultipleRedemptions: false,
   maxRedemptionsPerPlayer: null,

@@ -3,7 +3,10 @@ import { Card } from '../../components/ui/Card';
 import { formatCampaignRequirements } from './formatCampaignRequirements';
 
 interface CampaignContextBannerProps {
-  campaign: BetAndGetCampaign;
+  campaign: BetAndGetCampaign & {
+    /** Set only by useCampaignsForMatch - true when this match is in the campaign's scope but doesn't satisfy its bettingTiming requirement. */
+    timingBlocked?: boolean;
+  };
 }
 
 /**
@@ -19,7 +22,7 @@ export function CampaignContextBanner({ campaign }: CampaignContextBannerProps) 
   const requirements = formatCampaignRequirements(campaign);
 
   return (
-    <Card className="border-highlight/40 bg-surface-2">
+    <Card className={campaign.timingBlocked ? 'border-danger/40 bg-surface-2' : 'border-highlight/40 bg-surface-2'}>
       <div className="flex items-center gap-2">
         <span className="rounded-full bg-highlight px-2.5 py-1 text-[10px] font-extrabold tracking-widest text-slate-950 uppercase">
           Bet &amp; Get
@@ -29,6 +32,13 @@ export function CampaignContextBanner({ campaign }: CampaignContextBannerProps) 
       {campaign.description && <p className="mt-1.5 text-sm text-text-secondary">{campaign.description}</p>}
       {requirements.length > 0 && (
         <p className="mt-1.5 text-xs text-text-secondary">{requirements.join(' · ')}</p>
+      )}
+      {campaign.timingBlocked && (
+        <p className="mt-1.5 text-xs font-semibold text-danger">
+          {campaign.bettingTiming === 'PREMATCH_ONLY'
+            ? 'This match no longer qualifies - only prematch bets count toward this offer.'
+            : 'This match doesn’t qualify yet - only in-play bets count toward this offer.'}
+        </p>
       )}
     </Card>
   );

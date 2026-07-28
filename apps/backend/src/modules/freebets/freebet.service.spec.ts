@@ -169,6 +169,33 @@ describe('FreebetService', () => {
     await prisma.depositCampaign.delete({ where: { id: depositCampaign.id } });
   });
 
+  it('listUnseen returns every not-yet-notified grant regardless of status/expiry, unlike listActive', async () => {
+    const active = await service.grant(brandAId, { identifier: username, amountCents: 1000 }, TEST_ACTOR);
+    const expired = await service.grant(
+      brandAId,
+      { identifier: username, amountCents: 500, expiresAt: new Date(Date.now() - 60_000) },
+      TEST_ACTOR,
+    );
+    const voided = await service.grant(brandAId, { identifier: username, amountCents: 250 }, TEST_ACTOR);
+    await prisma.freebetGrant.update({
+      where: { id: voided.id },
+      data: { status: 'VOIDED', voidedAt: new Date() },
+    });
+
+    const unseen = await service.listUnseen(userId, brandAId);
+    expect(unseen.map((grant) => grant.id).sort()).toEqual([active.id, expired.id, voided.id].sort());
+  });
+
+  it('acknowledge sets notifiedAt so a grant drops out of listUnseen, scoped to the given userId', async () => {
+    const grant = await service.grant(brandAId, { identifier: username, amountCents: 1000 }, TEST_ACTOR);
+
+    await service.acknowledge('a-different-user-id', [grant.id]);
+    expect((await service.listUnseen(userId, brandAId)).map((entry) => entry.id)).toEqual([grant.id]);
+
+    await service.acknowledge(userId, [grant.id]);
+    expect(await service.listUnseen(userId, brandAId)).toEqual([]);
+  });
+
   it('balanceCents sums only active/unexpired grants remaining balance', async () => {
     await service.grant(brandAId, { identifier: username, amountCents: 1000 }, TEST_ACTOR);
     await service.grant(brandAId, { identifier: username, amountCents: 500 }, TEST_ACTOR);

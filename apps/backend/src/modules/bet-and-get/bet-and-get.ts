@@ -7,6 +7,7 @@ export interface ScopeMatchInput {
   sport: string;
   competition: string;
   matchId: string;
+  isLive: boolean;
 }
 
 /**
@@ -26,6 +27,16 @@ export function matchIsInCampaignScope(scopes: CampaignScope[], match: ScopeMatc
         return scope.scopeValue === match.matchId;
     }
   });
+}
+
+/**
+ * Whether a match's current live status satisfies the campaign's required
+ * betting timing. EITHER never restricts anything.
+ */
+export function matchTimingQualifies(timing: 'PREMATCH_ONLY' | 'INPLAY_ONLY' | 'EITHER', isLive: boolean): boolean {
+  if (timing === 'PREMATCH_ONLY') return !isLive;
+  if (timing === 'INPLAY_ONLY') return isLive;
+  return true;
 }
 
 export interface CampaignSchedule {

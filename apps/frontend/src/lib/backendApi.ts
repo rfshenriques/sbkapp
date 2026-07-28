@@ -302,6 +302,7 @@ export async function getBoosts(brandId: string): Promise<BoostedSelectionSummar
 
 export type BetAndGetTrigger = 'PLACEMENT' | 'SETTLEMENT';
 export type BetAndGetBetType = 'SINGLES_ONLY' | 'ACCUMULATOR_ONLY' | 'EITHER';
+export type BetAndGetTiming = 'PREMATCH_ONLY' | 'INPLAY_ONLY' | 'EITHER';
 
 export interface BetAndGetCampaign {
   id: string;
@@ -318,6 +319,12 @@ export interface BetAndGetCampaign {
   minCombinedOdds: number | null;
   betType: BetAndGetBetType;
   minSelections: number | null;
+  bettingTiming: BetAndGetTiming;
+}
+
+/** A campaign as returned for a specific match - adds whether it's in scope but blocked by the timing requirement. */
+export interface BetAndGetCampaignForMatch extends BetAndGetCampaign {
+  timingBlocked: boolean;
 }
 
 /** Every enabled Bet & Get campaign for the acting brand - see apps/backend's BetAndGetPublicController. */
@@ -342,7 +349,10 @@ export async function getBetAndGetCampaignMatches(brandId: string, campaignId: s
 }
 
 /** Every enabled campaign covering this one match - backs the match-detail context banner. */
-export async function getBetAndGetCampaignsForMatch(brandId: string, matchId: string): Promise<BetAndGetCampaign[]> {
+export async function getBetAndGetCampaignsForMatch(
+  brandId: string,
+  matchId: string,
+): Promise<BetAndGetCampaignForMatch[]> {
   const response = await fetch(
     `${BASE_URL}/public/bet-and-get-campaigns/${encodeURIComponent(brandId)}/match/${encodeURIComponent(matchId)}`,
     { headers: optionalAuthHeaders() },
@@ -350,7 +360,7 @@ export async function getBetAndGetCampaignsForMatch(brandId: string, matchId: st
   if (!response.ok) {
     throw new Error(`Failed to fetch campaigns for match: ${response.status}`);
   }
-  return (await response.json()) as BetAndGetCampaign[];
+  return (await response.json()) as BetAndGetCampaignForMatch[];
 }
 
 export type DepositRewardType = 'FIXED' | 'PERCENTAGE';
@@ -677,6 +687,20 @@ export async function logout(): Promise<void> {
   await fetch(`${BASE_URL}/auth/logout`, { method: 'POST', credentials: 'include' });
 }
 
+/**
+ * Same endpoint as logout(), fired via sendBeacon instead of fetch - for the
+ * tab-close/navigate-away moment (pagehide), where a normal fetch can be
+ * cancelled mid-flight before it reaches the network. The endpoint only
+ * consults the httpOnly refresh-token cookie (sent automatically, same
+ * origin) and needs no body/headers, which is all sendBeacon can send
+ * anyway. Fires and forgets - there's no response to react to once the tab
+ * is gone. Returns false (nothing to catch/await) if the browser can't
+ * queue the beacon at all, e.g. the payload exceeded its quota.
+ */
+export function logoutBeacon(): boolean {
+  return navigator.sendBeacon(`${BASE_URL}/auth/logout`);
+}
+
 /** Attaches the current access token, and transparently refreshes-and-retries once on a 401. */
 async function authenticatedFetch(path: string, init: RequestInit = {}): Promise<Response> {
   const requestWithToken = (token: string | null) =>
@@ -723,6 +747,26 @@ export async function getBets(): Promise<PlacedBet[]> {
 export async function getFreebets(): Promise<Freebet[]> {
   const response = await authenticatedFetch('/freebets');
   return parseJsonOrThrow(response, `Failed to load freebets: ${response.status}`);
+}
+
+export interface UnseenCelebrations {
+  wonBets: PlacedBet[];
+  freebetGrants: Freebet[];
+}
+
+/** WON bets and freebet grants the player hasn't yet had a celebration modal shown for - queried once after login so an event that happened while logged out still surfaces, unlike useBets()/useFreebets()'s own live polling. */
+export async function getUnseenCelebrations(): Promise<UnseenCelebrations> {
+  const response = await authenticatedFetch('/unseen-celebrations');
+  return parseJsonOrThrow(response, `Failed to load unseen celebrations: ${response.status}`);
+}
+
+/** Marks the given bets/grants as having shown their celebration modal, so they never resurface on a later login. */
+export async function acknowledgeCelebrations(betIds: string[], freebetGrantIds: string[]): Promise<void> {
+  await authenticatedFetch('/unseen-celebrations/ack', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ betIds, freebetGrantIds }),
+  });
 }
 
 export interface WebAuthnCredentialSummary {

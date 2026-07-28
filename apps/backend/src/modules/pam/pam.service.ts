@@ -260,7 +260,7 @@ export class PamService {
       brandId,
       selections.map((selection) => {
         const match = matchesById.get(selection.matchId)!;
-        return { sport: match.sport, competition: match.competition, matchId: selection.matchId };
+        return { sport: match.sport, competition: match.competition, matchId: selection.matchId, isLive: match.isLive };
       }),
       qualifyingBet,
     );
@@ -535,7 +535,7 @@ export class PamService {
           brandId,
           dto.selections.map((selection) => {
             const match = matchesById.get(selection.matchId)!;
-            return { sport: match.sport, competition: match.competition, matchId: selection.matchId };
+            return { sport: match.sport, competition: match.competition, matchId: selection.matchId, isLive: match.isLive };
           }),
           { stakeCents: dto.stakeCents, legOdds: dto.selections.map((selection) => selection.odds) },
         );
@@ -710,6 +710,44 @@ export class PamService {
       orderBy: { createdAt: 'desc' },
     });
     return this.enrichBetsWithRollbackReward(bets);
+  }
+
+  /**
+   * WON bets and freebet grants the player hasn't yet been shown a
+   * celebration modal for - queried once after login so an event that
+   * happened while the player wasn't logged in at all still surfaces,
+   * unlike the frontend's own same-session localStorage tracking which
+   * only survives a PWA reload.
+   */
+  async getUnseenCelebrations(userId: string) {
+    const { brandId } = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { brandId: true },
+    });
+    const [wonBets, freebetGrants] = await Promise.all([
+      this.prisma.bet.findMany({
+        where: { userId, status: 'WON', winNotifiedAt: null },
+        include: {
+          selections: true,
+          betAndGetCampaign: { select: { name: true, rewardAmountCents: true } },
+          depositCampaignRedemption: { include: { depositCampaign: { select: { name: true } } } },
+        },
+        orderBy: { settledAt: 'asc' },
+      }),
+      this.freebetService.listUnseen(userId, brandId),
+    ]);
+    return { wonBets: await this.enrichBetsWithRollbackReward(wonBets), freebetGrants };
+  }
+
+  /** Marks the given bets/grants as having shown their celebration modal - both id lists are scoped to `userId` so a player can only acknowledge their own. */
+  async acknowledgeCelebrations(userId: string, betIds: string[], freebetGrantIds: string[]): Promise<void> {
+    if (betIds.length > 0) {
+      await this.prisma.bet.updateMany({
+        where: { id: { in: betIds }, userId, status: 'WON' },
+        data: { winNotifiedAt: new Date() },
+      });
+    }
+    await this.freebetService.acknowledge(userId, freebetGrantIds);
   }
 
   /**

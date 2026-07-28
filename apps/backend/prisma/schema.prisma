@@ -297,6 +297,14 @@ model FreebetGrant {
    */
   spentAt              DateTime?
   /**
+   * When the freebet-credited modal was shown to (and acknowledged by) the
+   * player - null means still pending. Set on next login/app-open even if
+   * the grant happened while the player wasn't logged in at all, unlike the
+   * frontend's own same-session localStorage tracking which only survives a
+   * PWA reload, not a real gap in being logged in.
+   */
+  notifiedAt           DateTime?
+  /**
    * The bet that triggered a system grant (e.g. the losing accumulator an ACCA_ROLLBACK reward refunds) - null for MANUAL grants. Also doubles as the idempotency key so re-settling a bet never grants the reward twice.
    */
   sourceBetId          String?
@@ -685,6 +693,15 @@ model Bet {
    */
   settledPayoutCents Int?
   settledAt          DateTime?
+  /**
+   * When the win-celebration modal was shown to (and acknowledged by) the
+   * player for this bet settling WON - null means still pending. Only ever
+   * set for a WON bet. Set on next login/app-open even if settlement
+   * happened while the player wasn't logged in at all - the frontend's own
+   * same-session localStorage tracking only survives a PWA reload, not a
+   * real gap in being logged in.
+   */
+  winNotifiedAt      DateTime?
 
   /**
    * True when this bet was funded from the player's pooled freebets balance
@@ -1029,6 +1046,18 @@ enum BetAndGetBetType {
 }
 
 /**
+ * Restricts which selections' matches can qualify by whether the match had
+ * kicked off yet at bet placement - PREMATCH_ONLY/INPLAY_ONLY reject a bet
+ * the instant any one of its selections is on the wrong side, ACCUMULATOR
+ * combinations of prematch+live legs never qualify unless EITHER is set.
+ */
+enum BetAndGetTiming {
+  PREMATCH_ONLY
+  INPLAY_ONLY
+  EITHER
+}
+
+/**
  * What kind of thing a BetAndGetCampaignScope entry names - see BetAndGetCampaignScope.scopeValue for what's stored per type.
  */
 enum BetAndGetScopeType {
@@ -1089,6 +1118,12 @@ model BetAndGetCampaign {
    * Only checked when the bet is an accumulator (2+ selections).
    */
   minSelections   Int?
+  /**
+   * Whether a qualifying selection's match must be prematch, already live,
+   * or either - see BetAndGetTiming. Also drives which matches the
+   * campaign's own matches list/match-page banner show as eligible.
+   */
+  bettingTiming   BetAndGetTiming  @default(EITHER)
 
   /**
    * false = at most one redemption ever per player for this campaign. When true, maxRedemptionsPerPlayer caps it further (null = unlimited).
