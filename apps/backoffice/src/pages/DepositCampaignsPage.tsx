@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 import type { AudienceMode } from '../lib/backendApi';
 import { formatScheduleWindow, isoToLocalInputValue, localInputValueToIso } from '../lib/dateTimeInput';
@@ -75,8 +76,12 @@ function NewCampaignForm() {
       setEndAt('');
       setError(null);
       void queryClient.invalidateQueries({ queryKey: campaignsQueryKey });
+      toast.success('Campaign created');
     },
-    onError: (mutationError: Error) => setError(mutationError.message),
+    onError: (mutationError: Error) => {
+      setError(mutationError.message);
+      toast.error(errorMessage(mutationError, 'Failed to create campaign'));
+    },
   });
 
   const rewardValid =
@@ -264,7 +269,11 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
 
   const saveMutation = useMutation({
     mutationFn: () => backendApi.updateDepositCampaign(campaign.id, draft),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: campaignsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: campaignsQueryKey });
+      toast.success('Campaign saved');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save campaign')),
   });
 
   function toggleSegment(segmentId: string) {
@@ -685,12 +694,20 @@ function CampaignCard({ campaign }: CampaignCardProps) {
 
   const toggleEnabledMutation = useMutation({
     mutationFn: () => backendApi.updateDepositCampaign(campaign.id, { enabled: !campaign.enabled }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: campaignsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: campaignsQueryKey });
+      toast.success(campaign.enabled ? 'Campaign disabled' : 'Campaign enabled');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to update campaign')),
   });
 
   const removeMutation = useMutation({
     mutationFn: () => backendApi.removeDepositCampaign(campaign.id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: campaignsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: campaignsQueryKey });
+      toast.success('Campaign removed');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove campaign')),
   });
 
   const rewardSummary =

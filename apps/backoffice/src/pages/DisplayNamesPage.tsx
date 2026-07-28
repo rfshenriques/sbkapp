@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import { competitionCountryMap } from '../lib/countryMaps';
 import { groupByLetter } from '../lib/groupByLetter';
 import * as backendApi from '../lib/backendApi';
@@ -58,8 +59,11 @@ function DisplayNameRow({ override }: { override: backendApi.DisplayNameOverride
 
   const setDisplayNameMutation = useMutation({
     mutationFn: (displayName: string | null) => backendApi.setDisplayName(override.id, displayName),
-    onSuccess: () =>
-      void queryClient.invalidateQueries({ queryKey: displayNamesQueryKey(override.entityType) }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: displayNamesQueryKey(override.entityType) });
+      toast.success('Display name saved');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save display name')),
   });
 
   const isDirty = draft.trim() !== (override.displayName ?? '');

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BetSummaryCard, statusBadgeClassName } from '../components/BetSummaryCard';
 import { Skeleton } from '../components/ui/Skeleton';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 import type { BetStatus, SelectionStatus } from '../lib/backendApi';
 
@@ -35,7 +36,9 @@ export default function SettlementPage() {
     }) => backendApi.settleSelection(betId, selectionId, status),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['admin-bets'] });
+      toast.success('Selection settled');
     },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to settle selection')),
   });
 
   return (

@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import { CompetitionDrilldown } from '../components/CompetitionDrilldown';
 import { MatchDrilldown } from '../components/MatchDrilldown';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import type { CompetitionNode } from '../lib/matchTree';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
@@ -194,11 +195,19 @@ function MatchSuspensionsSection() {
       marketId?: string;
       selectionId?: string;
     }) => backendApi.suspendMarket(matchId, marketId, selectionId, undefined),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: suspensionsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: suspensionsQueryKey });
+      toast.success('Market suspended');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to suspend market')),
   });
   const unsuspendMutation = useMutation({
     mutationFn: (id: string) => backendApi.unsuspendMarket(id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: suspensionsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: suspensionsQueryKey });
+      toast.success('Market unsuspended');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to unsuspend market')),
   });
   const isMutating = suspendMutation.isPending || unsuspendMutation.isPending;
 
@@ -235,11 +244,19 @@ function CompetitionSuspensionRow({ competition }: { competition: string }) {
 
   const suspendMutation = useMutation({
     mutationFn: () => backendApi.suspendCompetition(competition, undefined),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: competitionSuspensionsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: competitionSuspensionsQueryKey });
+      toast.success('Competition suspended');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to suspend competition')),
   });
   const unsuspendMutation = useMutation({
     mutationFn: (id: string) => backendApi.unsuspendCompetition(id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: competitionSuspensionsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: competitionSuspensionsQueryKey });
+      toast.success('Competition unsuspended');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to unsuspend competition')),
   });
   const isPending = suspendMutation.isPending || unsuspendMutation.isPending;
 

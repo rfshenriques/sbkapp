@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 
 const segmentsQueryKey = ['player-segments'] as const;
@@ -23,8 +24,12 @@ function NewSegmentForm() {
       setDescription('');
       setError(null);
       void queryClient.invalidateQueries({ queryKey: segmentsQueryKey });
+      toast.success('Segment created');
     },
-    onError: (mutationError: Error) => setError(mutationError.message),
+    onError: (mutationError: Error) => {
+      setError(mutationError.message);
+      toast.error(errorMessage(mutationError, 'Failed to create segment'));
+    },
   });
 
   return (
@@ -67,7 +72,11 @@ function SegmentColorPicker({ segment }: { segment: backendApi.PlayerSegment }) 
 
   const setColorMutation = useMutation({
     mutationFn: (colorHex: string | null) => backendApi.setPlayerSegmentColor(segment.id, colorHex),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: segmentsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: segmentsQueryKey });
+      toast.success('Segment color saved');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save segment color')),
   });
 
   const isValid = draft === '' || HEX_COLOR_PATTERN.test(draft);
@@ -112,18 +121,30 @@ function SegmentCard({ segment }: { segment: backendApi.PlayerSegment }) {
       setIdentifier('');
       setError(null);
       void queryClient.invalidateQueries({ queryKey: segmentsQueryKey });
+      toast.success('Player added to segment');
     },
-    onError: (mutationError: Error) => setError(mutationError.message),
+    onError: (mutationError: Error) => {
+      setError(mutationError.message);
+      toast.error(errorMessage(mutationError, 'Failed to add player'));
+    },
   });
 
   const removeMemberMutation = useMutation({
     mutationFn: (userId: string) => backendApi.removePlayerSegmentMember(segment.id, userId),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: segmentsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: segmentsQueryKey });
+      toast.success('Player removed from segment');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove player')),
   });
 
   const removeSegmentMutation = useMutation({
     mutationFn: () => backendApi.removePlayerSegment(segment.id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: segmentsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: segmentsQueryKey });
+      toast.success('Segment removed');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove segment')),
   });
 
   return (

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 
 const accaBoostQueryKey = ['acca-boost-config'] as const;
@@ -28,7 +29,9 @@ export default function AccaBoostPage() {
     onSuccess: (saved) => {
       setDraft(saved);
       void queryClient.invalidateQueries({ queryKey: accaBoostQueryKey });
+      toast.success('Acca boost settings saved');
     },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save acca boost settings')),
   });
 
   const isValid =

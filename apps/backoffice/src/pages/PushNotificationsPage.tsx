@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import { Skeleton } from '../components/ui/Skeleton';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 import type { AudienceMode } from '../lib/backendApi';
 
@@ -78,8 +79,12 @@ function ComposePushForm({ prefill }: { prefill: CampaignPrefillState | undefine
       setSegmentIds([]);
       setError(null);
       void queryClient.invalidateQueries({ queryKey: pushNotificationsQueryKey });
+      toast.success('Push notification sent');
     },
-    onError: (mutationError: Error) => setError(mutationError.message),
+    onError: (mutationError: Error) => {
+      setError(mutationError.message);
+      toast.error(errorMessage(mutationError, 'Failed to send push notification'));
+    },
   });
 
   function toggleSegment(segmentId: string) {

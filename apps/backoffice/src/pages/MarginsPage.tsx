@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
 
@@ -27,11 +28,19 @@ function MarginCell({
 
   const setMutation = useMutation({
     mutationFn: (marginPercent: number) => backendApi.setMarginConfig(sport, marketName, tier, marginPercent),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: marginsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: marginsQueryKey });
+      toast.success('Margin saved');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save margin')),
   });
   const removeMutation = useMutation({
     mutationFn: (id: string) => backendApi.removeMarginConfig(id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: marginsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: marginsQueryKey });
+      toast.success('Margin removed');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove margin')),
   });
 
   const parsed = draft === '' ? null : Number(draft);

@@ -7,6 +7,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import { MatchDrilldown } from '../components/MatchDrilldown';
 import { LimitsAudienceEditor } from '../components/LimitsAudienceEditor';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import type { CompetitionNode } from '../lib/matchTree';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
@@ -36,16 +37,28 @@ function BoostCell({
 
   const setMutation = useMutation({
     mutationFn: (ticks: number) => backendApi.setBoost(matchId, marketId, selectionId, ticks, undefined),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: boostsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: boostsQueryKey });
+      toast.success('Boost saved');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save boost')),
   });
   const clearMutation = useMutation({
     mutationFn: (id: string) => backendApi.clearBoost(id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: boostsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: boostsQueryKey });
+      toast.success('Boost cleared');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to clear boost')),
   });
   const setLimitsMutation = useMutation({
     mutationFn: ({ id, input }: { id: string; input: backendApi.SetLimitsInput }) =>
       backendApi.setBoostLimits(id, input),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: boostsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: boostsQueryKey });
+      toast.success('Limits saved');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save limits')),
   });
 
   const parsed = draft === '' ? null : Number(draft);

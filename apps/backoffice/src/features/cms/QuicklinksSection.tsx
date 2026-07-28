@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { toast, errorMessage } from '../toast/toastStore';
 import * as backendApi from '../../lib/backendApi';
 import * as oddsEngineApi from '../../lib/oddsEngineApi';
 
@@ -41,6 +42,8 @@ export function QuicklinksSection() {
       await queryClient.invalidateQueries({ queryKey: quicklinksQueryKey });
       setDragOrder(null);
     },
+    // No success toast - also fires once per row during a drag reorder.
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save quicklink')),
   });
 
   const removeQuicklinkMutation = useMutation({
@@ -48,7 +51,9 @@ export function QuicklinksSection() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: quicklinksQueryKey });
       setDragOrder(null);
+      toast.success('Removed from quicklinks');
     },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove quicklink')),
   });
 
   const matchCountByCompetition = useMemo(() => {

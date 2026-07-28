@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 
 const ladderQueryKey = ['odds-ladder'] as const;
@@ -22,15 +23,25 @@ export default function OddsLadderPage() {
     onSuccess: () => {
       setDraftValue('');
       void queryClient.invalidateQueries({ queryKey: ladderQueryKey });
+      toast.success('Rung added');
     },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to add rung')),
   });
   const removeMutation = useMutation({
     mutationFn: (id: string) => backendApi.removeOddsLadderRung(id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ladderQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ladderQueryKey });
+      toast.success('Rung removed');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove rung')),
   });
   const generateMutation = useMutation({
     mutationFn: () => backendApi.generateStandardOddsLadder(),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ladderQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ladderQueryKey });
+      toast.success('Standard ladder generated');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to generate ladder')),
   });
 
   const parsedDraft = draftValue === '' ? null : Number(draftValue);

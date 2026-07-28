@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 
 const promoCardsQueryKey = ['promo-cards'] as const;
@@ -35,7 +36,9 @@ function HomepageCarouselSettings() {
     onSuccess: (saved) => {
       setDraft(saved);
       void queryClient.invalidateQueries({ queryKey: homepageCarouselConfigQueryKey });
+      toast.success('Auto-scroll settings saved');
     },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save auto-scroll settings')),
   });
 
   const isValid = draft !== null && Number.isInteger(draft.autoScrollSeconds) && draft.autoScrollSeconds >= 3;
@@ -191,8 +194,12 @@ function NewPromoCardForm({
       setError(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       void queryClient.invalidateQueries({ queryKey: promoCardsQueryKey });
+      toast.success('Promo card added');
     },
-    onError: (mutationError: Error) => setError(mutationError.message),
+    onError: (mutationError: Error) => {
+      setError(mutationError.message);
+      toast.error(errorMessage(mutationError, 'Failed to add promo card'));
+    },
   });
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
@@ -317,12 +324,20 @@ function PromoCardRow({
         betAndGetCampaignId: selection.betAndGetCampaignId || null,
         depositCampaignId: selection.depositCampaignId || null,
       }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: promoCardsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: promoCardsQueryKey });
+      toast.success('Promo card updated');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to update promo card')),
   });
 
   const removeMutation = useMutation({
     mutationFn: () => backendApi.removePromoCard(card.id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: promoCardsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: promoCardsQueryKey });
+      toast.success('Promo card removed');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove promo card')),
   });
 
   const linkedCampaign =
@@ -458,6 +473,7 @@ export default function CmsPromoCardsPage() {
       await queryClient.invalidateQueries({ queryKey: promoCardsQueryKey });
       setDragOrder(null);
     },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to reorder promo cards')),
   });
 
   function allowDrop(event: DragEvent) {

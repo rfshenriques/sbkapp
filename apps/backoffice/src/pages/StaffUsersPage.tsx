@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 import type { StaffRole } from '../lib/backendApi';
 
@@ -38,7 +39,9 @@ export default function StaffUsersPage() {
       setEmail('');
       setPassword('');
       setRole('TRADING');
+      toast.success('Staff user created');
     },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to create staff user')),
   });
 
   function handleSubmit(event: FormEvent) {

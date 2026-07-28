@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { toast, errorMessage } from '../toast/toastStore';
 import * as backendApi from '../../lib/backendApi';
 
 const imageListQueryKey = (kind: backendApi.BrandImageListKind) => ['brand-image-list', kind] as const;
@@ -42,13 +43,21 @@ export function ImageListSection({
     onSuccess: () => {
       setError(null);
       void queryClient.invalidateQueries({ queryKey });
+      toast.success('Image added');
     },
-    onError: (mutationError: Error) => setError(mutationError.message),
+    onError: (mutationError: Error) => {
+      setError(mutationError.message);
+      toast.error(errorMessage(mutationError, 'Failed to add image'));
+    },
   });
 
   const removeMutation = useMutation({
     mutationFn: (id: string) => backendApi.removeBrandImageListItem(id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey });
+      toast.success('Image removed');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove image')),
   });
 
   const reorderMutation = useMutation({
@@ -57,6 +66,7 @@ export function ImageListSection({
       await queryClient.invalidateQueries({ queryKey });
       setDragOrder(null);
     },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to reorder images')),
   });
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {

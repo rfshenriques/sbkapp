@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 
 const marketingSpendQueryKey = ['marketing-spend'] as const;
@@ -29,12 +30,18 @@ export default function MarketingSpendPage() {
       setDate('');
       setChannel('');
       setAmount('');
+      toast.success('Spend entry added');
     },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to add spend entry')),
   });
 
   const removeMutation = useMutation({
     mutationFn: (id: string) => backendApi.removeMarketingSpend(id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: marketingSpendQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: marketingSpendQueryKey });
+      toast.success('Spend entry removed');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove spend entry')),
   });
 
   const parsedAmount = Number(amount);

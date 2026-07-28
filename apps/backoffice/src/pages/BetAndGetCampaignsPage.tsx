@@ -7,6 +7,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 import { formatScheduleWindow, isoToLocalInputValue, localInputValueToIso } from '../lib/dateTimeInput';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
@@ -45,8 +46,12 @@ function NewCampaignForm() {
       setEndAt('');
       setError(null);
       void queryClient.invalidateQueries({ queryKey: campaignsQueryKey });
+      toast.success('Campaign created');
     },
-    onError: (mutationError: Error) => setError(mutationError.message),
+    onError: (mutationError: Error) => {
+      setError(mutationError.message);
+      toast.error(errorMessage(mutationError, 'Failed to create campaign'));
+    },
   });
 
   const isValid = name.trim() !== '' && Number.isFinite(displayToCents(rewardAmount)) && displayToCents(rewardAmount) > 0;
@@ -151,7 +156,11 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
 
   const saveMutation = useMutation({
     mutationFn: () => backendApi.updateBetAndGetCampaign(campaign.id, draft),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: campaignsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: campaignsQueryKey });
+      toast.success('Campaign saved');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save campaign')),
   });
 
   const isValid =
@@ -467,7 +476,11 @@ function CampaignScopeEditor({ campaign, matches, matchesLoading, matchesError }
 
   const saveMutation = useMutation({
     mutationFn: () => backendApi.setBetAndGetCampaignScopes(campaign.id, draft),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: campaignsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: campaignsQueryKey });
+      toast.success('Scope saved');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save scope')),
   });
 
   function has(scopeType: backendApi.BetAndGetScopeType, scopeValue: string): boolean {
@@ -590,12 +603,20 @@ function CampaignCard({ campaign, matches, matchesLoading, matchesError }: Campa
 
   const toggleEnabledMutation = useMutation({
     mutationFn: () => backendApi.updateBetAndGetCampaign(campaign.id, { enabled: !campaign.enabled }),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: campaignsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: campaignsQueryKey });
+      toast.success(campaign.enabled ? 'Campaign disabled' : 'Campaign enabled');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to update campaign')),
   });
 
   const removeMutation = useMutation({
     mutationFn: () => backendApi.removeBetAndGetCampaign(campaign.id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: campaignsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: campaignsQueryKey });
+      toast.success('Campaign removed');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove campaign')),
   });
 
   return (

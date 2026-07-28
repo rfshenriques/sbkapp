@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 import type { LimitScope, StakeLimit } from '../lib/backendApi';
 
@@ -50,7 +51,9 @@ function NewLimitForm() {
       setScopeValue('');
       setMaxStakeDraft('');
       setMaxLiabilityDraft('');
+      toast.success('Limit added');
     },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to add limit')),
   });
 
   const needsScopeValue = scope !== 'GLOBAL';
@@ -154,7 +157,11 @@ function LimitRow({ limit }: { limit: StakeLimit }) {
   const queryClient = useQueryClient();
   const removeMutation = useMutation({
     mutationFn: () => backendApi.removeStakeLimit(limit.id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: stakeLimitsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: stakeLimitsQueryKey });
+      toast.success('Limit removed');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove limit')),
   });
 
   return (
@@ -197,11 +204,14 @@ function ExcelTools() {
   const importMutation = useMutation({
     mutationFn: backendApi.importStakeLimits,
     onSuccess: (result) => {
-      setImportMessage(`Imported ${result.count} row(s), removed ${result.removedCount} old row(s).`);
+      const message = `Imported ${result.count} row(s), removed ${result.removedCount} old row(s).`;
+      setImportMessage(message);
       void queryClient.invalidateQueries({ queryKey: stakeLimitsQueryKey });
+      toast.success(message);
     },
     onError: (error: unknown) => {
       setImportMessage(error instanceof Error ? error.message : 'Import failed.');
+      toast.error(errorMessage(error, 'Import failed'));
     },
   });
 

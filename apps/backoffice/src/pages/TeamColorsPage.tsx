@@ -4,6 +4,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import { teamCountryMap } from '../lib/countryMaps';
 import { groupByLetter } from '../lib/groupByLetter';
 import * as backendApi from '../lib/backendApi';
@@ -25,7 +26,11 @@ function TeamColorRow({ teamColor }: { teamColor: backendApi.TeamColor }) {
 
   const setColorMutation = useMutation({
     mutationFn: (colorHex: string | null) => backendApi.setTeamColor(teamColor.id, colorHex),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: teamColorsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: teamColorsQueryKey });
+      toast.success(`${teamColor.name} color saved`);
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save team color')),
   });
 
   const isValid = draft === '' || HEX_COLOR_PATTERN.test(draft);

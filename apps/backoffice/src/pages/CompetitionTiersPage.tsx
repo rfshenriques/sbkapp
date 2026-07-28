@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CompetitionDrilldown } from '../components/CompetitionDrilldown';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
 
@@ -16,11 +17,19 @@ function TierRow({ competition, tiers }: { competition: string; tiers: backendAp
 
   const setMutation = useMutation({
     mutationFn: (tier: number) => backendApi.setCompetitionTier(competition, tier),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: tiersQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: tiersQueryKey });
+      toast.success('Competition tier saved');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save competition tier')),
   });
   const removeMutation = useMutation({
     mutationFn: (id: string) => backendApi.removeCompetitionTier(id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: tiersQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: tiersQueryKey });
+      toast.success('Competition tier removed');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove competition tier')),
   });
 
   const isPending = setMutation.isPending || removeMutation.isPending;

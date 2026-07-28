@@ -5,6 +5,7 @@ import type { StaffRole } from '../features/auth/staffAuthStore';
 import { useStaffAuth } from '../features/auth/useStaffAuth';
 import { useScrollLock } from '../lib/useScrollLock';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
+import { ToastContainer } from '../features/toast/ToastContainer';
 
 interface NavItem {
   to: string;
@@ -254,6 +255,8 @@ export function AppShell() {
       <main className="mx-auto max-w-[1400px] p-4">
         <Outlet />
       </main>
+
+      <ToastContainer />
     </div>
   );
 }

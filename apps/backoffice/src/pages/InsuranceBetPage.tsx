@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 
 const insuranceBetQueryKey = ['insurance-bet-config'] as const;
@@ -28,7 +29,9 @@ export default function InsuranceBetPage() {
     onSuccess: (saved) => {
       setDraft(saved);
       void queryClient.invalidateQueries({ queryKey: insuranceBetQueryKey });
+      toast.success('Insurance bet settings saved');
     },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save insurance bet settings')),
   });
 
   const isValid = draft !== null && Number.isFinite(draft.costPercent) && draft.costPercent >= 0 && draft.costPercent <= 100;

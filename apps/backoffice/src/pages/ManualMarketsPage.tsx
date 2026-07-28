@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import { MatchDrilldown } from '../components/MatchDrilldown';
 import { LimitsAudienceEditor } from '../components/LimitsAudienceEditor';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import type { CompetitionNode } from '../lib/matchTree';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
@@ -52,6 +53,7 @@ function MarketForm({ matchId, market, onSaved, onCancel }: MarketFormProps) {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: manualMarketsQueryKey });
+      toast.success(market ? 'Market updated' : 'Market created');
       if (market) {
         onSaved?.();
       } else {
@@ -59,6 +61,7 @@ function MarketForm({ matchId, market, onSaved, onCancel }: MarketFormProps) {
         setSelections(draftFromMarket());
       }
     },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save market')),
   });
 
   const validSelections = selections.filter(
@@ -150,7 +153,11 @@ function ManualMarketEntry({
   const setLimitsMutation = useMutation({
     mutationFn: ({ id, input }: { id: string; input: backendApi.SetLimitsInput }) =>
       backendApi.setManualMarketLimits(id, input),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: manualMarketsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: manualMarketsQueryKey });
+      toast.success('Limits saved');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save limits')),
   });
 
   if (isEditing) {
@@ -335,7 +342,11 @@ export default function ManualMarketsPage() {
 
   const removeMutation = useMutation({
     mutationFn: (id: string) => backendApi.removeManualMarket(id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: manualMarketsQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: manualMarketsQueryKey });
+      toast.success('Market removed');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove market')),
   });
 
   return (

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { Skeleton } from '../../components/ui/Skeleton';
+import { toast, errorMessage } from '../toast/toastStore';
 import * as backendApi from '../../lib/backendApi';
 
 const imagesQueryKey = ['brand-images'] as const;
@@ -58,13 +59,21 @@ function SlotRow({
     onSuccess: () => {
       setError(null);
       void queryClient.invalidateQueries({ queryKey: imagesQueryKey });
+      toast.success('Image uploaded');
     },
-    onError: (mutationError: Error) => setError(mutationError.message),
+    onError: (mutationError: Error) => {
+      setError(mutationError.message);
+      toast.error(errorMessage(mutationError, 'Failed to upload image'));
+    },
   });
 
   const removeMutation = useMutation({
     mutationFn: () => backendApi.removeBrandImage(slot),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: imagesQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: imagesQueryKey });
+      toast.success('Image removed');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove image')),
   });
 
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {

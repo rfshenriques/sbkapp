@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import { MatchDrilldown } from '../components/MatchDrilldown';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import type { CompetitionNode } from '../lib/matchTree';
 import * as backendApi from '../lib/backendApi';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
@@ -32,11 +33,19 @@ function OverrideCell({
   const setMutation = useMutation({
     mutationFn: (oddsValue: number) =>
       backendApi.setOddsOverride(matchId, marketId, selectionId, oddsValue, undefined),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: overridesQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: overridesQueryKey });
+      toast.success('Odds override saved');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save odds override')),
   });
   const clearMutation = useMutation({
     mutationFn: (id: string) => backendApi.clearOddsOverride(id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: overridesQueryKey }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: overridesQueryKey });
+      toast.success('Odds override cleared');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to clear odds override')),
   });
 
   const parsed = draft === '' ? null : Number(draft);

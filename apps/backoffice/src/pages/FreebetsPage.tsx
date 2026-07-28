@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
 
 function freebetsQueryKey(identifier: string) {
@@ -40,8 +41,12 @@ function GrantFreebetForm({ identifier }: { identifier: string }) {
       setExpiresAt('');
       setError(null);
       void queryClient.invalidateQueries({ queryKey: freebetsQueryKey(identifier) });
+      toast.success('Freebet granted');
     },
-    onError: (mutationError: Error) => setError(mutationError.message),
+    onError: (mutationError: Error) => {
+      setError(mutationError.message);
+      toast.error(errorMessage(mutationError, 'Failed to grant freebet'));
+    },
   });
 
   const parsedAmount = Number(amount);
@@ -92,7 +97,11 @@ function FreebetRow({ grant, identifier }: { grant: backendApi.FreebetGrant; ide
   const queryClient = useQueryClient();
   const voidMutation = useMutation({
     mutationFn: () => backendApi.voidFreebet(grant.id),
-    onSuccess: () => void queryClient.invalidateQueries({ queryKey: freebetsQueryKey(identifier) }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: freebetsQueryKey(identifier) });
+      toast.success('Freebet voided');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to void freebet')),
   });
 
   return (

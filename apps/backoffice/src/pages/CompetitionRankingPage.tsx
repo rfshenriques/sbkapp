@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
+import { toast, errorMessage } from '../features/toast/toastStore';
 import { competitionSportMap } from '../lib/countryMaps';
 import { sortSportsByPriority } from '../lib/sportPriority';
 import * as backendApi from '../lib/backendApi';
@@ -48,6 +49,10 @@ function SportRankingGroup({ sport, rankings, matches }: SportRankingGroupProps)
       await queryClient.invalidateQueries({ queryKey: rankingsQueryKey });
       setDragOrder(null);
     },
+    // No success toast here - this also fires once per row during a drag
+    // reorder, and a toast per row would spam the admin far more than the
+    // in-place reordered list already communicates.
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save competition ranking')),
   });
 
   const removeRankingMutation = useMutation({
@@ -55,7 +60,9 @@ function SportRankingGroup({ sport, rankings, matches }: SportRankingGroupProps)
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: rankingsQueryKey });
       setDragOrder(null);
+      toast.success('Removed from rankings');
     },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to remove ranking')),
   });
 
   const matchCountByCompetition = useMemo(() => {
