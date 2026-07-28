@@ -8,6 +8,14 @@ import { stubOddsEngineFetch } from '../test/mockOddsEngine';
 import { useBrandStore } from '../features/brand/brandStore';
 import SportPage from './SportPage';
 
+/** Local noon N days from now - "today" by default, safely clear of any midnight rollover near the actual test run time. */
+function daysFromNow(days: number, hour = 12): Date {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  date.setHours(hour, 0, 0, 0);
+  return date;
+}
+
 function buildMatch(overrides: Partial<Match> = {}): Match {
   return {
     id: 'm1',
@@ -16,7 +24,7 @@ function buildMatch(overrides: Partial<Match> = {}): Match {
     competition: 'EPL',
     homeTeam: 'Arsenal',
     awayTeam: 'Chelsea',
-    kickoff: '2026-07-19T18:00:00Z',
+    kickoff: daysFromNow(0).toISOString(),
     isLive: false,
     markets: [],
     ...overrides,
@@ -99,19 +107,19 @@ describe('SportPage', () => {
     expect(screen.getByRole('link', { name: 'Bruins vs Rangers' })).toBeInTheDocument();
   });
 
-  it('sorts by importance rank when that mode is selected', async () => {
+  it('sorts by importance rank once the Time/Relevance order toggle is clicked', async () => {
     stubOddsEngineFetch([
       buildMatch({
         id: 'minor',
         competition: 'League Two',
-        kickoff: '2026-07-19T09:00:00Z',
+        kickoff: daysFromNow(0, 9).toISOString(),
         homeTeam: 'Small Club',
         awayTeam: 'Tiny Club',
       }),
       buildMatch({
         id: 'major',
         competition: 'Champions League',
-        kickoff: '2026-07-19T22:00:00Z',
+        kickoff: daysFromNow(0, 22).toISOString(),
         homeTeam: 'Big Club',
         awayTeam: 'Huge Club',
       }),
@@ -130,12 +138,93 @@ describe('SportPage', () => {
       .map((el) => el.getAttribute('aria-label'));
     expect(headings).toEqual(['Small Club vs Tiny Club', 'Big Club vs Huge Club']);
 
-    await userEvent.click(screen.getByRole('button', { name: 'Importance' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Time' }));
 
     headings = await screen
       .findAllByRole('link', { name: /vs/ })
       .then((els) => els.map((el) => el.getAttribute('aria-label')));
     expect(headings).toEqual(['Big Club vs Huge Club', 'Small Club vs Tiny Club']);
+    expect(screen.getByRole('button', { name: 'Relevance' })).toBeInTheDocument();
+  });
+
+  it('hides the Time/Relevance order toggle when only one competition is in view', async () => {
+    stubOddsEngineFetch([
+      buildMatch({
+        id: 'm1',
+        sport: 'Football',
+        competition: 'Premier League',
+        homeTeam: 'Arsenal',
+        awayTeam: 'Chelsea',
+      }),
+      buildMatch({
+        id: 'm2',
+        sport: 'Football',
+        competition: 'Championship',
+        homeTeam: 'Leeds',
+        awayTeam: 'Norwich',
+      }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/sports/Football?competition=Premier%20League');
+    await screen.findByRole('link', { name: 'Arsenal vs Chelsea' });
+
+    expect(screen.queryByRole('button', { name: 'Time' })).not.toBeInTheDocument();
+  });
+
+  it('filters matches into Today/Tomorrow/Soon tabs, defaulting to Today', async () => {
+    stubOddsEngineFetch([
+      buildMatch({
+        id: 'today-match',
+        kickoff: daysFromNow(0).toISOString(),
+        homeTeam: 'Today Home',
+        awayTeam: 'Today Away',
+      }),
+      buildMatch({
+        id: 'tomorrow-match',
+        kickoff: daysFromNow(1).toISOString(),
+        homeTeam: 'Tomorrow Home',
+        awayTeam: 'Tomorrow Away',
+      }),
+      buildMatch({
+        id: 'soon-match',
+        kickoff: daysFromNow(5).toISOString(),
+        homeTeam: 'Soon Home',
+        awayTeam: 'Soon Away',
+      }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/sports/Football');
+
+    expect(await screen.findByRole('link', { name: 'Today Home vs Today Away' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Tomorrow Home vs Tomorrow Away' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Soon Home vs Soon Away' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Tomorrow' }));
+    expect(await screen.findByRole('link', { name: 'Tomorrow Home vs Tomorrow Away' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Today Home vs Today Away' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Soon' }));
+    expect(await screen.findByRole('link', { name: 'Soon Home vs Soon Away' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Tomorrow Home vs Tomorrow Away' })).not.toBeInTheDocument();
+  });
+
+  it('always buckets a live match as "today" regardless of its original kickoff', async () => {
+    stubOddsEngineFetch([
+      buildMatch({
+        id: 'live-old',
+        isLive: true,
+        kickoff: daysFromNow(-3).toISOString(),
+        homeTeam: 'Live Home',
+        awayTeam: 'Live Away',
+      }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/sports/Football');
+
+    expect(await screen.findByRole('link', { name: 'Live Home vs Live Away' })).toBeInTheDocument();
   });
 
   it('filters further to a single competition when the URL carries a competition param, and uses it as the heading', async () => {
@@ -281,12 +370,15 @@ describe('SportPage', () => {
   });
 
   it('shows only the first page of matches, with a Load more button that reveals the rest', async () => {
+    // Seconds apart (not hours) so all 25 stay within "today"'s calendar day
+    // regardless of when in the day the test actually runs.
+    const base = daysFromNow(0).getTime();
     const matches = Array.from({ length: 25 }, (_, index) =>
       buildMatch({
         id: `m${index}`,
         homeTeam: `Home ${index}`,
         awayTeam: `Away ${index}`,
-        kickoff: new Date(Date.UTC(2026, 6, 19, 10 + index)).toISOString(),
+        kickoff: new Date(base + index * 1000).toISOString(),
       }),
     );
     stubOddsEngineFetch(matches);

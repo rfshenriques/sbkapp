@@ -1,6 +1,6 @@
 const THREE_DAYS_MS = 3 * 24 * 60 * 60_000;
 
-function isSameCalendarDay(a: Date, b: Date): boolean {
+export function isSameCalendarDay(a: Date, b: Date): boolean {
   return (
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&

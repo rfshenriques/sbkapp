@@ -10,7 +10,9 @@ import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { BackButton } from '../components/ui/BackButton';
 import { Breadcrumb, type BreadcrumbSegment } from '../components/ui/Breadcrumb';
 import { Card } from '../components/ui/Card';
+import { SortIcon } from '../components/ui/SortIcon';
 import { SportIcon } from '../components/ui/SportIcon';
+import { matchDateBucket, type MatchDateBucket } from '../lib/matchDateBucket';
 import { sortSportsByPriority } from '../lib/sportPriority';
 import { staggerDelay } from '../lib/staggerDelay';
 
@@ -19,6 +21,12 @@ const ALL_SPORTS = 'all';
 
 /** Same load-more pattern as the homepage, just a bigger first page - this is the dedicated "see everything" view, not a short teaser section. */
 const PAGE_SIZE = 20;
+
+const DATE_FILTERS: { value: MatchDateBucket; label: string }[] = [
+  { value: 'today', label: 'Today' },
+  { value: 'tomorrow', label: 'Tomorrow' },
+  { value: 'soon', label: 'Soon' },
+];
 
 export default function SportPage() {
   const { sport } = useParams<{ sport: string }>();
@@ -34,6 +42,7 @@ export default function SportPage() {
   // - a single-sport page (/sports/Football) already has exactly one sport,
   // narrowed further by its own country/competition breadcrumb instead.
   const [selectedSport, setSelectedSport] = useState<string | undefined>(undefined);
+  const [dateFilter, setDateFilter] = useState<MatchDateBucket>('today');
 
   const { data: matches, isPending, isError } = useMatches();
   const { data: rankings } = useCompetitionRankings();
@@ -48,7 +57,8 @@ export default function SportPage() {
     (match) =>
       (!countryFilter || match.country === countryFilter) &&
       (!competitionFilter || match.competition === competitionFilter) &&
-      (!liveOnly || match.isLive),
+      (!liveOnly || match.isLive) &&
+      matchDateBucket(match) === dateFilter,
   );
   const sportsPresent =
     decodedSport === ALL_SPORTS
@@ -59,13 +69,17 @@ export default function SportPage() {
   );
   const sorted = filtered ? sortMatches(filtered, sortMode, rankByCompetition) : undefined;
   const visible = sorted?.slice(0, visibleCount);
+  // The order toggle only makes sense once there's more than one competition
+  // in view to reorder relative to each other - a single-competition list is
+  // already as "important" as it gets.
+  const showOrderToggle = new Set((filtered ?? []).map((match) => match.competition)).size > 1;
 
   // A different filter/sort is a different list - start each one back at
   // the first page rather than carrying over however far the player had
   // scrolled through the previous view.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [decodedSport, competitionFilter, countryFilter, liveOnly, sortMode, selectedSport]);
+  }, [decodedSport, competitionFilter, countryFilter, liveOnly, sortMode, selectedSport, dateFilter]);
   const heading = competitionFilter
     ? displayName('COMPETITION', competitionFilter)
     : liveOnly
@@ -133,34 +147,14 @@ export default function SportPage() {
           <Breadcrumb segments={breadcrumbSegments} />
         </div>
       )}
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <BackButton className="-ml-1.5" />
-          <span className="brand-flag" aria-hidden="true">
-            <i></i>
-            <i></i>
-            <i></i>
-          </span>
-          <h1 className="font-display text-lg">{heading}</h1>
-        </div>
-        <div className="flex gap-2" role="group" aria-label="Sort matches">
-          <button
-            type="button"
-            className={`tab${sortMode === 'time' ? ' active' : ''}`}
-            aria-pressed={sortMode === 'time'}
-            onClick={() => setSortMode('time')}
-          >
-            Time
-          </button>
-          <button
-            type="button"
-            className={`tab${sortMode === 'importance' ? ' active' : ''}`}
-            aria-pressed={sortMode === 'importance'}
-            onClick={() => setSortMode('importance')}
-          >
-            Importance
-          </button>
-        </div>
+      <div className="mb-4 flex items-center gap-2">
+        <BackButton className="-ml-1.5" />
+        <span className="brand-flag" aria-hidden="true">
+          <i></i>
+          <i></i>
+          <i></i>
+        </span>
+        <h1 className="font-display text-lg">{heading}</h1>
       </div>
 
       {decodedSport === ALL_SPORTS && sportsPresent.length > 1 && (
@@ -192,6 +186,39 @@ export default function SportPage() {
           ))}
         </div>
       )}
+
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div
+          className="scrollbar-hide flex min-w-0 gap-2 overflow-x-auto"
+          role="tablist"
+          aria-label="Filter matches by date"
+          data-horizontal-scroll="true"
+        >
+          {DATE_FILTERS.map(({ value, label }) => (
+            <button
+              key={value}
+              type="button"
+              role="tab"
+              aria-selected={dateFilter === value}
+              className={`tab shrink-0${dateFilter === value ? ' active' : ''}`}
+              onClick={() => setDateFilter(value)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {showOrderToggle && (
+          <button
+            type="button"
+            aria-pressed={sortMode === 'importance'}
+            className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-highlight"
+            onClick={() => setSortMode((mode) => (mode === 'time' ? 'importance' : 'time'))}
+          >
+            {sortMode === 'importance' ? 'Relevance' : 'Time'}
+            <SortIcon width={12} height={12} />
+          </button>
+        )}
+      </div>
 
       {isPending && <MatchListSkeleton />}
       {isError && <Card className="text-danger">Failed to load matches.</Card>}
