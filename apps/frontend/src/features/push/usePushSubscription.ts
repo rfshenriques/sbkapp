@@ -45,13 +45,18 @@ export function usePushSubscription() {
     if (!checkIsSupported()) {
       return;
     }
-    const registration = await navigator.serviceWorker.ready;
+    // iOS/WebKit requires requestPermission() to run on the same tick as the
+    // triggering click - any await beforehand (even one that resolves
+    // instantly, like an already-ready service worker) can drop the
+    // transient user-activation flag, silently killing the prompt. Chrome
+    // has no such restriction, which is why this only breaks on iOS.
     const permissionResult = await Notification.requestPermission();
     setPermission(permissionResult);
     if (permissionResult !== 'granted') {
       return;
     }
 
+    const registration = await navigator.serviceWorker.ready;
     const vapidPublicKey = await backendApi.getPushVapidPublicKey();
     const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
