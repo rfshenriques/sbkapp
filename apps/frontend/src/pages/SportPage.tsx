@@ -110,6 +110,31 @@ export default function SportPage() {
     explicitCountry ?? (sportNode?.countries.length === 1 ? sportNode.countries[0]?.country : undefined);
   const activeCountryNode = sportNode?.countries.find((node) => node.country === activeCountry);
 
+  // Ignoring the date-bucket filter itself - used only to tell whether the
+  // country/competition currently in view has anything live/today/tomorrow
+  // at all. An off-season competition (next fixture weeks out) shouldn't
+  // force the player through three empty tabs before reaching "Soon".
+  const scopedIgnoringDateFilter = matches?.filter(
+    (match) =>
+      (!countryFilter || match.country === countryFilter) &&
+      (!competitionFilter || match.competition === competitionFilter) &&
+      (!liveOnly || match.isLive) &&
+      (decodedSport === ALL_SPORTS ? !selectedSport || match.sport === selectedSport : match.sport === decodedSport),
+  );
+  const hasNearTermMatches = (scopedIgnoringDateFilter ?? []).some((match) => matchDateBucket(match) !== 'soon');
+  // Only once a specific country or competition is selected - the broad
+  // umbrella views (all countries, all leagues) are expected to always have
+  // something live/today/tomorrow somewhere in them.
+  const isScopedToCountryOrCompetition = Boolean(activeCountry) || Boolean(competitionFilter);
+  const collapseToSoonOnly =
+    isScopedToCountryOrCompetition && scopedIgnoringDateFilter !== undefined && !hasNearTermMatches;
+
+  useEffect(() => {
+    if (collapseToSoonOnly && dateFilter !== 'soon') {
+      setDateFilter('soon');
+    }
+  }, [collapseToSoonOnly, dateFilter]);
+
   const breadcrumbSegments: BreadcrumbSegment[] = [
     { key: 'home', label: 'Home', href: '/' },
     {
@@ -202,7 +227,7 @@ export default function SportPage() {
           aria-label="Filter matches by date"
           data-horizontal-scroll="true"
         >
-          {showLiveFilter && (
+          {showLiveFilter && !collapseToSoonOnly && (
             <button
               type="button"
               role="tab"
@@ -214,7 +239,7 @@ export default function SportPage() {
               Live
             </button>
           )}
-          {DATE_FILTERS.map(({ value, label }) => (
+          {DATE_FILTERS.filter(({ value }) => !collapseToSoonOnly || value === 'soon').map(({ value, label }) => (
             <button
               key={value}
               type="button"

@@ -282,6 +282,59 @@ describe('SportPage', () => {
     expect(screen.getByRole('heading', { name: 'Premier League' })).toBeInTheDocument();
   });
 
+  it('collapses to only the Soon tab (auto-selected) when the selected competition has nothing live/today/tomorrow', async () => {
+    stubOddsEngineFetch([
+      buildMatch({
+        id: 'far-out',
+        competition: 'Premier League',
+        kickoff: daysFromNow(10).toISOString(),
+        homeTeam: 'Arsenal',
+        awayTeam: 'Chelsea',
+      }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/sports/Football?competition=Premier%20League');
+
+    expect(await screen.findByRole('link', { name: 'Arsenal vs Chelsea' })).toBeInTheDocument();
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs).toHaveLength(1);
+    expect(tabs[0]).toHaveTextContent('Soon');
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true');
+  });
+
+  it('does not collapse the date tabs on the broad all-countries/all-leagues view, even with nothing near-term', async () => {
+    stubOddsEngineFetch([
+      buildMatch({
+        id: 'far-out',
+        country: 'England',
+        competition: 'Premier League',
+        kickoff: daysFromNow(10).toISOString(),
+        homeTeam: 'Arsenal',
+        awayTeam: 'Chelsea',
+      }),
+      buildMatch({
+        id: 'far-out-2',
+        country: 'Spain',
+        competition: 'La Liga',
+        kickoff: daysFromNow(12).toISOString(),
+        homeTeam: 'Real Madrid',
+        awayTeam: 'Barcelona',
+      }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/sports/Football');
+    await screen.findByRole('tab', { name: 'Soon' });
+
+    expect(screen.getAllByRole('tab').map((tab) => tab.textContent)).toEqual([
+      'Live',
+      'Today',
+      'Tomorrow',
+      'Soon',
+    ]);
+  });
+
   it('filters to only live matches when the URL carries live=true, and uses "Live" as the heading', async () => {
     stubOddsEngineFetch([
       buildMatch({ id: 'm1', isLive: true, homeTeam: 'Arsenal', awayTeam: 'Chelsea' }),
