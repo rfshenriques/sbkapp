@@ -776,3 +776,33 @@ export async function listWebAuthnCredentials(): Promise<WebAuthnCredentialSumma
 export async function removeWebAuthnCredential(id: string): Promise<void> {
   await authenticatedFetch(`/auth/webauthn/credentials/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
+
+/** Deployment-wide, unauthenticated - not per-brand, since one VAPID keypair covers every brand this backend serves (see PublicPushController). */
+export async function getPushVapidPublicKey(): Promise<string> {
+  const response = await fetch(`${BASE_URL}/public/push/vapid-public-key`);
+  const result = await parseJsonOrThrow<{ publicKey: string }>(response, `Failed to fetch VAPID key: ${response.status}`);
+  return result.publicKey;
+}
+
+export interface SubscribePushPayload {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+  userAgent?: string;
+}
+
+export async function subscribePush(payload: SubscribePushPayload): Promise<void> {
+  const response = await authenticatedFetch('/push/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  await parseJsonOrThrow(response, `Failed to subscribe to push: ${response.status}`);
+}
+
+export async function unsubscribePush(endpoint: string): Promise<void> {
+  await authenticatedFetch('/push/subscribe', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint }),
+  });
+}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import type { Match } from '@sportsbook/shared';
 import { MatchDrilldown } from '../components/MatchDrilldown';
 import { Button } from '../components/ui/Button';
@@ -567,6 +568,7 @@ interface CampaignCardProps {
 
 function CampaignCard({ campaign, matches, matchesLoading, matchesError }: CampaignCardProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleEnabledMutation = useMutation({
@@ -632,7 +634,17 @@ function CampaignCard({ campaign, matches, matchesLoading, matchesError }: Campa
             />
           </div>
 
-          <div className="border-t border-border pt-3">
+          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
+            <Button
+              variant="secondary"
+              onClick={() =>
+                navigate('/push-notifications', {
+                  state: { betAndGetCampaignId: campaign.id, campaignName: campaign.name },
+                })
+              }
+            >
+              Send push for this campaign
+            </Button>
             <Button variant="ghost" onClick={() => removeMutation.mutate()} disabled={removeMutation.isPending}>
               Delete campaign
             </Button>

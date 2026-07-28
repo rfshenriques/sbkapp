@@ -11,6 +11,7 @@ import { InsuranceBetModule } from '../insurance-bet/insurance-bet.module';
 import { LimitsModule } from '../limits/limits.module';
 import { ManualMarketModule } from '../manual-markets/manual-market.module';
 import { OddsEngineClient } from '../margins/odds-engine-client';
+import { PushModule } from '../push/push.module';
 import { CompetitionSuspensionAdminController } from './competition-suspension-admin.controller';
 import { CompetitionSuspensionService } from './competition-suspension.service';
 import { MarketAdminController } from './market-admin.controller';
@@ -36,6 +37,7 @@ import { PublicStakeLimitPreviewController } from './public-stake-limit-preview.
     FreebetModule,
     BetAndGetModule,
     DepositCampaignModule,
+    PushModule,
   ],
   controllers: [
     PamController,

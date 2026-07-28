@@ -5,8 +5,10 @@ import { Link } from 'react-router-dom';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { AccountIcon, MyBetsIcon } from '../../components/ui/NavIcons';
+import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
 import { useDepositModalStore } from '../deposit/depositModalStore';
+import { usePushSubscription } from '../push/usePushSubscription';
 import { BalancePills } from '../wallet/BalancePills';
 import { sumFreebetsCents, useFreebets } from '../wallet/useFreebets';
 import { useWallet } from '../wallet/useWallet';
@@ -40,9 +42,9 @@ function AccountLinkRow({
  * Full-screen (mobile) / centered-dialog (desktop) account modal - same
  * BottomSheet presentation as every other player-facing modal - replacing
  * the old floating dropdown. Only surfaces sections backed by real data or
- * real pages: balance + Add funds (wallet/deposit flow), My Bets,
- * Responsible Gambling, Log out. No payment methods/messages/documents/
- * security/notifications sections - those pages don't exist yet.
+ * real pages: balance + Add funds (wallet/deposit flow), My Bets, push
+ * notifications, Responsible Gambling, Log out. No payment methods/
+ * messages/documents/security sections - those pages don't exist yet.
  */
 export function AccountMenu() {
   const { user, logout } = useAuth();
@@ -51,6 +53,7 @@ export function AccountMenu() {
   const { data: freebets } = useFreebets();
   const freebetsCents = sumFreebetsCents(freebets);
   const openDepositModal = useDepositModalStore((state) => state.open);
+  const push = usePushSubscription();
 
   function close() {
     setIsOpen(false);
@@ -126,6 +129,25 @@ export function AccountMenu() {
                   Responsible Gambling
                 </AccountLinkRow>
               </div>
+
+              {push.isSupported && (
+                <div className="rounded-2xl border border-border bg-surface-2 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-text-primary">Push notifications</p>
+                      <p className="text-xs text-text-muted">
+                        Get notified on this device when a bet settles and about offers.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={push.isSubscribed}
+                      onChange={(checked) => void (checked ? push.enable() : push.disable())}
+                      ariaLabel="Push notifications"
+                      id="push-toggle"
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </BottomSheet>,
           document.body,

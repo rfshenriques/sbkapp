@@ -23,6 +23,7 @@ import BoostsPage from '../pages/BoostsPage';
 import OddsLadderPage from '../pages/OddsLadderPage';
 import OddsOverridesPage from '../pages/OddsOverridesPage';
 import PlayerSegmentsPage from '../pages/PlayerSegmentsPage';
+import PushNotificationsPage from '../pages/PushNotificationsPage';
 import RegistrationsPage from '../pages/RegistrationsPage';
 import ReportsPage from '../pages/ReportsPage';
 import SettlementPage from '../pages/SettlementPage';
@@ -274,6 +275,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'CRM']}>
               <PlayerSegmentsPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'push-notifications',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'CRM']}>
+              <PushNotificationsPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

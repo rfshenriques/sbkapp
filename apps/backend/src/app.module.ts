@@ -30,6 +30,7 @@ import { FreebetModule } from './modules/freebets/freebet.module';
 import { PromoCardModule } from './modules/promo-cards/promo-card.module';
 import { HomepageCarouselModule } from './modules/homepage-carousel/homepage-carousel.module';
 import { WebAuthnModule } from './modules/webauthn/webauthn.module';
+import { PushModule } from './modules/push/push.module';
 
 @Module({
   imports: [
@@ -64,6 +65,7 @@ import { WebAuthnModule } from './modules/webauthn/webauthn.module';
     PromoCardModule,
     HomepageCarouselModule,
     WebAuthnModule,
+    PushModule,
   ],
 })
 export class AppModule {}

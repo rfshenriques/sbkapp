@@ -14,6 +14,8 @@ import { OddsLadderService } from '../boosts/odds-ladder.service';
 import { FreebetService } from '../freebets/freebet.service';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
+import { PlayerSegmentService } from '../player-segments/player-segment.service';
+import { PushNotificationService } from '../push/push-notification.service';
 import { CompetitionSuspensionService } from '../pam/competition-suspension.service';
 import { MarketSuspensionService } from '../pam/market-suspension.service';
 import { PamService } from '../pam/pam.service';
@@ -78,6 +80,8 @@ describe('ReportsService', () => {
         FreebetService,
         BetAndGetCampaignService,
         DepositCampaignService,
+        PlayerSegmentService,
+        PushNotificationService,
         {
           provide: OddsEngineClient,
           useValue: {

@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStaffAuthStore } from '../features/auth/staffAuthStore';
 import type { DepositCampaign } from '../lib/backendApi';
@@ -40,7 +41,9 @@ function renderPage() {
   const queryClient = new QueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
-      <DepositCampaignsPage />
+      <MemoryRouter>
+        <DepositCampaignsPage />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -186,6 +189,41 @@ describe('DepositCampaignsPage', () => {
       '/backend/admin/deposit-campaigns/campaign-1',
       expect.objectContaining({ method: 'PATCH' }),
     );
+  });
+
+  it('"Send push for this campaign" navigates to /push-notifications with the campaign id and name', async () => {
+    stubFetch((url, method) => {
+      if (method === 'GET' && url === '/backend/admin/deposit-campaigns') {
+        return new Response(JSON.stringify([draftCampaign]), { status: 200 });
+      }
+      return undefined;
+    });
+
+    function PushNotificationsTarget() {
+      const location = useLocation();
+      return <div>push-notifications-state:{JSON.stringify(location.state)}</div>;
+    }
+
+    const queryClient = new QueryClient();
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/deposit-campaigns']}>
+          <Routes>
+            <Route path="/deposit-campaigns" element={<DepositCampaignsPage />} />
+            <Route path="/push-notifications" element={<PushNotificationsTarget />} />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: /First Deposit Bonus/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Send push for this campaign' }));
+
+    expect(
+      await screen.findByText(
+        'push-notifications-state:{"depositCampaignId":"campaign-1","campaignName":"First Deposit Bonus"}',
+      ),
+    ).toBeInTheDocument();
   });
 
   it('deleting a campaign sends a DELETE for its id', async () => {

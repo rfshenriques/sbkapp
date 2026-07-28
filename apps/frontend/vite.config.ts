@@ -14,6 +14,13 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      // injectManifest (rather than the default generateSW) is required to
+      // add custom push/notificationclick service-worker listeners - see
+      // src/sw.ts, which manually calls precacheAndRoute to preserve the
+      // offline-caching behavior generateSW used to provide automatically.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       manifest: {
         name: 'Sportsbook',
         short_name: 'Sportsbook',

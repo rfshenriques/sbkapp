@@ -1,4 +1,5 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import type { AudienceMode } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 
@@ -141,5 +142,30 @@ export class PlayerSegmentService {
       select: { segmentId: true },
     });
     return memberships.map((membership) => membership.segmentId);
+  }
+
+  /**
+   * Bulk reverse of resolveSegmentIdsForUser - every distinct userId whose
+   * audience-targeting resolves true for (mode, segmentIds) within brandId,
+   * mirroring audience.ts's resolveAudience per-viewer logic as a set
+   * query. Used by PushNotificationService to fan a broadcast out to real
+   * recipients. LOGGED_OUT always resolves to an empty set - a push
+   * subscription cannot exist without a logged-in userId to own it, so
+   * there's no anonymous audience to resolve for push.
+   */
+  async resolveUserIdsForAudience(brandId: string, mode: AudienceMode, segmentIds: string[]): Promise<string[]> {
+    if (mode === 'ALL' || mode === 'LOGGED_IN') {
+      const users = await this.prisma.user.findMany({ where: { brandId }, select: { id: true } });
+      return users.map((user) => user.id);
+    }
+    if (mode === 'LOGGED_OUT') {
+      return [];
+    }
+    const members = await this.prisma.playerSegmentMember.findMany({
+      where: { segmentId: { in: segmentIds }, segment: { brandId } },
+      select: { userId: true },
+      distinct: ['userId'],
+    });
+    return members.map((member) => member.userId);
   }
 }

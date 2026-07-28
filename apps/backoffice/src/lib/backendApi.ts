@@ -1488,3 +1488,67 @@ export async function reorderPromoCards(ids: string[]): Promise<PromoCard[]> {
   });
   return parseJsonOrThrow(response, `Failed to reorder promo cards: ${response.status}`);
 }
+
+export type PushNotificationKind = 'CUSTOM' | 'BET_WON' | 'BET_AND_GET_CAMPAIGN' | 'DEPOSIT_CAMPAIGN';
+export type PushDeliveryStatus = 'SENT' | 'FAILED';
+
+export interface PushNotification {
+  id: string;
+  kind: PushNotificationKind;
+  title: string;
+  body: string;
+  targetUrl: string | null;
+  audienceMode: AudienceMode;
+  betAndGetCampaignId: string | null;
+  depositCampaignId: string | null;
+  sourceBetId: string | null;
+  ttlSeconds: number;
+  sentByStaffUserId: string | null;
+  sentByUsername: string | null;
+  createdAt: string;
+  _count: { recipients: number };
+}
+
+export interface PushNotificationRecipient {
+  id: string;
+  userId: string;
+  endpoint: string;
+  status: PushDeliveryStatus;
+  statusCode: number | null;
+  errorMessage: string | null;
+  sentAt: string;
+  user: { username: string };
+}
+
+export interface PushNotificationDetail extends Omit<PushNotification, '_count'> {
+  recipients: PushNotificationRecipient[];
+}
+
+export interface SendPushNotificationInput {
+  title: string;
+  body: string;
+  targetUrl?: string;
+  audienceMode?: AudienceMode;
+  segmentIds?: string[];
+  betAndGetCampaignId?: string;
+  depositCampaignId?: string;
+}
+
+export async function listPushNotifications(): Promise<PushNotification[]> {
+  const response = await authenticatedFetch('/admin/push-notifications');
+  return parseJsonOrThrow(response, `Failed to load push notifications: ${response.status}`);
+}
+
+export async function getPushNotification(id: string): Promise<PushNotificationDetail> {
+  const response = await authenticatedFetch(`/admin/push-notifications/${id}`);
+  return parseJsonOrThrow(response, `Failed to load push notification: ${response.status}`);
+}
+
+export async function sendPushNotification(input: SendPushNotificationInput): Promise<PushNotification> {
+  const response = await authenticatedFetch('/admin/push-notifications', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return parseJsonOrThrow(response, `Failed to send push notification: ${response.status}`);
+}

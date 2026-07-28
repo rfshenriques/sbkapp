@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { BetStatus, SelectionStatus } from '@prisma/client';
 import type { Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -23,6 +23,7 @@ import {
 } from '../limits/stake-limits';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
+import { PushNotificationService } from '../push/push-notification.service';
 import { computeBetOutcome } from './bet-settlement';
 import { CompetitionSuspensionService } from './competition-suspension.service';
 import type { BetSelectionDto, PlaceBetDto } from './dto/place-bet.dto';
@@ -48,6 +49,8 @@ export interface ListBetsFilters {
 
 @Injectable()
 export class PamService {
+  private readonly logger = new Logger(PamService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditLogService: AuditLogService,
@@ -62,6 +65,7 @@ export class PamService {
     private readonly insuranceBetService: InsuranceBetService,
     private readonly betAndGetCampaignService: BetAndGetCampaignService,
     private readonly depositCampaignService: DepositCampaignService,
+    private readonly pushNotificationService: PushNotificationService,
   ) {}
 
   async getWallet(userId: string): Promise<{ balanceCents: number }> {
@@ -842,7 +846,7 @@ export class PamService {
     status: SelectionStatus,
     actor: AuditActor,
   ) {
-    return this.prisma.$transaction(async (tx) => {
+    const settledBet = await this.prisma.$transaction(async (tx) => {
       const selection = await tx.betSelection.findUnique({ where: { id: selectionId } });
       if (!selection || selection.betId !== betId) {
         throw new NotFoundException('Selection not found on this bet');
@@ -1056,5 +1060,18 @@ export class PamService {
         include: { selections: true },
       });
     });
+
+    if (settledBet.status === 'WON') {
+      // Fire-and-forget: push delivery is external I/O and must never
+      // block or affect the outcome of a settlement that's already
+      // committed - see PushNotificationService.sendBetWonPush's own
+      // sourceBetId-uniqueness idempotency guard for why a re-settlement
+      // (correction) is still safe to call this again.
+      void this.pushNotificationService
+        .sendBetWonPush(brandId, settledBet.id, settledBet.userId)
+        .catch((error: unknown) => this.logger.error(`Push send failed for bet ${settledBet.id}`, error));
+    }
+
+    return settledBet;
   }
 }

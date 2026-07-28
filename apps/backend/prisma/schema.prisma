@@ -52,6 +52,8 @@ model User {
   deposits                   Deposit[]
   depositCampaignRedemptions DepositCampaignRedemption[]
   webAuthnCredentials        WebAuthnCredential[]
+  pushSubscriptions          PushSubscription[]
+  pushNotificationRecipients PushNotificationRecipient[]
 
   @@index([brandId])
   @@map("users")
@@ -234,6 +236,7 @@ enum AuditAction {
   DEPOSIT_CAMPAIGN_CREATED
   DEPOSIT_CAMPAIGN_UPDATED
   DEPOSIT_CAMPAIGN_REMOVED
+  PUSH_NOTIFICATION_SENT
 }
 
 enum FreebetStatus {
@@ -424,6 +427,7 @@ model PlayerSegment {
   boosts             BoostSegment[]
   depositCampaigns   DepositCampaignSegment[]
   betAndGetCampaigns BetAndGetCampaignSegment[]
+  pushNotifications  PushNotificationSegment[]
 
   @@unique([brandId, name])
   @@index([brandId])
@@ -1069,11 +1073,11 @@ model BetAndGetCampaign {
   /**
    * All five qualifying-condition fields are optional independently - null means that condition doesn't restrict anything.
    */
-  minStakeCents Int?
+  minStakeCents   Int?
   /**
    * Every leg's own odds must be at least this - same convention as AccaBoostConfig.minOddsPerLeg.
    */
-  minOddsPerLeg Float?
+  minOddsPerLeg   Float?
   /**
    * The accumulator's combined price (product of all legs' odds) must be at
    * least this - distinct from minOddsPerLeg, which checks each leg
@@ -1084,7 +1088,7 @@ model BetAndGetCampaign {
   /**
    * Only checked when the bet is an accumulator (2+ selections).
    */
-  minSelections Int?
+  minSelections   Int?
 
   /**
    * false = at most one redemption ever per player for this campaign. When true, maxRedemptionsPerPlayer caps it further (null = unlimited).
@@ -1103,12 +1107,13 @@ model BetAndGetCampaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  scopes     BetAndGetCampaignScope[]
-  bets       Bet[]
+  scopes            BetAndGetCampaignScope[]
+  bets              Bet[]
   /**
    * CMS-managed cards (homepage/Challenges page) that link to this campaign - see PromoCard. A campaign can have zero, one, or several pointing at it.
    */
-  promoCards PromoCard[]
+  promoCards        PromoCard[]
+  pushNotifications PushNotification[]
 
   @@index([brandId])
   @@map("bet_and_get_campaigns")
@@ -1277,8 +1282,9 @@ model DepositCampaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  redemptions DepositCampaignRedemption[]
-  promoCards  PromoCard[]
+  redemptions       DepositCampaignRedemption[]
+  promoCards        PromoCard[]
+  pushNotifications PushNotification[]
 
   @@index([brandId])
   @@map("deposit_campaigns")
@@ -1505,6 +1511,7 @@ model Brand {
   depositCampaigns           DepositCampaign[]
   deposits                   Deposit[]
   depositCampaignRedemptions DepositCampaignRedemption[]
+  pushNotifications          PushNotification[]
 
   @@map("brands")
 }
@@ -1563,6 +1570,140 @@ model BrandImageListItem {
 
   @@index([brandId, kind])
   @@map("brand_image_list_items")
+}
+
+enum PushNotificationKind {
+  CUSTOM
+  BET_WON
+  BET_AND_GET_CAMPAIGN
+  DEPOSIT_CAMPAIGN
+}
+
+enum PushDeliveryStatus {
+  SENT
+  FAILED
+}
+
+/**
+ * One player device's Web Push registration - per-device, since browser
+ * permission is inherently per-browser-profile (see WebAuthnCredential, the
+ * closest existing per-user-multi-device precedent). endpoint is globally
+ * unique the same way WebAuthnCredential.credentialId is - a given push
+ * service endpoint URL can only ever belong to one subscription.
+ */
+model PushSubscription {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @default(now())
+
+  recipients PushNotificationRecipient[]
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+/**
+ * One push send event - either a staff-composed CUSTOM broadcast (own
+ * audienceMode/segments below, same shape as BetAndGetCampaign/
+ * DepositCampaign audience targeting) or a system/campaign-linked one
+ * (BET_WON, BET_AND_GET_CAMPAIGN, DEPOSIT_CAMPAIGN), whose audience is
+ * resolved live from the linked bet/campaign at send time and not
+ * duplicated into audienceMode/segments here - those two fields are only
+ * meaningful when kind is CUSTOM. sourceBetId is unique (not just indexed,
+ * unlike FreebetGrant.sourceBetId) because exactly one BET_WON push can
+ * ever exist per bet - see PushNotificationService.sendBetWonPush's
+ * idempotency guard.
+ */
+model PushNotification {
+  id        String               @id @default(uuid())
+  brandId   String
+  brand     Brand                @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  kind      PushNotificationKind @default(CUSTOM)
+  title     String
+  body      String
+  /**
+   * Deep link opened on notificationclick, e.g. "/my-bets" - relative path within apps/frontend. Null opens the app root.
+   */
+  targetUrl String?
+
+  /**
+   * Only meaningful when kind is CUSTOM and neither campaign FK below is set.
+   */
+  audienceMode AudienceMode              @default(ALL)
+  segments     PushNotificationSegment[]
+
+  betAndGetCampaignId String?
+  betAndGetCampaign   BetAndGetCampaign? @relation(fields: [betAndGetCampaignId], references: [id], onDelete: SetNull)
+  depositCampaignId   String?
+  depositCampaign     DepositCampaign?   @relation(fields: [depositCampaignId], references: [id], onDelete: SetNull)
+
+  /**
+   * The bet that triggered a BET_WON send - null for every other kind. Also the idempotency key (see the unique constraint below), same role as FreebetGrant.sourceBetId.
+   */
+  sourceBetId String? @unique
+
+  /**
+   * Web Push TTL header value used for this send's fan-out, in seconds - the entire "offline retry" mechanism is the push service honoring this header (RFC 8030), no application-level queue.
+   */
+  ttlSeconds Int @default(86400)
+
+  /**
+   * Denormalized actor snapshot, same pattern as FreebetGrant - both null for a system-triggered (non-CUSTOM, non-staff) send.
+   */
+  sentByStaffUserId String?
+  sentByUsername    String?
+  createdAt         DateTime @default(now())
+
+  recipients PushNotificationRecipient[]
+
+  @@index([brandId])
+  @@index([createdAt])
+  @@map("push_notifications")
+}
+
+model PushNotificationSegment {
+  id                 String           @id @default(uuid())
+  pushNotificationId String
+  pushNotification   PushNotification @relation(fields: [pushNotificationId], references: [id], onDelete: Cascade)
+  segmentId          String
+  segment            PlayerSegment    @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@unique([pushNotificationId, segmentId])
+  @@map("push_notification_segments")
+}
+
+/**
+ * One recipient's delivery outcome for one PushNotification - the "who did
+ * this affect" record, same split as PushNotification itself being "the
+ * event" (mirrors how BetAndGetCampaign is the event and FreebetGrant is
+ * the per-user record). pushSubscriptionId is nullable (SetNull) so a
+ * delivery record survives the player later unsubscribing that device;
+ * endpoint is denormalized so which physical device received it stays
+ * legible even then.
+ */
+model PushNotificationRecipient {
+  id                 String             @id @default(uuid())
+  pushNotificationId String
+  pushNotification   PushNotification   @relation(fields: [pushNotificationId], references: [id], onDelete: Cascade)
+  userId             String
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pushSubscriptionId String?
+  pushSubscription   PushSubscription?  @relation(fields: [pushSubscriptionId], references: [id], onDelete: SetNull)
+  endpoint           String
+  status             PushDeliveryStatus
+  statusCode         Int?
+  errorMessage       String?
+  sentAt             DateTime           @default(now())
+
+  @@index([pushNotificationId])
+  @@index([userId])
+  @@map("push_notification_recipients")
 }
 
 /**

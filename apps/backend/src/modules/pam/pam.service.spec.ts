@@ -15,6 +15,8 @@ import { FreebetService } from '../freebets/freebet.service';
 import { InsuranceBetService } from '../insurance-bet/insurance-bet.service';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
+import { PlayerSegmentService } from '../player-segments/player-segment.service';
+import { PushNotificationService } from '../push/push-notification.service';
 import { CompetitionSuspensionService } from './competition-suspension.service';
 import { MarketSuspensionService } from './market-suspension.service';
 import { PamService } from './pam.service';
@@ -64,6 +66,7 @@ describe('PamService', () => {
   let freebetService: FreebetService;
   let betAndGetCampaignService: BetAndGetCampaignService;
   let depositCampaignService: DepositCampaignService;
+  let pushNotificationService: PushNotificationService;
   let prisma: PrismaService;
   let setupPrisma: PrismaService;
   let testBrandId: string;
@@ -108,6 +111,8 @@ describe('PamService', () => {
         FreebetService,
         BetAndGetCampaignService,
         DepositCampaignService,
+        PlayerSegmentService,
+        PushNotificationService,
         {
           provide: OddsEngineClient,
           useValue: { fetchMatchById: vi.fn(async (matchId: string) => fakeMatch(matchId)) },
@@ -117,6 +122,7 @@ describe('PamService', () => {
     await moduleRef.init();
 
     pamService = moduleRef.get(PamService);
+    pushNotificationService = moduleRef.get(PushNotificationService);
     oddsEngineClient = moduleRef.get(OddsEngineClient);
     marketSuspensionService = moduleRef.get(MarketSuspensionService);
     competitionSuspensionService = moduleRef.get(CompetitionSuspensionService);
@@ -2185,6 +2191,54 @@ describe('PamService', () => {
 
       const wallet = await pamService.getWallet(otherBrandUserId);
       expect(wallet.balanceCents).toBe(99_500); // stake deducted, never settled
+    });
+
+    describe('WON-settlement push', () => {
+      it('triggers exactly one push send when a bet settles WON', async () => {
+        const sendBetWonPushSpy = vi.spyOn(pushNotificationService, 'sendBetWonPush').mockResolvedValue(undefined);
+        const userId = await createTestUser(100_000);
+        const bet = await pamService.placeBet(userId, {
+          selections: [buildSelection({ matchId: 'match-push-won' })],
+          stakeCents: 1_000,
+        });
+
+        await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+
+        expect(sendBetWonPushSpy).toHaveBeenCalledTimes(1);
+        expect(sendBetWonPushSpy).toHaveBeenCalledWith(testBrandId, bet.id, userId);
+      });
+
+      it('never triggers a push when a bet settles LOST or VOID', async () => {
+        const sendBetWonPushSpy = vi.spyOn(pushNotificationService, 'sendBetWonPush').mockResolvedValue(undefined);
+        const userId = await createTestUser(100_000);
+        const lostBet = await pamService.placeBet(userId, {
+          selections: [buildSelection({ matchId: 'match-push-lost' })],
+          stakeCents: 1_000,
+        });
+        const voidBet = await pamService.placeBet(userId, {
+          selections: [buildSelection({ matchId: 'match-push-void' })],
+          stakeCents: 1_000,
+        });
+
+        await pamService.settleSelection(testBrandId, lostBet.id, lostBet.selections[0]!.id, 'LOST', TEST_ACTOR);
+        await pamService.settleSelection(testBrandId, voidBet.id, voidBet.selections[0]!.id, 'VOID', TEST_ACTOR);
+
+        expect(sendBetWonPushSpy).not.toHaveBeenCalled();
+      });
+
+      it('a settlement-affecting push failure never affects the settlement result itself', async () => {
+        vi.spyOn(pushNotificationService, 'sendBetWonPush').mockRejectedValue(new Error('push service unreachable'));
+        const userId = await createTestUser(100_000);
+        const bet = await pamService.placeBet(userId, {
+          selections: [buildSelection({ matchId: 'match-push-failure' })],
+          stakeCents: 1_000,
+        });
+
+        const settled = await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+
+        expect(settled.status).toBe('WON');
+        expect(settled.settledPayoutCents).toBe(2_100);
+      });
     });
   });
 

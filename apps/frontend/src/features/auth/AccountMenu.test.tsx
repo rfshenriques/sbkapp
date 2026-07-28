@@ -18,6 +18,12 @@ function stubFetch() {
       if (url === '/backend/freebets') {
         return new Response(JSON.stringify([]), { status: 200 });
       }
+      if (url === '/backend/push/subscribe') {
+        return new Response(JSON.stringify({}), { status: 200 });
+      }
+      if (url === '/backend/public/push/vapid-public-key') {
+        return new Response(JSON.stringify({ publicKey: 'dGVzdC12YXBpZC1rZXk' }), { status: 200 });
+      }
       return new Response(null, { status: 404 });
     }),
   );
@@ -92,5 +98,36 @@ describe('AccountMenu', () => {
     const closeButtons = screen.getAllByRole('button', { name: 'Close account' });
     await userEvent.click(closeButtons[closeButtons.length - 1]!);
     expect(screen.queryByText('player1')).not.toBeInTheDocument();
+  });
+
+  it('hides the push notifications toggle when the browser has no PushManager/serviceWorker support', async () => {
+    renderMenu();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Account' }));
+
+    expect(screen.queryByRole('switch', { name: 'Push notifications' })).not.toBeInTheDocument();
+  });
+
+  it('shows and can toggle push notifications when the browser supports it', async () => {
+    const getSubscription = vi.fn().mockResolvedValue(null);
+    const subscribe = vi.fn().mockResolvedValue({
+      toJSON: () => ({ endpoint: 'https://push.example.com/ep', keys: { p256dh: 'p', auth: 'a' } }),
+    });
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      serviceWorker: { ready: Promise.resolve({ pushManager: { getSubscription, subscribe } }) },
+    });
+    vi.stubGlobal('PushManager', class {});
+    vi.stubGlobal('Notification', { requestPermission: vi.fn().mockResolvedValue('granted'), permission: 'default' });
+
+    renderMenu();
+    await userEvent.click(screen.getByRole('button', { name: 'Account' }));
+
+    const toggle = await screen.findByRole('switch', { name: 'Push notifications' });
+    expect(toggle).toHaveAttribute('aria-checked', 'false');
+
+    await userEvent.click(toggle);
+
+    expect(subscribe).toHaveBeenCalled();
   });
 });
