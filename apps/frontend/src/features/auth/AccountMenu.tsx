@@ -146,6 +146,12 @@ export function AccountMenu() {
                       id="push-toggle"
                     />
                   </div>
+                  {push.permission === 'denied' && (
+                    <p className="mt-2 text-xs text-danger">
+                      Notifications are blocked for this app at the device level. Enable them in your device's
+                      Settings app, then reopen this app.
+                    </p>
+                  )}
                   {push.error && <p className="mt-2 text-xs text-danger">{push.error}</p>}
                 </div>
               )}

@@ -130,4 +130,24 @@ describe('AccountMenu', () => {
 
     expect(subscribe).toHaveBeenCalled();
   });
+
+  it('shows a blocked-at-device message instead of silently no-oping when permission is already denied', async () => {
+    const getSubscription = vi.fn().mockResolvedValue(null);
+    const subscribe = vi.fn();
+    vi.stubGlobal('navigator', {
+      ...navigator,
+      serviceWorker: { ready: Promise.resolve({ pushManager: { getSubscription, subscribe } }) },
+    });
+    vi.stubGlobal('PushManager', class {});
+    vi.stubGlobal('Notification', { requestPermission: vi.fn().mockResolvedValue('denied'), permission: 'denied' });
+
+    renderMenu();
+    await userEvent.click(screen.getByRole('button', { name: 'Account' }));
+
+    const toggle = await screen.findByRole('switch', { name: 'Push notifications' });
+    await userEvent.click(toggle);
+
+    expect(subscribe).not.toHaveBeenCalled();
+    expect(await screen.findByText(/blocked for this app at the device level/)).toBeInTheDocument();
+  });
 });
