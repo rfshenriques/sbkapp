@@ -582,14 +582,17 @@ body {
    color instead of the glow vanishing entirely. */
 :root {
   --card-glow-blend: screen;
-  --card-glow-opacity: 0.6;
+  /* Was 0.6 - the wide farthest-corner coverage below is the part worth
+     keeping, but at full strength it read as too dominant against the
+     card's own content. Same reach, lighter touch. */
+  --card-glow-opacity: 0.4;
 }
 :root[data-theme='light'] {
   --card-glow-blend: multiply;
   /* Multiply is visually stronger than screen at equal opacity (it can
      push all the way toward black on saturated colors), so light theme
      dials back rather than reusing the dark-theme value verbatim. */
-  --card-glow-opacity: 0.26;
+  --card-glow-opacity: 0.16;
 }
 .match-card-glow {
   position: absolute;

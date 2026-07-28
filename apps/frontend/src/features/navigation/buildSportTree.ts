@@ -85,3 +85,20 @@ export function competitionCountryMap(matches: Match[]): Map<string, string> {
   }
   return map;
 }
+
+/**
+ * competition -> sport, same rationale/shape as competitionCountryMap - a
+ * Top Competitions quicklink only has a name and rank, no sport, so it
+ * either falls back to the umbrella /sports/all route (no per-sport icon
+ * available) or, once at least one live match confirms the sport, links
+ * straight to that sport's own page and gets its real icon.
+ */
+export function competitionSportMap(matches: Match[]): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const match of matches) {
+    if (!map.has(match.competition)) {
+      map.set(match.competition, match.sport);
+    }
+  }
+  return map;
+}

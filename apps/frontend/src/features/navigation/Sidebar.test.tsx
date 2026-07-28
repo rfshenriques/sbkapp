@@ -108,7 +108,7 @@ describe('Sidebar', () => {
     );
     expect(screen.getByRole('link', { name: /Premier League/ })).toHaveAttribute(
       'href',
-      '/sports/all?competition=Premier%20League',
+      '/sports/Football?competition=Premier%20League',
     );
   });
 

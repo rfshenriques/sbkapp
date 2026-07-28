@@ -11,7 +11,7 @@ import { useMatches } from '../odds-board/useMatches';
 import { useCompetitionRankings } from '../odds-board/useCompetitionRankings';
 import { useCompetitionQuicklinks } from '../odds-board/useCompetitionQuicklinks';
 import { rankMapFromRankings } from '../odds-board/sortMatches';
-import { buildSportTree, competitionCountryMap } from './buildSportTree';
+import { buildSportTree, competitionCountryMap, competitionSportMap } from './buildSportTree';
 
 /** Sidebar stays short and scannable - the rest is reachable through the sport/country/competition drill-down below. */
 const MAX_QUICKLINKS = 6;
@@ -45,6 +45,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
   const isSearching = trimmedQuery.length > 0;
 
   const competitionCountries = useMemo(() => competitionCountryMap(matches ?? []), [matches]);
+  const competitionSports = useMemo(() => competitionSportMap(matches ?? []), [matches]);
 
   // Most searches (a team, a country) are looking for matches to bet on -
   // show those directly rather than making the player drill into a league
@@ -222,14 +223,26 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
             <ul className="divide-y divide-border/60">
               {topCompetitions.map((quicklink) => {
                 const country = competitionCountries.get(quicklink.competition);
+                const sport = competitionSports.get(quicklink.competition);
                 return (
                   <li key={quicklink.competition}>
                     <Link
-                      to={`/sports/all?competition=${encodeURIComponent(quicklink.competition)}`}
+                      // Straight to the competition's own sport page once a
+                      // live match has told us what sport it is - only
+                      // falls back to the /sports/all umbrella (no per-sport
+                      // icon available there) for a quicklink with zero
+                      // scheduled matches right now.
+                      to={
+                        sport
+                          ? `/sports/${encodeURIComponent(sport)}?competition=${encodeURIComponent(quicklink.competition)}`
+                          : `/sports/all?competition=${encodeURIComponent(quicklink.competition)}`
+                      }
                       className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
                       onClick={onNavigate}
                     >
-                      {country ? (
+                      {sport && country ? (
+                        <SportCountryBadge sport={sport} country={country} size={22} />
+                      ) : country ? (
                         <CountryFlag country={country} size={22} />
                       ) : (
                         <span className="inline-block h-[22px] w-[22px] shrink-0" />
