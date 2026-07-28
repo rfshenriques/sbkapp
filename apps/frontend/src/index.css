@@ -81,6 +81,18 @@ body {
   display: none;
 }
 
+/* Landscape lock (see RotateDeviceOverlay) - hidden by default, shown only
+   for a short/wide viewport (a phone rotated sideways), never a desktop
+   window that's merely wide. */
+.rotate-device-overlay {
+  display: none;
+}
+@media (orientation: landscape) and (max-height: 500px) {
+  .rotate-device-overlay {
+    display: flex;
+  }
+}
+
 /* ---------- Shared brand-styled primitives ---------- */
 
 .font-display {

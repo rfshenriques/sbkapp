@@ -26,6 +26,7 @@ export default defineConfig({
         short_name: 'Sportsbook',
         start_url: '/',
         display: 'standalone',
+        orientation: 'portrait',
         background_color: '#0b0f1a',
         theme_color: '#0b0f1a',
         icons: [
