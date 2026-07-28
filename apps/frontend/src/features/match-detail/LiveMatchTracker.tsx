@@ -29,38 +29,6 @@ function barWidths(home: number | string, away: number | string): { home: number
 export function LiveMatchTracker({ state, homeTeam, awayTeam }: LiveMatchTrackerProps) {
   return (
     <div className="space-y-4">
-      <Card>
-        <div className="grid grid-cols-3 items-center gap-2 text-center">
-          <p className="truncate font-semibold">{homeTeam}</p>
-          <div className="flex items-center justify-center gap-3">
-            <span className="font-display text-3xl tabular-nums">{state.homeScore}</span>
-            <span className="text-text-muted">:</span>
-            <span className="font-display text-3xl tabular-nums">{state.awayScore}</span>
-          </div>
-          <p className="truncate font-semibold">{awayTeam}</p>
-        </div>
-        <p className="mt-2 text-center font-display text-sm text-highlight">{state.minute}'</p>
-      </Card>
-
-      <Card>
-        <div className="mb-1.5 flex justify-between text-[11px] font-semibold text-text-secondary">
-          <span>{homeTeam} pressure</span>
-          <span>{awayTeam} pressure</span>
-        </div>
-        <div className="momentum-bar" role="img" aria-label="Match momentum">
-          <span
-            className="side home"
-            style={{ flexBasis: `${state.momentum.home}%` }}
-            aria-hidden="true"
-          />
-          <span
-            className="side away"
-            style={{ flexBasis: `${state.momentum.away}%` }}
-            aria-hidden="true"
-          />
-        </div>
-      </Card>
-
       {state.stats.length > 0 && (
         <Card>
           <h2 className="mb-3 font-display text-lg">Match stats</h2>

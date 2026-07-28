@@ -74,7 +74,7 @@ describe('MatchCard', () => {
     expect(screen.getByText('vs')).toBeInTheDocument();
   });
 
-  it('replaces "vs" with the live score once it loads for a live match', async () => {
+  it('replaces "vs" with each team\'s live score once it loads for a live match', async () => {
     const liveMatch: Match = { ...baseMatch, isLive: true };
     stubOddsEngineFetch([liveMatch], {
       [liveMatch.id]: {
@@ -92,16 +92,18 @@ describe('MatchCard', () => {
     renderMatchCard(liveMatch);
 
     expect(screen.queryByText('vs')).not.toBeInTheDocument();
-    expect(await screen.findByText('2 : 1')).toBeInTheDocument();
+    expect(await screen.findByText('2')).toBeInTheDocument();
+    expect(screen.getByText('1')).toBeInTheDocument();
+    expect(screen.getByText("40'")).toBeInTheDocument();
   });
 
-  it('shows a colon placeholder for a live match before the score has loaded', () => {
+  it('shows a dash placeholder per team for a live match before the score has loaded', () => {
     const liveMatch: Match = { ...baseMatch, isLive: true };
     stubOddsEngineFetch([liveMatch]);
 
     renderMatchCard(liveMatch);
 
-    expect(screen.getByText(':')).toBeInTheDocument();
+    expect(screen.getAllByText('-')).toHaveLength(2);
   });
 
   it('shows a LIVE badge only when the match is live', () => {

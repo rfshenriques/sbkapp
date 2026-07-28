@@ -161,13 +161,47 @@ export default function MatchDetailPage() {
             className="h-4 shrink-0 sm:h-6"
           />
           <span className="min-w-0 truncate">{homeTeamLabel}</span>
-          <span className="shrink-0 text-sm font-normal text-text-muted normal-case sm:text-base">vs</span>
+          {match.isLive && liveState ? (
+            <span className="shrink-0 tabular-nums">
+              {liveState.homeScore} - {liveState.awayScore}
+            </span>
+          ) : (
+            <span className="shrink-0 text-sm font-normal text-text-muted normal-case sm:text-base">vs</span>
+          )}
           <span className="min-w-0 truncate">{awayTeamLabel}</span>
           <TeamColorAccent
             colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)}
             className="h-4 shrink-0 sm:h-6"
           />
         </h1>
+
+        {/* Result lives in this same header block (not a separate card
+            below), and momentum sits right under it in the same block too -
+            these three (team names, score, pressure) read as one connected
+            state of the match rather than three disconnected cards. */}
+        {match.isLive && liveState && (
+          <div className="mt-3">
+            <p className="text-center font-display text-sm text-highlight">{liveState.minute}'</p>
+            <div className="mt-3">
+              <div className="mb-1.5 flex justify-between gap-2 text-[11px] font-semibold text-text-secondary">
+                <span className="min-w-0 truncate">{homeTeamLabel} pressure</span>
+                <span className="min-w-0 truncate">{awayTeamLabel} pressure</span>
+              </div>
+              <div className="momentum-bar" role="img" aria-label="Match momentum">
+                <span
+                  className="side home"
+                  style={{ flexBasis: `${liveState.momentum.home}%` }}
+                  aria-hidden="true"
+                />
+                <span
+                  className="side away"
+                  style={{ flexBasis: `${liveState.momentum.away}%` }}
+                  aria-hidden="true"
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </section>
 
       {applicableCampaigns && applicableCampaigns.length > 0 && (
