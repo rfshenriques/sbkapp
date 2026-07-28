@@ -569,6 +569,44 @@ body {
   animation: live-pulse 2s ease-in-out infinite;
 }
 
+/* ---------- Match card ambient team-color glow ---------- */
+/* Two soft radial washes of each team's own accent color (the same hex
+   driving TeamColorAccent's little bar next to their name), emanating
+   from the card's bottom corners - ties an otherwise-identical dark card
+   to the actual teams playing without competing with the odds buttons
+   (which keep their own opaque .odd-btn background) or meta row above.
+   Screen blend in dark theme lets the two washes lift into a brighter
+   blended hue where they overlap in the middle; screen does nothing
+   against a light/white card (screen against white always stays white),
+   so light theme switches to multiply, which tints white toward the
+   color instead of the glow vanishing entirely. */
+:root {
+  --card-glow-blend: screen;
+  --card-glow-opacity: 0.55;
+}
+:root[data-theme='light'] {
+  --card-glow-blend: multiply;
+  /* Multiply is visually stronger than screen at equal opacity (it can
+     push all the way toward black on saturated colors), so light theme
+     dials back rather than reusing the dark-theme value verbatim. */
+  --card-glow-opacity: 0.22;
+}
+.match-card-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  /* Percentage-sized ellipses (not a fixed px radius) so the wash reaches
+     the same relative distance - roughly bottom edge to vertical middle -
+     on a narrow mobile card as on a wide desktop one, per two overlapping
+     radial gradients rather than a fixed-size blob. */
+  background:
+    radial-gradient(ellipse 65% 85% at 4% 100%, var(--home-glow), transparent 68%),
+    radial-gradient(ellipse 65% 85% at 96% 100%, var(--away-glow), transparent 68%);
+  filter: blur(20px);
+  opacity: var(--card-glow-opacity);
+  mix-blend-mode: var(--card-glow-blend);
+}
+
 .momentum-bar {
   display: flex;
   height: 8px;
