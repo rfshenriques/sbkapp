@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '../components/ui/Card';
+import { ShieldIcon } from '../components/ui/NavIcons';
 import { getPublicBrand } from '../lib/backendApi';
 
 export default function ResponsibleGamblingPage() {
@@ -12,11 +13,7 @@ export default function ResponsibleGamblingPage() {
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
-        <span className="brand-flag" aria-hidden="true">
-          <i></i>
-          <i></i>
-          <i></i>
-        </span>
+        <ShieldIcon width={22} height={22} />
         <h1 className="font-display text-lg">Responsible Gambling</h1>
       </div>
 

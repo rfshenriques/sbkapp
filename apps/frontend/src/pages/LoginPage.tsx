@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { BottomSheet } from '../components/ui/BottomSheet';
+import { AccountIcon } from '../components/ui/NavIcons';
 import { useAuth } from '../features/auth/useAuth';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { runPostLoginDepositCheck } from '../features/deposit-campaigns/runPostLoginDepositCheck';
@@ -35,13 +36,7 @@ export default function LoginPage() {
   return (
     <BottomSheet
       title="Log in"
-      icon={
-        <span className="brand-flag" aria-hidden="true">
-          <i></i>
-          <i></i>
-          <i></i>
-        </span>
-      }
+      icon={<AccountIcon width={26} height={26} />}
       onClose={close}
       closeLabel="Close login"
       footer={

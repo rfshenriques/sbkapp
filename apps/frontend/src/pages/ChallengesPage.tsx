@@ -1,4 +1,5 @@
 import { Card } from '../components/ui/Card';
+import { TrophyIcon } from '../components/ui/NavIcons';
 import { Skeleton } from '../components/ui/Skeleton';
 import { useBrandStore } from '../features/brand/brandStore';
 import { PromoCardTile } from '../features/promo-cards/PromoCardTile';
@@ -29,11 +30,7 @@ export default function ChallengesPage() {
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
-        <span className="brand-flag" aria-hidden="true">
-          <i></i>
-          <i></i>
-          <i></i>
-        </span>
+        <TrophyIcon width={22} height={22} />
         <h1 className="font-display text-lg">Challenges</h1>
       </div>
 

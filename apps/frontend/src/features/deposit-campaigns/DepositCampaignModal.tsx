@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { BottomSheet } from '../../components/ui/BottomSheet';
-import { FreebetBadgeIcon } from '../../components/ui/NavIcons';
+import { FreebetBadgeIcon, WalletIcon } from '../../components/ui/NavIcons';
 import * as backendApi from '../../lib/backendApi';
 import type { DepositCampaign, DepositResult } from '../../lib/backendApi';
 import { formatCampaignRequirements, formatCampaignTrigger } from '../bet-and-get/formatCampaignRequirements';
@@ -148,13 +148,7 @@ export function DepositCampaignModal() {
   return (
     <BottomSheet
       title={campaign.name}
-      icon={
-        <span className="brand-flag" aria-hidden="true">
-          <i></i>
-          <i></i>
-          <i></i>
-        </span>
-      }
+      icon={<WalletIcon width={26} height={26} />}
       onClose={close}
       closeLabel="Close deposit offer"
       footer={

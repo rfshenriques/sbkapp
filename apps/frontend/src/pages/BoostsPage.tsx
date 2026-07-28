@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import type { BoostedSelectionSummary } from '@sportsbook/shared';
 import { BackButton } from '../components/ui/BackButton';
 import { Card } from '../components/ui/Card';
+import { BoostIcon } from '../components/ui/NavIcons';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { SportIcon } from '../components/ui/SportIcon';
 import { BoostedOddsRow } from '../features/bet-slip/BoostedOddsRow';
@@ -77,11 +78,7 @@ export default function BoostsPage() {
     <div>
       <div className="mb-4 flex items-center gap-2">
         <BackButton className="-ml-1.5" />
-        <span className="brand-flag" aria-hidden="true">
-          <i></i>
-          <i></i>
-          <i></i>
-        </span>
+        <BoostIcon width={22} height={22} />
         <h1 className="font-display text-lg">Boosts</h1>
       </div>
 

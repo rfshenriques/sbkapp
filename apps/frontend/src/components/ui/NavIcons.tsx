@@ -192,3 +192,81 @@ export function CopyIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** "See everything, unfiltered" - All matches, Browse matches - a plain 2x2 grid rather than any one sport's glyph. */
+export function GridIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <rect x="3" y="3" width="6" height="6" rx="1.2" />
+      <rect x="11" y="3" width="6" height="6" rx="1.2" />
+      <rect x="3" y="11" width="6" height="6" rx="1.2" />
+      <rect x="11" y="11" width="6" height="6" rx="1.2" />
+    </svg>
+  );
+}
+
+/** A generic odds market section (Match Result and every other market on the match page) - three uneven bars standing in for a row of odds buttons. */
+export function MarketIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <rect x="2.5" y="7" width="4.2" height="9" rx="1.4" />
+      <rect x="7.9" y="4" width="4.2" height="12" rx="1.4" />
+      <rect x="13.3" y="9" width="4.2" height="7" rx="1.4" />
+    </svg>
+  );
+}
+
+/** Upcoming - a calendar, next to LiveIcon's already-happening broadcast rings. */
+export function CalendarIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <rect x="3" y="4.5" width="14" height="12" rx="1.8" />
+      <path d="M3 8h14" />
+      <path d="M6.5 2.8v3" />
+      <path d="M13.5 2.8v3" />
+    </svg>
+  );
+}
+
+/** Responsible Gambling - a shield with a checkmark. */
+export function ShieldIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M10 2.5 16 5v5c0 4-2.6 6.7-6 7.5-3.4-.8-6-3.5-6-7.5V5l6-2.5Z" />
+      <path d="M7.3 10 9.2 11.8 12.8 8" />
+    </svg>
+  );
+}
+
+/** ErrorPage - a warning triangle, next to CompassIcon's "where am I" for NotFoundPage. */
+export function WarningIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <path d="M10 3 18 16H2L10 3Z" />
+      <line x1="10" y1="8" x2="10" y2="11.5" />
+      <circle cx="10" cy="14" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+/** NotFoundPage - a compass, "you've wandered off the map". */
+export function CompassIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <circle cx="10" cy="10" r="7.5" />
+      <path d="M13 7 11.2 11.2 7 13 8.8 8.8 13 7Z" />
+    </svg>
+  );
+}
+
+/** Register modal - AccountIcon's silhouette plus a "+", distinct from the plain login silhouette. */
+export function AccountPlusIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <circle cx="8.2" cy="7" r="3" />
+      <path d="M2.5 17c0-3.1 2.6-5.6 5.7-5.6" />
+      <path d="M15 8v5.5" />
+      <path d="M12.3 10.8h5.4" />
+    </svg>
+  );
+}

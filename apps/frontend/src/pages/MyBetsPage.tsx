@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { BetHistoryList, type BetHistoryFilter } from '../features/bet-history/BetHistoryList';
+import { MyBetsIcon } from '../components/ui/NavIcons';
 
 const FILTERS: { value: BetHistoryFilter; label: string }[] = [
   { value: 'OPEN', label: 'Open' },
@@ -13,11 +14,7 @@ export default function MyBetsPage() {
   return (
     <div>
       <div className="mb-3 flex items-center gap-2">
-        <span className="brand-flag" aria-hidden="true">
-          <i></i>
-          <i></i>
-          <i></i>
-        </span>
+        <MyBetsIcon width={22} height={22} />
         <h1 className="font-display text-lg">My Bets</h1>
       </div>
 

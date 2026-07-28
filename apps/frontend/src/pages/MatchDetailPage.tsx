@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom';
 import { BackButton } from '../components/ui/BackButton';
 import { Breadcrumb, type BreadcrumbSegment } from '../components/ui/Breadcrumb';
 import { Card } from '../components/ui/Card';
+import { BoostIcon, MarketIcon, SpecialsIcon } from '../components/ui/NavIcons';
 import { Skeleton } from '../components/ui/Skeleton';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { TeamColorAccent } from '../components/ui/TeamColorAccent';
@@ -208,11 +209,7 @@ export default function MatchDetailPage() {
       {boostedSelections.length > 0 && (
         <div className="mt-6">
           <div className="mb-3 flex items-center gap-2">
-            <span className="brand-flag" aria-hidden="true">
-              <i></i>
-              <i></i>
-              <i></i>
-            </span>
+            <BoostIcon width={22} height={22} />
             <h2 className="font-display text-lg">Boosts</h2>
           </div>
           <div className="space-y-3">
@@ -239,11 +236,7 @@ export default function MatchDetailPage() {
       {matchResult ? (
         <div className="mt-6">
           <div className="mb-3 flex items-center gap-2">
-            <span className="brand-flag" aria-hidden="true">
-              <i></i>
-              <i></i>
-              <i></i>
-            </span>
+            <MarketIcon width={22} height={22} />
             <h2 className="font-display text-lg">{displayName('MARKET', matchResult.name)}</h2>
           </div>
           <MarketSelections
@@ -260,11 +253,7 @@ export default function MatchDetailPage() {
       {otherMarkets.map((market) => (
         <div key={market.id} className="mt-6">
           <div className="mb-3 flex items-center gap-2">
-            <span className="brand-flag" aria-hidden="true">
-              <i></i>
-              <i></i>
-              <i></i>
-            </span>
+            <MarketIcon width={22} height={22} />
             <h2 className="font-display text-lg">{displayName('MARKET', market.name)}</h2>
           </div>
           <MarketSelections
@@ -279,11 +268,7 @@ export default function MatchDetailPage() {
       {specialMarkets.length > 0 && (
         <div className="mt-6">
           <div className="mb-3 flex items-center gap-2">
-            <span className="brand-flag" aria-hidden="true">
-              <i></i>
-              <i></i>
-              <i></i>
-            </span>
+            <SpecialsIcon width={22} height={22} />
             <h2 className="font-display text-lg">Specials</h2>
           </div>
           <div className="space-y-4">

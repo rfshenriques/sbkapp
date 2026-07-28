@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Navigate, useParams } from 'react-router-dom';
 import { BackButton } from '../components/ui/BackButton';
 import { Card } from '../components/ui/Card';
+import { TrophyIcon } from '../components/ui/NavIcons';
 import { CampaignContextBanner } from '../features/bet-and-get/CampaignContextBanner';
 import { useCampaignMatches } from '../features/bet-and-get/useCampaignMatches';
 import { useBetAndGetCampaigns } from '../features/bet-and-get/useBetAndGetCampaigns';
@@ -32,11 +33,7 @@ export default function CampaignMatchesPage() {
     <div>
       <div className="mb-4 flex items-center gap-2">
         <BackButton className="-ml-1.5" />
-        <span className="brand-flag" aria-hidden="true">
-          <i></i>
-          <i></i>
-          <i></i>
-        </span>
+        <TrophyIcon width={22} height={22} />
         <h1 className="font-display text-lg">{campaign?.name ?? 'Bet & Get'}</h1>
       </div>
 

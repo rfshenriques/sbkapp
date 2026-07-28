@@ -38,13 +38,7 @@ export function FreebetCreditedModal() {
   return (
     <BottomSheet
       title={grant.campaignName ?? 'Freebet credited'}
-      icon={
-        <span className="brand-flag" aria-hidden="true">
-          <i></i>
-          <i></i>
-          <i></i>
-        </span>
-      }
+      icon={<FreebetBadgeIcon width={26} height={26} />}
       onClose={close}
       closeLabel="Close freebet credited"
       footer={

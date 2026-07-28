@@ -11,7 +11,9 @@ import { BackButton } from '../components/ui/BackButton';
 import { Breadcrumb, type BreadcrumbSegment } from '../components/ui/Breadcrumb';
 import { Card } from '../components/ui/Card';
 import { CountryFlag } from '../components/ui/CountryFlag';
+import { GridIcon, LiveIcon } from '../components/ui/NavIcons';
 import { SortIcon } from '../components/ui/SortIcon';
+import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { SportIcon } from '../components/ui/SportIcon';
 import { matchDateBucket, type MatchDateBucket } from '../lib/matchDateBucket';
 import { sortSportsByPriority } from '../lib/sportPriority';
@@ -87,14 +89,6 @@ export default function SportPage() {
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
   }, [decodedSport, competitionFilter, countryFilter, liveOnly, sortMode, selectedSport, dateFilter]);
-  const heading = competitionFilter
-    ? displayName('COMPETITION', competitionFilter)
-    : liveOnly
-      ? 'Live'
-      : decodedSport === ALL_SPORTS
-        ? 'All matches'
-        : displayName('SPORT', decodedSport);
-
   // Only a real sport (not the "all"/"live" umbrella views) has a
   // country/competition hierarchy worth letting the player jump around in.
   const showHierarchyBreadcrumb = decodedSport !== ALL_SPORTS && !liveOnly;
@@ -109,6 +103,27 @@ export default function SportPage() {
   const activeCountry =
     explicitCountry ?? (sportNode?.countries.length === 1 ? sportNode.countries[0]?.country : undefined);
   const activeCountryNode = sportNode?.countries.find((node) => node.country === activeCountry);
+
+  const heading = competitionFilter
+    ? displayName('COMPETITION', competitionFilter)
+    : liveOnly
+      ? 'Live'
+      : decodedSport === ALL_SPORTS
+        ? 'All matches'
+        : displayName('SPORT', decodedSport);
+  // A league is "this sport, in this country" - the same overlapping badge
+  // used everywhere else a competition is identified. A bare sport page
+  // gets just the sport glyph; the umbrella views get a matching generic
+  // icon instead of guessing at a sport.
+  const headingIcon = competitionFilter ? (
+    <SportCountryBadge sport={decodedSport} country={activeCountry ?? ''} size={22} />
+  ) : liveOnly ? (
+    <LiveIcon width={22} height={22} />
+  ) : decodedSport === ALL_SPORTS ? (
+    <GridIcon width={20} height={20} />
+  ) : (
+    <SportIcon sport={decodedSport} size={22} />
+  );
 
   // Ignoring the date-bucket filter itself - used only to tell whether the
   // country/competition currently in view has anything live/today/tomorrow
@@ -182,11 +197,7 @@ export default function SportPage() {
       )}
       <div className="mb-4 flex items-center gap-2">
         <BackButton className="-ml-1.5" />
-        <span className="brand-flag" aria-hidden="true">
-          <i></i>
-          <i></i>
-          <i></i>
-        </span>
+        {headingIcon}
         <h1 className="font-display text-lg">{heading}</h1>
       </div>
 

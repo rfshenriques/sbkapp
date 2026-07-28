@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { WarningIcon } from '../components/ui/NavIcons';
 
 /**
  * Wired as the root route's ErrorBoundary (see app/routes.ts) - catches any
@@ -13,11 +14,7 @@ export default function ErrorPage() {
     <div className="flex min-h-screen items-center justify-center p-6">
       <div className="mx-auto max-w-sm text-center">
         <div className="mb-3 flex items-center justify-center gap-2">
-          <span className="brand-flag" aria-hidden="true">
-            <i></i>
-            <i></i>
-            <i></i>
-          </span>
+          <WarningIcon width={24} height={24} />
           <h1 className="font-display text-xl">Well, that didn't go to plan</h1>
         </div>
         <p className="mt-2 text-sm text-text-secondary">

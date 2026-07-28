@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { BrandPromoImage } from '../components/ui/BrandPromoImage';
+import { AccountPlusIcon } from '../components/ui/NavIcons';
 import { useAuth } from '../features/auth/useAuth';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { runPostLoginPasskeyPrompt } from '../features/auth/runPostLoginPasskeyPrompt';
@@ -70,13 +71,7 @@ export default function RegisterPage() {
   return (
     <BottomSheet
       title="Create your account"
-      icon={
-        <span className="brand-flag" aria-hidden="true">
-          <i></i>
-          <i></i>
-          <i></i>
-        </span>
-      }
+      icon={<AccountPlusIcon width={26} height={26} />}
       onClose={close}
       closeLabel="Close registration"
       desktopSize="wide"

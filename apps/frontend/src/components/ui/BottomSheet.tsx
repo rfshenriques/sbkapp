@@ -8,7 +8,7 @@ const CLOSE_DRAG_THRESHOLD_PX = 110;
 
 export interface BottomSheetProps {
   title: string;
-  /** e.g. the brand-flag tri-bar mark, rendered before the title text. */
+  /** A small contextual icon (e.g. AccountIcon, WalletIcon), rendered before the title text. */
   icon?: ReactNode;
   onClose: () => void;
   /** aria-label shared by both the backdrop and the circular close button. */

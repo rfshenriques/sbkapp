@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { BackButton } from '../components/ui/BackButton';
 import { Card } from '../components/ui/Card';
+import { GridIcon } from '../components/ui/NavIcons';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { GroupedMatchList } from '../features/odds-board/GroupedMatchList';
 import { MatchListSkeleton } from '../features/odds-board/MatchListSkeleton';
@@ -50,11 +51,7 @@ export default function BrowsePage() {
     <div>
       <div className="mb-4 flex items-center gap-2">
         <BackButton className="-ml-1.5" />
-        <span className="brand-flag" aria-hidden="true">
-          <i></i>
-          <i></i>
-          <i></i>
-        </span>
+        <GridIcon width={20} height={20} />
         <h1 className="font-display text-lg">Browse matches</h1>
       </div>
 

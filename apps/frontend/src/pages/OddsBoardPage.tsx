@@ -9,6 +9,7 @@ import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { BrandPromoImage } from '../components/ui/BrandPromoImage';
 import { Card } from '../components/ui/Card';
 import { HorizontalScroller } from '../components/ui/HorizontalScroller';
+import { CalendarIcon, LiveIcon } from '../components/ui/NavIcons';
 import { SportIcon } from '../components/ui/SportIcon';
 import { cn } from '../lib/cn';
 import { useAuthModalStore } from '../features/auth/authModalStore';
@@ -334,11 +335,7 @@ export default function OddsBoardPage() {
       {liveMatches.length > 0 && (
         <section className="mb-8">
           <div className="mb-3 flex items-center gap-2">
-            <span className="brand-flag" aria-hidden="true">
-              <i></i>
-              <i></i>
-              <i></i>
-            </span>
+            <LiveIcon width={22} height={22} />
             <h2 className="font-display text-lg">Live now</h2>
           </div>
           <HorizontalScroller itemCount={liveCapped.length} ariaLabel="Live matches">
@@ -361,11 +358,7 @@ export default function OddsBoardPage() {
 
       <section>
         <div className="mb-3 flex items-center gap-2">
-          <span className="brand-flag" aria-hidden="true">
-            <i></i>
-            <i></i>
-            <i></i>
-          </span>
+          <CalendarIcon width={22} height={22} />
           <h2 className="font-display text-lg">Upcoming</h2>
         </div>
 

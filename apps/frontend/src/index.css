@@ -372,27 +372,6 @@ body {
   color: #000;
 }
 
-.brand-flag {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  transform: skewX(-24deg);
-}
-.brand-flag i {
-  display: block;
-  width: 16px;
-  height: 4px;
-}
-.brand-flag i:nth-child(1) {
-  background: var(--color-text-muted);
-}
-.brand-flag i:nth-child(2) {
-  background: var(--color-brand);
-}
-.brand-flag i:nth-child(3) {
-  background: var(--color-highlight);
-}
-
 /* ---------- Modal presentations (login/register) ---------- */
 /* Slight overshoot past 0 before settling - a plain ease-out here read as
    flat/mechanical next to the rest of the app's springier motion. */
