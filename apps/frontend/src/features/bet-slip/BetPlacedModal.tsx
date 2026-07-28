@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react';
 import { BottomSheet } from '../../components/ui/BottomSheet';
+import { CampaignRewardAlert } from '../../components/ui/CampaignRewardAlert';
+import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { ShareIcon } from '../../components/ui/NavIcons';
 import { OddsBadge } from '../../components/ui/OddsBadge';
+import { cn } from '../../lib/cn';
+import { BetFooterSummary, BetReferenceFooter, BetSelectionsList, SharePendingBetActions } from '../bet-history/betCardShared';
 import { useBetPlacedModalStore } from './betPlacedModalStore';
 
 function formatEuros(cents: number): string {
@@ -19,10 +23,12 @@ export function BetPlacedModal() {
   const summary = useBetPlacedModalStore((state) => state.summary);
   const close = useBetPlacedModalStore((state) => state.close);
   const [shareFeedback, setShareFeedback] = useState<string | null>(null);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
 
   useEffect(() => {
     if (summary) {
       setShareFeedback(null);
+      setDetailsExpanded(false);
     }
   }, [summary]);
 
@@ -39,12 +45,17 @@ export function BetPlacedModal() {
     betAndGetCampaignRewardCents,
     depositCampaignName,
     depositCampaignRewardCents,
+    bet,
   } = summary;
   const campaignNotes = [
     { name: betAndGetCampaignName, rewardCents: betAndGetCampaignRewardCents },
     { name: depositCampaignName, rewardCents: depositCampaignRewardCents },
   ].filter((note): note is { name: string; rewardCents: number | null } => note.name !== null);
 
+  // Only a multi-singles placement (several independent bets from one
+  // button, see BetSlipPanel's placeSinglesMutation) has no single `bet` to
+  // share/expand - there's no one receipt to show for several bets at once,
+  // so that case keeps the old plain-text share and has no details section.
   async function handleShare() {
     const text =
       combinedOdds !== null
@@ -84,11 +95,21 @@ export function BetPlacedModal() {
       closeLabel="Close bet placed confirmation"
       footer={
         <>
-          <button type="button" onClick={() => void handleShare()} className="btn-primary flex w-full items-center justify-center gap-2">
-            <ShareIcon width={16} height={16} />
-            Share
-          </button>
-          {shareFeedback && <p className="mt-2 text-center text-xs text-text-secondary">{shareFeedback}</p>}
+          {bet ? (
+            <SharePendingBetActions bet={bet} />
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => void handleShare()}
+                className="btn-primary flex w-full items-center justify-center gap-2"
+              >
+                <ShareIcon width={16} height={16} />
+                Share
+              </button>
+              {shareFeedback && <p className="mt-2 text-center text-xs text-text-secondary">{shareFeedback}</p>}
+            </>
+          )}
           <button type="button" onClick={close} className="mt-2 w-full text-center text-sm text-text-secondary hover:underline">
             Bet again
           </button>
@@ -110,29 +131,53 @@ export function BetPlacedModal() {
       <div className="flex items-center justify-between border-t border-border pt-4">
         <div>
           <p className="text-xs text-text-secondary">Stake</p>
-          <p className="font-display text-lg">{formatEuros(stakeCents)}</p>
+          <p className="mt-1 font-display text-lg">{formatEuros(stakeCents)}</p>
         </div>
         <div className="text-right">
           <p className="text-xs text-text-secondary">{combinedOdds !== null ? 'Odds' : 'Bets placed'}</p>
-          {combinedOdds !== null ? (
-            <OddsBadge className="px-2 py-0.5 text-lg">{combinedOdds.toFixed(2)}</OddsBadge>
-          ) : (
-            <p className="font-display text-lg">{betCount}</p>
-          )}
+          <div className="mt-1">
+            {combinedOdds !== null ? (
+              <OddsBadge className="px-2 py-0.5 text-lg">{combinedOdds.toFixed(2)}</OddsBadge>
+            ) : (
+              <p className="font-display text-lg">{betCount}</p>
+            )}
+          </div>
         </div>
       </div>
 
       {campaignNotes.length > 0 && (
         <div className="space-y-1.5 border-t border-border pt-4">
           {campaignNotes.map((note) => (
-            <p
-              key={note.name}
-              className="rounded-xl border border-highlight/40 bg-highlight/10 p-2.5 text-xs font-semibold text-highlight"
-            >
-              🎁 Qualifies for {note.name}
-              {note.rewardCents !== null && ` - get ${(note.rewardCents / 100).toFixed(2)} € as a freebet`}
-            </p>
+            <CampaignRewardAlert key={note.name} name={note.name} rewardCents={note.rewardCents} />
           ))}
+        </div>
+      )}
+
+      {bet && (
+        <div className="border-t border-border pt-4">
+          <button
+            type="button"
+            onClick={() => setDetailsExpanded((expanded) => !expanded)}
+            aria-expanded={detailsExpanded}
+            className="flex w-full items-center justify-between gap-2 text-sm font-semibold text-text-secondary"
+          >
+            Bet details
+            <ChevronIcon width={14} height={14} className={detailsExpanded ? 'rotate-180' : ''} />
+          </button>
+          <div
+            className={cn(
+              'grid transition-[grid-template-rows] duration-300 ease-out',
+              detailsExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
+            )}
+          >
+            <div className="overflow-hidden">
+              <div className="space-y-3 pt-3">
+                <BetSelectionsList bet={bet} />
+                <BetFooterSummary bet={bet} />
+                <BetReferenceFooter bet={bet} />
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </BottomSheet>

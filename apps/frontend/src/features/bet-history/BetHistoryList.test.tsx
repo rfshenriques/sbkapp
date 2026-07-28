@@ -205,6 +205,32 @@ describe('BetHistoryList', () => {
     expect(share).toHaveBeenCalledWith(expect.objectContaining({ files: expect.any(Array) }));
   });
 
+  it('shows Share and Copy actions (not the settled-only Share button) for a still-open bet', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify([buildBet({ status: 'PENDING' })]), { status: 200 })),
+    );
+
+    renderList();
+
+    expect(await screen.findByRole('button', { name: /Share/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Copy/ })).toBeInTheDocument();
+  });
+
+  it('copies the shared-bet deep link when Copy is clicked on an open bet', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify([buildBet({ status: 'PENDING' })]), { status: 200 })),
+    );
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+
+    renderList();
+    await userEvent.click(await screen.findByRole('button', { name: /Copy/ }));
+
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/shared-bet?sel='));
+  });
+
   it('shows the pre-insurance payout struck through next to the insured one', async () => {
     const insuredBet = buildBet({ insuranceCostPercent: 10, potentialPayoutCents: 1800 });
     vi.stubGlobal(
@@ -311,9 +337,11 @@ describe('BetHistoryList', () => {
       ),
     );
 
-    renderList();
+    const { container } = renderList();
 
-    expect(await screen.findByText('Qualified for CL Bet & Get - 10.00 € freebet')).toBeInTheDocument();
+    await screen.findByText('CL Bet & Get', { exact: false });
+    expect(container.querySelector('p.text-highlight')).toHaveTextContent('🎁 Qualifies for CL Bet & Get to get');
+    expect(container.querySelector('p.text-highlight')).toHaveTextContent('10.00 € in Freebets');
   });
 
   it('shows both a Bet & Get and a deposit campaign qualification at once', async () => {
@@ -334,10 +362,15 @@ describe('BetHistoryList', () => {
       ),
     );
 
-    renderList();
+    const { container } = renderList();
 
-    expect(await screen.findByText('Qualified for CL Bet & Get - 10.00 € freebet')).toBeInTheDocument();
-    expect(await screen.findByText('Qualified for Welcome Deposit Bonus - 25.00 € freebet')).toBeInTheDocument();
+    await screen.findByText('CL Bet & Get', { exact: false });
+    const notes = container.querySelectorAll('p.text-highlight');
+    expect(notes).toHaveLength(2);
+    expect(notes[0]).toHaveTextContent('🎁 Qualifies for CL Bet & Get to get');
+    expect(notes[0]).toHaveTextContent('10.00 € in Freebets');
+    expect(notes[1]).toHaveTextContent('🎁 Qualifies for Welcome Deposit Bonus to get');
+    expect(notes[1]).toHaveTextContent('25.00 € in Freebets');
   });
 
   it('shows the acca rollback refund amount', async () => {

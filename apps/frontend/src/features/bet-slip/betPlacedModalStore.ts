@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import type { PlacedBet } from '../../lib/backendApi';
 
 export interface PlacedBetSummary {
   stakeCents: number;
@@ -18,6 +19,14 @@ export interface PlacedBetSummary {
   betAndGetCampaignRewardCents: number | null;
   depositCampaignName: string | null;
   depositCampaignRewardCents: number | null;
+  /**
+   * The full placed bet - only set when this placement produced exactly one
+   * bet (a single or an accumulator; never set for a multi-singles batch,
+   * which has no single bet to attach). Lets BetPlacedModal show an
+   * expandable "Bet details" section and a real image/link share, the same
+   * as bet history, instead of just the aggregate numbers above.
+   */
+  bet?: PlacedBet;
 }
 
 interface BetPlacedModalState {

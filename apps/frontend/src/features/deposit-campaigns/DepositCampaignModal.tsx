@@ -31,8 +31,8 @@ function formatRewardExplanation(campaign: DepositCampaign): string {
   )} - minimum deposit ${minDeposit}.`;
 }
 
-/** The big hero figure/caption pair - the fixed amount itself, or the percent with its cap as the caption. */
-function formatRewardHeadline(campaign: DepositCampaign): { figure: string; caption: string } {
+/** The big hero figure/caption pair - the fixed amount itself, or the percent with its cap as the caption. Also reused by DepositModal's compact top-of-sheet campaign card. */
+export function formatRewardHeadline(campaign: DepositCampaign): { figure: string; caption: string } {
   if (campaign.rewardType === 'FIXED') {
     return { figure: formatCents(campaign.fixedRewardAmountCents ?? 0), caption: 'in Freebets' };
   }

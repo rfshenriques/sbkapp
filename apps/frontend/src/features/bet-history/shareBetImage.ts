@@ -138,7 +138,7 @@ export async function renderBetCardImage(bet: PlacedBet): Promise<Blob> {
   const isInsuredLoss = bet.status === 'LOST' && isInsured;
   const showInsuranceBeforeAfter = isInsured && payoutCents > 0 && !isInsuredLoss;
 
-  const footerLines = (isAccumulator ? 1 : 0) + 2; // combined odds (acca only) + stake + payout
+  const footerLines = 3; // odds (combined for an accumulator, the single's own price otherwise) + stake + payout
   const headerHeight = hasTags ? 88 : 60;
   const footerHeight = footerLines * 34 + 24;
   const refHeight = 40;
@@ -305,9 +305,10 @@ export async function renderBetCardImage(bet: PlacedBet): Promise<Blob> {
     y += 34;
   }
 
-  if (isAccumulator) {
-    footerRow('Combined odds', Number(bet.combinedOdds).toFixed(2), { valueColor: colors.highlight, bold: true });
-  }
+  footerRow(isAccumulator ? 'Combined odds' : 'Odds', Number(bet.combinedOdds).toFixed(2), {
+    valueColor: colors.highlight,
+    bold: true,
+  });
 
   footerRow('Stake', `${bet.fundedByFreebets ? 'F ' : ''}${formatEuros(bet.stakeCents)}`);
 

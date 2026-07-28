@@ -2,9 +2,11 @@ import { useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { LockIcon } from '../../components/ui/LockIcon';
-import { WalletIcon } from '../../components/ui/NavIcons';
+import { FreebetBadgeIcon, WalletIcon } from '../../components/ui/NavIcons';
 import * as backendApi from '../../lib/backendApi';
 import type { DepositResult } from '../../lib/backendApi';
+import { formatRewardHeadline } from '../deposit-campaigns/DepositCampaignModal';
+import { useEligibleDepositCampaign } from '../deposit-campaigns/useEligibleDepositCampaign';
 import { freebetsQueryKey } from '../wallet/useFreebets';
 import { walletQueryKey } from '../wallet/useWallet';
 import { useDepositModalStore } from './depositModalStore';
@@ -28,6 +30,7 @@ export function DepositModal() {
   const isOpen = useDepositModalStore((state) => state.isOpen);
   const close = useDepositModalStore((state) => state.close);
   const queryClient = useQueryClient();
+  const { data: eligibleCampaign } = useEligibleDepositCampaign();
   const [amount, setAmount] = useState('20');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -112,6 +115,17 @@ export function DepositModal() {
         )
       ) : (
         <form id={DEPOSIT_FORM_ID} onSubmit={handleSubmit} className="space-y-6">
+          {eligibleCampaign && (
+            <div className="flex items-center gap-3 rounded-xl border border-highlight/40 bg-highlight/10 p-3">
+              <FreebetBadgeIcon width={28} height={28} className="shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold text-text-primary">{eligibleCampaign.name}</p>
+                <p className="text-xs font-semibold text-highlight">
+                  {formatRewardHeadline(eligibleCampaign).figure} {formatRewardHeadline(eligibleCampaign).caption}
+                </p>
+              </div>
+            </div>
+          )}
           <div className="flex flex-col items-center gap-1 border-b border-border py-3">
             <label
               htmlFor="deposit-amount"

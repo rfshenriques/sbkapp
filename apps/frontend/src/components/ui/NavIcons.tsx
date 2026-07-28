@@ -182,3 +182,13 @@ export function ShareIcon(props: IconProps) {
     </svg>
   );
 }
+
+/** Copy-link action, next to Share on an open bet (see SharePendingBetActions) - two overlapping rounded rectangles, the standard "copy" glyph. */
+export function CopyIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <rect x="7.5" y="7.5" width="9" height="9" rx="1.8" />
+      <path d="M12.5 7.5V5.8A1.8 1.8 0 0 0 10.7 4H5.8A1.8 1.8 0 0 0 4 5.8v4.9a1.8 1.8 0 0 0 1.8 1.8h1.7" />
+    </svg>
+  );
+}

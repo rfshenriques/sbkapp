@@ -1,11 +1,13 @@
 import { useState, type ReactNode } from 'react';
+import { CampaignRewardAlert } from '../../components/ui/CampaignRewardAlert';
 import { MoneyBeforeAfter } from '../../components/ui/MoneyBeforeAfter';
-import { ClockIcon, FreebetBadgeIcon, ShareIcon } from '../../components/ui/NavIcons';
+import { ClockIcon, CopyIcon, FreebetBadgeIcon, ShareIcon } from '../../components/ui/NavIcons';
 import { OddsBadge } from '../../components/ui/OddsBadge';
 import { betStatusBadgeClasses, betStatusLabel, betStatusTextClasses } from '../../lib/betStatus';
 import type { PlacedBet, PlacedBetSelection } from '../../lib/backendApi';
 import { displayedPayoutCents, formatEuros, uninsuredPayoutCents, unboostedCombinedOdds } from './betMoney';
 import { shareBetImage } from './shareBetImage';
+import { buildSharedBetUrl } from '../bet-slip/sharedBetLink';
 
 export { displayedPayoutCents, formatEuros, uninsuredPayoutCents, unboostedCombinedOdds } from './betMoney';
 
@@ -193,10 +195,7 @@ export function BetCampaignNotes({ bet }: { bet: PlacedBet }) {
   return (
     <>
       {campaignNotes.map((note) => (
-        <p key={note.name} className="text-xs text-highlight">
-          Qualified for {note.name}
-          {note.rewardCents !== null && ` - ${formatEuros(note.rewardCents)} freebet`}
-        </p>
+        <CampaignRewardAlert key={note.name} name={note.name} rewardCents={note.rewardCents} />
       ))}
       {bet.accaRollbackRewardCents !== null && (
         <p className="text-xs text-highlight">
@@ -221,19 +220,21 @@ export function BetFooterSummary({ bet }: { bet: PlacedBet }) {
 
   return (
     <div className="space-y-1.5 border-t border-border pt-2 text-sm">
-      {isAccumulator && (
-        <div className="flex items-center justify-between">
-          <span className="text-text-secondary">Combined odds</span>
-          <span className="flex items-center gap-1.5">
-            {bet.accaBoostPercent > 0 && (
-              <span className="text-xs text-text-secondary line-through decoration-1">
-                {unboostedCombinedOdds(bet).toFixed(2)}
-              </span>
-            )}
-            <OddsBadge className="px-1.5 py-0.5 text-xs">{Number(bet.combinedOdds).toFixed(2)}</OddsBadge>
-          </span>
-        </div>
-      )}
+      {/* Always shown, single or accumulator - the same gold OddsBadge pill
+          either way, so a single's price reads with the same weight as an
+          accumulator's combined odds rather than the plain text a leg row
+          uses. */}
+      <div className="flex items-center justify-between">
+        <span className="text-text-secondary">{isAccumulator ? 'Combined odds' : 'Odds'}</span>
+        <span className="flex items-center gap-1.5">
+          {bet.accaBoostPercent > 0 && (
+            <span className="text-xs text-text-secondary line-through decoration-1">
+              {unboostedCombinedOdds(bet).toFixed(2)}
+            </span>
+          )}
+          <OddsBadge className="px-1.5 py-0.5 text-xs">{Number(bet.combinedOdds).toFixed(2)}</OddsBadge>
+        </span>
+      </div>
       <div className="flex items-center justify-between">
         <span className="text-text-secondary">Stake</span>
         <span className="flex items-center gap-1.5">
@@ -338,6 +339,94 @@ export function ShareBetButton({ bet }: { bet: PlacedBet }) {
         <ShareIcon width={16} height={16} />
         Share
       </button>
+      {feedback && <p className="mt-1 text-center text-xs text-text-secondary">{feedback}</p>}
+    </div>
+  );
+}
+
+/**
+ * Open (PENDING)-bet-only share/copy pair - deliberately different from
+ * ShareBetButton's settled-bet image share: a still-open bet is something a
+ * player might want another player to *copy*, not just see, so both actions
+ * carry the deep link built by sharedBetLink.ts (see SharedBetPage, which
+ * resolves it against live odds and adds the same selections to the
+ * visiting player's own slip) rather than a plain description. Share still
+ * renders the same receipt image as a settled bet, with the link appended
+ * to its share text; Copy just puts the link on the clipboard - no image
+ * involved, since the point there is a pasteable link, not something to
+ * post.
+ */
+export function SharePendingBetActions({ bet }: { bet: PlacedBet }) {
+  const [feedback, setFeedback] = useState<string | null>(null);
+  const url = buildSharedBetUrl(bet.selections);
+  const text = `${
+    bet.selections.length > 1
+      ? `My ${bet.selections.length}-selection accumulator - stake ${formatEuros(bet.stakeCents)}, combined odds ${Number(bet.combinedOdds).toFixed(2)}.`
+      : `My bet on ${bet.selections[0]!.selectionName} (${bet.selections[0]!.marketName}) - stake ${formatEuros(bet.stakeCents)} at odds ${Number(bet.selections[0]!.odds).toFixed(2)}.`
+  } Copy my bet: ${url}`;
+
+  async function shareAsText() {
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+      } catch {
+        // Cancelled or unsupported mid-call - no error state, same as just not sharing.
+      }
+      return;
+    }
+    if (navigator.clipboard) {
+      try {
+        await navigator.clipboard.writeText(text);
+        setFeedback('Copied to clipboard');
+      } catch {
+        // Best-effort only.
+      }
+    }
+  }
+
+  async function handleShare() {
+    try {
+      const result = await shareBetImage(bet, text);
+      if (result === 'downloaded') {
+        setFeedback('Image saved - share it from your downloads');
+      }
+    } catch {
+      await shareAsText();
+    }
+  }
+
+  async function handleCopy() {
+    if (!navigator.clipboard) {
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setFeedback('Link copied to clipboard');
+    } catch {
+      // Best-effort only.
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => void handleShare()}
+          className="btn-ghost flex flex-1 items-center justify-center gap-2"
+        >
+          <ShareIcon width={16} height={16} />
+          Share
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleCopy()}
+          className="btn-ghost flex flex-1 items-center justify-center gap-2"
+        >
+          <CopyIcon width={16} height={16} />
+          Copy
+        </button>
+      </div>
       {feedback && <p className="mt-1 text-center text-xs text-text-secondary">{feedback}</p>}
     </div>
   );

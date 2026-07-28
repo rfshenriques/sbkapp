@@ -111,9 +111,10 @@ describe('BetPlacedModal', () => {
         depositCampaignRewardCents: null,
       },
     });
-    render(<BetPlacedModal />);
+    const { container } = render(<BetPlacedModal />);
 
-    expect(screen.getByText('🎁 Qualifies for CL Bet & Get - get 10.00 € as a freebet')).toBeInTheDocument();
+    expect(container.querySelector('p.text-highlight')).toHaveTextContent('🎁 Qualifies for CL Bet & Get to get');
+    expect(container.querySelector('p.text-highlight')).toHaveTextContent('10.00 € in Freebets');
   });
 
   it('shows both a Bet & Get and a deposit campaign qualification at once', () => {
@@ -129,10 +130,14 @@ describe('BetPlacedModal', () => {
         depositCampaignRewardCents: 2500,
       },
     });
-    render(<BetPlacedModal />);
+    const { container } = render(<BetPlacedModal />);
 
-    expect(screen.getByText('🎁 Qualifies for CL Bet & Get - get 10.00 € as a freebet')).toBeInTheDocument();
-    expect(screen.getByText('🎁 Qualifies for Welcome Deposit Bonus - get 25.00 € as a freebet')).toBeInTheDocument();
+    const notes = container.querySelectorAll('p.text-highlight');
+    expect(notes).toHaveLength(2);
+    expect(notes[0]).toHaveTextContent('🎁 Qualifies for CL Bet & Get to get');
+    expect(notes[0]).toHaveTextContent('10.00 € in Freebets');
+    expect(notes[1]).toHaveTextContent('🎁 Qualifies for Welcome Deposit Bonus to get');
+    expect(notes[1]).toHaveTextContent('25.00 € in Freebets');
   });
 
   it('shows no campaign section when the placed bet qualified for none', () => {
@@ -142,5 +147,129 @@ describe('BetPlacedModal', () => {
     render(<BetPlacedModal />);
 
     expect(screen.queryByText(/Qualifies for/)).not.toBeInTheDocument();
+  });
+
+  describe('single-bet placement (bet details, share/copy)', () => {
+    const bet = {
+      id: 'bet-1',
+      stakeCents: 1000,
+      combinedOdds: '2.10',
+      potentialPayoutCents: 2100,
+      status: 'PENDING' as const,
+      settledPayoutCents: null,
+      settledAt: null,
+      createdAt: '2026-07-17T00:00:00Z',
+      selections: [
+        {
+          id: 'sel-1',
+          matchId: 'match-1',
+          marketId: 'match-result',
+          selectionId: 'home',
+          matchLabel: 'Arsenal vs Chelsea',
+          marketName: 'Match Result',
+          selectionName: 'Home',
+          odds: '2.10',
+          status: 'OPEN' as const,
+        },
+      ],
+      fundedByFreebets: false,
+      insuranceCostPercent: 0,
+      accaBoostPercent: 0,
+      betAndGetCampaignName: null,
+      betAndGetCampaignRewardCents: null,
+      depositCampaignName: null,
+      depositCampaignRewardCents: null,
+      accaRollbackRewardCents: null,
+    };
+
+    it('shows a collapsed Bet details section that expands to the selection', async () => {
+      useBetPlacedModalStore.setState({
+        summary: {
+          stakeCents: 1000,
+          potentialPayoutCents: 2100,
+          combinedOdds: 2.1,
+          betCount: 1,
+          betAndGetCampaignName: null,
+          betAndGetCampaignRewardCents: null,
+          depositCampaignName: null,
+          depositCampaignRewardCents: null,
+          bet,
+        },
+      });
+      render(<BetPlacedModal />);
+
+      const toggle = screen.getByRole('button', { name: 'Bet details' });
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+
+      await userEvent.click(toggle);
+
+      expect(toggle).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByText('Home')).toBeInTheDocument();
+      expect(screen.getByText('Arsenal')).toBeInTheDocument();
+      expect(screen.getByText('Chelsea')).toBeInTheDocument();
+    });
+
+    it('shows Share and Copy actions instead of the plain-text share button', () => {
+      useBetPlacedModalStore.setState({
+        summary: {
+          stakeCents: 1000,
+          potentialPayoutCents: 2100,
+          combinedOdds: 2.1,
+          betCount: 1,
+          betAndGetCampaignName: null,
+          betAndGetCampaignRewardCents: null,
+          depositCampaignName: null,
+          depositCampaignRewardCents: null,
+          bet,
+        },
+      });
+      render(<BetPlacedModal />);
+
+      expect(screen.getByRole('button', { name: /Share/ })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Copy/ })).toBeInTheDocument();
+    });
+
+    it('copies the shared-bet link to the clipboard when Copy is clicked', async () => {
+      const writeText = vi.fn().mockResolvedValue(undefined);
+      vi.stubGlobal('navigator', { ...navigator, clipboard: { writeText } });
+      useBetPlacedModalStore.setState({
+        summary: {
+          stakeCents: 1000,
+          potentialPayoutCents: 2100,
+          combinedOdds: 2.1,
+          betCount: 1,
+          betAndGetCampaignName: null,
+          betAndGetCampaignRewardCents: null,
+          depositCampaignName: null,
+          depositCampaignRewardCents: null,
+          bet,
+        },
+      });
+      render(<BetPlacedModal />);
+
+      await userEvent.click(screen.getByRole('button', { name: /Copy/ }));
+
+      expect(writeText).toHaveBeenCalledWith(expect.stringContaining('/shared-bet?sel='));
+      expect(await screen.findByText('Link copied to clipboard')).toBeInTheDocument();
+    });
+
+    it('does not show a Bet details section for a multi-singles placement with no single bet', () => {
+      useBetPlacedModalStore.setState({
+        summary: {
+          stakeCents: 2000,
+          potentialPayoutCents: 4200,
+          combinedOdds: null,
+          betCount: 2,
+          betAndGetCampaignName: null,
+          betAndGetCampaignRewardCents: null,
+          depositCampaignName: null,
+          depositCampaignRewardCents: null,
+        },
+      });
+      render(<BetPlacedModal />);
+
+      expect(screen.queryByRole('button', { name: 'Bet details' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Copy/ })).not.toBeInTheDocument();
+    });
   });
 });

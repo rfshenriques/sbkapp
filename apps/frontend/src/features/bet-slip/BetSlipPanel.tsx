@@ -2,8 +2,8 @@ import { useEffect, useId, useRef, useState, type ReactNode, type SVGProps } fro
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
+import { CampaignRewardAlert } from '../../components/ui/CampaignRewardAlert';
 import { EmptyState } from '../../components/ui/EmptyState';
-import { FreebetBadgeIcon } from '../../components/ui/NavIcons';
 import { MoneyBeforeAfter } from '../../components/ui/MoneyBeforeAfter';
 import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
@@ -244,10 +244,7 @@ function StakeLimitAlert({ stakeCents, preview }: { stakeCents: number; preview:
  * before the player places the bet. A bet can qualify for a Bet & Get
  * campaign and fulfil a pending deposit campaign redemption at once (they're
  * independent), so both render when both apply. Renders nothing while
- * loading or when neither applies - never a fabricated qualification. Green
- * (the app's fixed WON/success color, --color-price-up - not a brand token)
- * since this is a positive confirmation, distinct from the highlight-colored
- * badges used for neutral campaign mentions elsewhere.
+ * loading or when neither applies - never a fabricated qualification.
  */
 function CampaignQualificationNote({ preview }: { preview: CampaignPreview | null }) {
   if (!preview) {
@@ -265,18 +262,7 @@ function CampaignQualificationNote({ preview }: { preview: CampaignPreview | nul
   return (
     <div className="space-y-1.5">
       {notes.map((note) => (
-        <p
-          key={note.name}
-          className="flex flex-wrap items-center gap-1 rounded-xl border border-price-up/40 bg-price-up/10 p-2.5 text-xs font-semibold text-price-up"
-        >
-          <span>✅ Qualifies for {note.name} to get</span>
-          {note.rewardCents !== null && (
-            <>
-              <FreebetBadgeIcon width={14} height={14} className="shrink-0" />
-              <span>{(note.rewardCents / 100).toFixed(2)} € in Freebets</span>
-            </>
-          )}
-        </p>
+        <CampaignRewardAlert key={note.name} name={note.name} rewardCents={note.rewardCents} />
       ))}
     </div>
   );
@@ -332,7 +318,12 @@ function StakeField({ stakeId, stake, onStakeChange, odds, hideOdds, previousOdd
         />
       </div>
       {!hideOdds && (
-        <span className="odd-btn shrink-0">
+        // Always the gold "selected" shape, not just the plain default box -
+        // this is the one live combined-price figure for the bet being
+        // built, so it should always read as the same "this is the real
+        // price" gold pill an odd reads as once picked (see .odd-btn.selected
+        // in index.css), never the neutral/unselected look.
+        <span className="odd-btn selected shrink-0">
           <span className="odd-label">Odds</span>
           {invalid ? (
             <span className="odd-value text-text-muted" aria-label="Odds not combinable">
@@ -560,6 +551,7 @@ export function BetSlipPanel({
         betAndGetCampaignRewardCents: bet.betAndGetCampaignRewardCents,
         depositCampaignName: bet.depositCampaignName,
         depositCampaignRewardCents: bet.depositCampaignRewardCents,
+        bet,
       });
       void queryClient.invalidateQueries({ queryKey: walletQueryKey });
       void queryClient.invalidateQueries({ queryKey: betsQueryKey });
@@ -603,6 +595,7 @@ export function BetSlipPanel({
         betAndGetCampaignRewardCents: betAndGetBet?.betAndGetCampaignRewardCents ?? null,
         depositCampaignName: depositCampaignBet?.depositCampaignName ?? null,
         depositCampaignRewardCents: depositCampaignBet?.depositCampaignRewardCents ?? null,
+        bet: bets.length === 1 ? bets[0] : undefined,
       });
       void queryClient.invalidateQueries({ queryKey: walletQueryKey });
       void queryClient.invalidateQueries({ queryKey: betsQueryKey });

@@ -598,11 +598,11 @@ describe('BetSlipPanel', () => {
       const { container } = renderPanel();
 
       const note = await screen.findByText('CL Bet & Get', { exact: false });
-      expect(note.closest('p')).toHaveClass('text-price-up');
-      expect(container.querySelector('p.text-price-up')).toHaveTextContent(
-        '✅ Qualifies for CL Bet & Get to get',
+      expect(note.closest('p')).toHaveClass('text-highlight');
+      expect(container.querySelector('p.text-highlight')).toHaveTextContent(
+        '🎁 Qualifies for CL Bet & Get to get',
       );
-      expect(container.querySelector('p.text-price-up')).toHaveTextContent('10.00 € in Freebets');
+      expect(container.querySelector('p.text-highlight')).toHaveTextContent('10.00 € in Freebets');
     });
 
     it('shows both a Bet & Get and a deposit campaign qualification at once', async () => {
@@ -617,11 +617,11 @@ describe('BetSlipPanel', () => {
       const { container } = renderPanel();
 
       await screen.findByText('CL Bet & Get', { exact: false });
-      const notes = container.querySelectorAll('p.text-price-up');
+      const notes = container.querySelectorAll('p.text-highlight');
       expect(notes).toHaveLength(2);
-      expect(notes[0]).toHaveTextContent('✅ Qualifies for CL Bet & Get to get');
+      expect(notes[0]).toHaveTextContent('🎁 Qualifies for CL Bet & Get to get');
       expect(notes[0]).toHaveTextContent('10.00 € in Freebets');
-      expect(notes[1]).toHaveTextContent('✅ Qualifies for Welcome Deposit Bonus to get');
+      expect(notes[1]).toHaveTextContent('🎁 Qualifies for Welcome Deposit Bonus to get');
       expect(notes[1]).toHaveTextContent('25.00 € in Freebets');
     });
   });
@@ -767,7 +767,7 @@ describe('BetSlipPanel', () => {
       useBetSlipStore.setState({ selections: [homeSelection] });
       renderPanel();
 
-      await screen.findByText('✅ Qualifies for CL Bet & Get to get', { exact: false });
+      await screen.findByText('🎁 Qualifies for CL Bet & Get to get', { exact: false });
       await userEvent.click(screen.getByRole('switch', { name: 'Pay with freebets' }));
 
       await waitFor(() => expect(screen.queryByText(/Qualifies for/)).not.toBeInTheDocument());
@@ -875,6 +875,18 @@ describe('BetSlipPanel', () => {
       potentialPayoutCents: 5250,
       combinedOdds: 5.25,
       betCount: 1,
+      betAndGetCampaignName: undefined,
+      betAndGetCampaignRewardCents: undefined,
+      depositCampaignName: undefined,
+      depositCampaignRewardCents: undefined,
+      bet: {
+        id: 'bet-1',
+        stakeCents: 1000,
+        combinedOdds: '5.25',
+        potentialPayoutCents: 5250,
+        status: 'PENDING',
+        createdAt: '2026-07-17T00:00:00Z',
+      },
     });
     expect(useBetSlipStore.getState().selections).toEqual([]);
 

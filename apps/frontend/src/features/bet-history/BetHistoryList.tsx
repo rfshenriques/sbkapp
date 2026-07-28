@@ -15,6 +15,7 @@ import {
   SelectionLegList,
   SelectionStatusDot,
   ShareBetButton,
+  SharePendingBetActions,
 } from './betCardShared';
 import { sortBetsForHistory } from './sortBetsForHistory';
 import { useBets } from './useBets';
@@ -68,7 +69,7 @@ function BetCard({ bet }: { bet: PlacedBet }) {
 
       <BetCampaignNotes bet={bet} />
       <BetFooterSummary bet={bet} />
-      <ShareBetButton bet={bet} />
+      {bet.status === 'PENDING' ? <SharePendingBetActions bet={bet} /> : <ShareBetButton bet={bet} />}
       <BetReferenceFooter bet={bet} />
     </Card>
   );
