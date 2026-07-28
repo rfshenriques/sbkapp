@@ -240,6 +240,7 @@ describe('MatchDetailPage', () => {
     const liveState: LiveMatchState = {
       matchId: 'match-3',
       minute: 57,
+      period: '2H',
       homeScore: 2,
       awayScore: 1,
       events: [
@@ -260,7 +261,7 @@ describe('MatchDetailPage', () => {
 
     renderAt('match-3');
 
-    expect(await screen.findByText("57'")).toBeInTheDocument();
+    expect(await screen.findByText("2nd Half · 57'")).toBeInTheDocument();
     expect(screen.getByText('Vinicius Jr')).toBeInTheDocument();
     expect(screen.getByText('Corner Kicks')).toBeInTheDocument();
   });
@@ -277,6 +278,23 @@ describe('MatchDetailPage', () => {
     await userEvent.click(screen.getByRole('option', { name: /Liverpool vs Manchester City/ }));
 
     expect(await screen.findByRole('heading', { name: 'Liverpool vs Manchester City' })).toBeInTheDocument();
+  });
+
+  it('shows a Live indicator (not a kickoff time) for a live sibling match in the breadcrumb dropdown', async () => {
+    const { mockMatches } = await import('../mocks/matches');
+    const liveSiblingMatches = mockMatches.map((match) =>
+      match.id === 'match-2' ? { ...match, isLive: true } : match,
+    );
+    stubOddsEngineFetch(liveSiblingMatches);
+
+    renderAt('match-1');
+    await screen.findByRole('heading', { name: 'Arsenal vs Chelsea' });
+
+    const desktopBreadcrumb = within(screen.getByTestId('breadcrumb-desktop'));
+    await userEvent.click(desktopBreadcrumb.getByRole('button', { name: /Arsenal vs Chelsea/ }));
+
+    const siblingOption = screen.getByRole('option', { name: /Liverpool vs Manchester City/ });
+    expect(within(siblingOption).getByText('Live')).toBeInTheDocument();
   });
 
   it('shows a MARKET display-name override on the market heading instead of the raw feed name', async () => {

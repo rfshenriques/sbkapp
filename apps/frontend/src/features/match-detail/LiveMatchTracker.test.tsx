@@ -19,6 +19,7 @@ function buildState(events: LiveMatchEvent[]): LiveMatchState {
   return {
     matchId: 'match-1',
     minute: 50,
+    period: '2H',
     homeScore: 1,
     awayScore: 0,
     events,

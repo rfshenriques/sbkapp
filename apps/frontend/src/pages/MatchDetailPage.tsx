@@ -16,11 +16,18 @@ import { useMatch } from '../features/match-detail/useMatch';
 import { useMatches } from '../features/odds-board/useMatches';
 import { useTeamColors } from '../features/odds-board/useTeamColors';
 import { formatKickoff } from '../lib/formatKickoff';
+import { matchPeriodLabel } from '../lib/matchPeriodLabel';
 import type { Match } from '@sportsbook/shared';
 
-/** Same rule MatchCard uses: no kickoff shown for a match already live. */
+/** Same rule MatchCard uses: no kickoff shown for a match already live - a small LIVE pill instead, so a live sibling stands out in the dropdown at a glance. */
 function kickoffMeta(candidate: Match) {
-  return candidate.isLive ? undefined : formatKickoff(new Date(candidate.kickoff));
+  return candidate.isLive ? (
+    <span className="rounded-full bg-price-down px-2 py-0.5 text-[9px] font-extrabold tracking-widest text-white uppercase">
+      Live
+    </span>
+  ) : (
+    formatKickoff(new Date(candidate.kickoff))
+  );
 }
 
 /**
@@ -146,8 +153,17 @@ export default function MatchDetailPage() {
 
       <section className="relative mt-2 overflow-hidden rounded-3xl border border-border bg-surface p-6">
         {match.isLive ? (
-          <span className="absolute top-4 right-4 rounded-full bg-price-down px-2.5 py-1 text-[10px] font-extrabold tracking-widest text-white uppercase">
-            Live
+          <span className="absolute top-4 right-4 flex items-center gap-1.5 text-xs font-bold text-text-secondary">
+            {/* A slow pulse reads as "this is happening now" without
+                shouting LIVE at the player on every glance - the dot alone
+                is the status, the text next to it is the detail. */}
+            <span className="live-dot" aria-hidden="true" />
+            {liveState && (
+              <span className="tabular-nums">
+                {matchPeriodLabel(liveState.period)} · {liveState.minute}'
+              </span>
+            )}
+            <span className="sr-only">Live</span>
           </span>
         ) : (
           <p className="text-center text-sm font-semibold text-text-secondary">{formatKickoff(kickoff)}</p>
@@ -162,7 +178,10 @@ export default function MatchDetailPage() {
           />
           <span className="min-w-0 truncate">{homeTeamLabel}</span>
           {match.isLive && liveState ? (
-            <span className="shrink-0 tabular-nums">
+            // A pill, not bare text, so the score reads as its own distinct
+            // element rather than blurring into the team names on either
+            // side of it.
+            <span className="shrink-0 rounded-full bg-surface-2 px-2.5 py-1 font-display tabular-nums">
               {liveState.homeScore} - {liveState.awayScore}
             </span>
           ) : (
@@ -175,30 +194,26 @@ export default function MatchDetailPage() {
           />
         </h1>
 
-        {/* Result lives in this same header block (not a separate card
-            below), and momentum sits right under it in the same block too -
-            these three (team names, score, pressure) read as one connected
-            state of the match rather than three disconnected cards. */}
+        {/* Momentum sits right under the header's own score/team-names row
+            (not a separate card below) - the time/part already moved into
+            the corner badge above, so this block is momentum only. */}
         {match.isLive && liveState && (
           <div className="mt-3">
-            <p className="text-center font-display text-sm text-highlight">{liveState.minute}'</p>
-            <div className="mt-3">
-              <div className="mb-1.5 flex justify-between gap-2 text-[11px] font-semibold text-text-secondary">
-                <span className="min-w-0 truncate">{homeTeamLabel} pressure</span>
-                <span className="min-w-0 truncate">{awayTeamLabel} pressure</span>
-              </div>
-              <div className="momentum-bar" role="img" aria-label="Match momentum">
-                <span
-                  className="side home"
-                  style={{ flexBasis: `${liveState.momentum.home}%` }}
-                  aria-hidden="true"
-                />
-                <span
-                  className="side away"
-                  style={{ flexBasis: `${liveState.momentum.away}%` }}
-                  aria-hidden="true"
-                />
-              </div>
+            <div className="mb-1.5 flex justify-between gap-2 text-[11px] font-semibold text-text-secondary">
+              <span className="min-w-0 truncate">{homeTeamLabel} pressure</span>
+              <span className="min-w-0 truncate">{awayTeamLabel} pressure</span>
+            </div>
+            <div className="momentum-bar" role="img" aria-label="Match momentum">
+              <span
+                className="side home"
+                style={{ flexBasis: `${liveState.momentum.home}%` }}
+                aria-hidden="true"
+              />
+              <span
+                className="side away"
+                style={{ flexBasis: `${liveState.momentum.away}%` }}
+                aria-hidden="true"
+              />
             </div>
           </div>
         )}

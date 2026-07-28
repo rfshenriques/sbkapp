@@ -67,6 +67,7 @@ describe('createLiveTrackerService', () => {
     expect(state).toEqual({
       matchId: 'match-1',
       minute: 12,
+      period: '1H',
       homeScore: 1,
       awayScore: 0,
       events: [],
@@ -96,7 +97,7 @@ describe('createLiveTrackerService', () => {
     client.getFixtureById = vi.fn().mockResolvedValue(
       buildFixture({
         goals: { home: 2, away: 0 },
-        fixture: { id: 55, date: '', status: { long: '', short: '1H', elapsed: 15 } },
+        fixture: { id: 55, date: '', status: { long: '', short: 'HT', elapsed: 15 } },
       }),
     );
 
@@ -104,6 +105,7 @@ describe('createLiveTrackerService', () => {
 
     expect(service.getState('match-1')?.homeScore).toBe(2);
     expect(service.getState('match-1')?.minute).toBe(15);
+    expect(service.getState('match-1')?.period).toBe('HT');
   });
 
   it('calls onUpdate after every successful poll', async () => {

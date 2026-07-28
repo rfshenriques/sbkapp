@@ -10,6 +10,8 @@ import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { BackButton } from '../components/ui/BackButton';
 import { Breadcrumb, type BreadcrumbSegment } from '../components/ui/Breadcrumb';
 import { Card } from '../components/ui/Card';
+import { SportIcon } from '../components/ui/SportIcon';
+import { sortSportsByPriority } from '../lib/sportPriority';
 import { staggerDelay } from '../lib/staggerDelay';
 
 /** "all" shows every sport unfiltered - used by the homepage's "Live now" load-more, which isn't scoped to one sport. */
@@ -28,18 +30,32 @@ export default function SportPage() {
   const liveOnly = location.pathname === '/live' || searchParams.get('live') === 'true';
   const [sortMode, setSortMode] = useState<MatchSortMode>('time');
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  // Only meaningful in the "all sports" umbrella views (/live, /sports/all)
+  // - a single-sport page (/sports/Football) already has exactly one sport,
+  // narrowed further by its own country/competition breadcrumb instead.
+  const [selectedSport, setSelectedSport] = useState<string | undefined>(undefined);
 
   const { data: matches, isPending, isError } = useMatches();
   const { data: rankings } = useCompetitionRankings();
   const rankByCompetition = useMemo(() => rankMapFromRankings(rankings ?? []), [rankings]);
   const displayName = useDisplayNames();
 
-  const filtered = matches?.filter(
+  // Scoped by everything except the sport chip row itself, so the chips can
+  // show every sport actually present in this view (e.g. every sport with a
+  // live match right now) rather than shrinking to just whichever one is
+  // currently selected.
+  const scopedBeforeSportFilter = matches?.filter(
     (match) =>
-      (decodedSport === ALL_SPORTS || match.sport === decodedSport) &&
       (!countryFilter || match.country === countryFilter) &&
       (!competitionFilter || match.competition === competitionFilter) &&
       (!liveOnly || match.isLive),
+  );
+  const sportsPresent =
+    decodedSport === ALL_SPORTS
+      ? sortSportsByPriority(Array.from(new Set((scopedBeforeSportFilter ?? []).map((match) => match.sport))))
+      : [];
+  const filtered = scopedBeforeSportFilter?.filter((match) =>
+    decodedSport === ALL_SPORTS ? !selectedSport || match.sport === selectedSport : match.sport === decodedSport,
   );
   const sorted = filtered ? sortMatches(filtered, sortMode, rankByCompetition) : undefined;
   const visible = sorted?.slice(0, visibleCount);
@@ -49,7 +65,7 @@ export default function SportPage() {
   // scrolled through the previous view.
   useEffect(() => {
     setVisibleCount(PAGE_SIZE);
-  }, [decodedSport, competitionFilter, countryFilter, liveOnly, sortMode]);
+  }, [decodedSport, competitionFilter, countryFilter, liveOnly, sortMode, selectedSport]);
   const heading = competitionFilter
     ? displayName('COMPETITION', competitionFilter)
     : liveOnly
@@ -146,6 +162,36 @@ export default function SportPage() {
           </button>
         </div>
       </div>
+
+      {decodedSport === ALL_SPORTS && sportsPresent.length > 1 && (
+        <div
+          className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
+          role="group"
+          aria-label="Filter by sport"
+          data-horizontal-scroll="true"
+        >
+          <button
+            type="button"
+            className={`tab shrink-0${!selectedSport ? ' active' : ''}`}
+            aria-pressed={!selectedSport}
+            onClick={() => setSelectedSport(undefined)}
+          >
+            All sports
+          </button>
+          {sportsPresent.map((sport) => (
+            <button
+              key={sport}
+              type="button"
+              className={`tab shrink-0${sport === selectedSport ? ' active' : ''}`}
+              aria-pressed={sport === selectedSport}
+              onClick={() => setSelectedSport(sport)}
+            >
+              <SportIcon sport={sport} size={16} />
+              {displayName('SPORT', sport)}
+            </button>
+          ))}
+        </div>
+      )}
 
       {isPending && <MatchListSkeleton />}
       {isError && <Card className="text-danger">Failed to load matches.</Card>}

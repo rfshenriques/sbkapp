@@ -32,6 +32,8 @@ export interface LiveMatchMomentum {
 export interface LiveMatchState {
   matchId: string;
   minute: number;
+  /** Provider status code for which part of the match is currently in progress, e.g. '1H', 'HT', '2H', 'ET', 'P' - see matchPeriodLabel for the player-facing label. */
+  period: string;
   homeScore: number;
   awayScore: number;
   events: LiveMatchEvent[];

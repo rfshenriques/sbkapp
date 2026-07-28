@@ -21,6 +21,7 @@ const stubMatch: Match = {
 const stubLiveState: LiveMatchState = {
   matchId: '1',
   minute: 23,
+  period: '1H',
   homeScore: 1,
   awayScore: 0,
   events: [],

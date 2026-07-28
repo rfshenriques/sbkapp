@@ -569,6 +569,27 @@ body {
 }
 
 /* ---------- Live match tracker ---------- */
+/* A slow, deliberate pulse (not a flashing alert) - "this is happening
+   now" at a glance, without competing for attention with an actual
+   notification. */
+@keyframes live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+.live-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background-color: var(--color-danger);
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
 .momentum-bar {
   display: flex;
   height: 8px;

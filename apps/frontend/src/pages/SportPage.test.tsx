@@ -192,6 +192,28 @@ describe('SportPage', () => {
     expect(screen.getByRole('heading', { name: 'Live' })).toBeInTheDocument();
   });
 
+  it('shows sport filter chips on /live, narrowing the live list to the selected sport', async () => {
+    stubOddsEngineFetch([
+      buildMatch({ id: 'm1', sport: 'Football', isLive: true, homeTeam: 'Arsenal', awayTeam: 'Chelsea' }),
+      buildMatch({ id: 'm2', sport: 'Tennis', isLive: true, homeTeam: 'Nadal', awayTeam: 'Federer' }),
+      buildMatch({ id: 'm3', sport: 'Football', isLive: false, homeTeam: 'Leeds', awayTeam: 'Norwich' }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/live');
+
+    const filterGroup = within(await screen.findByRole('group', { name: 'Filter by sport' }));
+    expect(filterGroup.getByRole('button', { name: /Football/ })).toBeInTheDocument();
+    expect(filterGroup.getByRole('button', { name: /Tennis/ })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Arsenal vs Chelsea' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Nadal vs Federer' })).toBeInTheDocument();
+
+    await userEvent.click(filterGroup.getByRole('button', { name: /Tennis/ }));
+
+    expect(screen.getByRole('link', { name: 'Nadal vs Federer' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Arsenal vs Chelsea' })).not.toBeInTheDocument();
+  });
+
   it('breadcrumb lets you switch country, then a league within that country', async () => {
     stubOddsEngineFetch([
       buildMatch({

@@ -92,6 +92,7 @@ export function createLiveTrackerService(options: LiveTrackerServiceOptions): Li
     latestState = {
       matchId: currentMatchId,
       minute: fixture.fixture.status.elapsed ?? 0,
+      period: fixture.fixture.status.short,
       homeScore: fixture.goals.home ?? 0,
       awayScore: fixture.goals.away ?? 0,
       events: normalizeEvents(events, homeTeamId),

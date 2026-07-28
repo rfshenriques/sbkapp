@@ -80,6 +80,7 @@ describe('MatchCard', () => {
       [liveMatch.id]: {
         matchId: liveMatch.id,
         minute: 40,
+        period: '2H',
         homeScore: 2,
         awayScore: 1,
         events: [],
@@ -94,7 +95,7 @@ describe('MatchCard', () => {
     expect(screen.queryByText('vs')).not.toBeInTheDocument();
     expect(await screen.findByText('2')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText("40'")).toBeInTheDocument();
+    expect(screen.getByText("2nd Half · 40'")).toBeInTheDocument();
   });
 
   it('shows a dash placeholder per team for a live match before the score has loaded', () => {

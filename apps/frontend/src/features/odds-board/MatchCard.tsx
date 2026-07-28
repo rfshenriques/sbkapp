@@ -9,6 +9,7 @@ import { usePrefetchMatchDetail } from './usePrefetchMatchDetail';
 import { useLiveMatch } from '../match-detail/useLiveMatch';
 import { useTeamColors } from './useTeamColors';
 import { formatKickoff } from '../../lib/formatKickoff';
+import { matchPeriodLabel } from '../../lib/matchPeriodLabel';
 import type { Match } from '@sportsbook/shared';
 
 interface MatchCardProps {
@@ -49,7 +50,11 @@ export function MatchCard({ match, style }: MatchCardProps) {
               {displayName('COMPETITION', match.competition)}
             </span>
             {match.isLive
-              ? liveState && <span className="ml-auto shrink-0 text-highlight">{liveState.minute}'</span>
+              ? liveState && (
+                  <span className="ml-auto shrink-0 truncate text-highlight">
+                    {matchPeriodLabel(liveState.period)} · {liveState.minute}'
+                  </span>
+                )
               : <span className="ml-auto shrink-0 text-highlight">{formatKickoff(kickoff)}</span>}
           </p>
           {/* Real link kept for keyboard/screen-reader navigation and a

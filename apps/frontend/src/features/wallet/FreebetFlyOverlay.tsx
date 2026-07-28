@@ -45,8 +45,8 @@ export function FreebetFlyOverlay() {
         startY,
         dx: targetX - startX,
         dy: targetY - startY,
-        delayMs: Math.random() * 350,
-        durationMs: 900 + Math.random() * 400,
+        delayMs: Math.random() * 450,
+        durationMs: 1500 + Math.random() * 600,
       };
     });
     setIcons(generated);
