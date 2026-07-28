@@ -1,5 +1,5 @@
 import { RollingBalance } from '../../components/ui/RollingBalance';
-import { FreebetBadgeIcon, WalletIcon } from '../../components/ui/NavIcons';
+import { FreebetBadgeIcon, GiftBadgeIcon, WalletIcon } from '../../components/ui/NavIcons';
 import { cn } from '../../lib/cn';
 import { useFreebetFlyStore } from './freebetFlyStore';
 import { formatCents } from './useWallet';
@@ -19,6 +19,8 @@ interface BalancePillsProps {
    * apply to that one instance, never the bet slip's separate pill.
    */
   freebetsTargetId?: string;
+  /** Shows a small green gift-badge in the cash pill's corner when this player has an eligible, unredeemed deposit campaign - header-only, same as onAddFunds. */
+  hasEligibleDepositCampaign?: boolean;
 }
 
 /**
@@ -36,6 +38,7 @@ export function BalancePills({
   activeKind,
   onAddFunds,
   freebetsTargetId,
+  hasEligibleDepositCampaign,
 }: BalancePillsProps) {
   const flyActive = useFreebetFlyStore((state) => state.active);
   const flyTargetId = useFreebetFlyStore((state) => state.targetId);
@@ -47,11 +50,19 @@ export function BalancePills({
     <span className={`flex items-center gap-1.5 ${className ?? ''}`}>
       <span
         className={cn(
-          'flex items-center gap-1 rounded-full border bg-surface-2 px-2 py-1 text-xs text-text-secondary',
+          'relative flex items-center gap-1 rounded-full border bg-surface-2 px-2 py-1 text-xs text-text-secondary',
           activeKind === 'cash' ? 'border-highlight' : 'border-transparent',
         )}
         title="Cash balance (paper)"
       >
+        {hasEligibleDepositCampaign && (
+          <span
+            className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full ring-2 ring-background"
+            title="A deposit bonus is available"
+          >
+            <GiftBadgeIcon width={16} height={16} />
+          </span>
+        )}
         <WalletIcon width={14} height={14} className="shrink-0" />
         <span className="font-semibold text-text-primary">{formatCents(cashCents)} €</span>
         {onAddFunds && (

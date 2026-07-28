@@ -7,6 +7,7 @@ import { useAuthStore } from '../features/auth/authStore';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBetPlacedModalStore } from '../features/bet-slip/betPlacedModalStore';
 import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
+import { useBrandStore } from '../features/brand/brandStore';
 import { RegisterDeepLink } from '../features/auth/AuthDeepLink';
 import { AppShell } from './AppShell';
 
@@ -52,10 +53,11 @@ const awaySelection = {
 };
 
 beforeEach(() => {
-  useBetSlipStore.setState({ selections: [] });
+  useBetSlipStore.setState({ selections: [], stake: '10.00', singleStakes: {} });
   useAuthStore.setState({ accessToken: null, user: null, isInitialized: false });
   useAuthModalStore.setState({ mode: null });
   useBetPlacedModalStore.setState({ summary: null });
+  useBrandStore.setState({ brandId: undefined });
   // Not logged in by default - the silent-refresh call on mount finds no session.
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
 });
@@ -260,6 +262,124 @@ describe('AppShell', () => {
 
       expect(await screen.findByText('Page content')).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: 'Log in' })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('gift badge for available campaign rewards', () => {
+    function stubBrandFetch(handleOther: (url: string, method: string) => Response | undefined) {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          const method = init?.method ?? 'GET';
+          if (url.includes('/public/brands/by-domain/')) {
+            return new Response(
+              JSON.stringify({
+                id: 'brand-1',
+                name: 'Sportsbook',
+                logoUrl: null,
+                themeMode: 'DARK',
+                buttonColorHex: null,
+                highlightColorHex: null,
+                filterColorHex: null,
+                supportHelplineText: null,
+              }),
+              { status: 200 },
+            );
+          }
+          return handleOther(url, method) ?? new Response(null, { status: 401 });
+        }),
+      );
+    }
+
+    it('shows a gift badge on the mobile floating pill when the current bet qualifies for a campaign', async () => {
+      useBetSlipStore.setState({ selections: [homeSelection], stake: '10.00', singleStakes: {} });
+      stubBrandFetch((url, method) => {
+        if (method === 'POST' && url === '/backend/public/campaign-preview/brand-1') {
+          return new Response(
+            JSON.stringify({
+              betAndGetCampaignName: 'CL Bet & Get',
+              betAndGetCampaignRewardCents: 1000,
+              depositCampaignName: null,
+              depositCampaignRewardCents: null,
+            }),
+            { status: 200 },
+          );
+        }
+        return undefined;
+      });
+
+      renderShell();
+
+      expect(await screen.findByTitle('This bet qualifies for a campaign reward')).toBeInTheDocument();
+    });
+
+    it('does not show a gift badge on the floating pill when the current bet qualifies for no campaign', async () => {
+      useBetSlipStore.setState({ selections: [homeSelection], stake: '10.00', singleStakes: {} });
+      stubBrandFetch((url, method) => {
+        if (method === 'POST' && url === '/backend/public/campaign-preview/brand-1') {
+          return new Response(
+            JSON.stringify({
+              betAndGetCampaignName: null,
+              betAndGetCampaignRewardCents: null,
+              depositCampaignName: null,
+              depositCampaignRewardCents: null,
+            }),
+            { status: 200 },
+          );
+        }
+        return undefined;
+      });
+
+      renderShell();
+
+      await screen.findByRole('button', { name: /Single/ });
+      expect(screen.queryByTitle('This bet qualifies for a campaign reward')).not.toBeInTheDocument();
+    });
+
+    it('shows a gift badge on the header cash pill when the player has an eligible deposit campaign', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          if (url.includes('/auth/refresh')) {
+            return new Response(
+              JSON.stringify({ accessToken: 'header.payload.signature' }),
+              { status: 200 },
+            );
+          }
+          if (url.includes('/wallet')) {
+            return new Response(JSON.stringify({ balanceCents: 5000 }), { status: 200 });
+          }
+          if (url.includes('/deposit-campaigns/eligible')) {
+            return new Response(
+              JSON.stringify({
+                id: 'deposit-campaign-1',
+                name: 'First Deposit Bonus',
+                description: null,
+                minDepositAmountCents: 1_000,
+                rewardType: 'FIXED',
+                fixedRewardAmountCents: 500,
+                rewardPercent: null,
+                rewardCapCents: null,
+              }),
+              { status: 200 },
+            );
+          }
+          return new Response(null, { status: 404 });
+        }),
+      );
+
+      renderShell();
+
+      expect(await screen.findByTitle('A deposit bonus is available')).toBeInTheDocument();
+    });
+
+    it('does not show a gift badge on the header cash pill when the player is not logged in', async () => {
+      renderShell();
+
+      await screen.findByRole('heading', { name: 'Log in' });
+      expect(screen.queryByTitle('A deposit bonus is available')).not.toBeInTheDocument();
     });
   });
 });

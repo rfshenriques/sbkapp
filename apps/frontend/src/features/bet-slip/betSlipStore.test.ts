@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { useBetSlipStore } from './betSlipStore';
+import { DEFAULT_STAKE, getSingleStake, useBetSlipStore } from './betSlipStore';
 
 const homeSelection = {
   matchId: 'match-1',
@@ -29,7 +29,7 @@ const otherMatchSelection = {
 };
 
 beforeEach(() => {
-  useBetSlipStore.setState({ selections: [] });
+  useBetSlipStore.setState({ selections: [], stake: DEFAULT_STAKE, singleStakes: {} });
 });
 
 describe('useBetSlipStore', () => {
@@ -84,5 +84,28 @@ describe('useBetSlipStore', () => {
     useBetSlipStore.getState().clear();
 
     expect(useBetSlipStore.getState().selections).toEqual([]);
+  });
+
+  it('starts with the default accumulator stake', () => {
+    expect(useBetSlipStore.getState().stake).toBe(DEFAULT_STAKE);
+  });
+
+  it('updates the accumulator stake', () => {
+    useBetSlipStore.getState().setStake('25.00');
+
+    expect(useBetSlipStore.getState().stake).toBe('25.00');
+  });
+
+  it('falls back to the default stake for a selection with no stake typed yet', () => {
+    expect(getSingleStake(useBetSlipStore.getState().singleStakes, homeSelection)).toBe(DEFAULT_STAKE);
+  });
+
+  it('tracks each selection’s own singles stake independently', () => {
+    useBetSlipStore.getState().setSingleStake(homeSelection, '5.00');
+    useBetSlipStore.getState().setSingleStake(otherMatchSelection, '15.00');
+
+    const { singleStakes } = useBetSlipStore.getState();
+    expect(getSingleStake(singleStakes, homeSelection)).toBe('5.00');
+    expect(getSingleStake(singleStakes, otherMatchSelection)).toBe('15.00');
   });
 });

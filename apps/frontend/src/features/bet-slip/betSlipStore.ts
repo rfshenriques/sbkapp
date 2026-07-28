@@ -16,6 +16,12 @@ export interface BetSlipSelection {
   marketSinglesOnly?: boolean;
 }
 
+export const DEFAULT_STAKE = '10.00';
+
+export function selectionKey(selection: Pick<BetSlipSelection, 'matchId' | 'marketId'>): string {
+  return `${selection.matchId}-${selection.marketId}`;
+}
+
 interface BetSlipState {
   selections: BetSlipSelection[];
   addSelection: (selection: BetSlipSelection) => void;
@@ -23,10 +29,22 @@ interface BetSlipState {
   /** Adds the selection, replacing any existing pick in the same market; removes it if already selected. */
   toggleSelection: (selection: BetSlipSelection) => void;
   clear: () => void;
+  /**
+   * The accumulator tab's stake and each singles row's own stake (keyed by
+   * selectionKey), lifted out of BetSlipPanel's local state so AppShell's
+   * collapsed mobile floating pill can preview campaign qualification
+   * without the panel itself being mounted.
+   */
+  stake: string;
+  setStake: (value: string) => void;
+  singleStakes: Record<string, string>;
+  setSingleStake: (selection: BetSlipSelection, value: string) => void;
 }
 
 export const useBetSlipStore = create<BetSlipState>((set, get) => ({
   selections: [],
+  stake: DEFAULT_STAKE,
+  singleStakes: {},
 
   addSelection: (selection) =>
     set((state) => ({
@@ -59,4 +77,13 @@ export const useBetSlipStore = create<BetSlipState>((set, get) => ({
   },
 
   clear: () => set({ selections: [] }),
+
+  setStake: (value) => set({ stake: value }),
+  setSingleStake: (selection, value) =>
+    set((state) => ({ singleStakes: { ...state.singleStakes, [selectionKey(selection)]: value } })),
 }));
+
+/** Falls back to DEFAULT_STAKE for a selection that hasn't had its own stake typed yet. */
+export function getSingleStake(singleStakes: Record<string, string>, selection: BetSlipSelection): string {
+  return singleStakes[selectionKey(selection)] ?? DEFAULT_STAKE;
+}

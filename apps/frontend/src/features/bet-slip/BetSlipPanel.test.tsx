@@ -56,7 +56,7 @@ const drawSelection = {
 };
 
 beforeEach(() => {
-  useBetSlipStore.setState({ selections: [] });
+  useBetSlipStore.setState({ selections: [], stake: '10.00', singleStakes: {} });
   useAuthStore.setState({ accessToken: null, user: null, isInitialized: true });
   useAuthModalStore.setState({ mode: null });
   useBrandStore.setState({ brandId: undefined });

@@ -5,7 +5,8 @@ import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { BetSlipPanel } from '../features/bet-slip/BetSlipPanel';
 import { BetPlacedModal } from '../features/bet-slip/BetPlacedModal';
 import { useBetPlacedModalStore } from '../features/bet-slip/betPlacedModalStore';
-import { useBetSlipStore } from '../features/bet-slip/betSlipStore';
+import { getSingleStake, useBetSlipStore } from '../features/bet-slip/betSlipStore';
+import { useCampaignPreview } from '../features/bet-slip/useCampaignPreview';
 import { invalidAccumulatorReason } from '../features/bet-slip/accumulatorValidity';
 import { useWinCelebrationDetector } from '../features/bet-history/useWinCelebrationDetector';
 import { WinCelebrationModal } from '../features/bet-history/WinCelebrationModal';
@@ -18,6 +19,7 @@ import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBootstrapAuth } from '../features/auth/useBootstrapAuth';
 import { attemptBiometricLogin } from '../lib/webauthn';
 import { DepositCampaignModal } from '../features/deposit-campaigns/DepositCampaignModal';
+import { useEligibleDepositCampaign } from '../features/deposit-campaigns/useEligibleDepositCampaign';
 import { DepositModal } from '../features/deposit/DepositModal';
 import { useDepositModalStore } from '../features/deposit/depositModalStore';
 import { BalancePills } from '../features/wallet/BalancePills';
@@ -29,7 +31,7 @@ import { useFreebetGrantDetector } from '../features/wallet/useFreebetGrantDetec
 import { useWallet } from '../features/wallet/useWallet';
 import { sumFreebetsCents, useFreebets } from '../features/wallet/useFreebets';
 import { Sidebar } from '../features/navigation/Sidebar';
-import { FireIcon, LiveIcon, MyBetsIcon, SearchIcon, TrophyIcon } from '../components/ui/NavIcons';
+import { FireIcon, GiftBadgeIcon, LiveIcon, MyBetsIcon, SearchIcon, TrophyIcon } from '../components/ui/NavIcons';
 import { useScrollLock } from '../lib/useScrollLock';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
@@ -62,6 +64,8 @@ export function AppShell() {
     }
   }, [betPlacedSummary]);
   const selections = useBetSlipStore((state) => state.selections);
+  const stake = useBetSlipStore((state) => state.stake);
+  const singleStakes = useBetSlipStore((state) => state.singleStakes);
   const { isAuthenticated, isInitialized } = useAuth();
   const authModalMode = useAuthModalStore((state) => state.mode);
   const openAuthModal = useAuthModalStore((state) => state.open);
@@ -69,6 +73,7 @@ export function AppShell() {
   const { data: freebets } = useFreebets();
   const freebetsCents = sumFreebetsCents(freebets);
   const openDepositModal = useDepositModalStore((state) => state.open);
+  const { data: eligibleDepositCampaign } = useEligibleDepositCampaign();
   const navigate = useNavigate();
   const location = useLocation();
   const touchStartRef = useRef<{ x: number; y: number; skip: boolean } | null>(null);
@@ -99,6 +104,26 @@ export function AppShell() {
   // shouldn't advertise a combined price (or the Accumulator label) for a
   // combination the bet slip itself would immediately reject.
   const accumulatorInvalidReason = selections.length > 1 ? invalidAccumulatorReason(selections) : null;
+
+  // Same qualifying-bet shape the bet slip itself previews (see
+  // BetSlipPanel's accumulatorCampaignPreview/singleSelectionCampaignPreview)
+  // - single selection uses its own stake, an uncombinable multi-selection
+  // slip previews nothing (there's no one combined bet to qualify), and a
+  // valid 2+ accumulator uses the shared accumulator stake. Doesn't account
+  // for insurance/freebet mode (both reset to off on their own toggles and
+  // aren't tracked in the shared store), so this can very rarely show the
+  // badge for a moment the panel itself wouldn't - acceptable since opening
+  // the slip always shows the authoritative, fully-accurate note.
+  const pillPreviewSelections =
+    selections.length === 1 ? selections : accumulatorInvalidReason ? [] : selections;
+  const pillPreviewStakeCents =
+    selections.length === 1
+      ? Math.round(Number(getSingleStake(singleStakes, selections[0]!)) * 100)
+      : Math.round(Number(stake) * 100);
+  const pillCampaignPreview = useCampaignPreview(pillPreviewSelections, pillPreviewStakeCents);
+  const hasQualifyingCampaign = Boolean(
+    pillCampaignPreview?.betAndGetCampaignName || pillCampaignPreview?.depositCampaignName,
+  );
 
   // Force the login sheet on the first load of a fresh session so promos
   // shown after login stay meaningful - only once per app open. Opens as a
@@ -282,6 +307,7 @@ export function AppShell() {
                     freebetsCents={freebetsCents}
                     onAddFunds={openDepositModal}
                     freebetsTargetId={HEADER_FREEBETS_BALANCE_ID}
+                    hasEligibleDepositCampaign={Boolean(eligibleDepositCampaign)}
                   />
                 )}
                 <AccountMenu />
@@ -362,6 +388,14 @@ export function AppShell() {
           style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
           className="btn-primary cta-spring-in fixed inset-x-3 z-30 flex items-center justify-between gap-3 rounded-2xl px-[22px] py-[15px] text-left shadow-lg sm:hidden"
         >
+          {hasQualifyingCampaign && (
+            <span
+              className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-background"
+              title="This bet qualifies for a campaign reward"
+            >
+              <GiftBadgeIcon width={24} height={24} />
+            </span>
+          )}
           <span className="flex items-center gap-3">
             <span className="flex h-6 min-w-6 items-center justify-center rounded-lg bg-black/20 font-display text-sm">
               {selections.length}

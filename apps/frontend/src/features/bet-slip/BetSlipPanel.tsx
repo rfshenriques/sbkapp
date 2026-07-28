@@ -26,7 +26,12 @@ import { useInsuranceBetConfig } from './useInsuranceBetConfig';
 import { useStakeLimitPreview } from './useStakeLimitPreview';
 import { useCampaignPreview } from './useCampaignPreview';
 import { hasInsuranceIneligibleSelection, hasSameEventSelections, invalidAccumulatorReason } from './accumulatorValidity';
-import { useBetSlipStore, type BetSlipSelection } from './betSlipStore';
+import {
+  getSingleStake as getSingleStakeFromStore,
+  selectionKey,
+  useBetSlipStore,
+  type BetSlipSelection,
+} from './betSlipStore';
 import type { CampaignPreview, StakeLimitPreview } from '../../lib/backendApi';
 
 type PayMethod = 'cash' | 'freebet';
@@ -52,10 +57,6 @@ function TrashIcon(props: SVGProps<SVGSVGElement>) {
       <line x1="11.7" y1="9" x2="11.4" y2="14" />
     </svg>
   );
-}
-
-function selectionKey(selection: BetSlipSelection): string {
-  return `${selection.matchId}-${selection.marketId}`;
 }
 
 /**
@@ -470,13 +471,15 @@ export function BetSlipPanel({
   const hasFreebets = Boolean(freebets && freebets.length > 0);
   const { data: wallet } = useWallet();
   const queryClient = useQueryClient();
-  const [stake, setStake] = useState('10.00');
+  const stake = useBetSlipStore((state) => state.stake);
+  const setStake = useBetSlipStore((state) => state.setStake);
   const [payMethod, setPayMethod] = useState<PayMethod>('cash');
   const [insuranceOptIn, setInsuranceOptIn] = useState(false);
   // Keyed by selectionKey() - each single-bet row's own stake, entered
   // independently of every other row but all placed together by the one
   // bottom button (see placeSinglesMutation below).
-  const [singleStakes, setSingleStakes] = useState<Record<string, string>>({});
+  const singleStakes = useBetSlipStore((state) => state.singleStakes);
+  const setSingleStake = useBetSlipStore((state) => state.setSingleStake);
   const openBetPlacedModal = useBetPlacedModalStore((state) => state.open);
   const [panelView, setPanelView] = useState<PanelView>('slip');
   // Fresh per mount (the mobile drawer remounts this on every open), so a
@@ -532,10 +535,7 @@ export function BetSlipPanel({
   const stakeId = useId();
 
   function getSingleStake(selection: BetSlipSelection): string {
-    return singleStakes[selectionKey(selection)] ?? '10.00';
-  }
-  function setSingleStake(selection: BetSlipSelection, value: string) {
-    setSingleStakes((previous) => ({ ...previous, [selectionKey(selection)]: value }));
+    return getSingleStakeFromStore(singleStakes, selection);
   }
 
   const isFreebetMode = payMethod === 'freebet';

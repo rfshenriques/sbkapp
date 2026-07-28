@@ -128,6 +128,30 @@ export function FreebetBadgeIcon(props: IconProps) {
   );
 }
 
+/**
+ * Notification-dot badge for "there's a reward available here" - the
+ * collapsed mobile bet slip pill (campaign qualification) and the header's
+ * cash balance pill (an eligible deposit campaign) both use this exact mark
+ * in their top-right corner. Fixed --color-price-up green (the app's
+ * existing non-brand "success" token, see betStatus.ts) and a plain gift
+ * box glyph rather than the freebet "F" badge - this points at a reward in
+ * general, not specifically a freebet balance.
+ */
+export function GiftBadgeIcon(props: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" {...props}>
+      <circle cx="12" cy="12" r="11" fill="var(--color-price-up)" />
+      <g stroke="black" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="6.5" y="10.5" width="11" height="8" rx="0.8" />
+        <path d="M6.5 13.5h11" />
+        <path d="M12 10.5v8" />
+        <path d="M12 10.5c-1-2-2.2-2.8-3.2-2.8-1 0-1.8.7-1.8 1.6s.8 1.2 1.8 1.2c1 0 2.2-.4 3.2-1z" />
+        <path d="M12 10.5c1-2 2.2-2.8 3.2-2.8 1 0 1.8.7 1.8 1.6s-.8 1.2-1.8 1.2c-1 0-2.2-.4-3.2-1z" />
+      </g>
+    </svg>
+  );
+}
+
 /** Still-resolving/OPEN status - a clock face, next to the check/cross used for WON/LOST. */
 export function ClockIcon(props: IconProps) {
   return (
