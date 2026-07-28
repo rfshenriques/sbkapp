@@ -367,14 +367,17 @@ export function AppShell() {
 
         {/* Desktop: the bet slip is always visible on the right, not a
             click-to-open drawer - the mobile drawer below is sm:hidden so
-            the two never coexist. Full height (not just as tall as its
-            content) even when empty, so the promotional empty state has
-            room to center itself instead of sitting in a tiny box.
-            BetSlipPanel owns its own scroll region and keeps the stake/
-            payout calculator fixed at the bottom - this wrapper just gives
-            it a bounded height to work within, no overflow of its own. */}
+            the two never coexist. max-h (not a fixed h-) so the empty
+            promotional state still gets room to center itself on pages tall
+            enough to reach the viewport cap, same as the Sidebar aside above
+            - a fixed height here used to force every page (even a bare 404)
+            to be viewport-tall, pushing Footer below the fold regardless of
+            how little the page actually had to show. BetSlipPanel owns its
+            own scroll region and keeps the stake/payout calculator fixed at
+            the bottom - this wrapper just gives it a bounded height to work
+            within, no overflow of its own. */}
         <aside className="hidden sm:block sm:w-80 sm:shrink-0">
-          <div className="sticky top-16 flex h-[calc(100vh-4.5rem)] flex-col rounded-2xl border border-border bg-surface p-4">
+          <div className="sticky top-16 flex max-h-[calc(100vh-4.5rem)] flex-col rounded-2xl border border-border bg-surface p-4">
             <BetSlipPanel showHistoryTab emptyStateVariant="promotional" />
           </div>
         </aside>
