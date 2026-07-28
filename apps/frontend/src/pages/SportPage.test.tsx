@@ -227,6 +227,35 @@ describe('SportPage', () => {
     expect(await screen.findByRole('link', { name: 'Live Home vs Live Away' })).toBeInTheDocument();
   });
 
+  it('shows a Live filter tab that narrows the list to only live matches, ahead of Today/Tomorrow/Soon', async () => {
+    stubOddsEngineFetch([
+      buildMatch({ id: 'live1', isLive: true, homeTeam: 'Live Home', awayTeam: 'Live Away' }),
+      buildMatch({ id: 'today1', isLive: false, homeTeam: 'Today Home', awayTeam: 'Today Away' }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/sports/Football');
+    await screen.findByRole('link', { name: 'Live Home vs Live Away' });
+
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((tab) => tab.textContent)).toEqual(['Live', 'Today', 'Tomorrow', 'Soon']);
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Live' }));
+
+    expect(await screen.findByRole('link', { name: 'Live Home vs Live Away' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Today Home vs Today Away' })).not.toBeInTheDocument();
+  });
+
+  it('hides the Live filter tab on /live itself, since every match shown there is already live', async () => {
+    stubOddsEngineFetch([buildMatch({ id: 'm1', isLive: true })]);
+    stubRankingsFetch();
+
+    renderAt('/live');
+    await screen.findByRole('link', { name: 'Arsenal vs Chelsea' });
+
+    expect(screen.queryByRole('tab', { name: 'Live' })).not.toBeInTheDocument();
+  });
+
   it('filters further to a single competition when the URL carries a competition param, and uses it as the heading', async () => {
     stubOddsEngineFetch([
       buildMatch({
@@ -342,6 +371,8 @@ describe('SportPage', () => {
 
     // Switch country from England to Spain via the breadcrumb.
     await userEvent.click(desktopBreadcrumb.getByRole('button', { name: 'England' }));
+    // Each country option in the dropdown shows its circular flag icon.
+    expect(within(screen.getByRole('option', { name: 'Spain' })).getByRole('img', { hidden: true })).toBeInTheDocument();
     await userEvent.click(screen.getByRole('option', { name: 'Spain' }));
 
     expect(await screen.findByRole('link', { name: 'Real Madrid vs Barcelona' })).toBeInTheDocument();

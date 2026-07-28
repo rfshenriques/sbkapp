@@ -7,6 +7,8 @@ export interface BreadcrumbOption {
   key: string;
   label: string;
   href: string;
+  /** e.g. a CountryFlag - rendered before the label. */
+  icon?: ReactNode;
   /** Kickoff date/time (or nothing, for a live match) - same rule as MatchCard, right-aligned opposite the label. */
   meta?: ReactNode;
 }
@@ -118,7 +120,14 @@ function BreadcrumbDropdown({
                   option.label === label ? 'text-highlight' : 'text-text-secondary hover:text-text-primary',
                 )}
               >
-                <span className="!whitespace-normal break-words">{option.label}</span>
+                <span className="flex min-w-0 items-center gap-2">
+                  {option.icon && (
+                    <span aria-hidden="true" className="shrink-0">
+                      {option.icon}
+                    </span>
+                  )}
+                  <span className="!whitespace-normal break-words">{option.label}</span>
+                </span>
                 {option.meta && <span className="shrink-0 text-xs font-bold text-text-muted">{option.meta}</span>}
               </Link>
             </li>

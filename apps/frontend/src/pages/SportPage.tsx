@@ -10,6 +10,7 @@ import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { BackButton } from '../components/ui/BackButton';
 import { Breadcrumb, type BreadcrumbSegment } from '../components/ui/Breadcrumb';
 import { Card } from '../components/ui/Card';
+import { CountryFlag } from '../components/ui/CountryFlag';
 import { SortIcon } from '../components/ui/SortIcon';
 import { SportIcon } from '../components/ui/SportIcon';
 import { matchDateBucket, type MatchDateBucket } from '../lib/matchDateBucket';
@@ -21,6 +22,8 @@ const ALL_SPORTS = 'all';
 
 /** Same load-more pattern as the homepage, just a bigger first page - this is the dedicated "see everything" view, not a short teaser section. */
 const PAGE_SIZE = 20;
+
+type MatchFilter = 'live' | MatchDateBucket;
 
 const DATE_FILTERS: { value: MatchDateBucket; label: string }[] = [
   { value: 'today', label: 'Today' },
@@ -42,7 +45,11 @@ export default function SportPage() {
   // - a single-sport page (/sports/Football) already has exactly one sport,
   // narrowed further by its own country/competition breadcrumb instead.
   const [selectedSport, setSelectedSport] = useState<string | undefined>(undefined);
-  const [dateFilter, setDateFilter] = useState<MatchDateBucket>('today');
+  const [dateFilter, setDateFilter] = useState<MatchFilter>('today');
+  // Redundant on /live itself - every match shown there is already live, so
+  // the tab would just duplicate "Today" - only worth offering as a quick
+  // shortcut on pages that mix live and upcoming matches together.
+  const showLiveFilter = !liveOnly;
 
   const { data: matches, isPending, isError } = useMatches();
   const { data: rankings } = useCompetitionRankings();
@@ -58,7 +65,7 @@ export default function SportPage() {
       (!countryFilter || match.country === countryFilter) &&
       (!competitionFilter || match.competition === competitionFilter) &&
       (!liveOnly || match.isLive) &&
-      matchDateBucket(match) === dateFilter,
+      (dateFilter === 'live' ? match.isLive : matchDateBucket(match) === dateFilter),
   );
   const sportsPresent =
     decodedSport === ALL_SPORTS
@@ -122,6 +129,7 @@ export default function SportPage() {
         key: countryNode.country,
         label: displayName('COUNTRY', countryNode.country),
         href: `/sports/${encodeURIComponent(decodedSport)}?country=${encodeURIComponent(countryNode.country)}`,
+        icon: <CountryFlag country={countryNode.country} size={18} />,
       })),
     });
   }
@@ -194,6 +202,18 @@ export default function SportPage() {
           aria-label="Filter matches by date"
           data-horizontal-scroll="true"
         >
+          {showLiveFilter && (
+            <button
+              type="button"
+              role="tab"
+              aria-selected={dateFilter === 'live'}
+              className={`tab inline-flex shrink-0 items-center gap-1.5${dateFilter === 'live' ? ' active' : ''}`}
+              onClick={() => setDateFilter('live')}
+            >
+              <span className="live-dot" aria-hidden="true" />
+              Live
+            </button>
+          )}
           {DATE_FILTERS.map(({ value, label }) => (
             <button
               key={value}
