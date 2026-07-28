@@ -582,27 +582,30 @@ body {
    color instead of the glow vanishing entirely. */
 :root {
   --card-glow-blend: screen;
-  --card-glow-opacity: 0.55;
+  --card-glow-opacity: 0.6;
 }
 :root[data-theme='light'] {
   --card-glow-blend: multiply;
   /* Multiply is visually stronger than screen at equal opacity (it can
      push all the way toward black on saturated colors), so light theme
      dials back rather than reusing the dark-theme value verbatim. */
-  --card-glow-opacity: 0.22;
+  --card-glow-opacity: 0.26;
 }
 .match-card-glow {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  /* Percentage-sized ellipses (not a fixed px radius) so the wash reaches
-     the same relative distance - roughly bottom edge to vertical middle -
-     on a narrow mobile card as on a wide desktop one, per two overlapping
-     radial gradients rather than a fixed-size blob. */
+  /* Plain circle, no explicit radius - it defaults to "farthest-corner"
+     sizing, i.e. the radius needed to reach the far corner of the card
+     from this point. On a card that's much wider than tall (every match
+     card here), that radius comfortably covers the full height and most
+     of the width, which is what actually reads as "color occupying the
+     card" instead of a small corner smudge - a fixed/percentage radius
+     undershoots on exactly this kind of wide-short box. */
   background:
-    radial-gradient(ellipse 65% 85% at 4% 100%, var(--home-glow), transparent 68%),
-    radial-gradient(ellipse 65% 85% at 96% 100%, var(--away-glow), transparent 68%);
-  filter: blur(20px);
+    radial-gradient(circle at 6% 112%, var(--home-glow), transparent 60%),
+    radial-gradient(circle at 94% 112%, var(--away-glow), transparent 60%);
+  filter: blur(22px);
   opacity: var(--card-glow-opacity);
   mix-blend-mode: var(--card-glow-blend);
 }
