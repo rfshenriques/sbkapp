@@ -1052,6 +1052,46 @@ describe('PamService', () => {
       expect(grant.userId).toBe(userId);
     });
 
+    it('PERCENTAGE reward mode pays a share of the qualifying bet\'s own stake, capped', async () => {
+      const campaign = await createEnabledCampaign({
+        trigger: 'PLACEMENT',
+        rewardType: 'PERCENTAGE',
+        rewardAmountCents: undefined,
+        rewardPercent: 10,
+        rewardCapCents: 2_000,
+      });
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 5_000,
+      });
+
+      expect(bet.betAndGetCampaignRewardCents).toBe(500);
+      const grant = await prisma.freebetGrant.findFirstOrThrow({ where: { sourceBetId: bet.id, source: 'BET_AND_GET' } });
+      expect(grant.amountCents).toBe(500);
+    });
+
+    it('PERCENTAGE reward mode caps the reward even when 10% of the stake would exceed it', async () => {
+      const campaign = await createEnabledCampaign({
+        trigger: 'PLACEMENT',
+        rewardType: 'PERCENTAGE',
+        rewardAmountCents: undefined,
+        rewardPercent: 10,
+        rewardCapCents: 300,
+      });
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 5_000,
+      });
+
+      expect(bet.betAndGetCampaignRewardCents).toBe(300);
+      const grant = await prisma.freebetGrant.findFirstOrThrow({ where: { sourceBetId: bet.id, source: 'BET_AND_GET' } });
+      expect(grant.amountCents).toBe(300);
+    });
+
     it('defers the reward to settlement for a SETTLEMENT-trigger campaign, granting only on the configured outcome', async () => {
       const campaign = await createEnabledCampaign({ trigger: 'SETTLEMENT', triggerOnLost: true });
       const userId = await createTestUser(100_000);

@@ -1238,6 +1238,7 @@ export type BetAndGetTrigger = 'PLACEMENT' | 'SETTLEMENT';
 export type BetAndGetBetType = 'SINGLES_ONLY' | 'ACCUMULATOR_ONLY' | 'EITHER';
 export type BetAndGetTiming = 'PREMATCH_ONLY' | 'INPLAY_ONLY' | 'EITHER';
 export type BetAndGetScopeType = 'SPORT' | 'COMPETITION' | 'MATCH';
+export type BetAndGetRewardType = 'FIXED' | 'PERCENTAGE';
 
 export interface BetAndGetCampaignScope {
   id: string;
@@ -1254,7 +1255,14 @@ export interface BetAndGetCampaign {
   /** Optional scheduling window, both independently optional - null means no boundary on that side. */
   startAt: string | null;
   endAt: string | null;
-  rewardAmountCents: number;
+  /** FIXED = same rewardAmountCents every time; PERCENTAGE = rewardPercent of the qualifying bet's own stake, capped at rewardCapCents. */
+  rewardType: BetAndGetRewardType;
+  /** Set when rewardType is FIXED, null otherwise. */
+  rewardAmountCents: number | null;
+  /** Set when rewardType is PERCENTAGE, null otherwise. */
+  rewardPercent: number | null;
+  /** Set when rewardType is PERCENTAGE, null otherwise. */
+  rewardCapCents: number | null;
   trigger: BetAndGetTrigger;
   triggerOnWon: boolean;
   triggerOnLost: boolean;
@@ -1279,7 +1287,13 @@ export interface CreateBetAndGetCampaignPayload {
   description?: string;
   startAt?: string | null;
   endAt?: string | null;
-  rewardAmountCents: number;
+  rewardType?: BetAndGetRewardType;
+  /** Required when rewardType is FIXED. */
+  rewardAmountCents?: number;
+  /** Required when rewardType is PERCENTAGE. */
+  rewardPercent?: number;
+  /** Required when rewardType is PERCENTAGE. */
+  rewardCapCents?: number;
 }
 
 export type UpdateBetAndGetCampaignPayload = Partial<

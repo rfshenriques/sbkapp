@@ -23,10 +23,17 @@ function displayToCents(value: string): number {
   return Math.round(Number(value) * 100);
 }
 
+const DEFAULT_REWARD_AMOUNT = '10.00';
+const DEFAULT_REWARD_PERCENT = '10';
+const DEFAULT_REWARD_CAP = '50.00';
+
 function NewCampaignForm() {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
-  const [rewardAmount, setRewardAmount] = useState('10.00');
+  const [rewardType, setRewardType] = useState<backendApi.BetAndGetRewardType>('FIXED');
+  const [rewardAmount, setRewardAmount] = useState(DEFAULT_REWARD_AMOUNT);
+  const [rewardPercent, setRewardPercent] = useState(DEFAULT_REWARD_PERCENT);
+  const [rewardCap, setRewardCap] = useState(DEFAULT_REWARD_CAP);
   const [startAt, setStartAt] = useState('');
   const [endAt, setEndAt] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -35,13 +42,19 @@ function NewCampaignForm() {
     mutationFn: () =>
       backendApi.createBetAndGetCampaign({
         name: name.trim(),
-        rewardAmountCents: displayToCents(rewardAmount),
+        rewardType,
         startAt: localInputValueToIso(startAt),
         endAt: localInputValueToIso(endAt),
+        ...(rewardType === 'FIXED'
+          ? { rewardAmountCents: displayToCents(rewardAmount) }
+          : { rewardPercent: Number(rewardPercent), rewardCapCents: displayToCents(rewardCap) }),
       }),
     onSuccess: () => {
       setName('');
-      setRewardAmount('10.00');
+      setRewardType('FIXED');
+      setRewardAmount(DEFAULT_REWARD_AMOUNT);
+      setRewardPercent(DEFAULT_REWARD_PERCENT);
+      setRewardCap(DEFAULT_REWARD_CAP);
       setStartAt('');
       setEndAt('');
       setError(null);
@@ -54,7 +67,12 @@ function NewCampaignForm() {
     },
   });
 
-  const isValid = name.trim() !== '' && Number.isFinite(displayToCents(rewardAmount)) && displayToCents(rewardAmount) > 0;
+  const rewardValid =
+    rewardType === 'FIXED'
+      ? Number.isFinite(displayToCents(rewardAmount)) && displayToCents(rewardAmount) > 0
+      : Number(rewardPercent) > 0 && Number.isFinite(displayToCents(rewardCap)) && displayToCents(rewardCap) > 0;
+
+  const isValid = name.trim() !== '' && rewardValid;
 
   return (
     <Card className="space-y-3">
@@ -71,17 +89,56 @@ function NewCampaignForm() {
           aria-label="Campaign name"
           className="flex-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
         />
-        <div className="flex items-center gap-1">
-          <span className="text-sm text-text-secondary">£</span>
-          <input
-            type="text"
-            inputMode="decimal"
-            value={rewardAmount}
-            onChange={(event) => setRewardAmount(event.target.value)}
-            aria-label="Reward amount"
-            className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm"
-          />
-        </div>
+        <select
+          aria-label="Reward type"
+          value={rewardType}
+          onChange={(event) => setRewardType(event.target.value as backendApi.BetAndGetRewardType)}
+          className="rounded-md border border-border bg-background px-3 py-2 text-sm"
+        >
+          <option value="FIXED">Fixed amount</option>
+          <option value="PERCENTAGE">% of stake</option>
+        </select>
+        {rewardType === 'FIXED' ? (
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-text-secondary">£</span>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={rewardAmount}
+              onChange={(event) => setRewardAmount(event.target.value)}
+              aria-label="Reward amount"
+              className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm"
+            />
+          </div>
+        ) : (
+          <>
+            <label className="flex items-center gap-1.5 text-sm text-text-secondary">
+              Percent
+              <input
+                type="text"
+                inputMode="decimal"
+                value={rewardPercent}
+                onChange={(event) => setRewardPercent(event.target.value)}
+                aria-label="Reward percent"
+                className="w-16 rounded-md border border-border bg-background px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="flex items-center gap-1.5 text-sm text-text-secondary">
+              Cap
+              <span className="flex items-center gap-1">
+                <span>£</span>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={rewardCap}
+                  onChange={(event) => setRewardCap(event.target.value)}
+                  aria-label="Reward cap"
+                  className="w-24 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                />
+              </span>
+            </label>
+          </>
+        )}
         <Button variant="primary" disabled={!isValid || createMutation.isPending} onClick={() => createMutation.mutate()}>
           Create
         </Button>
@@ -133,7 +190,13 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
   // keystroke) - deriving display text straight from the numeric value
   // would silently strip a trailing "." or "0" as the user types it,
   // making decimals like 1.50 impossible to enter.
-  const [rewardAmountText, setRewardAmountText] = useState(centsToDisplay(campaign.rewardAmountCents));
+  const [rewardAmountText, setRewardAmountText] = useState(
+    campaign.rewardAmountCents != null ? centsToDisplay(campaign.rewardAmountCents) : '',
+  );
+  const [rewardPercentText, setRewardPercentText] = useState(campaign.rewardPercent?.toString() ?? '');
+  const [rewardCapText, setRewardCapText] = useState(
+    campaign.rewardCapCents != null ? centsToDisplay(campaign.rewardCapCents) : '',
+  );
   const [minStakeText, setMinStakeText] = useState(campaign.minStakeCents != null ? centsToDisplay(campaign.minStakeCents) : '');
   const [minOddsText, setMinOddsText] = useState(campaign.minOddsPerLeg?.toString() ?? '');
   const [minCombinedOddsText, setMinCombinedOddsText] = useState(campaign.minCombinedOdds?.toString() ?? '');
@@ -144,7 +207,9 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
 
   useEffect(() => {
     setDraft(campaign);
-    setRewardAmountText(centsToDisplay(campaign.rewardAmountCents));
+    setRewardAmountText(campaign.rewardAmountCents != null ? centsToDisplay(campaign.rewardAmountCents) : '');
+    setRewardPercentText(campaign.rewardPercent?.toString() ?? '');
+    setRewardCapText(campaign.rewardCapCents != null ? centsToDisplay(campaign.rewardCapCents) : '');
     setMinStakeText(campaign.minStakeCents != null ? centsToDisplay(campaign.minStakeCents) : '');
     setMinOddsText(campaign.minOddsPerLeg?.toString() ?? '');
     setMinCombinedOddsText(campaign.minCombinedOdds?.toString() ?? '');
@@ -163,10 +228,17 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
     onError: (error) => toast.error(errorMessage(error, 'Failed to save campaign')),
   });
 
+  const rewardValid =
+    draft.rewardType === 'PERCENTAGE'
+      ? typeof draft.rewardPercent === 'number' &&
+        draft.rewardPercent > 0 &&
+        typeof draft.rewardCapCents === 'number' &&
+        draft.rewardCapCents > 0
+      : typeof draft.rewardAmountCents === 'number' && draft.rewardAmountCents > 0;
+
   const isValid =
     (draft.name ?? '').trim() !== '' &&
-    typeof draft.rewardAmountCents === 'number' &&
-    draft.rewardAmountCents > 0 &&
+    rewardValid &&
     (draft.trigger !== 'SETTLEMENT' || draft.triggerOnWon || draft.triggerOnLost || draft.triggerOnVoid);
 
   return (
@@ -184,21 +256,72 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
             className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
           />
         </div>
-        <div>
-          <label className="block text-xs text-text-secondary" htmlFor={`reward-${campaign.id}`}>
-            Reward amount (£)
-          </label>
-          <input
-            id={`reward-${campaign.id}`}
-            type="text"
-            inputMode="decimal"
-            value={rewardAmountText}
-            onChange={(event) => {
-              setRewardAmountText(event.target.value);
-              setDraft({ ...draft, rewardAmountCents: displayToCents(event.target.value) });
-            }}
-            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-          />
+      </div>
+
+      <div>
+        <span className="block text-xs text-text-secondary">Reward</span>
+        <div className="mt-1 flex flex-wrap items-center gap-3">
+          <select
+            aria-label={`reward type ${campaign.id}`}
+            value={draft.rewardType ?? 'FIXED'}
+            onChange={(event) =>
+              setDraft({ ...draft, rewardType: event.target.value as backendApi.BetAndGetRewardType })
+            }
+            className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+          >
+            <option value="FIXED">Fixed amount</option>
+            <option value="PERCENTAGE">% of stake, up to a cap</option>
+          </select>
+
+          {draft.rewardType !== 'PERCENTAGE' && (
+            <label className="flex items-center gap-1.5 text-sm text-text-secondary">
+              Amount (£)
+              <input
+                type="text"
+                inputMode="decimal"
+                aria-label={`fixed reward amount ${campaign.id}`}
+                value={rewardAmountText}
+                onChange={(event) => {
+                  setRewardAmountText(event.target.value);
+                  setDraft({ ...draft, rewardAmountCents: displayToCents(event.target.value) });
+                }}
+                className="w-24 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+              />
+            </label>
+          )}
+
+          {draft.rewardType === 'PERCENTAGE' && (
+            <>
+              <label className="flex items-center gap-1.5 text-sm text-text-secondary">
+                Percent
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  aria-label={`reward percent ${campaign.id}`}
+                  value={rewardPercentText}
+                  onChange={(event) => {
+                    setRewardPercentText(event.target.value);
+                    setDraft({ ...draft, rewardPercent: Number(event.target.value) });
+                  }}
+                  className="w-20 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                />
+              </label>
+              <label className="flex items-center gap-1.5 text-sm text-text-secondary">
+                Cap (£)
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  aria-label={`reward cap ${campaign.id}`}
+                  value={rewardCapText}
+                  onChange={(event) => {
+                    setRewardCapText(event.target.value);
+                    setDraft({ ...draft, rewardCapCents: displayToCents(event.target.value) });
+                  }}
+                  className="w-24 rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+                />
+              </label>
+            </>
+          )}
         </div>
       </div>
 
@@ -619,6 +742,11 @@ function CampaignCard({ campaign, matches, matchesLoading, matchesError }: Campa
     onError: (error) => toast.error(errorMessage(error, 'Failed to remove campaign')),
   });
 
+  const rewardSummary =
+    campaign.rewardType === 'PERCENTAGE'
+      ? `${campaign.rewardPercent ?? 0}% of stake, up to £${centsToDisplay(campaign.rewardCapCents ?? 0)}`
+      : `£${centsToDisplay(campaign.rewardAmountCents ?? 0)} freebet`;
+
   return (
     <Card className="p-0">
       <button
@@ -638,7 +766,7 @@ function CampaignCard({ campaign, matches, matchesLoading, matchesError }: Campa
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold">{campaign.name}</span>
             <span className="block text-xs text-text-secondary">
-              £{centsToDisplay(campaign.rewardAmountCents)} freebet · {campaign.trigger.toLowerCase()} ·{' '}
+              {rewardSummary} · {campaign.trigger.toLowerCase()} ·{' '}
               {campaign.scopes.length} scope {campaign.scopes.length === 1 ? 'entry' : 'entries'}
             </span>
             {(campaign.startAt || campaign.endAt) && (
@@ -710,9 +838,10 @@ export default function BetAndGetCampaignsPage() {
     <div>
       <h1 className="text-2xl font-semibold">Bet & Get campaigns</h1>
       <p className="mt-1 text-sm text-text-secondary">
-        Fixed-amount freebet rewards for bets on a chosen sport, competition, or match. A bet only qualifies
-        when every one of its selections falls within the campaign's scope and meets its conditions.
-        Percentage and accumulated Bet & Get variants are a later build, not this one.
+        Freebet rewards - a fixed amount or a percentage of the qualifying bet's own stake, capped - for bets on
+        a chosen sport, competition, or match. A bet only qualifies when every one of its selections falls
+        within the campaign's scope and meets its conditions. Accumulated-across-bets variants are a later
+        build, not this one.
       </p>
 
       <div className="mt-4 space-y-4">

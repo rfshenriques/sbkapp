@@ -9,7 +9,10 @@ interface BetAndGetCampaignForSync {
   enabled: boolean;
   startAt: Date | null;
   endAt: Date | null;
-  rewardAmountCents: number;
+  rewardType: 'FIXED' | 'PERCENTAGE';
+  rewardAmountCents: number | null;
+  rewardPercent: number | null;
+  rewardCapCents: number | null;
 }
 
 interface DepositCampaignForSync {
@@ -94,13 +97,11 @@ export class PromoCardAutoSyncService {
     if (campaignPromoStatus(campaign) !== 'ACTIVE') {
       return;
     }
-    await this.ensureCard(
-      brandId,
-      { betAndGetCampaignId: campaign.id },
-      campaign.name,
-      `Bet & get ${formatCents(campaign.rewardAmountCents)} €`,
-      actor,
-    );
+    const subtitle =
+      campaign.rewardType === 'FIXED'
+        ? `Bet & get ${formatCents(campaign.rewardAmountCents ?? 0)} €`
+        : `Get ${campaign.rewardPercent}% of your stake back, up to ${formatCents(campaign.rewardCapCents ?? 0)} €`;
+    await this.ensureCard(brandId, { betAndGetCampaignId: campaign.id }, campaign.name, subtitle, actor);
   }
 
   async ensureForDepositCampaign(brandId: string, campaign: DepositCampaignForSync, actor: AuditActor) {

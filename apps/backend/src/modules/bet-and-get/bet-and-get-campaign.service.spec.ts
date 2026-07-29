@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { NotFoundException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -74,6 +74,40 @@ describe('BetAndGetCampaignService', () => {
     const listed = await service.list(brandAId);
     expect(listed).toHaveLength(1);
     expect(listed[0]).toMatchObject({ name: 'CL Bet & Get', rewardAmountCents: 1_000, enabled: false });
+  });
+
+  it('creates a PERCENTAGE-reward campaign', async () => {
+    await service.create(
+      brandAId,
+      { name: 'CL Bet & Get', rewardType: 'PERCENTAGE', rewardPercent: 10, rewardCapCents: 2_000 },
+      TEST_ACTOR,
+    );
+
+    const listed = await service.list(brandAId);
+    expect(listed[0]).toMatchObject({ rewardType: 'PERCENTAGE', rewardPercent: 10, rewardCapCents: 2_000, rewardAmountCents: null });
+  });
+
+  it('rejects a FIXED campaign missing rewardAmountCents', async () => {
+    await expect(service.create(brandAId, { name: 'CL Bet & Get', rewardType: 'FIXED' }, TEST_ACTOR)).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
+  });
+
+  it('rejects a PERCENTAGE campaign missing rewardPercent or rewardCapCents', async () => {
+    await expect(
+      service.create(brandAId, { name: 'CL Bet & Get', rewardType: 'PERCENTAGE', rewardPercent: 10 }, TEST_ACTOR),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.create(brandAId, { name: 'CL Bet & Get', rewardType: 'PERCENTAGE', rewardCapCents: 2_000 }, TEST_ACTOR),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('rejects switching an existing FIXED campaign to PERCENTAGE without the new fields', async () => {
+    const campaign = await service.create(brandAId, { name: 'CL Bet & Get', rewardAmountCents: 1_000 }, TEST_ACTOR);
+
+    await expect(
+      service.update(brandAId, campaign.id, { rewardType: 'PERCENTAGE' }, TEST_ACTOR),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('records an audit entry on create', async () => {

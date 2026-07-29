@@ -15,7 +15,10 @@ const draftCampaign: BetAndGetCampaign = {
   enabled: false,
   startAt: null,
   endAt: null,
+  rewardType: 'FIXED',
   rewardAmountCents: 1_000,
+  rewardPercent: null,
+  rewardCapCents: null,
   trigger: 'PLACEMENT',
   triggerOnWon: false,
   triggerOnLost: false,
@@ -93,7 +96,11 @@ describe('BetAndGetCampaignsPage', () => {
         return new Response(JSON.stringify([]), { status: 200 });
       }
       if (method === 'POST' && url === '/backend/admin/bet-and-get-campaigns') {
-        expect(JSON.parse(init!.body as string)).toEqual({ name: 'New Promo', rewardAmountCents: 1000 });
+        expect(JSON.parse(init!.body as string)).toEqual({
+          name: 'New Promo',
+          rewardType: 'FIXED',
+          rewardAmountCents: 1000,
+        });
         return new Response(JSON.stringify({ ...draftCampaign, id: 'campaign-2', name: 'New Promo' }), { status: 200 });
       }
       return undefined;

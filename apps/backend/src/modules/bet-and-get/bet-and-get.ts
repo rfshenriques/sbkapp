@@ -118,3 +118,25 @@ export function betQualifiesForCampaign(conditions: CampaignConditions, bet: Qua
 
   return true;
 }
+
+export interface BetAndGetRewardRules {
+  rewardType: 'FIXED' | 'PERCENTAGE';
+  rewardAmountCents: number | null;
+  rewardPercent: number | null;
+  rewardCapCents: number | null;
+}
+
+/**
+ * The freebet amount a qualifying bet earns. FIXED always pays the same
+ * rewardAmountCents; PERCENTAGE pays a share of that specific bet's own
+ * stake, capped so a very large stake can't produce an unbounded reward -
+ * same shape/rounding as DepositCampaign's computeDepositReward.
+ */
+export function calculateBetAndGetRewardCents(rules: BetAndGetRewardRules, stakeCents: number): number {
+  if (rules.rewardType === 'FIXED') {
+    return rules.rewardAmountCents!;
+  }
+
+  const uncapped = Math.round((stakeCents * rules.rewardPercent!) / 100);
+  return Math.min(uncapped, rules.rewardCapCents!);
+}

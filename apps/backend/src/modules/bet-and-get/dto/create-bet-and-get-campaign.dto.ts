@@ -1,6 +1,7 @@
 import { IsArray, IsBoolean, IsIn, IsISO8601, IsInt, IsOptional, IsPositive, IsString, Min } from 'class-validator';
-import type { AudienceMode, BetAndGetBetType, BetAndGetTiming, BetAndGetTrigger } from '@prisma/client';
+import type { AudienceMode, BetAndGetBetType, BetAndGetRewardType, BetAndGetTiming, BetAndGetTrigger } from '@prisma/client';
 
+const REWARD_TYPES: BetAndGetRewardType[] = ['FIXED', 'PERCENTAGE'];
 const TRIGGERS: BetAndGetTrigger[] = ['PLACEMENT', 'SETTLEMENT'];
 const BET_TYPES: BetAndGetBetType[] = ['SINGLES_ONLY', 'ACCUMULATOR_ONLY', 'EITHER'];
 const BETTING_TIMINGS: BetAndGetTiming[] = ['PREMATCH_ONLY', 'INPLAY_ONLY', 'EITHER'];
@@ -14,9 +15,26 @@ export class CreateBetAndGetCampaignDto {
   @IsString()
   description?: string;
 
+  @IsOptional()
+  @IsIn(REWARD_TYPES)
+  rewardType?: BetAndGetRewardType;
+
+  /** Required when rewardType is FIXED - checked in the service, not here, since it depends on another field. */
+  @IsOptional()
   @IsInt()
   @IsPositive()
-  rewardAmountCents!: number;
+  rewardAmountCents?: number;
+
+  /** Required when rewardType is PERCENTAGE (e.g. 10 = 10% of the qualifying bet's stake). */
+  @IsOptional()
+  @IsPositive()
+  rewardPercent?: number;
+
+  /** Required when rewardType is PERCENTAGE. */
+  @IsOptional()
+  @IsInt()
+  @IsPositive()
+  rewardCapCents?: number;
 
   /** Optional scheduling window - both independently optional, see BetAndGetCampaign.startAt/endAt. */
   @IsOptional()

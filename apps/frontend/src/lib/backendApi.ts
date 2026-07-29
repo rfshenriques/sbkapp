@@ -303,12 +303,20 @@ export async function getBoosts(brandId: string): Promise<BoostedSelectionSummar
 export type BetAndGetTrigger = 'PLACEMENT' | 'SETTLEMENT';
 export type BetAndGetBetType = 'SINGLES_ONLY' | 'ACCUMULATOR_ONLY' | 'EITHER';
 export type BetAndGetTiming = 'PREMATCH_ONLY' | 'INPLAY_ONLY' | 'EITHER';
+export type BetAndGetRewardType = 'FIXED' | 'PERCENTAGE';
 
 export interface BetAndGetCampaign {
   id: string;
   name: string;
   description: string | null;
-  rewardAmountCents: number;
+  /** FIXED = same rewardAmountCents every time; PERCENTAGE = rewardPercent of the qualifying bet's own stake, capped at rewardCapCents. */
+  rewardType: BetAndGetRewardType;
+  /** Set when rewardType is FIXED, null otherwise. */
+  rewardAmountCents: number | null;
+  /** Set when rewardType is PERCENTAGE, null otherwise. */
+  rewardPercent: number | null;
+  /** Set when rewardType is PERCENTAGE, null otherwise. */
+  rewardCapCents: number | null;
   trigger: BetAndGetTrigger;
   triggerOnWon: boolean;
   triggerOnLost: boolean;

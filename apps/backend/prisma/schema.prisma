@@ -1066,13 +1066,19 @@ enum BetAndGetScopeType {
   MATCH
 }
 
+/** FIXED = same rewardAmountCents every time; PERCENTAGE = rewardPercent of the qualifying bet's own stake, capped at rewardCapCents. */
+enum BetAndGetRewardType {
+  FIXED
+  PERCENTAGE
+}
+
 /**
- * "Bet & Get" fixed-amount campaign - a trader-scoped promo (one or more
+ * "Bet & Get" campaign - a trader-scoped promo (one or more
  * sports/competitions/matches, see BetAndGetCampaignScope) that grants a
- * flat freebet to a player whose bet meets the configured conditions.
- * Deliberately just the fixed-amount variant for now - percentage-of-stake
- * and accumulated-across-bets variants are a later, separate build, not
- * fields on this model.
+ * freebet, either a flat amount or a percentage of the qualifying bet's
+ * stake (see BetAndGetRewardType), to a player whose bet meets the
+ * configured conditions. Accumulated-across-bets variants are a later,
+ * separate build, not a field on this model.
  */
 model BetAndGetCampaign {
   id          String    @id @default(uuid())
@@ -1089,7 +1095,26 @@ model BetAndGetCampaign {
   startAt     DateTime?
   endAt       DateTime?
 
-  rewardAmountCents Int
+  /**
+   * FIXED always pays the same rewardAmountCents; PERCENTAGE pays a share
+   * of the qualifying bet's own stake, capped so a very large stake can't
+   * produce an unbounded reward - same shape as DepositCampaign's reward
+   * fields, kept as a distinct enum since it's semantically "reward from a
+   * bet" not "reward from a deposit".
+   */
+  rewardType BetAndGetRewardType @default(FIXED)
+  /**
+   * Required when rewardType is FIXED, ignored otherwise.
+   */
+  rewardAmountCents Int?
+  /**
+   * Required when rewardType is PERCENTAGE (e.g. 10 = 10% of the stake), ignored otherwise.
+   */
+  rewardPercent     Float?
+  /**
+   * Required when rewardType is PERCENTAGE - the max freebet the percentage can produce.
+   */
+  rewardCapCents    Int?
 
   trigger       BetAndGetTrigger @default(PLACEMENT)
   /**

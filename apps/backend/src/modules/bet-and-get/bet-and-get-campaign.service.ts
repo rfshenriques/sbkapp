@@ -1,5 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import type { AudienceMode, BetAndGetBetType, BetAndGetScopeType, BetAndGetTiming, BetAndGetTrigger, Prisma } from '@prisma/client';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import type {
+  AudienceMode,
+  BetAndGetBetType,
+  BetAndGetRewardType,
+  BetAndGetScopeType,
+  BetAndGetTiming,
+  BetAndGetTrigger,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { betQualifiesForCampaign, matchIsInCampaignScope, matchTimingQualifies, type ScopeMatchInput } from './bet-and-get';
@@ -10,7 +18,13 @@ type PrismaClientLike = PrismaService | Prisma.TransactionClient;
 export interface CreateBetAndGetCampaignInput {
   name: string;
   description?: string;
-  rewardAmountCents: number;
+  rewardType?: BetAndGetRewardType;
+  /** Required when rewardType is FIXED, ignored otherwise. */
+  rewardAmountCents?: number | null;
+  /** Required when rewardType is PERCENTAGE (e.g. 10 = 10% of the qualifying bet's stake), ignored otherwise. */
+  rewardPercent?: number | null;
+  /** Required when rewardType is PERCENTAGE - the max freebet the percentage can produce. */
+  rewardCapCents?: number | null;
   startAt?: Date | null;
   endAt?: Date | null;
   trigger?: BetAndGetTrigger;
@@ -38,11 +52,26 @@ export interface SetCampaignScopeInput {
 
 const campaignInclude = { scopes: true, segments: true } as const;
 
+/** Rejects a reward configuration that doesn't match its own rewardType - checked here rather than in the DTO since it depends on more than one field, same as DepositCampaignService. */
+function assertRewardConfigValid(input: {
+  rewardType: BetAndGetRewardType;
+  rewardAmountCents?: number | null;
+  rewardPercent?: number | null;
+  rewardCapCents?: number | null;
+}) {
+  if (input.rewardType === 'FIXED' && !input.rewardAmountCents) {
+    throw new BadRequestException('rewardAmountCents is required when rewardType is FIXED');
+  }
+  if (input.rewardType === 'PERCENTAGE' && (!input.rewardPercent || !input.rewardCapCents)) {
+    throw new BadRequestException('rewardPercent and rewardCapCents are required when rewardType is PERCENTAGE');
+  }
+}
+
 /**
- * "Bet & Get" fixed-amount campaigns - see BetAndGetCampaign in
- * schema.prisma for the model shape. Campaign resolution (which one, if
- * any, a bet qualifies for) happens once at placement time in PamService
- * using live match/odds data, then is reused unchanged at settlement.
+ * "Bet & Get" campaigns - see BetAndGetCampaign in schema.prisma for the
+ * model shape. Campaign resolution (which one, if any, a bet qualifies
+ * for) happens once at placement time in PamService using live match/odds
+ * data, then is reused unchanged at settlement.
  */
 @Injectable()
 export class BetAndGetCampaignService {
@@ -92,12 +121,18 @@ export class BetAndGetCampaignService {
   }
 
   async create(brandId: string, input: CreateBetAndGetCampaignInput, actor: AuditActor) {
+    const rewardType = input.rewardType ?? 'FIXED';
+    assertRewardConfigValid({ ...input, rewardType });
+
     const campaign = await this.prisma.betAndGetCampaign.create({
       data: {
         brandId,
         name: input.name,
         description: input.description,
-        rewardAmountCents: input.rewardAmountCents,
+        rewardType,
+        rewardAmountCents: input.rewardAmountCents ?? null,
+        rewardPercent: input.rewardPercent ?? null,
+        rewardCapCents: input.rewardCapCents ?? null,
         startAt: input.startAt ?? null,
         endAt: input.endAt ?? null,
         trigger: input.trigger ?? 'PLACEMENT',
@@ -130,7 +165,13 @@ export class BetAndGetCampaignService {
   }
 
   async update(brandId: string, id: string, input: UpdateBetAndGetCampaignInput, actor: AuditActor) {
-    await this.findOwned(brandId, id);
+    const existing = await this.findOwned(brandId, id);
+    assertRewardConfigValid({
+      rewardType: input.rewardType ?? existing.rewardType,
+      rewardAmountCents: input.rewardAmountCents ?? existing.rewardAmountCents,
+      rewardPercent: input.rewardPercent ?? existing.rewardPercent,
+      rewardCapCents: input.rewardCapCents ?? existing.rewardCapCents,
+    });
 
     const { segmentIds, ...rest } = input;
 

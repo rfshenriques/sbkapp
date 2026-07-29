@@ -8,7 +8,7 @@ import { AccaRollbackService } from '../acca-rollback/acca-rollback.service';
 import { calculateAccaRollbackReward } from '../acca-rollback/acca-rollback';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
-import { betQualifiesForCampaign } from '../bet-and-get/bet-and-get';
+import { betQualifiesForCampaign, calculateBetAndGetRewardCents } from '../bet-and-get/bet-and-get';
 import { BoostService } from '../boosts/boost.service';
 import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.service';
 import { FreebetService } from '../freebets/freebet.service';
@@ -276,7 +276,9 @@ export class PamService {
 
     return {
       betAndGetCampaignName: betAndGetCampaign?.name ?? null,
-      betAndGetCampaignRewardCents: betAndGetCampaign?.rewardAmountCents ?? null,
+      betAndGetCampaignRewardCents: betAndGetCampaign
+        ? calculateBetAndGetRewardCents(betAndGetCampaign, stakeCents)
+        : null,
       depositCampaignName: depositCampaignRedemption?.depositCampaign.name ?? null,
       depositCampaignRewardCents: depositCampaignRedemption?.rewardAmountCents ?? null,
     };
@@ -628,7 +630,7 @@ export class PamService {
           {
             userId,
             brandId: user.brandId,
-            amountCents: betAndGetCampaign.rewardAmountCents,
+            amountCents: calculateBetAndGetRewardCents(betAndGetCampaign, dto.stakeCents),
             source: 'BET_AND_GET',
             sourceBetId: bet.id,
             sourceCampaignId: betAndGetCampaign.id,
@@ -690,7 +692,9 @@ export class PamService {
       return {
         ...bet,
         betAndGetCampaignName: betAndGetCampaign?.name ?? null,
-        betAndGetCampaignRewardCents: betAndGetCampaign?.rewardAmountCents ?? null,
+        betAndGetCampaignRewardCents: betAndGetCampaign
+          ? calculateBetAndGetRewardCents(betAndGetCampaign, dto.stakeCents)
+          : null,
         depositCampaignName: depositCampaignRedemption?.depositCampaign.name ?? null,
         depositCampaignRewardCents: depositCampaignRedemption?.rewardAmountCents ?? null,
         // Acca rollback is only ever known once the bet settles - never at placement.
@@ -704,7 +708,7 @@ export class PamService {
       where: { userId },
       include: {
         selections: true,
-        betAndGetCampaign: { select: { name: true, rewardAmountCents: true } },
+        betAndGetCampaign: { select: { name: true, rewardType: true, rewardAmountCents: true, rewardPercent: true, rewardCapCents: true } },
         depositCampaignRedemption: { include: { depositCampaign: { select: { name: true } } } },
       },
       orderBy: { createdAt: 'desc' },
@@ -729,7 +733,7 @@ export class PamService {
         where: { userId, status: 'WON', winNotifiedAt: null },
         include: {
           selections: true,
-          betAndGetCampaign: { select: { name: true, rewardAmountCents: true } },
+          betAndGetCampaign: { select: { name: true, rewardType: true, rewardAmountCents: true, rewardPercent: true, rewardCapCents: true } },
           depositCampaignRedemption: { include: { depositCampaign: { select: { name: true } } } },
         },
         orderBy: { settledAt: 'asc' },
@@ -795,7 +799,7 @@ export class PamService {
       include: {
         selections: true,
         user: { select: { id: true, username: true, email: true } },
-        betAndGetCampaign: { select: { name: true, rewardAmountCents: true } },
+        betAndGetCampaign: { select: { name: true, rewardType: true, rewardAmountCents: true, rewardPercent: true, rewardCapCents: true } },
         depositCampaignRedemption: { include: { depositCampaign: { select: { name: true } } } },
       },
       orderBy: { createdAt: 'asc' },
@@ -843,7 +847,14 @@ export class PamService {
   private async enrichBetsWithRollbackReward<
     T extends {
       id: string;
-      betAndGetCampaign: { name: string; rewardAmountCents: number } | null;
+      stakeCents: number;
+      betAndGetCampaign: {
+        name: string;
+        rewardType: 'FIXED' | 'PERCENTAGE';
+        rewardAmountCents: number | null;
+        rewardPercent: number | null;
+        rewardCapCents: number | null;
+      } | null;
       depositCampaignRedemption: { depositCampaign: { name: string }; rewardAmountCents: number } | null;
     },
   >(bets: T[]) {
@@ -861,7 +872,9 @@ export class PamService {
       return {
         ...rest,
         betAndGetCampaignName: betAndGetCampaign?.name ?? null,
-        betAndGetCampaignRewardCents: betAndGetCampaign?.rewardAmountCents ?? null,
+        betAndGetCampaignRewardCents: betAndGetCampaign
+          ? calculateBetAndGetRewardCents(betAndGetCampaign, bet.stakeCents)
+          : null,
         depositCampaignName: depositCampaignRedemption?.depositCampaign.name ?? null,
         depositCampaignRewardCents: depositCampaignRedemption?.rewardAmountCents ?? null,
         accaRollbackRewardCents: rollbackRewardByBetId.get(bet.id) ?? null,
@@ -1020,7 +1033,7 @@ export class PamService {
             {
               userId: updatedBet.userId,
               brandId,
-              amountCents: campaign.rewardAmountCents,
+              amountCents: calculateBetAndGetRewardCents(campaign, updatedBet.stakeCents),
               source: 'BET_AND_GET',
               sourceBetId: betId,
               sourceCampaignId: campaign.id,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   betQualifiesForCampaign,
+  calculateBetAndGetRewardCents,
   isCampaignScheduledActive,
   matchIsInCampaignScope,
   matchTimingQualifies,
@@ -176,5 +177,28 @@ describe('betQualifiesForCampaign', () => {
     expect(
       betQualifiesForCampaign(conditions, { stakeCents: 1_000, legOdds: [2.0, 2.0] }),
     ).toBe(false);
+  });
+});
+
+describe('calculateBetAndGetRewardCents', () => {
+  it('FIXED always pays the configured flat amount, regardless of stake', () => {
+    const rules = { rewardType: 'FIXED' as const, rewardAmountCents: 1_000, rewardPercent: null, rewardCapCents: null };
+    expect(calculateBetAndGetRewardCents(rules, 500)).toBe(1_000);
+    expect(calculateBetAndGetRewardCents(rules, 50_000)).toBe(1_000);
+  });
+
+  it('PERCENTAGE pays a share of the stake', () => {
+    const rules = { rewardType: 'PERCENTAGE' as const, rewardAmountCents: null, rewardPercent: 10, rewardCapCents: 100_000 };
+    expect(calculateBetAndGetRewardCents(rules, 10_000)).toBe(1_000);
+  });
+
+  it('PERCENTAGE caps the reward at rewardCapCents', () => {
+    const rules = { rewardType: 'PERCENTAGE' as const, rewardAmountCents: null, rewardPercent: 50, rewardCapCents: 2_000 };
+    expect(calculateBetAndGetRewardCents(rules, 10_000)).toBe(2_000);
+  });
+
+  it('PERCENTAGE rounds to the nearest cent', () => {
+    const rules = { rewardType: 'PERCENTAGE' as const, rewardAmountCents: null, rewardPercent: 33, rewardCapCents: 100_000 };
+    expect(calculateBetAndGetRewardCents(rules, 1_000)).toBe(330);
   });
 });
