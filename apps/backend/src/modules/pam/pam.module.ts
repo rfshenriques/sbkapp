@@ -8,6 +8,7 @@ import { BoostsModule } from '../boosts/boosts.module';
 import { DepositCampaignModule } from '../deposit-campaigns/deposit-campaign.module';
 import { FreebetModule } from '../freebets/freebet.module';
 import { InsuranceBetModule } from '../insurance-bet/insurance-bet.module';
+import { LeaderboardModule } from '../leaderboards/leaderboard.module';
 import { LimitsModule } from '../limits/limits.module';
 import { ManualMarketModule } from '../manual-markets/manual-market.module';
 import { OddsEngineClient } from '../margins/odds-engine-client';
@@ -40,6 +41,7 @@ import { PublicStakeLimitPreviewController } from './public-stake-limit-preview.
     BetAndGetModule,
     DepositCampaignModule,
     RegisterCampaignModule,
+    LeaderboardModule,
     PushModule,
     PlayerSegmentModule,
   ],
