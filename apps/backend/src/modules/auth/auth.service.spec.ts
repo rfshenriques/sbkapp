@@ -4,6 +4,9 @@ import { JwtService } from '@nestjs/jwt';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditLogService } from '../admin/audit-log.service';
+import { FreebetService } from '../freebets/freebet.service';
+import { RegisterCampaignService } from '../register-campaigns/register-campaign.service';
 import { AuthService } from './auth.service';
 import type { RegisterDto } from './dto/register.dto';
 
@@ -46,6 +49,9 @@ describe('AuthService', () => {
       providers: [
         AuthService,
         PrismaService,
+        AuditLogService,
+        FreebetService,
+        RegisterCampaignService,
         { provide: JwtService, useValue: new JwtService({ secret: 'test-jwt-secret' }) },
       ],
     }).compile();

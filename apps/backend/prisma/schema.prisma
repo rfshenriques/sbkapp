@@ -45,15 +45,17 @@ model User {
   brandId String
   brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Restrict)
 
-  refreshTokens              RefreshToken[]
-  bets                       Bet[]
-  segments                   PlayerSegmentMember[]
-  freebetGrants              FreebetGrant[]
-  deposits                   Deposit[]
-  depositCampaignRedemptions DepositCampaignRedemption[]
-  webAuthnCredentials        WebAuthnCredential[]
-  pushSubscriptions          PushSubscription[]
-  pushNotificationRecipients PushNotificationRecipient[]
+  refreshTokens               RefreshToken[]
+  bets                        Bet[]
+  segments                    PlayerSegmentMember[]
+  freebetGrants               FreebetGrant[]
+  deposits                    Deposit[]
+  depositCampaignRedemptions  DepositCampaignRedemption[]
+  registerCampaignRedemptions RegisterCampaignRedemption[]
+  leaderboardEntries          LeaderboardEntry[]
+  webAuthnCredentials         WebAuthnCredential[]
+  pushSubscriptions           PushSubscription[]
+  pushNotificationRecipients  PushNotificationRecipient[]
 
   @@index([brandId])
   @@map("users")
@@ -237,6 +239,15 @@ enum AuditAction {
   DEPOSIT_CAMPAIGN_UPDATED
   DEPOSIT_CAMPAIGN_REMOVED
   PUSH_NOTIFICATION_SENT
+  REGISTER_CAMPAIGN_CREATED
+  REGISTER_CAMPAIGN_UPDATED
+  REGISTER_CAMPAIGN_REMOVED
+  LEADERBOARD_CAMPAIGN_CREATED
+  LEADERBOARD_CAMPAIGN_UPDATED
+  LEADERBOARD_CAMPAIGN_REMOVED
+  LEADERBOARD_CAMPAIGN_SCOPES_SET
+  LEADERBOARD_CAMPAIGN_REWARD_TIERS_SET
+  LEADERBOARD_CAMPAIGN_PRIZES_GRANTED
 }
 
 enum FreebetStatus {
@@ -258,6 +269,8 @@ enum FreebetSource {
   INSURANCE_BET
   BET_AND_GET
   DEPOSIT_CAMPAIGN
+  REGISTER_CAMPAIGN
+  LEADERBOARD_CAMPAIGN
 }
 
 /**
@@ -430,12 +443,14 @@ model PlayerSegment {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members            PlayerSegmentMember[]
-  manualMarkets      ManualMarketSegment[]
-  boosts             BoostSegment[]
-  depositCampaigns   DepositCampaignSegment[]
-  betAndGetCampaigns BetAndGetCampaignSegment[]
-  pushNotifications  PushNotificationSegment[]
+  members              PlayerSegmentMember[]
+  manualMarkets        ManualMarketSegment[]
+  boosts               BoostSegment[]
+  depositCampaigns     DepositCampaignSegment[]
+  betAndGetCampaigns   BetAndGetCampaignSegment[]
+  registerCampaigns    RegisterCampaignSegment[]
+  leaderboardCampaigns LeaderboardCampaignSegment[]
+  pushNotifications    PushNotificationSegment[]
 
   @@unique([brandId, name])
   @@index([brandId])
@@ -725,7 +740,14 @@ model Bet {
   depositCampaignRedemptionId String?                    @unique
   depositCampaignRedemption   DepositCampaignRedemption? @relation(fields: [depositCampaignRedemptionId], references: [id], onDelete: SetNull)
 
-  selections BetSelection[]
+  /**
+   * The RegisterCampaignRedemption this bet fulfilled the qualifying-bet requirement for, if any - same "resolved once at placement, reused unchanged at settlement" rule as betAndGetCampaignId/depositCampaignRedemptionId.
+   */
+  registerCampaignRedemptionId String?                     @unique
+  registerCampaignRedemption   RegisterCampaignRedemption? @relation(fields: [registerCampaignRedemptionId], references: [id], onDelete: SetNull)
+
+  selections           BetSelection[]
+  leaderboardEntryBets LeaderboardEntryBet[]
 
   @@index([userId])
   @@index([brandId])
@@ -1066,7 +1088,9 @@ enum BetAndGetScopeType {
   MATCH
 }
 
-/** FIXED = same rewardAmountCents every time; PERCENTAGE = rewardPercent of the qualifying bet's own stake, capped at rewardCapCents. */
+/**
+ * FIXED = same rewardAmountCents every time; PERCENTAGE = rewardPercent of the qualifying bet's own stake, capped at rewardCapCents.
+ */
 enum BetAndGetRewardType {
   FIXED
   PERCENTAGE
@@ -1102,7 +1126,7 @@ model BetAndGetCampaign {
    * fields, kept as a distinct enum since it's semantically "reward from a
    * bet" not "reward from a deposit".
    */
-  rewardType BetAndGetRewardType @default(FIXED)
+  rewardType        BetAndGetRewardType @default(FIXED)
   /**
    * Required when rewardType is FIXED, ignored otherwise.
    */
@@ -1245,6 +1269,12 @@ model PromoCard {
 
   depositCampaignId String?
   depositCampaign   DepositCampaign? @relation(fields: [depositCampaignId], references: [id], onDelete: Cascade)
+
+  registerCampaignId String?
+  registerCampaign   RegisterCampaign? @relation(fields: [registerCampaignId], references: [id], onDelete: Cascade)
+
+  leaderboardCampaignId String?
+  leaderboardCampaign   LeaderboardCampaign? @relation(fields: [leaderboardCampaignId], references: [id], onDelete: Cascade)
 
   @@index([brandId, sortOrder])
   @@map("promo_cards")
@@ -1415,6 +1445,272 @@ model DepositCampaignRedemption {
 }
 
 /**
+ * A welcome-bonus campaign for new players. Brand-wide, never match-scoped
+ * (unlike BetAndGetCampaign) - a register bonus isn't tied to any particular
+ * bet's matches, just to the act of signing up (and optionally then placing
+ * one qualifying bet). requiresBet mirrors DepositCampaign.requiresBet:
+ * false grants the reward the instant registration completes (rewardType
+ * must be FIXED then - there's no bet stake yet to take a percentage of);
+ * true defers the grant to a qualifying bet placed within
+ * qualifyingBetWindowDays of the player's own signup (see
+ * RegisterCampaignRedemption, and User.createdAt as the window's start).
+ */
+model RegisterCampaign {
+  id          String    @id @default(uuid())
+  brandId     String
+  brand       Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  enabled     Boolean   @default(false)
+  startAt     DateTime?
+  endAt       DateTime?
+
+  rewardType        BetAndGetRewardType @default(FIXED)
+  /**
+   * Required when rewardType is FIXED, null otherwise.
+   */
+  rewardAmountCents Int?
+  /**
+   * Required when rewardType is PERCENTAGE (of the qualifying bet's own stake - only valid alongside requiresBet), null otherwise.
+   */
+  rewardPercent     Float?
+  /**
+   * Required when rewardType is PERCENTAGE, null otherwise.
+   */
+  rewardCapCents    Int?
+
+  requiresBet             Boolean @default(false)
+  /**
+   * Required when requiresBet is true - the "max days since registration" window a qualifying bet must land within (see isWithinQualifyingBetWindow).
+   */
+  qualifyingBetWindowDays Int?
+
+  /**
+   * Only meaningful when requiresBet is true - same shape as BetAndGetCampaign's trigger/conditions.
+   */
+  trigger       BetAndGetTrigger @default(PLACEMENT)
+  triggerOnWon  Boolean          @default(false)
+  triggerOnLost Boolean          @default(false)
+  triggerOnVoid Boolean          @default(false)
+  minStakeCents Int?
+  minOddsPerLeg Float?
+  betType       BetAndGetBetType @default(EITHER)
+  minSelections Int?
+
+  audienceMode AudienceMode              @default(ALL)
+  segments     RegisterCampaignSegment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  redemptions       RegisterCampaignRedemption[]
+  promoCards        PromoCard[]
+  pushNotifications PushNotification[]
+
+  @@index([brandId])
+  @@map("register_campaigns")
+}
+
+model RegisterCampaignSegment {
+  id                 String           @id @default(uuid())
+  registerCampaignId String
+  registerCampaign   RegisterCampaign @relation(fields: [registerCampaignId], references: [id], onDelete: Cascade)
+  segmentId          String
+  segment            PlayerSegment    @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@unique([registerCampaignId, segmentId])
+  @@map("register_campaign_segments")
+}
+
+/**
+ * One player's progress toward a RegisterCampaign's reward - at most one per
+ * (campaign, user) ever, since registration is a one-time event (unlike
+ * DepositCampaignRedemption, which has no such uniqueness because a player
+ * can deposit repeatedly). rewardAmountCents stays null for a
+ * requiresBet+PERCENTAGE campaign until the qualifying bet's own stake is
+ * known (at its placement or settlement, depending on trigger) - every
+ * other combination knows its amount immediately at creation.
+ */
+model RegisterCampaignRedemption {
+  id                 String                          @id @default(uuid())
+  registerCampaignId String
+  registerCampaign   RegisterCampaign                @relation(fields: [registerCampaignId], references: [id], onDelete: Cascade)
+  userId             String
+  user               User                            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brandId            String
+  brand              Brand                           @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  rewardAmountCents  Int?
+  status             DepositCampaignRedemptionStatus @default(PENDING_BET)
+  createdAt          DateTime                        @default(now())
+  updatedAt          DateTime                        @updatedAt
+
+  /**
+   * The bet that fulfilled this redemption's bet requirement, if any - see Bet.registerCampaignRedemptionId (the FK lives there, this is just the reverse side).
+   */
+  fulfillingBet Bet?
+
+  @@unique([registerCampaignId, userId])
+  @@index([status])
+  @@map("register_campaign_redemptions")
+}
+
+/**
+ * A tournament-style campaign: players opt in ("participate"), earn points
+ * from qualifying bets per a staff-configured formula (see
+ * calculateLeaderboardPoints), and get auto-ranked. endAt is required
+ * (unlike every other campaign's optional endAt) - a leaderboard needs a
+ * definite end to rank against and grant its prizesGrantedAt-guarded
+ * automatic reward tiers.
+ */
+model LeaderboardCampaign {
+  id          String    @id @default(uuid())
+  brandId     String
+  brand       Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  enabled     Boolean   @default(false)
+  startAt     DateTime?
+  endAt       DateTime
+
+  /**
+   * points = (stakeCents / 100) * pointsPerEuroStaked, optionally further multiplied by the bet's own effective combined odds - see calculateLeaderboardPoints.
+   */
+  pointsPerEuroStaked         Float   @default(1)
+  useCombinedOddsAsMultiplier Boolean @default(false)
+  /**
+   * true = only bets that settle WON earn points. false = every settled outcome that still qualifies earns points (see leaderboardBetCounts).
+   */
+  onlySettledWonCounts        Boolean @default(true)
+
+  // Qualifying-bet-spec conditions - identical shape to BetAndGetCampaign's.
+  minStakeCents   Int?
+  minOddsPerLeg   Float?
+  minCombinedOdds Float?
+  betType         BetAndGetBetType @default(EITHER)
+  minSelections   Int?
+  bettingTiming   BetAndGetTiming  @default(EITHER)
+
+  audienceMode AudienceMode                 @default(ALL)
+  segments     LeaderboardCampaignSegment[]
+  scopes       LeaderboardCampaignScope[]
+
+  /**
+   * Null until finalizeIfEnded has run once - the idempotency guard for prize granting (prize grants have no triggering bet, so they can't dedup on FreebetGrant.sourceBetId the way every other system grant does).
+   */
+  prizesGrantedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  entries           LeaderboardEntry[]
+  rewardTiers       LeaderboardRewardTier[]
+  promoCards        PromoCard[]
+  pushNotifications PushNotification[]
+
+  @@index([brandId])
+  @@map("leaderboard_campaigns")
+}
+
+model LeaderboardCampaignSegment {
+  id                    String              @id @default(uuid())
+  leaderboardCampaignId String
+  leaderboardCampaign   LeaderboardCampaign @relation(fields: [leaderboardCampaignId], references: [id], onDelete: Cascade)
+  segmentId             String
+  segment               PlayerSegment       @relation(fields: [segmentId], references: [id], onDelete: Cascade)
+
+  @@unique([leaderboardCampaignId, segmentId])
+  @@map("leaderboard_campaign_segments")
+}
+
+model LeaderboardCampaignScope {
+  id                    String              @id @default(uuid())
+  leaderboardCampaignId String
+  leaderboardCampaign   LeaderboardCampaign @relation(fields: [leaderboardCampaignId], references: [id], onDelete: Cascade)
+  scopeType             BetAndGetScopeType
+  scopeValue            String
+
+  @@index([leaderboardCampaignId])
+  @@map("leaderboard_campaign_scopes")
+}
+
+/**
+ * A rank (or rank range) -> flat freebet reward, granted automatically once
+ * the leaderboard ends (see LeaderboardCampaignService.finalizeIfEnded).
+ * Non-overlapping ranges are validated in the service layer, same
+ * convention as reward-config validation elsewhere in this codebase.
+ */
+model LeaderboardRewardTier {
+  id                    String              @id @default(uuid())
+  leaderboardCampaignId String
+  leaderboardCampaign   LeaderboardCampaign @relation(fields: [leaderboardCampaignId], references: [id], onDelete: Cascade)
+  rankFrom              Int
+  rankTo                Int
+  rewardAmountCents     Int
+  createdAt             DateTime            @default(now())
+
+  @@unique([leaderboardCampaignId, rankFrom])
+  @@index([leaderboardCampaignId])
+  @@map("leaderboard_reward_tiers")
+}
+
+/**
+ * One player's opt-in ("participate") + running point total for a
+ * leaderboard. pointsTotal is a cached column, updated by delta (never a
+ * blind increment) inside the same settlement transaction that
+ * upserts/corrects a LeaderboardEntryBet row below - mirrors exactly how
+ * PamService.settleSelection already deltas balanceCents on a settlement
+ * correction, so a re-settlement claws back or tops up points instead of
+ * double-counting. Ranking is a live `ORDER BY pointsTotal DESC, joinedAt
+ * ASC` read (see the index below) rather than a maintained rank column -
+ * leaderboard views are far less frequent than bet settlements, so paying
+ * the sort cost on read instead of a full re-rank write on every
+ * settlement is the right trade.
+ */
+model LeaderboardEntry {
+  id                    String              @id @default(uuid())
+  leaderboardCampaignId String
+  leaderboardCampaign   LeaderboardCampaign @relation(fields: [leaderboardCampaignId], references: [id], onDelete: Cascade)
+  userId                String
+  user                  User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  brandId               String
+  brand                 Brand               @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  pointsTotal           Int                 @default(0)
+  joinedAt              DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+
+  bets LeaderboardEntryBet[]
+
+  @@unique([leaderboardCampaignId, userId])
+  @@index([leaderboardCampaignId, pointsTotal])
+  @@map("leaderboard_entries")
+}
+
+/**
+ * One bet's link to one leaderboard entry - created at bet placement (once
+ * the bet already qualifies against the campaign's bet spec), then updated
+ * in place at settlement with the bet's final point contribution.
+ * @@unique(entryId, betId) makes a re-settlement an idempotent upsert
+ * instead of a double-count - the same role FreebetGrant.sourceBetId plays
+ * for freebets, applied here to a points ledger instead of a cash grant.
+ */
+model LeaderboardEntryBet {
+  id                    String           @id @default(uuid())
+  entryId               String
+  entry                 LeaderboardEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  leaderboardCampaignId String
+  betId                 String
+  bet                   Bet              @relation(fields: [betId], references: [id], onDelete: Cascade)
+  pointsAwarded         Int              @default(0)
+  countedAt             DateTime?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  @@unique([entryId, betId])
+  @@index([leaderboardCampaignId])
+  @@map("leaderboard_entry_bets")
+}
+
+/**
  * A brand's homepage "Match of the day + Promotions" carousel auto-scroll
  * behavior - same "no row = feature off" default pattern as AccaBoostConfig.
  * Disabled by default until a brand admin turns it on and picks an interval.
@@ -1541,37 +1837,41 @@ model Brand {
   createdAt                 DateTime  @default(now())
   updatedAt                 DateTime  @updatedAt
 
-  productFlags               BrandProductFlag[]
-  users                      User[]
-  staffUsers                 StaffUser[]
-  bets                       Bet[]
-  auditLogEntries            AuditLogEntry[]
-  marketSuspensions          MarketSuspension[]
-  competitionSuspensions     CompetitionSuspension[]
-  competitionRankings        CompetitionRanking[]
-  images                     BrandImage[]
-  imageListItems             BrandImageListItem[]
-  competitionTiers           CompetitionTier[]
-  marginConfigs              MarginConfig[]
-  marketingSpends            MarketingSpend[]
-  oddsOverrides              OddsOverride[]
-  manualMarkets              ManualMarket[]
-  oddsLadderRungs            OddsLadderRung[]
-  boosts                     Boost[]
-  accaBoostConfig            AccaBoostConfig?
-  accaRollbackConfig         AccaRollbackConfig?
-  insuranceBetConfig         InsuranceBetConfig?
-  stakeLimits                StakeLimit[]
-  competitionQuicklinks      CompetitionQuicklink[]
-  playerSegments             PlayerSegment[]
-  freebetGrants              FreebetGrant[]
-  betAndGetCampaigns         BetAndGetCampaign[]
-  promoCards                 PromoCard[]
-  homepageCarouselConfig     HomepageCarouselConfig?
-  depositCampaigns           DepositCampaign[]
-  deposits                   Deposit[]
-  depositCampaignRedemptions DepositCampaignRedemption[]
-  pushNotifications          PushNotification[]
+  productFlags                BrandProductFlag[]
+  users                       User[]
+  staffUsers                  StaffUser[]
+  bets                        Bet[]
+  auditLogEntries             AuditLogEntry[]
+  marketSuspensions           MarketSuspension[]
+  competitionSuspensions      CompetitionSuspension[]
+  competitionRankings         CompetitionRanking[]
+  images                      BrandImage[]
+  imageListItems              BrandImageListItem[]
+  competitionTiers            CompetitionTier[]
+  marginConfigs               MarginConfig[]
+  marketingSpends             MarketingSpend[]
+  oddsOverrides               OddsOverride[]
+  manualMarkets               ManualMarket[]
+  oddsLadderRungs             OddsLadderRung[]
+  boosts                      Boost[]
+  accaBoostConfig             AccaBoostConfig?
+  accaRollbackConfig          AccaRollbackConfig?
+  insuranceBetConfig          InsuranceBetConfig?
+  stakeLimits                 StakeLimit[]
+  competitionQuicklinks       CompetitionQuicklink[]
+  playerSegments              PlayerSegment[]
+  freebetGrants               FreebetGrant[]
+  betAndGetCampaigns          BetAndGetCampaign[]
+  promoCards                  PromoCard[]
+  homepageCarouselConfig      HomepageCarouselConfig?
+  depositCampaigns            DepositCampaign[]
+  deposits                    Deposit[]
+  depositCampaignRedemptions  DepositCampaignRedemption[]
+  registerCampaigns           RegisterCampaign[]
+  registerCampaignRedemptions RegisterCampaignRedemption[]
+  leaderboardCampaigns        LeaderboardCampaign[]
+  leaderboardEntries          LeaderboardEntry[]
+  pushNotifications           PushNotification[]
 
   @@map("brands")
 }
@@ -1637,6 +1937,8 @@ enum PushNotificationKind {
   BET_WON
   BET_AND_GET_CAMPAIGN
   DEPOSIT_CAMPAIGN
+  REGISTER_CAMPAIGN
+  LEADERBOARD_CAMPAIGN
 }
 
 enum PushDeliveryStatus {
@@ -1698,10 +2000,14 @@ model PushNotification {
   audienceMode AudienceMode              @default(ALL)
   segments     PushNotificationSegment[]
 
-  betAndGetCampaignId String?
-  betAndGetCampaign   BetAndGetCampaign? @relation(fields: [betAndGetCampaignId], references: [id], onDelete: SetNull)
-  depositCampaignId   String?
-  depositCampaign     DepositCampaign?   @relation(fields: [depositCampaignId], references: [id], onDelete: SetNull)
+  betAndGetCampaignId   String?
+  betAndGetCampaign     BetAndGetCampaign?   @relation(fields: [betAndGetCampaignId], references: [id], onDelete: SetNull)
+  depositCampaignId     String?
+  depositCampaign       DepositCampaign?     @relation(fields: [depositCampaignId], references: [id], onDelete: SetNull)
+  registerCampaignId    String?
+  registerCampaign      RegisterCampaign?    @relation(fields: [registerCampaignId], references: [id], onDelete: SetNull)
+  leaderboardCampaignId String?
+  leaderboardCampaign   LeaderboardCampaign? @relation(fields: [leaderboardCampaignId], references: [id], onDelete: SetNull)
 
   /**
    * The bet that triggered a BET_WON send - null for every other kind. Also the idempotency key (see the unique constraint below), same role as FreebetGrant.sourceBetId.

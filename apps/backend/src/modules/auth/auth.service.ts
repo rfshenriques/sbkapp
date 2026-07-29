@@ -8,6 +8,8 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { PrismaService } from '../../prisma/prisma.service';
+import { FreebetService } from '../freebets/freebet.service';
+import { RegisterCampaignService } from '../register-campaigns/register-campaign.service';
 import type { LoginDto } from './dto/login.dto';
 import type { RegisterDto } from './dto/register.dto';
 
@@ -29,6 +31,8 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly registerCampaignService: RegisterCampaignService,
+    private readonly freebetService: FreebetService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthTokens> {
@@ -59,7 +63,54 @@ export class AuthService {
       },
     });
 
+    await this.grantRegisterCampaignReward(user.id, dto.brandId);
+
     return this.issueTokens(user.id, user.username, user.email, user.brandId);
+  }
+
+  /**
+   * Evaluates the brand's enabled RegisterCampaigns against this brand-new
+   * signup - the trigger event those campaigns react to (see PamService for
+   * how a campaign that also requiresBet gets its bet-requirement matched
+   * against a later bet). A fresh signup is never in any segment yet, so a
+   * SEGMENTS-mode campaign correctly never matches it. Best-effort: a
+   * failure here must never prevent the account itself from being created,
+   * so it's deliberately outside the (already-committed) user-creation
+   * step rather than wrapping both in one transaction.
+   */
+  private async grantRegisterCampaignReward(userId: string, brandId: string): Promise<void> {
+    const campaign = await this.registerCampaignService.resolveEligibleForPlayer(brandId, userId, {
+      isLoggedIn: true,
+      segmentIds: [],
+    });
+    if (!campaign) {
+      return;
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      const redemption = await tx.registerCampaignRedemption.create({
+        data: {
+          registerCampaignId: campaign.id,
+          userId,
+          brandId,
+          rewardAmountCents: campaign.requiresBet ? null : campaign.rewardAmountCents,
+          status: campaign.requiresBet ? 'PENDING_BET' : 'GRANTED',
+        },
+      });
+
+      if (!campaign.requiresBet) {
+        await this.freebetService.grantSystem(
+          {
+            userId,
+            brandId,
+            amountCents: redemption.rewardAmountCents!,
+            source: 'REGISTER_CAMPAIGN',
+            sourceCampaignId: campaign.id,
+          },
+          tx,
+        );
+      }
+    });
   }
 
   async login(dto: LoginDto): Promise<AuthTokens> {

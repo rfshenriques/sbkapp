@@ -27,6 +27,26 @@ interface DepositCampaignForSync {
   rewardCapCents: number | null;
 }
 
+interface RegisterCampaignForSync {
+  id: string;
+  name: string;
+  enabled: boolean;
+  startAt: Date | null;
+  endAt: Date | null;
+  rewardType: 'FIXED' | 'PERCENTAGE';
+  rewardAmountCents: number | null;
+  rewardPercent: number | null;
+  rewardCapCents: number | null;
+}
+
+interface LeaderboardCampaignForSync {
+  id: string;
+  name: string;
+  enabled: boolean;
+  startAt: Date | null;
+  endAt: Date;
+}
+
 function formatCents(cents: number): string {
   return (cents / 100).toFixed(2);
 }
@@ -55,7 +75,11 @@ export class PromoCardAutoSyncService {
 
   private async ensureCard(
     brandId: string,
-    existingWhere: { betAndGetCampaignId: string } | { depositCampaignId: string },
+    existingWhere:
+      | { betAndGetCampaignId: string }
+      | { depositCampaignId: string }
+      | { registerCampaignId: string }
+      | { leaderboardCampaignId: string },
     title: string,
     subtitle: string,
     actor: AuditActor,
@@ -113,5 +137,23 @@ export class PromoCardAutoSyncService {
         ? `Deposit & get ${formatCents(campaign.fixedRewardAmountCents ?? 0)} €`
         : `Get ${campaign.rewardPercent}% back, up to ${formatCents(campaign.rewardCapCents ?? 0)} €`;
     await this.ensureCard(brandId, { depositCampaignId: campaign.id }, campaign.name, subtitle, actor);
+  }
+
+  async ensureForRegisterCampaign(brandId: string, campaign: RegisterCampaignForSync, actor: AuditActor) {
+    if (campaignPromoStatus(campaign) !== 'ACTIVE') {
+      return;
+    }
+    const subtitle =
+      campaign.rewardType === 'FIXED'
+        ? `Sign up & get ${formatCents(campaign.rewardAmountCents ?? 0)} €`
+        : `Get ${campaign.rewardPercent}% of your first bet back, up to ${formatCents(campaign.rewardCapCents ?? 0)} €`;
+    await this.ensureCard(brandId, { registerCampaignId: campaign.id }, campaign.name, subtitle, actor);
+  }
+
+  async ensureForLeaderboardCampaign(brandId: string, campaign: LeaderboardCampaignForSync, actor: AuditActor) {
+    if (campaignPromoStatus(campaign) !== 'ACTIVE') {
+      return;
+    }
+    await this.ensureCard(brandId, { leaderboardCampaignId: campaign.id }, campaign.name, 'Join the leaderboard', actor);
   }
 }

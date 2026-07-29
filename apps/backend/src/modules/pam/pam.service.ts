@@ -26,6 +26,7 @@ import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { PlayerSegmentService } from '../player-segments/player-segment.service';
 import { PushNotificationService } from '../push/push-notification.service';
+import { RegisterCampaignService } from '../register-campaigns/register-campaign.service';
 import { computeBetOutcome } from './bet-settlement';
 import { CompetitionSuspensionService } from './competition-suspension.service';
 import type { BetSelectionDto, PlaceBetDto } from './dto/place-bet.dto';
@@ -67,6 +68,7 @@ export class PamService {
     private readonly insuranceBetService: InsuranceBetService,
     private readonly betAndGetCampaignService: BetAndGetCampaignService,
     private readonly depositCampaignService: DepositCampaignService,
+    private readonly registerCampaignService: RegisterCampaignService,
     private readonly pushNotificationService: PushNotificationService,
     private readonly playerSegmentService: PlayerSegmentService,
   ) {}
@@ -477,9 +479,9 @@ export class PamService {
   }
 
   async placeBet(userId: string, dto: PlaceBetDto) {
-    const { brandId } = await this.prisma.user.findUniqueOrThrow({
+    const { brandId, createdAt: userCreatedAt } = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
-      select: { brandId: true },
+      select: { brandId: true, createdAt: true },
     });
     this.assertNoSameEventAccumulator(dto);
     const matchesById = await this.fetchMatchesByMatchId(dto.selections);
@@ -573,6 +575,19 @@ export class PamService {
           legOdds: dto.selections.map((selection) => selection.odds),
         });
 
+    // Same "matches an already-existing redemption" shape as
+    // depositCampaignRedemption above, additionally gated by the campaign's
+    // own qualifyingBetWindowDays counted from this player's own signup.
+    const registerCampaignRedemption = campaignsExcluded
+      ? null
+      : await this.registerCampaignService.resolvePendingBetRedemption(userId, userCreatedAt, {
+          stakeCents: dto.stakeCents,
+          legOdds: dto.selections.map((selection) => selection.odds),
+        });
+    const registerCampaignRewardCents = registerCampaignRedemption
+      ? calculateBetAndGetRewardCents(registerCampaignRedemption.registerCampaign, dto.stakeCents)
+      : null;
+
     return this.prisma.$transaction(async (tx) => {
       const user = await tx.user.findUniqueOrThrow({ where: { id: userId } });
       if (!useFreebets && user.balanceCents < dto.stakeCents) {
@@ -613,6 +628,7 @@ export class PamService {
           fundedByFreebets: useFreebets,
           betAndGetCampaignId: betAndGetCampaign?.id,
           depositCampaignRedemptionId: depositCampaignRedemption?.id,
+          registerCampaignRedemptionId: registerCampaignRedemption?.id,
           selections: {
             create: dto.selections.map((selection) => {
               const match = matchesById.get(selection.matchId);
@@ -684,6 +700,37 @@ export class PamService {
         }
       }
 
+      // Same PLACEMENT-vs-SETTLEMENT deferral as depositCampaignRedemption
+      // above. registerCampaignRewardCents is always computable here
+      // (the bet's own stake is known), so it's persisted onto the
+      // redemption immediately either way - only the grant itself waits
+      // for settlement when the campaign's trigger is SETTLEMENT.
+      if (registerCampaignRedemption) {
+        const campaign = registerCampaignRedemption.registerCampaign;
+        if (campaign.trigger === 'PLACEMENT') {
+          await this.freebetService.grantSystem(
+            {
+              userId,
+              brandId: user.brandId,
+              amountCents: registerCampaignRewardCents!,
+              source: 'REGISTER_CAMPAIGN',
+              sourceBetId: bet.id,
+              sourceCampaignId: campaign.id,
+            },
+            tx,
+          );
+          await tx.registerCampaignRedemption.update({
+            where: { id: registerCampaignRedemption.id },
+            data: { status: 'GRANTED', rewardAmountCents: registerCampaignRewardCents },
+          });
+        } else {
+          await tx.registerCampaignRedemption.update({
+            where: { id: registerCampaignRedemption.id },
+            data: { status: 'PENDING_SETTLEMENT', rewardAmountCents: registerCampaignRewardCents },
+          });
+        }
+      }
+
       for (const { marketId, liabilityCents } of manualMarketLiabilityToRecord) {
         // No staff member triggered a possible auto-disable here - the liability cap itself did, as this bet's own placement pushed it over.
         await this.manualMarketService.recordLiabilityAndMaybeDisable(
@@ -712,6 +759,8 @@ export class PamService {
           : null,
         depositCampaignName: depositCampaignRedemption?.depositCampaign.name ?? null,
         depositCampaignRewardCents: depositCampaignRedemption?.rewardAmountCents ?? null,
+        registerCampaignName: registerCampaignRedemption?.registerCampaign.name ?? null,
+        registerCampaignRewardCents,
         // Acca rollback is only ever known once the bet settles - never at placement.
         accaRollbackRewardCents: null,
       };
@@ -1087,6 +1136,39 @@ export class PamService {
             tx,
           );
           await tx.depositCampaignRedemption.update({ where: { id: redemption.id }, data: { status: 'GRANTED' } });
+        }
+      }
+
+      // Same idea as depositCampaignRedemptionId above - only ever set when
+      // this bet linked to a SETTLEMENT-triggered register campaign at
+      // placement time (its status will be PENDING_SETTLEMENT;
+      // PLACEMENT-triggered ones already granted and moved to GRANTED
+      // there, with rewardAmountCents already persisted).
+      if (updatedBet.registerCampaignRedemptionId) {
+        const redemption = await tx.registerCampaignRedemption.findUnique({
+          where: { id: updatedBet.registerCampaignRedemptionId },
+          include: { registerCampaign: true },
+        });
+        const campaign = redemption?.registerCampaign;
+        const outcomeTriggersCampaign =
+          redemption?.status === 'PENDING_SETTLEMENT' &&
+          campaign?.trigger === 'SETTLEMENT' &&
+          ((outcome.overallStatus === 'WON' && campaign.triggerOnWon) ||
+            (outcome.overallStatus === 'LOST' && campaign.triggerOnLost) ||
+            (outcome.overallStatus === 'VOID' && campaign.triggerOnVoid));
+        if (redemption && campaign && outcomeTriggersCampaign) {
+          await this.freebetService.grantSystem(
+            {
+              userId: updatedBet.userId,
+              brandId,
+              amountCents: redemption.rewardAmountCents!,
+              source: 'REGISTER_CAMPAIGN',
+              sourceBetId: betId,
+              sourceCampaignId: campaign.id,
+            },
+            tx,
+          );
+          await tx.registerCampaignRedemption.update({ where: { id: redemption.id }, data: { status: 'GRANTED' } });
         }
       }
 

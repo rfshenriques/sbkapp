@@ -13,6 +13,7 @@ import { ManualMarketModule } from '../manual-markets/manual-market.module';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { PlayerSegmentModule } from '../player-segments/player-segment.module';
 import { PushModule } from '../push/push.module';
+import { RegisterCampaignModule } from '../register-campaigns/register-campaign.module';
 import { CompetitionSuspensionAdminController } from './competition-suspension-admin.controller';
 import { CompetitionSuspensionService } from './competition-suspension.service';
 import { MarketAdminController } from './market-admin.controller';
@@ -38,6 +39,7 @@ import { PublicStakeLimitPreviewController } from './public-stake-limit-preview.
     FreebetModule,
     BetAndGetModule,
     DepositCampaignModule,
+    RegisterCampaignModule,
     PushModule,
     PlayerSegmentModule,
   ],

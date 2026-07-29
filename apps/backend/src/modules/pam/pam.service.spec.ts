@@ -17,6 +17,7 @@ import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { PlayerSegmentService } from '../player-segments/player-segment.service';
 import { PushNotificationService } from '../push/push-notification.service';
+import { RegisterCampaignService } from '../register-campaigns/register-campaign.service';
 import { CompetitionSuspensionService } from './competition-suspension.service';
 import { MarketSuspensionService } from './market-suspension.service';
 import { PamService } from './pam.service';
@@ -111,6 +112,7 @@ describe('PamService', () => {
         FreebetService,
         BetAndGetCampaignService,
         DepositCampaignService,
+        RegisterCampaignService,
         PlayerSegmentService,
         PushNotificationService,
         {
