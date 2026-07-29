@@ -7,6 +7,7 @@ import { calculateAccaBoost } from '../acca-boost/acca-boost';
 import { AccaRollbackService } from '../acca-rollback/acca-rollback.service';
 import { calculateAccaRollbackReward } from '../acca-rollback/acca-rollback';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { ANONYMOUS_VIEWER, type AudienceViewer } from '../audience/audience';
 import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
 import { betQualifiesForCampaign, calculateBetAndGetRewardCents } from '../bet-and-get/bet-and-get';
 import { BoostService } from '../boosts/boost.service';
@@ -23,6 +24,7 @@ import {
 } from '../limits/stake-limits';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
+import { PlayerSegmentService } from '../player-segments/player-segment.service';
 import { PushNotificationService } from '../push/push-notification.service';
 import { computeBetOutcome } from './bet-settlement';
 import { CompetitionSuspensionService } from './competition-suspension.service';
@@ -66,7 +68,17 @@ export class PamService {
     private readonly betAndGetCampaignService: BetAndGetCampaignService,
     private readonly depositCampaignService: DepositCampaignService,
     private readonly pushNotificationService: PushNotificationService,
+    private readonly playerSegmentService: PlayerSegmentService,
   ) {}
+
+  /** The AudienceViewer a Bet & Get campaign's audience targeting resolves against - a logged-out preview (userId null) is always the anonymous viewer, never a guess. */
+  private async resolveViewer(userId: string | null): Promise<AudienceViewer> {
+    if (!userId) {
+      return ANONYMOUS_VIEWER;
+    }
+    const segmentIds = await this.playerSegmentService.resolveSegmentIdsForUser(userId);
+    return { isLoggedIn: true, segmentIds };
+  }
 
   async getWallet(userId: string): Promise<{ balanceCents: number }> {
     const user = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
@@ -255,6 +267,7 @@ export class PamService {
 
     const matchesById = await this.fetchMatchesByMatchId(selections);
     const qualifyingBet = { stakeCents, legOdds: selections.map((selection) => selection.odds) };
+    const viewer = await this.resolveViewer(userId);
 
     const applicableCampaign = await this.betAndGetCampaignService.resolveApplicableCampaign(
       brandId,
@@ -263,6 +276,7 @@ export class PamService {
         return { sport: match.sport, competition: match.competition, matchId: selection.matchId, isLive: match.isLive };
       }),
       qualifyingBet,
+      viewer,
     );
     const betAndGetCampaign =
       applicableCampaign &&
@@ -540,6 +554,7 @@ export class PamService {
             return { sport: match.sport, competition: match.competition, matchId: selection.matchId, isLive: match.isLive };
           }),
           { stakeCents: dto.stakeCents, legOdds: dto.selections.map((selection) => selection.odds) },
+          await this.resolveViewer(userId),
         );
     const betAndGetCampaign =
       applicableCampaign && (await this.betAndGetCampaignService.canRedeem(applicableCampaign, userId))

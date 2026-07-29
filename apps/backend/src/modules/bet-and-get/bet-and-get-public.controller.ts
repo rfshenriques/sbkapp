@@ -57,11 +57,15 @@ export class BetAndGetPublicController {
   ) {
     const viewer = await this.viewerResolverService.resolve(authorization);
     const match = await this.pricedMatchesService.getForBrand(brandId, matchId, viewer);
-    return this.betAndGetCampaignService.findActiveForMatch(brandId, {
-      sport: match.sport,
-      competition: match.competition,
-      matchId: match.id,
-      isLive: match.isLive,
-    });
+    return this.betAndGetCampaignService.findActiveForMatch(
+      brandId,
+      {
+        sport: match.sport,
+        competition: match.competition,
+        matchId: match.id,
+        isLive: match.isLive,
+      },
+      viewer,
+    );
   }
 }

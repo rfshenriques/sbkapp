@@ -4,6 +4,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { ANONYMOUS_VIEWER } from '../audience/audience';
 import { BetAndGetCampaignService } from './bet-and-get-campaign.service';
 
 describe('BetAndGetCampaignService', () => {
@@ -177,7 +178,7 @@ describe('BetAndGetCampaignService', () => {
       await service.update(brandAId, outOfScope.id, { enabled: true }, TEST_ACTOR);
 
       const match = { sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: false };
-      const active = await service.findActiveForMatch(brandAId, match);
+      const active = await service.findActiveForMatch(brandAId, match, ANONYMOUS_VIEWER);
 
       expect(active.map((campaign) => campaign.id)).toEqual([inScope.id]);
     });
@@ -213,7 +214,7 @@ describe('BetAndGetCampaignService', () => {
       await service.update(brandAId, currentlyRunning.id, { enabled: true }, TEST_ACTOR);
 
       const match = { sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: false };
-      const active = await service.findActiveForMatch(brandAId, match);
+      const active = await service.findActiveForMatch(brandAId, match, ANONYMOUS_VIEWER);
 
       expect(active.map((campaign) => campaign.id)).toEqual([currentlyRunning.id]);
     });
@@ -230,11 +231,32 @@ describe('BetAndGetCampaignService', () => {
       const prematchMatch = { sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: false };
       const liveMatch = { sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: true };
 
-      const [notBlocked] = await service.findActiveForMatch(brandAId, prematchMatch);
+      const [notBlocked] = await service.findActiveForMatch(brandAId, prematchMatch, ANONYMOUS_VIEWER);
       expect(notBlocked?.timingBlocked).toBe(false);
 
-      const [blocked] = await service.findActiveForMatch(brandAId, liveMatch);
+      const [blocked] = await service.findActiveForMatch(brandAId, liveMatch, ANONYMOUS_VIEWER);
       expect(blocked?.timingBlocked).toBe(true);
+    });
+
+    it('excludes a SEGMENTS-targeted campaign for a viewer outside the segment, includes it for one inside', async () => {
+      const segment = await prisma.playerSegment.create({ data: { brandId: brandAId, name: `Seg ${randomUUID()}` } });
+      const targeted = await service.create(
+        brandAId,
+        { name: 'VIP only', rewardAmountCents: 1_000, audienceMode: 'SEGMENTS', segmentIds: [segment.id] },
+        TEST_ACTOR,
+      );
+      await service.setScopes(brandAId, targeted.id, [{ scopeType: 'SPORT', scopeValue: 'Football' }], TEST_ACTOR);
+      await service.update(brandAId, targeted.id, { enabled: true }, TEST_ACTOR);
+
+      const match = { sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: false };
+
+      expect(await service.findActiveForMatch(brandAId, match, ANONYMOUS_VIEWER)).toEqual([]);
+      expect(
+        await service.findActiveForMatch(brandAId, match, { isLoggedIn: true, segmentIds: [] }),
+      ).toEqual([]);
+
+      const active = await service.findActiveForMatch(brandAId, match, { isLoggedIn: true, segmentIds: [segment.id] });
+      expect(active.map((campaign) => campaign.id)).toEqual([targeted.id]);
     });
   });
 
@@ -251,22 +273,27 @@ describe('BetAndGetCampaignService', () => {
       const inScopeMatch = { sport: 'Football', competition: 'Champions League', matchId: 'match-1', isLive: false };
       const outOfScopeMatch = { sport: 'Football', competition: 'Premier League', matchId: 'match-2', isLive: false };
 
-      const resolved = await service.resolveApplicableCampaign(brandAId, [inScopeMatch], {
-        stakeCents: 1_000,
-        legOdds: [2.0],
-      });
+      const resolved = await service.resolveApplicableCampaign(
+        brandAId,
+        [inScopeMatch],
+        { stakeCents: 1_000, legOdds: [2.0] },
+        ANONYMOUS_VIEWER,
+      );
       expect(resolved?.id).toBe(campaign.id);
 
-      const rejectedByStake = await service.resolveApplicableCampaign(brandAId, [inScopeMatch], {
-        stakeCents: 500,
-        legOdds: [2.0],
-      });
+      const rejectedByStake = await service.resolveApplicableCampaign(
+        brandAId,
+        [inScopeMatch],
+        { stakeCents: 500, legOdds: [2.0] },
+        ANONYMOUS_VIEWER,
+      );
       expect(rejectedByStake).toBeNull();
 
       const rejectedBySecondLegOutOfScope = await service.resolveApplicableCampaign(
         brandAId,
         [inScopeMatch, outOfScopeMatch],
         { stakeCents: 1_000, legOdds: [2.0, 2.0] },
+        ANONYMOUS_VIEWER,
       );
       expect(rejectedBySecondLegOutOfScope).toBeNull();
     });
@@ -283,16 +310,20 @@ describe('BetAndGetCampaignService', () => {
       const prematchMatch = { sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: false };
       const liveMatch = { sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: true };
 
-      const resolvedPrematch = await service.resolveApplicableCampaign(brandAId, [prematchMatch], {
-        stakeCents: 1_000,
-        legOdds: [2.0],
-      });
+      const resolvedPrematch = await service.resolveApplicableCampaign(
+        brandAId,
+        [prematchMatch],
+        { stakeCents: 1_000, legOdds: [2.0] },
+        ANONYMOUS_VIEWER,
+      );
       expect(resolvedPrematch?.id).toBe(prematchOnly.id);
 
-      const resolvedLive = await service.resolveApplicableCampaign(brandAId, [liveMatch], {
-        stakeCents: 1_000,
-        legOdds: [2.0],
-      });
+      const resolvedLive = await service.resolveApplicableCampaign(
+        brandAId,
+        [liveMatch],
+        { stakeCents: 1_000, legOdds: [2.0] },
+        ANONYMOUS_VIEWER,
+      );
       expect(resolvedLive).toBeNull();
     });
 
@@ -304,8 +335,34 @@ describe('BetAndGetCampaignService', () => {
         brandAId,
         [{ sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: false }],
         { stakeCents: 1_000, legOdds: [2.0] },
+        ANONYMOUS_VIEWER,
       );
       expect(resolved).toBeNull();
+    });
+
+    it('excludes a SEGMENTS-targeted campaign for a viewer outside the segment, includes it for one inside', async () => {
+      const segment = await prisma.playerSegment.create({ data: { brandId: brandAId, name: `Seg ${randomUUID()}` } });
+      const targeted = await service.create(
+        brandAId,
+        { name: 'VIP only', rewardAmountCents: 1_000, audienceMode: 'SEGMENTS', segmentIds: [segment.id] },
+        TEST_ACTOR,
+      );
+      await service.setScopes(brandAId, targeted.id, [{ scopeType: 'SPORT', scopeValue: 'Football' }], TEST_ACTOR);
+      await service.update(brandAId, targeted.id, { enabled: true }, TEST_ACTOR);
+
+      const match = { sport: 'Football', competition: 'EPL', matchId: 'match-1', isLive: false };
+      const bet = { stakeCents: 1_000, legOdds: [2.0] };
+
+      expect(await service.resolveApplicableCampaign(brandAId, [match], bet, ANONYMOUS_VIEWER)).toBeNull();
+      expect(
+        await service.resolveApplicableCampaign(brandAId, [match], bet, { isLoggedIn: true, segmentIds: [] }),
+      ).toBeNull();
+
+      const resolved = await service.resolveApplicableCampaign(brandAId, [match], bet, {
+        isLoggedIn: true,
+        segmentIds: [segment.id],
+      });
+      expect(resolved?.id).toBe(targeted.id);
     });
   });
 

@@ -10,6 +10,7 @@ import type {
 } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
+import { resolveAudience, type AudienceViewer } from '../audience/audience';
 import { betQualifiesForCampaign, matchIsInCampaignScope, matchTimingQualifies, type ScopeMatchInput } from './bet-and-get';
 
 /** Same PrismaClientLike convention as FreebetService.grantSystem - lets a caller pass the active settlement transaction so the redemption count it reads is consistent with the grant it's about to write. */
@@ -236,17 +237,25 @@ export class BetAndGetCampaignService {
   }
 
   /**
-   * Every enabled campaign whose scope covers this one match - backs the
-   * public "campaigns for this match" lookup (match-detail context banner).
+   * Every enabled campaign whose scope covers this one match AND whose
+   * audience targets this viewer - backs the public "campaigns for this
+   * match" lookup (match-detail context banner). A campaign a player isn't
+   * targeted by is excluded entirely, same as it never showing on the
+   * homepage/Challenges page for them (see PromoCardService.listForViewer) -
+   * the banner must not promise a reward this player can't actually earn.
    * `timingBlocked` flags a campaign that's in scope but whose
    * bettingTiming rejects this match's current live status (e.g. a
    * PREMATCH_ONLY campaign once the match has kicked off), so the banner
    * can explain why betting here won't qualify rather than showing nothing.
    */
-  async findActiveForMatch(brandId: string, match: ScopeMatchInput) {
+  async findActiveForMatch(brandId: string, match: ScopeMatchInput, viewer: AudienceViewer) {
     const campaigns = await this.listEnabled(brandId);
     return campaigns
-      .filter((campaign) => matchIsInCampaignScope(campaign.scopes, match))
+      .filter(
+        (campaign) =>
+          resolveAudience(campaign.audienceMode, campaign.segments.map((segment) => segment.segmentId), viewer) &&
+          matchIsInCampaignScope(campaign.scopes, match),
+      )
       .map((campaign) => ({
         ...campaign,
         timingBlocked: !matchTimingQualifies(campaign.bettingTiming, match.isLive),
@@ -255,22 +264,26 @@ export class BetAndGetCampaignService {
 
   /**
    * The one campaign (if any) a bet with these selections/stake qualifies
-   * for - every selection's match must fall within the campaign's scope
-   * (not just one leg) AND satisfy the campaign's bettingTiming (a
-   * PREMATCH_ONLY campaign rejects the whole bet if even one leg's match
-   * has already kicked off), and the bet must meet the campaign's own
-   * conditions. Enabled campaigns are checked oldest-first and the bet
-   * links to at most one, so overlapping campaigns never stack.
+   * for - the placing player must be in the campaign's target audience
+   * (same resolveAudience check every other targeted promo uses), every
+   * selection's match must fall within the campaign's scope (not just one
+   * leg) AND satisfy the campaign's bettingTiming (a PREMATCH_ONLY campaign
+   * rejects the whole bet if even one leg's match has already kicked off),
+   * and the bet must meet the campaign's own conditions. Enabled campaigns
+   * are checked oldest-first and the bet links to at most one, so
+   * overlapping campaigns never stack.
    */
   async resolveApplicableCampaign(
     brandId: string,
     matches: ScopeMatchInput[],
     bet: { stakeCents: number; legOdds: number[] },
+    viewer: AudienceViewer,
   ) {
     const campaigns = await this.listEnabled(brandId);
     return (
       campaigns.find(
         (campaign) =>
+          resolveAudience(campaign.audienceMode, campaign.segments.map((segment) => segment.segmentId), viewer) &&
           matches.every(
             (match) =>
               matchIsInCampaignScope(campaign.scopes, match) &&
