@@ -306,6 +306,7 @@ function PromoCardRow({
     betAndGetCampaignId: card.betAndGetCampaignId ?? '',
     depositCampaignId: card.depositCampaignId ?? '',
   });
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setTitle(card.title ?? '');
@@ -340,6 +341,23 @@ function PromoCardRow({
     onError: (error) => toast.error(errorMessage(error, 'Failed to remove promo card')),
   });
 
+  const imageMutation = useMutation({
+    mutationFn: (file: File) => backendApi.updatePromoCardImage(card.id, file),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: promoCardsQueryKey });
+      toast.success('Promo card image updated');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to update promo card image')),
+    onSettled: () => {
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    },
+  });
+
+  function handleImageChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (file) imageMutation.mutate(file);
+  }
+
   const linkedCampaign =
     betAndGetCampaigns.find((campaign) => campaign.id === card.betAndGetCampaignId) ??
     depositCampaigns.find((campaign) => campaign.id === card.depositCampaignId);
@@ -368,11 +386,15 @@ function PromoCardRow({
           ⠿
         </span>
         <div className="flex h-12 w-20 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface">
-          <img
-            src={`/backend/public/promo-cards/${card.brandId}/item/${card.id}`}
-            alt=""
-            className="h-full w-full object-cover"
-          />
+          {card.mimeType ? (
+            <img
+              src={`/backend/public/promo-cards/${card.brandId}/item/${card.id}`}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <span className="px-1 text-center text-[10px] leading-tight text-text-muted">No image</span>
+          )}
         </div>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold">{card.title || '(no title)'}</span>
@@ -384,6 +406,21 @@ function PromoCardRow({
 
       {isExpanded && (
         <div className="space-y-3 border-t border-border p-3 pt-3">
+          <div>
+            <label className="block text-xs text-text-secondary" htmlFor={`image-${card.id}`}>
+              {card.mimeType ? 'Replace image' : 'Add image'}
+              {card.autoCreated && !card.mimeType && ' (auto-created, no artwork uploaded yet)'}
+            </label>
+            <input
+              id={`image-${card.id}`}
+              ref={imageInputRef}
+              type="file"
+              accept={ACCEPTED_TYPES}
+              onChange={handleImageChange}
+              disabled={imageMutation.isPending}
+              className="mt-1 w-full text-sm"
+            />
+          </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="block text-xs text-text-secondary" htmlFor={`title-${card.id}`}>

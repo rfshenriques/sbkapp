@@ -231,6 +231,31 @@ export class PromoCardService {
     return card;
   }
 
+  /** Sets/replaces just the image bytes - the only way to give an auto-created card (see PromoCardAutoSyncService) its first piece of artwork, or swap an existing one, without touching its title/subtitle/campaign link. */
+  async updateImage(brandId: string, id: string, data: Buffer, mimeType: string, actor: AuditActor) {
+    const existing = await this.prisma.promoCard.findUnique({ where: { id } });
+    if (!existing || existing.brandId !== brandId) {
+      throw new NotFoundException('Promo card not found');
+    }
+
+    const card = await this.prisma.promoCard.update({
+      where: { id },
+      // Prisma's nullable Bytes update input wants Uint8Array<ArrayBuffer> specifically - Buffer's backing ArrayBufferLike doesn't satisfy that, unlike the plain create() input `add()` uses above.
+      data: { data: new Uint8Array(data), mimeType },
+      select: METADATA_SELECT,
+    });
+
+    await this.auditLogService.record({
+      actor,
+      action: 'PROMO_CARD_UPDATED',
+      targetType: 'PromoCard',
+      targetId: card.id,
+      metadata: { title: card.title, imageReplaced: true },
+    });
+
+    return card;
+  }
+
   async remove(brandId: string, id: string, actor: AuditActor) {
     const existing = await this.prisma.promoCard.findUnique({ where: { id } });
     if (!existing || existing.brandId !== brandId) {

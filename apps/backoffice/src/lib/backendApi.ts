@@ -1438,10 +1438,12 @@ export async function removeDepositCampaign(id: string): Promise<void> {
 export interface PromoCard {
   id: string;
   brandId: string;
-  mimeType: string;
+  /** Null for an auto-created card staff hasn't uploaded artwork for yet - see PromoCardAutoSyncService. */
+  mimeType: string | null;
   title: string | null;
   subtitle: string | null;
   sortOrder: number;
+  autoCreated: boolean;
   betAndGetCampaignId: string | null;
   depositCampaignId: string | null;
   createdAt: string;
@@ -1487,6 +1489,14 @@ export async function updatePromoCard(id: string, payload: UpdatePromoCardPayloa
     body: JSON.stringify(payload),
   });
   return parseJsonOrThrow(response, `Failed to update promo card: ${response.status}`);
+}
+
+/** Sets/replaces just a card's image - the only way to give an auto-created card its first piece of artwork. */
+export async function updatePromoCardImage(id: string, file: File): Promise<PromoCard> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await authenticatedFetch(`/admin/promo-cards/${id}/image`, { method: 'POST', body: formData });
+  return parseJsonOrThrow(response, `Failed to update promo card image: ${response.status}`);
 }
 
 export async function removePromoCard(id: string): Promise<void> {

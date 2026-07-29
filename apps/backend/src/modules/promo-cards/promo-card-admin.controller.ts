@@ -77,6 +77,32 @@ export class PromoCardAdminController {
     });
   }
 
+  /** Sets/replaces a card's image - the only way to give an auto-created card (see PromoCardAutoSyncService) its first piece of artwork after the fact. */
+  @Post(':id/image')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_IMAGE_BYTES },
+      fileFilter: (_req, file, callback) => {
+        callback(null, ALLOWED_MIME_TYPES.includes(file.mimetype));
+      },
+    }),
+  )
+  async updateImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Req() req: AuthenticatedStaffRequest,
+  ) {
+    if (!file) {
+      throw new BadRequestException(`No image uploaded, or it wasn't one of: ${ALLOWED_MIME_TYPES.join(', ')}`);
+    }
+
+    return this.promoCardService.updateImage(req.user.brandId, id, file.buffer, file.mimetype, {
+      id: req.user.sub,
+      username: req.user.username,
+      brandId: req.user.brandId,
+    });
+  }
+
   @Post('reorder')
   reorder(@Body() dto: ReorderPromoCardsDto, @Req() req: AuthenticatedStaffRequest) {
     return this.promoCardService.reorder(req.user.brandId, dto.ids, {

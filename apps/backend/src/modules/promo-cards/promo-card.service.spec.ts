@@ -169,6 +169,45 @@ describe('PromoCardService', () => {
     ).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('updateImage gives an auto-created (imageless) card its first image', async () => {
+    const autoCard = await prisma.promoCard.create({
+      data: { brandId: brandAId, data: null, mimeType: null, title: 'Auto', autoCreated: true, sortOrder: 0 },
+    });
+    expect((await service.list(brandAId))[0]?.mimeType).toBeNull();
+
+    const updated = await service.updateImage(brandAId, autoCard.id, Buffer.from('artwork'), 'image/png', TEST_ACTOR);
+
+    expect(updated.mimeType).toBe('image/png');
+    expect(updated.title).toBe('Auto');
+    const fetched = await service.getItemData(brandAId, autoCard.id);
+    expect(Buffer.from(fetched!.data!).toString()).toBe('artwork');
+  });
+
+  it('updateImage replaces an existing image without touching title/subtitle/campaign link', async () => {
+    const campaign = await campaignService.create(brandAId, { name: 'CL Bet & Get', rewardAmountCents: 1_000 }, TEST_ACTOR);
+    const card = await service.add(
+      brandAId,
+      Buffer.from('old'),
+      'image/png',
+      { title: 'Keep me', betAndGetCampaignId: campaign.id },
+      TEST_ACTOR,
+    );
+
+    const updated = await service.updateImage(brandAId, card.id, Buffer.from('new'), 'image/webp', TEST_ACTOR);
+
+    expect(updated).toMatchObject({ mimeType: 'image/webp', title: 'Keep me', betAndGetCampaignId: campaign.id });
+    const fetched = await service.getItemData(brandAId, card.id);
+    expect(Buffer.from(fetched!.data!).toString()).toBe('new');
+  });
+
+  it("a brand can never set another brand's card image, even by guessing its id", async () => {
+    const card = await service.add(brandAId, Buffer.from('bytes'), 'image/png', {}, TEST_ACTOR);
+
+    await expect(
+      service.updateImage(brandBId, card.id, Buffer.from('hijacked'), 'image/png', OTHER_BRAND_ACTOR),
+    ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
   it('removing a card deletes it', async () => {
     const card = await service.add(brandAId, Buffer.from('bytes'), 'image/png', {}, TEST_ACTOR);
     await service.remove(brandAId, card.id, TEST_ACTOR);

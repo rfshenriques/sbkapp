@@ -72,6 +72,7 @@ const decorativeCard: PromoCard = {
   title: 'Welcome offer',
   subtitle: null,
   sortOrder: 0,
+  autoCreated: false,
   betAndGetCampaignId: null,
   depositCampaignId: null,
   createdAt: '2026-07-24T00:00:00Z',
@@ -256,6 +257,51 @@ describe('CmsPromoCardsPage', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       '/backend/admin/promo-cards/card-1',
       expect.objectContaining({ method: 'PATCH' }),
+    );
+  });
+
+  it('shows a placeholder (not a broken image) and an "add image" prompt for an auto-created card with no artwork yet', async () => {
+    stubFetch((url) => {
+      if (url === '/backend/admin/promo-cards') {
+        return new Response(
+          JSON.stringify([{ ...decorativeCard, mimeType: null, autoCreated: true, title: 'Auto card' }]),
+          { status: 200 },
+        );
+      }
+      return undefined;
+    });
+
+    renderPage();
+    expect(await screen.findByText('No image')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: /Auto card/ }));
+    expect(screen.getByText(/Add image \(auto-created, no artwork uploaded yet\)/)).toBeInTheDocument();
+  });
+
+  it('uploading an image on a card posts the file to its image endpoint', async () => {
+    const fetchMock = stubFetch((url, method, init) => {
+      if (method === 'GET' && url === '/backend/admin/promo-cards') {
+        return new Response(JSON.stringify([{ ...decorativeCard, mimeType: null, autoCreated: true }]), {
+          status: 200,
+        });
+      }
+      if (method === 'POST' && url === '/backend/admin/promo-cards/card-1/image') {
+        expect(init!.body).toBeInstanceOf(FormData);
+        expect((init!.body as FormData).get('file')).toBeInstanceOf(File);
+        return new Response(JSON.stringify({ ...decorativeCard, mimeType: 'image/png' }), { status: 200 });
+      }
+      return undefined;
+    });
+
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: /Welcome offer/ }));
+
+    const file = new File(['bytes'], 'artwork.png', { type: 'image/png' });
+    await userEvent.upload(screen.getByLabelText(/Add image/), file);
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/promo-cards/card-1/image',
+      expect.objectContaining({ method: 'POST' }),
     );
   });
 
