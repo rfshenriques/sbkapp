@@ -15,6 +15,8 @@ import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.se
 import { FreebetService } from '../freebets/freebet.service';
 import { InsuranceBetService } from '../insurance-bet/insurance-bet.service';
 import { calculateInsuredPayout } from '../insurance-bet/insurance-bet';
+import { calculateLeaderboardPoints, leaderboardBetCounts } from '../leaderboards/leaderboard';
+import { LeaderboardCampaignService } from '../leaderboards/leaderboard-campaign.service';
 import {
   maxStakeFromLiability,
   minIgnoringNull,
@@ -69,6 +71,7 @@ export class PamService {
     private readonly betAndGetCampaignService: BetAndGetCampaignService,
     private readonly depositCampaignService: DepositCampaignService,
     private readonly registerCampaignService: RegisterCampaignService,
+    private readonly leaderboardCampaignService: LeaderboardCampaignService,
     private readonly pushNotificationService: PushNotificationService,
     private readonly playerSegmentService: PlayerSegmentService,
   ) {}
@@ -547,21 +550,29 @@ export class PamService {
     // stake or a guaranteed stake-back would be double-bonusing the same
     // bet, same reasoning that already keeps these apart from acca boost.
     const campaignsExcluded = useFreebets || insuranceApplies;
+    const scopeMatches = dto.selections.map((selection) => {
+      const match = matchesById.get(selection.matchId)!;
+      return { sport: match.sport, competition: match.competition, matchId: selection.matchId, isLive: match.isLive };
+    });
+    const qualifyingBet = { stakeCents: dto.stakeCents, legOdds: dto.selections.map((selection) => selection.odds) };
+    const viewer = await this.resolveViewer(userId);
     const applicableCampaign = campaignsExcluded
       ? null
-      : await this.betAndGetCampaignService.resolveApplicableCampaign(
-          brandId,
-          dto.selections.map((selection) => {
-            const match = matchesById.get(selection.matchId)!;
-            return { sport: match.sport, competition: match.competition, matchId: selection.matchId, isLive: match.isLive };
-          }),
-          { stakeCents: dto.stakeCents, legOdds: dto.selections.map((selection) => selection.odds) },
-          await this.resolveViewer(userId),
-        );
+      : await this.betAndGetCampaignService.resolveApplicableCampaign(brandId, scopeMatches, qualifyingBet, viewer);
     const betAndGetCampaign =
       applicableCampaign && (await this.betAndGetCampaignService.canRedeem(applicableCampaign, userId))
         ? applicableCampaign
         : null;
+
+    // Every leaderboard the player has already joined AND this bet
+    // qualifies for by scope/conditions - unlike betAndGetCampaign, there's
+    // no "at most one" rule (a single bet can count toward several running
+    // leaderboards at once). Excluded by the same campaignsExcluded gate -
+    // a freebet-funded or insured stake shouldn't inflate a competitive
+    // ranking any more than it should earn a Bet & Get/Deposit reward.
+    const linkableLeaderboards = campaignsExcluded
+      ? []
+      : await this.leaderboardCampaignService.resolveLinkableCampaigns(brandId, scopeMatches, qualifyingBet, viewer, userId);
 
     // Unlike betAndGetCampaign (resolved fresh from the bet's own
     // scope/conditions), this matches against a redemption that already
@@ -570,20 +581,14 @@ export class PamService {
     // existence already represents a consumed slot.
     const depositCampaignRedemption = campaignsExcluded
       ? null
-      : await this.depositCampaignService.resolvePendingBetRedemption(userId, {
-          stakeCents: dto.stakeCents,
-          legOdds: dto.selections.map((selection) => selection.odds),
-        });
+      : await this.depositCampaignService.resolvePendingBetRedemption(userId, qualifyingBet);
 
     // Same "matches an already-existing redemption" shape as
     // depositCampaignRedemption above, additionally gated by the campaign's
     // own qualifyingBetWindowDays counted from this player's own signup.
     const registerCampaignRedemption = campaignsExcluded
       ? null
-      : await this.registerCampaignService.resolvePendingBetRedemption(userId, userCreatedAt, {
-          stakeCents: dto.stakeCents,
-          legOdds: dto.selections.map((selection) => selection.odds),
-        });
+      : await this.registerCampaignService.resolvePendingBetRedemption(userId, userCreatedAt, qualifyingBet);
     const registerCampaignRewardCents = registerCampaignRedemption
       ? calculateBetAndGetRewardCents(registerCampaignRedemption.registerCampaign, dto.stakeCents)
       : null;
@@ -651,6 +656,15 @@ export class PamService {
 
       if (useFreebets) {
         await this.freebetService.spendFromBalance(userId, user.brandId, dto.stakeCents, bet.id, tx);
+      }
+
+      // Points are never awarded at placement (pointsAwarded starts at 0) -
+      // settleSelection finalizes each link's point value once the bet's
+      // outcome (and every leg's terminal status) is known.
+      for (const { campaign, entry } of linkableLeaderboards) {
+        await tx.leaderboardEntryBet.create({
+          data: { entryId: entry.id, leaderboardCampaignId: campaign.id, betId: bet.id },
+        });
       }
 
       // A SETTLEMENT-triggered campaign already has its reward deferred by
@@ -1169,6 +1183,46 @@ export class PamService {
             tx,
           );
           await tx.registerCampaignRedemption.update({ where: { id: redemption.id }, data: { status: 'GRANTED' } });
+        }
+      }
+
+      // Leaderboard points are only ever finalized once every leg is
+      // terminal (unlike the campaigns above, a bet's point value can
+      // depend on VOID legs dropping it below the campaign's own
+      // conditions, and there's no equivalent of a LOST-is-final shortcut -
+      // WON/VOID need every leg settled to be known at all). Delta-based
+      // (never a blind increment) so a re-settlement correction claws back
+      // or tops up pointsTotal instead of double-counting - the same
+      // pattern settleSelection already uses for balanceCents below.
+      // @@unique(entryId, betId) on LeaderboardEntryBet makes this an
+      // idempotent upsert-in-place rather than a fresh row every time.
+      if (allLegsTerminal) {
+        const links = await tx.leaderboardEntryBet.findMany({ where: { betId } });
+        for (const link of links) {
+          const campaign = await tx.leaderboardCampaign.findUnique({ where: { id: link.leaderboardCampaignId } });
+          const effectiveLegOdds = updatedBet.selections
+            .filter((betSelection) => betSelection.status !== 'VOID')
+            .map((betSelection) => Number(betSelection.odds));
+          const stillQualifies =
+            campaign !== null &&
+            betQualifiesForCampaign(campaign, { stakeCents: updatedBet.stakeCents, legOdds: effectiveLegOdds });
+          const counts =
+            campaign !== null &&
+            stillQualifies &&
+            leaderboardBetCounts(campaign.onlySettledWonCounts, outcome.overallStatus);
+          const effectiveCombinedOdds = effectiveLegOdds.reduce((product, odds) => product * odds, 1);
+          const newPoints =
+            campaign && counts
+              ? calculateLeaderboardPoints(campaign, { stakeCents: updatedBet.stakeCents, effectiveCombinedOdds })
+              : 0;
+          const delta = newPoints - link.pointsAwarded;
+          if (delta !== 0) {
+            await tx.leaderboardEntry.update({ where: { id: link.entryId }, data: { pointsTotal: { increment: delta } } });
+          }
+          await tx.leaderboardEntryBet.update({
+            where: { id: link.id },
+            data: { pointsAwarded: newPoints, countedAt: new Date() },
+          });
         }
       }
 

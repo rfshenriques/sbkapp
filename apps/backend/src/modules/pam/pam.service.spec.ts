@@ -13,6 +13,7 @@ import { OddsLadderService } from '../boosts/odds-ladder.service';
 import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.service';
 import { FreebetService } from '../freebets/freebet.service';
 import { InsuranceBetService } from '../insurance-bet/insurance-bet.service';
+import { LeaderboardCampaignService } from '../leaderboards/leaderboard-campaign.service';
 import { ManualMarketService } from '../manual-markets/manual-market.service';
 import { OddsEngineClient } from '../margins/odds-engine-client';
 import { PlayerSegmentService } from '../player-segments/player-segment.service';
@@ -67,6 +68,8 @@ describe('PamService', () => {
   let freebetService: FreebetService;
   let betAndGetCampaignService: BetAndGetCampaignService;
   let depositCampaignService: DepositCampaignService;
+  let registerCampaignService: RegisterCampaignService;
+  let leaderboardCampaignService: LeaderboardCampaignService;
   let pushNotificationService: PushNotificationService;
   let prisma: PrismaService;
   let setupPrisma: PrismaService;
@@ -113,6 +116,7 @@ describe('PamService', () => {
         BetAndGetCampaignService,
         DepositCampaignService,
         RegisterCampaignService,
+        LeaderboardCampaignService,
         PlayerSegmentService,
         PushNotificationService,
         {
@@ -136,6 +140,8 @@ describe('PamService', () => {
     freebetService = moduleRef.get(FreebetService);
     betAndGetCampaignService = moduleRef.get(BetAndGetCampaignService);
     depositCampaignService = moduleRef.get(DepositCampaignService);
+    registerCampaignService = moduleRef.get(RegisterCampaignService);
+    leaderboardCampaignService = moduleRef.get(LeaderboardCampaignService);
     prisma = moduleRef.get(PrismaService);
   });
 
@@ -150,6 +156,8 @@ describe('PamService', () => {
     await prisma.boost.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.betAndGetCampaign.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.depositCampaign.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
+    await prisma.registerCampaign.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
+    await prisma.leaderboardCampaign.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.auditLogEntry.deleteMany({
       where: {
         actorUsername: {
@@ -1399,6 +1407,291 @@ describe('PamService', () => {
       expect(bet.depositCampaignRedemptionId).toBeNull();
       const stillPending = await prisma.depositCampaignRedemption.findUniqueOrThrow({ where: { id: redemption.id } });
       expect(stillPending.status).toBe('PENDING_BET');
+    });
+  });
+
+  describe('register campaign bet requirement', () => {
+    /** Creates an enabled, requiresBet campaign plus a PENDING_BET redemption for it - mirrors what AuthService.register would have created at signup, without needing a real registration flow here. */
+    async function createPendingRedemption(
+      userId: string,
+      overrides: Partial<Parameters<typeof registerCampaignService.create>[1]> = {},
+    ) {
+      const campaign = await registerCampaignService.create(
+        testBrandId,
+        {
+          name: 'Welcome Bonus',
+          rewardType: 'FIXED',
+          rewardAmountCents: 500,
+          requiresBet: true,
+          qualifyingBetWindowDays: 7,
+          trigger: 'PLACEMENT',
+          ...overrides,
+        },
+        TEST_ACTOR,
+      );
+      await registerCampaignService.update(testBrandId, campaign.id, { enabled: true }, TEST_ACTOR);
+      const redemption = await prisma.registerCampaignRedemption.create({
+        data: { registerCampaignId: campaign.id, userId, brandId: testBrandId, status: 'PENDING_BET' },
+      });
+      return { campaign, redemption };
+    }
+
+    it('grants the reward immediately at placement for a PLACEMENT-trigger campaign', async () => {
+      const userId = await createTestUser(100_000);
+      const { campaign } = await createPendingRedemption(userId, { trigger: 'PLACEMENT' });
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      expect(bet.registerCampaignRedemptionId).not.toBeNull();
+      expect(bet.registerCampaignName).toBe(campaign.name);
+      expect(bet.registerCampaignRewardCents).toBe(500);
+      const grant = await prisma.freebetGrant.findFirstOrThrow({
+        where: { sourceBetId: bet.id, source: 'REGISTER_CAMPAIGN' },
+      });
+      expect(grant.amountCents).toBe(500);
+
+      const redemption = await prisma.registerCampaignRedemption.findUniqueOrThrow({
+        where: { id: bet.registerCampaignRedemptionId! },
+      });
+      expect(redemption.status).toBe('GRANTED');
+      expect(redemption.rewardAmountCents).toBe(500);
+    });
+
+    it('defers the reward to settlement for a SETTLEMENT-trigger campaign, granting only on the configured outcome', async () => {
+      const userId = await createTestUser(100_000);
+      await createPendingRedemption(userId, { trigger: 'SETTLEMENT', triggerOnWon: true });
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      expect(
+        await prisma.freebetGrant.findFirst({ where: { sourceBetId: bet.id, source: 'REGISTER_CAMPAIGN' } }),
+      ).toBeNull();
+      const pending = await prisma.registerCampaignRedemption.findUniqueOrThrow({
+        where: { id: bet.registerCampaignRedemptionId! },
+      });
+      expect(pending.status).toBe('PENDING_SETTLEMENT');
+      expect(pending.rewardAmountCents).toBe(500);
+
+      const settled = await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+      expect(settled.status).toBe('WON');
+
+      const grant = await prisma.freebetGrant.findFirstOrThrow({
+        where: { sourceBetId: bet.id, source: 'REGISTER_CAMPAIGN' },
+      });
+      expect(grant.amountCents).toBe(500);
+
+      const redemption = await prisma.registerCampaignRedemption.findUniqueOrThrow({
+        where: { id: bet.registerCampaignRedemptionId! },
+      });
+      expect(redemption.status).toBe('GRANTED');
+    });
+
+    it('is idempotent - re-settling an already-terminal selection to the same status never grants the reward twice', async () => {
+      const userId = await createTestUser(100_000);
+      await createPendingRedemption(userId, { trigger: 'SETTLEMENT', triggerOnWon: true });
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+
+      const grants = await prisma.freebetGrant.findMany({
+        where: { sourceBetId: bet.id, source: 'REGISTER_CAMPAIGN' },
+      });
+      expect(grants).toHaveLength(1);
+    });
+
+    it('never grants a SETTLEMENT-trigger campaign on an outcome its flags do not cover', async () => {
+      const userId = await createTestUser(100_000);
+      await createPendingRedemption(userId, { trigger: 'SETTLEMENT', triggerOnWon: true });
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'LOST', TEST_ACTOR);
+
+      expect(
+        await prisma.freebetGrant.findFirst({ where: { sourceBetId: bet.id, source: 'REGISTER_CAMPAIGN' } }),
+      ).toBeNull();
+    });
+
+    it("never matches a bet placed outside the campaign's qualifyingBetWindowDays", async () => {
+      const userId = await createTestUser(100_000);
+      const { redemption } = await createPendingRedemption(userId, { qualifyingBetWindowDays: 3 });
+      // Backdate the user's own signup past the window - resolvePendingBetRedemption reads userCreatedAt fresh from the DB inside placeBet.
+      await prisma.user.update({
+        where: { id: userId },
+        data: { createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
+      });
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      expect(bet.registerCampaignRedemptionId).toBeNull();
+      const stillPending = await prisma.registerCampaignRedemption.findUniqueOrThrow({ where: { id: redemption.id } });
+      expect(stillPending.status).toBe('PENDING_BET');
+    });
+  });
+
+  describe('leaderboard', () => {
+    async function createJoinedCampaign(
+      userId: string,
+      overrides: Partial<Parameters<typeof leaderboardCampaignService.create>[1]> = {},
+    ) {
+      const campaign = await leaderboardCampaignService.create(
+        testBrandId,
+        {
+          name: 'Weekly Leaderboard',
+          endAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+          pointsPerEuroStaked: 1,
+          onlySettledWonCounts: true,
+          ...overrides,
+        },
+        TEST_ACTOR,
+      );
+      await leaderboardCampaignService.update(testBrandId, campaign.id, { enabled: true }, TEST_ACTOR);
+      await leaderboardCampaignService.setScopes(
+        testBrandId,
+        campaign.id,
+        [{ scopeType: 'SPORT', scopeValue: 'Football' }],
+        TEST_ACTOR,
+      );
+      await leaderboardCampaignService.join(testBrandId, campaign.id, userId);
+      return campaign;
+    }
+
+    it('links a joined, in-scope bet at placement and awards points once it settles WON', async () => {
+      const userId = await createTestUser(100_000);
+      const campaign = await createJoinedCampaign(userId);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      const link = await prisma.leaderboardEntryBet.findFirstOrThrow({
+        where: { betId: bet.id, leaderboardCampaignId: campaign.id },
+      });
+      expect(link.pointsAwarded).toBe(0);
+      expect(link.countedAt).toBeNull();
+
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+
+      const settledLink = await prisma.leaderboardEntryBet.findUniqueOrThrow({ where: { id: link.id } });
+      expect(settledLink.pointsAwarded).toBe(10); // (1000 cents / 100) * 1 point-per-euro
+      expect(settledLink.countedAt).not.toBeNull();
+
+      const entry = await leaderboardCampaignService.getEntryForUser(campaign.id, userId);
+      expect(entry?.pointsTotal).toBe(10);
+    });
+
+    it('never links a bet to a leaderboard the player has not joined', async () => {
+      const userId = await createTestUser(100_000);
+      const campaign = await leaderboardCampaignService.create(
+        testBrandId,
+        { name: 'Unjoined Leaderboard', endAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+        TEST_ACTOR,
+      );
+      await leaderboardCampaignService.update(testBrandId, campaign.id, { enabled: true }, TEST_ACTOR);
+      await leaderboardCampaignService.setScopes(
+        testBrandId,
+        campaign.id,
+        [{ scopeType: 'SPORT', scopeValue: 'Football' }],
+        TEST_ACTOR,
+      );
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      expect(await prisma.leaderboardEntryBet.findFirst({ where: { betId: bet.id } })).toBeNull();
+    });
+
+    it('never links a freebet-funded bet to a leaderboard, even one the player already joined', async () => {
+      const userId = await createTestUser(100_000);
+      const { username } = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      await freebetService.grant(testBrandId, { identifier: username, amountCents: 5_000 }, TEST_ACTOR);
+      const campaign = await createJoinedCampaign(userId);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+        useFreebets: true,
+      });
+
+      expect(
+        await prisma.leaderboardEntryBet.findFirst({ where: { betId: bet.id, leaderboardCampaignId: campaign.id } }),
+      ).toBeNull();
+    });
+
+    it('re-settling the same selection corrects points via delta rather than double-counting', async () => {
+      const userId = await createTestUser(100_000);
+      const campaign = await createJoinedCampaign(userId);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+      let entry = await leaderboardCampaignService.getEntryForUser(campaign.id, userId);
+      expect(entry?.pointsTotal).toBe(10);
+
+      // Correcting the settlement to LOST claws the points back to 0, rather than adding a second 10-point grant on top.
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'LOST', TEST_ACTOR);
+      entry = await leaderboardCampaignService.getEntryForUser(campaign.id, userId);
+      expect(entry?.pointsTotal).toBe(0);
+    });
+
+    it('zeroes points when a voided leg drops a still-accumulator bet below the required selections, even though the remaining legs still WON', async () => {
+      const userId = await createTestUser(100_000);
+      // 3 legs, minSelections 3 - after voiding one leg, 2 legs remain, still an accumulator (isAccumulator gates minSelections, see betQualifiesForCampaign) but short of the required 3.
+      const campaign = await createJoinedCampaign(userId, { minSelections: 3 });
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ odds: 1.5, matchId: 'match-1' }),
+          buildSelection({ odds: 1.5, matchId: 'match-2' }),
+          buildSelection({ odds: 1.5, matchId: 'match-3' }),
+        ],
+        stakeCents: 1_000,
+      });
+
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[1]!.id, 'WON', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[2]!.id, 'VOID', TEST_ACTOR);
+
+      const link = await prisma.leaderboardEntryBet.findFirstOrThrow({ where: { betId: bet.id } });
+      expect(link.pointsAwarded).toBe(0);
+    });
+
+    it('counts a LOST bet when onlySettledWonCounts is false', async () => {
+      const userId = await createTestUser(100_000);
+      const campaign = await createJoinedCampaign(userId, { onlySettledWonCounts: false });
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+
+      await pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'LOST', TEST_ACTOR);
+
+      const link = await prisma.leaderboardEntryBet.findFirstOrThrow({ where: { betId: bet.id } });
+      expect(link.pointsAwarded).toBe(10);
     });
   });
 

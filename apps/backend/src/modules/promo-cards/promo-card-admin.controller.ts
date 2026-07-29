@@ -23,7 +23,14 @@ import { PromoCardService } from './promo-card.service';
 
 interface AuthenticatedStaffRequest {
   user: StaffJwtPayload;
-  body: { title?: string; subtitle?: string; betAndGetCampaignId?: string; depositCampaignId?: string };
+  body: {
+    title?: string;
+    subtitle?: string;
+    betAndGetCampaignId?: string;
+    depositCampaignId?: string;
+    registerCampaignId?: string;
+    leaderboardCampaignId?: string;
+  };
 }
 
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -63,6 +70,8 @@ export class PromoCardAdminController {
         subtitle: req.body.subtitle,
         betAndGetCampaignId: req.body.betAndGetCampaignId,
         depositCampaignId: req.body.depositCampaignId,
+        registerCampaignId: req.body.registerCampaignId,
+        leaderboardCampaignId: req.body.leaderboardCampaignId,
       },
       { id: req.user.sub, username: req.user.username, brandId: req.user.brandId },
     );

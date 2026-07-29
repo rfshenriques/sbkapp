@@ -9,6 +9,7 @@ import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
 import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.service';
 import { InsuranceBetService } from '../insurance-bet/insurance-bet.service';
+import { LeaderboardCampaignService } from '../leaderboards/leaderboard-campaign.service';
 import { BoostService } from '../boosts/boost.service';
 import { OddsLadderService } from '../boosts/odds-ladder.service';
 import { FreebetService } from '../freebets/freebet.service';
@@ -82,6 +83,7 @@ describe('ReportsService', () => {
         BetAndGetCampaignService,
         DepositCampaignService,
         RegisterCampaignService,
+        LeaderboardCampaignService,
         PlayerSegmentService,
         PushNotificationService,
         {

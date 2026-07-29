@@ -7,6 +7,9 @@ import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { ANONYMOUS_VIEWER, type AudienceViewer } from '../audience/audience';
 import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
 import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.service';
+import { FreebetService } from '../freebets/freebet.service';
+import { LeaderboardCampaignService } from '../leaderboards/leaderboard-campaign.service';
+import { RegisterCampaignService } from '../register-campaigns/register-campaign.service';
 import { PromoCardService } from './promo-card.service';
 
 describe('PromoCardService', () => {
@@ -14,6 +17,8 @@ describe('PromoCardService', () => {
   let service: PromoCardService;
   let campaignService: BetAndGetCampaignService;
   let depositCampaignService: DepositCampaignService;
+  let registerCampaignService: RegisterCampaignService;
+  let leaderboardCampaignService: LeaderboardCampaignService;
   let prisma: PrismaService;
   let setupPrisma: PrismaService;
   let brandAId: string;
@@ -44,13 +49,24 @@ describe('PromoCardService', () => {
 
   beforeEach(async () => {
     moduleRef = await Test.createTestingModule({
-      providers: [PromoCardService, BetAndGetCampaignService, DepositCampaignService, PrismaService, AuditLogService],
+      providers: [
+        PromoCardService,
+        BetAndGetCampaignService,
+        DepositCampaignService,
+        RegisterCampaignService,
+        LeaderboardCampaignService,
+        FreebetService,
+        PrismaService,
+        AuditLogService,
+      ],
     }).compile();
     await moduleRef.init();
 
     service = moduleRef.get(PromoCardService);
     campaignService = moduleRef.get(BetAndGetCampaignService);
     depositCampaignService = moduleRef.get(DepositCampaignService);
+    registerCampaignService = moduleRef.get(RegisterCampaignService);
+    leaderboardCampaignService = moduleRef.get(LeaderboardCampaignService);
     prisma = moduleRef.get(PrismaService);
   });
 
@@ -61,6 +77,8 @@ describe('PromoCardService', () => {
     await prisma.promoCard.deleteMany({ where: { brandId: { in: [brandAId, brandBId] } } });
     await prisma.betAndGetCampaign.deleteMany({ where: { brandId: { in: [brandAId, brandBId] } } });
     await prisma.depositCampaign.deleteMany({ where: { brandId: { in: [brandAId, brandBId] } } });
+    await prisma.registerCampaign.deleteMany({ where: { brandId: { in: [brandAId, brandBId] } } });
+    await prisma.leaderboardCampaign.deleteMany({ where: { brandId: { in: [brandAId, brandBId] } } });
     await moduleRef.close();
   });
 
@@ -340,6 +358,103 @@ describe('PromoCardService', () => {
 
       await expect(
         service.update(brandAId, card.id, { depositCampaignId: deposit.id }, TEST_ACTOR),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('register and leaderboard campaign linking', () => {
+    it('stores a register campaign link', async () => {
+      const campaign = await registerCampaignService.create(
+        brandAId,
+        { name: 'Welcome Bonus', rewardAmountCents: 1_000 },
+        TEST_ACTOR,
+      );
+
+      const card = await service.add(
+        brandAId,
+        Buffer.from('bytes'),
+        'image/png',
+        { registerCampaignId: campaign.id },
+        TEST_ACTOR,
+      );
+
+      expect(card.registerCampaignId).toBe(campaign.id);
+    });
+
+    it('rejects linking a card to a nonexistent register campaign', async () => {
+      await expect(
+        service.add(brandAId, Buffer.from('bytes'), 'image/png', { registerCampaignId: 'does-not-exist' }, TEST_ACTOR),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it("rejects linking a card to another brand's register campaign, even by guessing its id", async () => {
+      const otherBrandCampaign = await registerCampaignService.create(
+        brandBId,
+        { name: 'Other', rewardAmountCents: 1_000 },
+        OTHER_BRAND_ACTOR,
+      );
+
+      await expect(
+        service.add(
+          brandAId,
+          Buffer.from('bytes'),
+          'image/png',
+          { registerCampaignId: otherBrandCampaign.id },
+          TEST_ACTOR,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('stores a leaderboard campaign link', async () => {
+      const campaign = await leaderboardCampaignService.create(
+        brandAId,
+        { name: 'Weekly Leaderboard', endAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+        TEST_ACTOR,
+      );
+
+      const card = await service.add(
+        brandAId,
+        Buffer.from('bytes'),
+        'image/png',
+        { leaderboardCampaignId: campaign.id },
+        TEST_ACTOR,
+      );
+
+      expect(card.leaderboardCampaignId).toBe(campaign.id);
+    });
+
+    it('rejects linking a card to a nonexistent leaderboard campaign', async () => {
+      await expect(
+        service.add(
+          brandAId,
+          Buffer.from('bytes'),
+          'image/png',
+          { leaderboardCampaignId: 'does-not-exist' },
+          TEST_ACTOR,
+        ),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+
+    it('rejects a card linked to a Register and a Leaderboard campaign at once', async () => {
+      const register = await registerCampaignService.create(
+        brandAId,
+        { name: 'Welcome Bonus', rewardAmountCents: 1_000 },
+        TEST_ACTOR,
+      );
+      const leaderboard = await leaderboardCampaignService.create(
+        brandAId,
+        { name: 'Weekly Leaderboard', endAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) },
+        TEST_ACTOR,
+      );
+
+      await expect(
+        service.add(
+          brandAId,
+          Buffer.from('bytes'),
+          'image/png',
+          { registerCampaignId: register.id, leaderboardCampaignId: leaderboard.id },
+          TEST_ACTOR,
+        ),
       ).rejects.toBeInstanceOf(BadRequestException);
     });
   });

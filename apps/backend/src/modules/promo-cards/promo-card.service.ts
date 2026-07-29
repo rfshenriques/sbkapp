@@ -4,6 +4,8 @@ import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { resolveAudience, type AudienceViewer } from '../audience/audience';
 import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
 import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.service';
+import { LeaderboardCampaignService } from '../leaderboards/leaderboard-campaign.service';
+import { RegisterCampaignService } from '../register-campaigns/register-campaign.service';
 import { campaignPromoStatus, type PromoCardStatus } from './promo-card-status';
 
 /** Metadata only - never the image bytes, so listing stays a small JSON response. */
@@ -17,6 +19,8 @@ const METADATA_SELECT = {
   autoCreated: true,
   betAndGetCampaignId: true,
   depositCampaignId: true,
+  registerCampaignId: true,
+  leaderboardCampaignId: true,
   createdAt: true,
   updatedAt: true,
 } as const;
@@ -31,6 +35,8 @@ export interface PromoCardForViewer {
   autoCreated: boolean;
   betAndGetCampaignId: string | null;
   depositCampaignId: string | null;
+  registerCampaignId: string | null;
+  leaderboardCampaignId: string | null;
   createdAt: Date;
   updatedAt: Date;
   hasImage: boolean;
@@ -42,15 +48,26 @@ export interface PromoCardFields {
   subtitle?: string | null;
   betAndGetCampaignId?: string | null;
   depositCampaignId?: string | null;
+  registerCampaignId?: string | null;
+  leaderboardCampaignId?: string | null;
+}
+
+interface CardCampaignLinks {
+  betAndGetCampaignId: string | null;
+  depositCampaignId: string | null;
+  registerCampaignId: string | null;
+  leaderboardCampaignId: string | null;
 }
 
 /**
  * CMS-managed promotional cards for the homepage/Promotions page - each is
  * a staff-uploaded image with optional title/subtitle and an optional link
- * to an already-configured BetAndGetCampaign or DepositCampaign, never both
- * at once (see PromoCard in schema.prisma). A card with no campaign link is
+ * to an already-configured campaign of exactly one of the 4 types (Bet &
+ * Get, Deposit, Register, Leaderboard - see PromoCard in schema.prisma,
+ * never more than one FK set at once). A card with no campaign link is
  * purely decorative; clicking a linked one resolves to that campaign's
- * scoped matches (Bet & Get) or reopens the deposit modal (Deposit) on the
+ * scoped matches (Bet & Get), reopens the deposit modal (Deposit), or takes
+ * the player to the campaign's own page (Register, Leaderboard) on the
  * player side.
  */
 @Injectable()
@@ -60,7 +77,47 @@ export class PromoCardService {
     private readonly auditLogService: AuditLogService,
     private readonly betAndGetCampaignService: BetAndGetCampaignService,
     private readonly depositCampaignService: DepositCampaignService,
+    private readonly registerCampaignService: RegisterCampaignService,
+    private readonly leaderboardCampaignService: LeaderboardCampaignService,
   ) {}
+
+  /**
+   * Which single campaign (if any) a card links to, resolved to its live
+   * row plus the audience-gate + redemption-exhaustion check that campaign
+   * type needs - used once by listForViewer below. Register mirrors
+   * BetAndGetCampaign's per-player canRedeem check; Leaderboard has no
+   * counted-redemption concept (opt-in "join" is the player's own signal,
+   * not something a promo card filters against), so its exhaustedFor
+   * always returns false.
+   */
+  private async resolveCampaignLink(brandId: string, card: CardCampaignLinks, userId: string | null) {
+    if (card.betAndGetCampaignId) {
+      const campaign = await this.betAndGetCampaignService.get(brandId, card.betAndGetCampaignId);
+      return {
+        campaign,
+        exhausted: userId !== null && !(await this.betAndGetCampaignService.canRedeem(campaign, userId)),
+      };
+    }
+    if (card.depositCampaignId) {
+      const campaign = await this.depositCampaignService.get(brandId, card.depositCampaignId);
+      return {
+        campaign,
+        exhausted: userId !== null && !(await this.depositCampaignService.canRedeem(campaign, userId)),
+      };
+    }
+    if (card.registerCampaignId) {
+      const campaign = await this.registerCampaignService.get(brandId, card.registerCampaignId);
+      return {
+        campaign,
+        exhausted: userId !== null && !(await this.registerCampaignService.canRedeem(campaign.id, userId)),
+      };
+    }
+    if (card.leaderboardCampaignId) {
+      const campaign = await this.leaderboardCampaignService.get(brandId, card.leaderboardCampaignId);
+      return { campaign, exhausted: false };
+    }
+    return null;
+  }
 
   async list(brandId: string) {
     return this.prisma.promoCard.findMany({
@@ -92,67 +149,63 @@ export class PromoCardService {
     const visible = await Promise.all(
       cards.map(async (card): Promise<PromoCardForViewer | null> => {
         const hasImage = card.mimeType !== null;
-
-        if (card.betAndGetCampaignId) {
-          const campaign = await this.betAndGetCampaignService.get(brandId, card.betAndGetCampaignId);
-          const inAudience = resolveAudience(
-            campaign.audienceMode,
-            campaign.segments.map((segment) => segment.segmentId),
-            viewer,
-          );
-          const status = campaignPromoStatus(campaign);
-          if (!inAudience || status === 'DISABLED') {
-            return null;
-          }
-          if (userId && !(await this.betAndGetCampaignService.canRedeem(campaign, userId))) {
-            return null;
-          }
-          return { ...card, hasImage, status };
+        const link = await this.resolveCampaignLink(brandId, card, userId);
+        if (!link) {
+          return { ...card, hasImage, status: 'ACTIVE' };
         }
 
-        if (card.depositCampaignId) {
-          const campaign = await this.depositCampaignService.get(brandId, card.depositCampaignId);
-          const inAudience = resolveAudience(
-            campaign.audienceMode,
-            campaign.segments.map((segment) => segment.segmentId),
-            viewer,
-          );
-          const status = campaignPromoStatus(campaign);
-          if (!inAudience || status === 'DISABLED') {
-            return null;
-          }
-          if (userId && !(await this.depositCampaignService.canRedeem(campaign, userId))) {
-            return null;
-          }
-          return { ...card, hasImage, status };
+        const { campaign, exhausted } = link;
+        const inAudience = resolveAudience(
+          campaign.audienceMode,
+          campaign.segments.map((segment) => segment.segmentId),
+          viewer,
+        );
+        const status = campaignPromoStatus(campaign);
+        if (!inAudience || status === 'DISABLED' || exhausted) {
+          return null;
         }
-
-        return { ...card, hasImage, status: 'ACTIVE' };
+        return { ...card, hasImage, status };
       }),
     );
 
     return visible.filter((card): card is PromoCardForViewer => card !== null);
   }
 
-  /** A card can only ever link to a campaign owned by its own brand - never validated by trusting the id alone. Linking to both campaign types at once isn't allowed - a card promotes exactly one campaign. */
-  private async assertCampaignOwnership(
-    brandId: string,
-    betAndGetCampaignId: string | null | undefined,
-    depositCampaignId: string | null | undefined,
-  ) {
-    if (betAndGetCampaignId && depositCampaignId) {
-      throw new BadRequestException('A promo card can link to a Bet & Get campaign or a Deposit campaign, not both');
+  /** A card can only ever link to a campaign owned by its own brand - never validated by trusting the id alone. Linking to more than one campaign type at once isn't allowed - a card promotes exactly one campaign. */
+  private async assertCampaignOwnership(brandId: string, links: CardCampaignLinks) {
+    const setCount = [
+      links.betAndGetCampaignId,
+      links.depositCampaignId,
+      links.registerCampaignId,
+      links.leaderboardCampaignId,
+    ].filter((id) => id !== null).length;
+    if (setCount > 1) {
+      throw new BadRequestException('A promo card can link to at most one campaign');
     }
-    if (betAndGetCampaignId) {
-      const campaign = await this.prisma.betAndGetCampaign.findUnique({ where: { id: betAndGetCampaignId } });
+    if (links.betAndGetCampaignId) {
+      const campaign = await this.prisma.betAndGetCampaign.findUnique({ where: { id: links.betAndGetCampaignId } });
       if (!campaign || campaign.brandId !== brandId) {
         throw new NotFoundException('Bet & Get campaign not found');
       }
     }
-    if (depositCampaignId) {
-      const campaign = await this.prisma.depositCampaign.findUnique({ where: { id: depositCampaignId } });
+    if (links.depositCampaignId) {
+      const campaign = await this.prisma.depositCampaign.findUnique({ where: { id: links.depositCampaignId } });
       if (!campaign || campaign.brandId !== brandId) {
         throw new NotFoundException('Deposit campaign not found');
+      }
+    }
+    if (links.registerCampaignId) {
+      const campaign = await this.prisma.registerCampaign.findUnique({ where: { id: links.registerCampaignId } });
+      if (!campaign || campaign.brandId !== brandId) {
+        throw new NotFoundException('Register campaign not found');
+      }
+    }
+    if (links.leaderboardCampaignId) {
+      const campaign = await this.prisma.leaderboardCampaign.findUnique({
+        where: { id: links.leaderboardCampaignId },
+      });
+      if (!campaign || campaign.brandId !== brandId) {
+        throw new NotFoundException('Leaderboard campaign not found');
       }
     }
   }
@@ -164,7 +217,12 @@ export class PromoCardService {
     fields: PromoCardFields,
     actor: AuditActor,
   ) {
-    await this.assertCampaignOwnership(brandId, fields.betAndGetCampaignId, fields.depositCampaignId);
+    await this.assertCampaignOwnership(brandId, {
+      betAndGetCampaignId: fields.betAndGetCampaignId ?? null,
+      depositCampaignId: fields.depositCampaignId ?? null,
+      registerCampaignId: fields.registerCampaignId ?? null,
+      leaderboardCampaignId: fields.leaderboardCampaignId ?? null,
+    });
     const data = Buffer.from(fileData);
     const highest = await this.prisma.promoCard.findFirst({
       where: { brandId },
@@ -181,6 +239,8 @@ export class PromoCardService {
         subtitle: fields.subtitle,
         betAndGetCampaignId: fields.betAndGetCampaignId,
         depositCampaignId: fields.depositCampaignId,
+        registerCampaignId: fields.registerCampaignId,
+        leaderboardCampaignId: fields.leaderboardCampaignId,
         sortOrder: (highest?.sortOrder ?? -1) + 1,
       },
       select: METADATA_SELECT,
@@ -208,11 +268,16 @@ export class PromoCardService {
     // while leaving an existing betAndGetCampaignId untouched would
     // otherwise end up with both set, violating the one-campaign-per-card
     // rule without ever being caught.
-    const effectiveBetAndGetCampaignId =
-      fields.betAndGetCampaignId !== undefined ? fields.betAndGetCampaignId : existing.betAndGetCampaignId;
-    const effectiveDepositCampaignId =
-      fields.depositCampaignId !== undefined ? fields.depositCampaignId : existing.depositCampaignId;
-    await this.assertCampaignOwnership(brandId, effectiveBetAndGetCampaignId, effectiveDepositCampaignId);
+    await this.assertCampaignOwnership(brandId, {
+      betAndGetCampaignId:
+        fields.betAndGetCampaignId !== undefined ? fields.betAndGetCampaignId : existing.betAndGetCampaignId,
+      depositCampaignId:
+        fields.depositCampaignId !== undefined ? fields.depositCampaignId : existing.depositCampaignId,
+      registerCampaignId:
+        fields.registerCampaignId !== undefined ? fields.registerCampaignId : existing.registerCampaignId,
+      leaderboardCampaignId:
+        fields.leaderboardCampaignId !== undefined ? fields.leaderboardCampaignId : existing.leaderboardCampaignId,
+    });
 
     const card = await this.prisma.promoCard.update({
       where: { id },
