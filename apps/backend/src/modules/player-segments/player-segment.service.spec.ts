@@ -142,6 +142,16 @@ describe('PlayerSegmentService', () => {
     expect(members[0]?.userId).toBe(userId);
   });
 
+  it('resolves the identifier case-insensitively', async () => {
+    const segment = await service.createSegment(brandAId, 'High rollers', undefined, TEST_ACTOR);
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+    await service.addMember(brandAId, segment.id, user.username.toUpperCase(), TEST_ACTOR);
+
+    const members = await prisma.playerSegmentMember.findMany({ where: { segmentId: segment.id } });
+    expect(members.map((member) => member.userId)).toEqual([userId]);
+  });
+
   it('adding a nonexistent player throws NotFoundException', async () => {
     const segment = await service.createSegment(brandAId, 'High rollers', undefined, TEST_ACTOR);
 

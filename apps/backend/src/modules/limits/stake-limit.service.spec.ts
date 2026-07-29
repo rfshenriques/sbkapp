@@ -231,6 +231,15 @@ describe('StakeLimitService', () => {
       expect(row.scopeValue).toBe(userId);
     });
 
+    it('resolves the identifier case-insensitively', async () => {
+      const row = await service.set(
+        brandAId,
+        { scope: 'PLAYER', scopeValue: username.toUpperCase(), tier: 0, maxStakeCents: 5_000, maxLiabilityCents: 20_000 },
+        TEST_ACTOR,
+      );
+      expect(row.scopeValue).toBe(userId);
+    });
+
     it('is idempotent - setting a limit for the same player twice (by different identifiers) updates the same row', async () => {
       await service.set(
         brandAId,

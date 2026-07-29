@@ -60,7 +60,13 @@ export class StakeLimitService {
   /** Resolves a PLAYER-scope row's email/username input to that player's User.id, scoped to this brand - same lookup FreebetService.grant() uses. */
   private async resolvePlayerId(brandId: string, identifier: string): Promise<string> {
     const user = await this.prisma.user.findFirst({
-      where: { brandId, OR: [{ email: identifier }, { username: identifier }] },
+      where: {
+        brandId,
+        OR: [
+          { email: { equals: identifier, mode: 'insensitive' } },
+          { username: { equals: identifier, mode: 'insensitive' } },
+        ],
+      },
       select: { id: true },
     });
     if (!user) {

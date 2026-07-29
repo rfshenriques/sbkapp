@@ -89,6 +89,15 @@ describe('FreebetService', () => {
     expect(listed.map((entry) => entry.id)).toEqual([grant.id]);
   });
 
+  it('resolves the identifier case-insensitively, for both grant and list', async () => {
+    const shouted = username.toUpperCase();
+    const grant = await service.grant(brandAId, { identifier: shouted, amountCents: 1000 }, TEST_ACTOR);
+
+    expect(grant.amountCents).toBe(1000);
+    const listed = await service.list(brandAId, shouted);
+    expect(listed.map((entry) => entry.id)).toEqual([grant.id]);
+  });
+
   it('rejects a non-positive amount', async () => {
     await expect(
       service.grant(brandAId, { identifier: username, amountCents: 0 }, TEST_ACTOR),

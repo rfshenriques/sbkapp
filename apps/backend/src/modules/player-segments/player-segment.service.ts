@@ -64,7 +64,13 @@ export class PlayerSegmentService {
     }
 
     const user = await this.prisma.user.findFirst({
-      where: { brandId, OR: [{ email: identifier }, { username: identifier }] },
+      where: {
+        brandId,
+        OR: [
+          { email: { equals: identifier, mode: 'insensitive' } },
+          { username: { equals: identifier, mode: 'insensitive' } },
+        ],
+      },
       select: { id: true, email: true, username: true },
     });
     if (!user) {

@@ -57,7 +57,13 @@ export class FreebetService {
     }
 
     const user = await this.prisma.user.findFirst({
-      where: { brandId, OR: [{ email: input.identifier }, { username: input.identifier }] },
+      where: {
+        brandId,
+        OR: [
+          { email: { equals: input.identifier, mode: 'insensitive' } },
+          { username: { equals: input.identifier, mode: 'insensitive' } },
+        ],
+      },
       select: { id: true, username: true },
     });
     if (!user) {
@@ -144,7 +150,13 @@ export class FreebetService {
   /** Every grant (any status) for a player, newest first - backs the backoffice lookup page. `brandId` scopes so a staff member can never look up another brand's player. */
   async list(brandId: string, identifier: string) {
     const user = await this.prisma.user.findFirst({
-      where: { brandId, OR: [{ email: identifier }, { username: identifier }] },
+      where: {
+        brandId,
+        OR: [
+          { email: { equals: identifier, mode: 'insensitive' } },
+          { username: { equals: identifier, mode: 'insensitive' } },
+        ],
+      },
       select: { id: true },
     });
     if (!user) {
