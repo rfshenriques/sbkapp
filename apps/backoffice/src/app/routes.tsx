@@ -2,9 +2,8 @@ import type { RouteObject } from 'react-router-dom';
 import AccaBoostPage from '../pages/AccaBoostPage';
 import AccaRollbackPage from '../pages/AccaRollbackPage';
 import AuditLogPage from '../pages/AuditLogPage';
-import BetAndGetCampaignsPage from '../pages/BetAndGetCampaignsPage';
 import BetHistoryReportPage from '../pages/BetHistoryReportPage';
-import DepositCampaignsPage from '../pages/DepositCampaignsPage';
+import CampaignsPage from '../pages/CampaignsPage';
 import InsuranceBetPage from '../pages/InsuranceBetPage';
 import CmsImagesPage from '../pages/CmsImagesPage';
 import CmsPaymentsPage from '../pages/CmsPaymentsPage';
@@ -120,21 +119,11 @@ export const routes: RouteObject[] = [
         ),
       },
       {
-        path: 'bet-and-get',
+        path: 'campaigns',
         element: (
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'TRADING']}>
-              <BetAndGetCampaignsPage />
-            </RequireRoles>
-          </RequireStaffAuth>
-        ),
-      },
-      {
-        path: 'deposit-campaigns',
-        element: (
-          <RequireStaffAuth>
-            <RequireRoles roles={['ADMIN', 'TRADING']}>
-              <DepositCampaignsPage />
+              <CampaignsPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

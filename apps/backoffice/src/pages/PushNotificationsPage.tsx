@@ -13,7 +13,7 @@ const pushNotificationsQueryKey = ['push-notifications'] as const;
 
 /**
  * Passed via navigate(..., { state }) from a campaign's "Send push for
- * this campaign" button (see BetAndGetCampaignsPage/DepositCampaignsPage) -
+ * this campaign" button (see BetAndGetCampaignsTab/DepositCampaignsTab) -
  * pre-fills and locks the audience to that campaign's own targeting rather
  * than making staff re-find and re-select a campaign they already have
  * open in front of them.

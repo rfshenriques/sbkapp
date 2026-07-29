@@ -1445,6 +1445,239 @@ export async function removeDepositCampaign(id: string): Promise<void> {
   }
 }
 
+export interface RegisterCampaignSegment {
+  id: string;
+  registerCampaignId: string;
+  segmentId: string;
+}
+
+export interface RegisterCampaign {
+  id: string;
+  brandId: string;
+  name: string;
+  description: string | null;
+  enabled: boolean;
+  startAt: string | null;
+  endAt: string | null;
+  rewardType: BetAndGetRewardType;
+  rewardAmountCents: number | null;
+  rewardPercent: number | null;
+  rewardCapCents: number | null;
+  /** false = the reward is granted the instant registration completes; true = it's deferred to a qualifying bet placed within qualifyingBetWindowDays of signup. */
+  requiresBet: boolean;
+  /** Required when requiresBet is true. */
+  qualifyingBetWindowDays: number | null;
+  trigger: BetAndGetTrigger;
+  triggerOnWon: boolean;
+  triggerOnLost: boolean;
+  triggerOnVoid: boolean;
+  minStakeCents: number | null;
+  minOddsPerLeg: number | null;
+  betType: BetAndGetBetType;
+  minSelections: number | null;
+  audienceMode: AudienceMode;
+  segments: RegisterCampaignSegment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateRegisterCampaignPayload {
+  name: string;
+  description?: string;
+  startAt?: string | null;
+  endAt?: string | null;
+  rewardType?: BetAndGetRewardType;
+  rewardAmountCents?: number;
+  rewardPercent?: number;
+  rewardCapCents?: number;
+  requiresBet?: boolean;
+  qualifyingBetWindowDays?: number;
+}
+
+export type UpdateRegisterCampaignPayload = Partial<
+  Omit<RegisterCampaign, 'id' | 'brandId' | 'createdAt' | 'updatedAt' | 'segments'> & { segmentIds: string[] }
+>;
+
+export async function listRegisterCampaigns(): Promise<RegisterCampaign[]> {
+  const response = await authenticatedFetch('/admin/register-campaigns');
+  return parseJsonOrThrow(response, `Failed to load Register campaigns: ${response.status}`);
+}
+
+export async function createRegisterCampaign(payload: CreateRegisterCampaignPayload): Promise<RegisterCampaign> {
+  const response = await authenticatedFetch('/admin/register-campaigns', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to create Register campaign: ${response.status}`);
+}
+
+export async function updateRegisterCampaign(
+  id: string,
+  payload: UpdateRegisterCampaignPayload,
+): Promise<RegisterCampaign> {
+  const response = await authenticatedFetch(`/admin/register-campaigns/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to update Register campaign: ${response.status}`);
+}
+
+export async function removeRegisterCampaign(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/register-campaigns/${id}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(`Failed to remove Register campaign: ${response.status}`);
+  }
+}
+
+export interface LeaderboardCampaignSegment {
+  id: string;
+  leaderboardCampaignId: string;
+  segmentId: string;
+}
+
+export interface LeaderboardCampaignScope {
+  id: string;
+  scopeType: BetAndGetScopeType;
+  scopeValue: string;
+}
+
+export interface LeaderboardRewardTier {
+  id: string;
+  rankFrom: number;
+  rankTo: number;
+  rewardAmountCents: number;
+}
+
+export interface LeaderboardCampaign {
+  id: string;
+  brandId: string;
+  name: string;
+  description: string | null;
+  enabled: boolean;
+  startAt: string | null;
+  /** Required - a leaderboard needs a definite end to rank against and grant prizes at. */
+  endAt: string;
+  pointsPerEuroStaked: number;
+  useCombinedOddsAsMultiplier: boolean;
+  /** true = only bets that settle WON earn points; false = every settled outcome that still qualifies earns points. */
+  onlySettledWonCounts: boolean;
+  minStakeCents: number | null;
+  minOddsPerLeg: number | null;
+  minCombinedOdds: number | null;
+  betType: BetAndGetBetType;
+  minSelections: number | null;
+  bettingTiming: BetAndGetTiming;
+  audienceMode: AudienceMode;
+  segments: LeaderboardCampaignSegment[];
+  scopes: LeaderboardCampaignScope[];
+  rewardTiers: LeaderboardRewardTier[];
+  /** Set once prizes have been granted (see finalizeLeaderboardCampaign) - null until then. */
+  prizesGrantedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateLeaderboardCampaignPayload {
+  name: string;
+  description?: string;
+  startAt?: string | null;
+  endAt: string;
+  pointsPerEuroStaked?: number;
+  useCombinedOddsAsMultiplier?: boolean;
+  onlySettledWonCounts?: boolean;
+  minStakeCents?: number;
+  minOddsPerLeg?: number;
+  minCombinedOdds?: number;
+  betType?: BetAndGetBetType;
+  minSelections?: number;
+  bettingTiming?: BetAndGetTiming;
+}
+
+export type UpdateLeaderboardCampaignPayload = Partial<
+  Omit<LeaderboardCampaign, 'id' | 'brandId' | 'createdAt' | 'updatedAt' | 'segments' | 'scopes' | 'rewardTiers'> & {
+    segmentIds: string[];
+  }
+>;
+
+export interface LeaderboardEntryForStaff {
+  id: string;
+  userId: string;
+  pointsTotal: number;
+  joinedAt: string;
+  user: { id: string; username: string };
+}
+
+export async function listLeaderboardCampaigns(): Promise<LeaderboardCampaign[]> {
+  const response = await authenticatedFetch('/admin/leaderboard-campaigns');
+  return parseJsonOrThrow(response, `Failed to load Leaderboard campaigns: ${response.status}`);
+}
+
+export async function createLeaderboardCampaign(
+  payload: CreateLeaderboardCampaignPayload,
+): Promise<LeaderboardCampaign> {
+  const response = await authenticatedFetch('/admin/leaderboard-campaigns', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to create Leaderboard campaign: ${response.status}`);
+}
+
+export async function updateLeaderboardCampaign(
+  id: string,
+  payload: UpdateLeaderboardCampaignPayload,
+): Promise<LeaderboardCampaign> {
+  const response = await authenticatedFetch(`/admin/leaderboard-campaigns/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to update Leaderboard campaign: ${response.status}`);
+}
+
+export async function removeLeaderboardCampaign(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/leaderboard-campaigns/${id}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(`Failed to remove Leaderboard campaign: ${response.status}`);
+  }
+}
+
+export async function setLeaderboardCampaignScopes(
+  id: string,
+  scopes: { scopeType: BetAndGetScopeType; scopeValue: string }[],
+): Promise<LeaderboardCampaign> {
+  const response = await authenticatedFetch(`/admin/leaderboard-campaigns/${id}/scopes`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scopes }),
+  });
+  return parseJsonOrThrow(response, `Failed to set Leaderboard campaign scope: ${response.status}`);
+}
+
+export async function setLeaderboardRewardTiers(
+  id: string,
+  tiers: { rankFrom: number; rankTo: number; rewardAmountCents: number }[],
+): Promise<LeaderboardCampaign> {
+  const response = await authenticatedFetch(`/admin/leaderboard-campaigns/${id}/reward-tiers`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tiers }),
+  });
+  return parseJsonOrThrow(response, `Failed to set Leaderboard campaign reward tiers: ${response.status}`);
+}
+
+export async function finalizeLeaderboardCampaign(id: string): Promise<LeaderboardCampaign> {
+  const response = await authenticatedFetch(`/admin/leaderboard-campaigns/${id}/finalize`, { method: 'POST' });
+  return parseJsonOrThrow(response, `Failed to finalize Leaderboard campaign: ${response.status}`);
+}
+
+export async function getLeaderboardCampaignEntries(id: string): Promise<LeaderboardEntryForStaff[]> {
+  const response = await authenticatedFetch(`/admin/leaderboard-campaigns/${id}/entries`);
+  return parseJsonOrThrow(response, `Failed to load Leaderboard campaign entries: ${response.status}`);
+}
+
 export interface PromoCard {
   id: string;
   brandId: string;
@@ -1456,6 +1689,8 @@ export interface PromoCard {
   autoCreated: boolean;
   betAndGetCampaignId: string | null;
   depositCampaignId: string | null;
+  registerCampaignId: string | null;
+  leaderboardCampaignId: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1466,6 +1701,8 @@ export interface AddPromoCardPayload {
   subtitle?: string;
   betAndGetCampaignId?: string;
   depositCampaignId?: string;
+  registerCampaignId?: string;
+  leaderboardCampaignId?: string;
 }
 
 export interface UpdatePromoCardPayload {
@@ -1473,6 +1710,8 @@ export interface UpdatePromoCardPayload {
   subtitle?: string | null;
   betAndGetCampaignId?: string | null;
   depositCampaignId?: string | null;
+  registerCampaignId?: string | null;
+  leaderboardCampaignId?: string | null;
 }
 
 export async function listPromoCards(): Promise<PromoCard[]> {
@@ -1488,6 +1727,8 @@ export async function addPromoCard(payload: AddPromoCardPayload): Promise<PromoC
   if (payload.subtitle) formData.append('subtitle', payload.subtitle);
   if (payload.betAndGetCampaignId) formData.append('betAndGetCampaignId', payload.betAndGetCampaignId);
   if (payload.depositCampaignId) formData.append('depositCampaignId', payload.depositCampaignId);
+  if (payload.registerCampaignId) formData.append('registerCampaignId', payload.registerCampaignId);
+  if (payload.leaderboardCampaignId) formData.append('leaderboardCampaignId', payload.leaderboardCampaignId);
   const response = await authenticatedFetch('/admin/promo-cards', { method: 'POST', body: formData });
   return parseJsonOrThrow(response, `Failed to upload promo card: ${response.status}`);
 }

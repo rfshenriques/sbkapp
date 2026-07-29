@@ -77,6 +77,8 @@ const decorativeCard: PromoCard = {
   autoCreated: false,
   betAndGetCampaignId: null,
   depositCampaignId: null,
+  registerCampaignId: null,
+  leaderboardCampaignId: null,
   createdAt: '2026-07-24T00:00:00Z',
   updatedAt: '2026-07-24T00:00:00Z',
 };

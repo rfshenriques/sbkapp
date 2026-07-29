@@ -9,6 +9,8 @@ import * as backendApi from '../lib/backendApi';
 const promoCardsQueryKey = ['promo-cards'] as const;
 const campaignsQueryKey = ['bet-and-get-campaigns'] as const;
 const depositCampaignsQueryKey = ['deposit-campaigns'] as const;
+const registerCampaignsQueryKey = ['register-campaigns'] as const;
+const leaderboardCampaignsQueryKey = ['leaderboard-campaigns'] as const;
 const homepageCarouselConfigQueryKey = ['homepage-carousel-config'] as const;
 const ACCEPTED_TYPES = 'image/png,image/jpeg,image/webp';
 
@@ -99,24 +101,41 @@ function HomepageCarouselSettings() {
 interface CampaignSelection {
   betAndGetCampaignId: string;
   depositCampaignId: string;
+  registerCampaignId: string;
+  leaderboardCampaignId: string;
 }
+
+const EMPTY_SELECTION: CampaignSelection = {
+  betAndGetCampaignId: '',
+  depositCampaignId: '',
+  registerCampaignId: '',
+  leaderboardCampaignId: '',
+};
 
 const NONE_VALUE = '';
 
 function encodeCampaignValue(selection: CampaignSelection): string {
   if (selection.betAndGetCampaignId) return `bet-and-get:${selection.betAndGetCampaignId}`;
   if (selection.depositCampaignId) return `deposit:${selection.depositCampaignId}`;
+  if (selection.registerCampaignId) return `register:${selection.registerCampaignId}`;
+  if (selection.leaderboardCampaignId) return `leaderboard:${selection.leaderboardCampaignId}`;
   return NONE_VALUE;
 }
 
 function decodeCampaignValue(value: string): CampaignSelection {
   if (value.startsWith('bet-and-get:')) {
-    return { betAndGetCampaignId: value.slice('bet-and-get:'.length), depositCampaignId: '' };
+    return { ...EMPTY_SELECTION, betAndGetCampaignId: value.slice('bet-and-get:'.length) };
   }
   if (value.startsWith('deposit:')) {
-    return { betAndGetCampaignId: '', depositCampaignId: value.slice('deposit:'.length) };
+    return { ...EMPTY_SELECTION, depositCampaignId: value.slice('deposit:'.length) };
   }
-  return { betAndGetCampaignId: '', depositCampaignId: '' };
+  if (value.startsWith('register:')) {
+    return { ...EMPTY_SELECTION, registerCampaignId: value.slice('register:'.length) };
+  }
+  if (value.startsWith('leaderboard:')) {
+    return { ...EMPTY_SELECTION, leaderboardCampaignId: value.slice('leaderboard:'.length) };
+  }
+  return EMPTY_SELECTION;
 }
 
 function CampaignSelect({
@@ -125,12 +144,16 @@ function CampaignSelect({
   onChange,
   betAndGetCampaigns,
   depositCampaigns,
+  registerCampaigns,
+  leaderboardCampaigns,
 }: {
   id: string;
   selection: CampaignSelection;
   onChange: (selection: CampaignSelection) => void;
   betAndGetCampaigns: backendApi.BetAndGetCampaign[];
   depositCampaigns: backendApi.DepositCampaign[];
+  registerCampaigns: backendApi.RegisterCampaign[];
+  leaderboardCampaigns: backendApi.LeaderboardCampaign[];
 }) {
   return (
     <select
@@ -158,6 +181,24 @@ function CampaignSelect({
           ))}
         </optgroup>
       )}
+      {registerCampaigns.length > 0 && (
+        <optgroup label="Register">
+          {registerCampaigns.map((campaign) => (
+            <option key={campaign.id} value={`register:${campaign.id}`}>
+              {campaign.name}
+            </option>
+          ))}
+        </optgroup>
+      )}
+      {leaderboardCampaigns.length > 0 && (
+        <optgroup label="Leaderboard">
+          {leaderboardCampaigns.map((campaign) => (
+            <option key={campaign.id} value={`leaderboard:${campaign.id}`}>
+              {campaign.name}
+            </option>
+          ))}
+        </optgroup>
+      )}
     </select>
   );
 }
@@ -165,16 +206,20 @@ function CampaignSelect({
 function NewPromoCardForm({
   betAndGetCampaigns,
   depositCampaigns,
+  registerCampaigns,
+  leaderboardCampaigns,
 }: {
   betAndGetCampaigns: backendApi.BetAndGetCampaign[];
   depositCampaigns: backendApi.DepositCampaign[];
+  registerCampaigns: backendApi.RegisterCampaign[];
+  leaderboardCampaigns: backendApi.LeaderboardCampaign[];
 }) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
-  const [selection, setSelection] = useState<CampaignSelection>({ betAndGetCampaignId: '', depositCampaignId: '' });
+  const [selection, setSelection] = useState<CampaignSelection>(EMPTY_SELECTION);
   const [error, setError] = useState<string | null>(null);
 
   const addMutation = useMutation({
@@ -185,12 +230,14 @@ function NewPromoCardForm({
         subtitle: subtitle.trim() || undefined,
         betAndGetCampaignId: selection.betAndGetCampaignId || undefined,
         depositCampaignId: selection.depositCampaignId || undefined,
+        registerCampaignId: selection.registerCampaignId || undefined,
+        leaderboardCampaignId: selection.leaderboardCampaignId || undefined,
       }),
     onSuccess: () => {
       setFile(null);
       setTitle('');
       setSubtitle('');
-      setSelection({ betAndGetCampaignId: '', depositCampaignId: '' });
+      setSelection(EMPTY_SELECTION);
       setError(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
       void queryClient.invalidateQueries({ queryKey: promoCardsQueryKey });
@@ -266,6 +313,8 @@ function NewPromoCardForm({
             onChange={setSelection}
             betAndGetCampaigns={betAndGetCampaigns}
             depositCampaigns={depositCampaigns}
+            registerCampaigns={registerCampaigns}
+            leaderboardCampaigns={leaderboardCampaigns}
           />
         </div>
       </div>
@@ -283,6 +332,8 @@ function PromoCardRow({
   card,
   betAndGetCampaigns,
   depositCampaigns,
+  registerCampaigns,
+  leaderboardCampaigns,
   isDragged,
   onDragStart,
   onDragOver,
@@ -292,6 +343,8 @@ function PromoCardRow({
   card: backendApi.PromoCard;
   betAndGetCampaigns: backendApi.BetAndGetCampaign[];
   depositCampaigns: backendApi.DepositCampaign[];
+  registerCampaigns: backendApi.RegisterCampaign[];
+  leaderboardCampaigns: backendApi.LeaderboardCampaign[];
   isDragged: boolean;
   onDragStart: () => void;
   onDragOver: (event: DragEvent) => void;
@@ -305,6 +358,8 @@ function PromoCardRow({
   const [selection, setSelection] = useState<CampaignSelection>({
     betAndGetCampaignId: card.betAndGetCampaignId ?? '',
     depositCampaignId: card.depositCampaignId ?? '',
+    registerCampaignId: card.registerCampaignId ?? '',
+    leaderboardCampaignId: card.leaderboardCampaignId ?? '',
   });
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -314,6 +369,8 @@ function PromoCardRow({
     setSelection({
       betAndGetCampaignId: card.betAndGetCampaignId ?? '',
       depositCampaignId: card.depositCampaignId ?? '',
+      registerCampaignId: card.registerCampaignId ?? '',
+      leaderboardCampaignId: card.leaderboardCampaignId ?? '',
     });
   }, [card]);
 
@@ -324,6 +381,8 @@ function PromoCardRow({
         subtitle: subtitle.trim() || null,
         betAndGetCampaignId: selection.betAndGetCampaignId || null,
         depositCampaignId: selection.depositCampaignId || null,
+        registerCampaignId: selection.registerCampaignId || null,
+        leaderboardCampaignId: selection.leaderboardCampaignId || null,
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: promoCardsQueryKey });
@@ -360,12 +419,16 @@ function PromoCardRow({
 
   const linkedCampaign =
     betAndGetCampaigns.find((campaign) => campaign.id === card.betAndGetCampaignId) ??
-    depositCampaigns.find((campaign) => campaign.id === card.depositCampaignId);
+    depositCampaigns.find((campaign) => campaign.id === card.depositCampaignId) ??
+    registerCampaigns.find((campaign) => campaign.id === card.registerCampaignId) ??
+    leaderboardCampaigns.find((campaign) => campaign.id === card.leaderboardCampaignId);
   const isDirty =
     title.trim() !== (card.title ?? '') ||
     subtitle.trim() !== (card.subtitle ?? '') ||
     selection.betAndGetCampaignId !== (card.betAndGetCampaignId ?? '') ||
-    selection.depositCampaignId !== (card.depositCampaignId ?? '');
+    selection.depositCampaignId !== (card.depositCampaignId ?? '') ||
+    selection.registerCampaignId !== (card.registerCampaignId ?? '') ||
+    selection.leaderboardCampaignId !== (card.leaderboardCampaignId ?? '');
 
   return (
     <div
@@ -458,6 +521,8 @@ function PromoCardRow({
                 onChange={setSelection}
                 betAndGetCampaigns={betAndGetCampaigns}
                 depositCampaigns={depositCampaigns}
+                registerCampaigns={registerCampaigns}
+                leaderboardCampaigns={leaderboardCampaigns}
               />
             </div>
           </div>
@@ -497,6 +562,14 @@ export default function CmsPromoCardsPage() {
   const { data: depositCampaigns } = useQuery({
     queryKey: depositCampaignsQueryKey,
     queryFn: backendApi.listDepositCampaigns,
+  });
+  const { data: registerCampaigns } = useQuery({
+    queryKey: registerCampaignsQueryKey,
+    queryFn: backendApi.listRegisterCampaigns,
+  });
+  const { data: leaderboardCampaigns } = useQuery({
+    queryKey: leaderboardCampaignsQueryKey,
+    queryFn: backendApi.listLeaderboardCampaigns,
   });
 
   const orderedCards = useMemo(
@@ -542,7 +615,12 @@ export default function CmsPromoCardsPage() {
 
       <div className="mt-4 space-y-4">
         <HomepageCarouselSettings />
-        <NewPromoCardForm betAndGetCampaigns={campaigns ?? []} depositCampaigns={depositCampaigns ?? []} />
+        <NewPromoCardForm
+          betAndGetCampaigns={campaigns ?? []}
+          depositCampaigns={depositCampaigns ?? []}
+          registerCampaigns={registerCampaigns ?? []}
+          leaderboardCampaigns={leaderboardCampaigns ?? []}
+        />
 
         {isPending && (
           <div className="space-y-2" aria-label="Loading content" role="status">
@@ -563,6 +641,8 @@ export default function CmsPromoCardsPage() {
                 card={card}
                 betAndGetCampaigns={campaigns ?? []}
                 depositCampaigns={depositCampaigns ?? []}
+                registerCampaigns={registerCampaigns ?? []}
+                leaderboardCampaigns={leaderboardCampaigns ?? []}
                 isDragged={draggedId === card.id}
                 onDragStart={() => setDraggedId(card.id)}
                 onDragOver={allowDrop}

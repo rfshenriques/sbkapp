@@ -1,40 +1,19 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
-import { Skeleton } from '../components/ui/Skeleton';
-import { ChevronIcon } from '../components/ui/ChevronIcon';
-import { toast, errorMessage } from '../features/toast/toastStore';
-import * as backendApi from '../lib/backendApi';
-import type { AudienceMode } from '../lib/backendApi';
-import { formatScheduleWindow, isoToLocalInputValue, localInputValueToIso } from '../lib/dateTimeInput';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { Skeleton } from '../../components/ui/Skeleton';
+import { toast, errorMessage } from '../toast/toastStore';
+import * as backendApi from '../../lib/backendApi';
+import type { AudienceMode } from '../../lib/backendApi';
+import { formatScheduleWindow, isoToLocalInputValue, localInputValueToIso } from '../../lib/dateTimeInput';
+import { CampaignAudienceEditor } from './CampaignAudienceEditor';
+import { CampaignCardShell } from './CampaignCardShell';
+import { CampaignScheduleFields } from './CampaignScheduleFields';
+import { centsToDisplay, displayToCents } from './campaignFormatters';
 
 const campaignsQueryKey = ['deposit-campaigns'] as const;
-const segmentsQueryKey = ['player-segments'] as const;
-
-function centsToDisplay(cents: number): string {
-  return (cents / 100).toFixed(2);
-}
-
-function displayToCents(value: string): number {
-  return Math.round(Number(value) * 100);
-}
-
-function audienceLabel(mode: AudienceMode): string {
-  switch (mode) {
-    case 'ALL':
-      return 'Everyone';
-    case 'LOGGED_OUT':
-      return 'Logged-out players only';
-    case 'LOGGED_IN':
-      return 'Logged-in players only';
-    case 'SEGMENTS':
-      return 'Specific player segments';
-  }
-}
-
-const AUDIENCE_MODES: AudienceMode[] = ['ALL', 'LOGGED_OUT', 'LOGGED_IN', 'SEGMENTS'];
 
 const DEFAULT_MIN_DEPOSIT = '10.00';
 const DEFAULT_FIXED_REWARD = '5.00';
@@ -90,14 +69,11 @@ function NewCampaignForm() {
       : Number(rewardPercent) > 0 && Number.isFinite(displayToCents(rewardCap)) && displayToCents(rewardCap) > 0;
 
   const isValid =
-    name.trim() !== '' &&
-    Number.isFinite(displayToCents(minDepositAmount)) &&
-    displayToCents(minDepositAmount) > 0 &&
-    rewardValid;
+    name.trim() !== '' && Number.isFinite(displayToCents(minDepositAmount)) && displayToCents(minDepositAmount) > 0 && rewardValid;
 
   return (
     <Card className="space-y-3">
-      <h2 className="text-sm font-semibold">New campaign</h2>
+      <h2 className="text-sm font-semibold">New Deposit campaign</h2>
       <p className="text-xs text-text-secondary">
         Created disabled - configure the bet requirement and audience below, then enable it when it's ready to go
         live.
@@ -183,30 +159,13 @@ function NewCampaignForm() {
         </Button>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-        <div>
-          <label className="block text-xs text-text-secondary" htmlFor="new-deposit-campaign-start">
-            Starts (optional)
-          </label>
-          <input
-            id="new-deposit-campaign-start"
-            type="datetime-local"
-            value={startAt}
-            onChange={(event) => setStartAt(event.target.value)}
-            className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-text-secondary" htmlFor="new-deposit-campaign-end">
-            Ends (optional)
-          </label>
-          <input
-            id="new-deposit-campaign-end"
-            type="datetime-local"
-            value={endAt}
-            onChange={(event) => setEndAt(event.target.value)}
-            className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
-          />
-        </div>
+        <CampaignScheduleFields
+          idPrefix="new-deposit-campaign"
+          startAtValue={startAt}
+          endAtValue={endAt}
+          onStartAtChange={setStartAt}
+          onEndAtChange={setEndAt}
+        />
         <p className="text-xs text-text-secondary">
           Leave either blank to run with no boundary on that side - enabling still requires the checkbox below.
         </p>
@@ -227,11 +186,6 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
     segmentIds: campaign.segments.map((segment) => segment.segmentId),
   });
 
-  // Free-typed number/currency fields keep their own string draft, synced
-  // from the campaign only (never re-derived from `draft` on every
-  // keystroke) - deriving display text straight from the numeric value
-  // would silently strip a trailing "." or "0" as the user types it,
-  // making decimals like 1.50 impossible to enter.
   const [minDepositText, setMinDepositText] = useState(centsToDisplay(campaign.minDepositAmountCents));
   const [fixedRewardText, setFixedRewardText] = useState(
     campaign.fixedRewardAmountCents != null ? centsToDisplay(campaign.fixedRewardAmountCents) : '',
@@ -261,12 +215,6 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
     setEndAtText(isoToLocalInputValue(campaign.endAt));
   }, [campaign]);
 
-  const { data: segments } = useQuery({
-    queryKey: segmentsQueryKey,
-    queryFn: backendApi.listPlayerSegments,
-    enabled: draft.audienceMode === 'SEGMENTS',
-  });
-
   const saveMutation = useMutation({
     mutationFn: () => backendApi.updateDepositCampaign(campaign.id, draft),
     onSuccess: () => {
@@ -281,9 +229,7 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
       const current = previous.segmentIds ?? [];
       return {
         ...previous,
-        segmentIds: current.includes(segmentId)
-          ? current.filter((id) => id !== segmentId)
-          : [...current, segmentId],
+        segmentIds: current.includes(segmentId) ? current.filter((id) => id !== segmentId) : [...current, segmentId],
       };
     });
   }
@@ -301,11 +247,7 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
     typeof draft.minDepositAmountCents === 'number' &&
     draft.minDepositAmountCents > 0 &&
     rewardValid &&
-    (!draft.requiresBet ||
-      draft.trigger !== 'SETTLEMENT' ||
-      draft.triggerOnWon ||
-      draft.triggerOnLost ||
-      draft.triggerOnVoid);
+    (!draft.requiresBet || draft.trigger !== 'SETTLEMENT' || draft.triggerOnWon || draft.triggerOnLost || draft.triggerOnVoid);
 
   return (
     <div className="space-y-3">
@@ -353,38 +295,19 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <label className="block text-xs text-text-secondary" htmlFor={`start-${campaign.id}`}>
-            Starts (optional)
-          </label>
-          <input
-            id={`start-${campaign.id}`}
-            type="datetime-local"
-            value={startAtText}
-            onChange={(event) => {
-              setStartAtText(event.target.value);
-              setDraft({ ...draft, startAt: localInputValueToIso(event.target.value) });
-            }}
-            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-text-secondary" htmlFor={`end-${campaign.id}`}>
-            Ends (optional)
-          </label>
-          <input
-            id={`end-${campaign.id}`}
-            type="datetime-local"
-            value={endAtText}
-            onChange={(event) => {
-              setEndAtText(event.target.value);
-              setDraft({ ...draft, endAt: localInputValueToIso(event.target.value) });
-            }}
-            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-          />
-        </div>
-      </div>
+      <CampaignScheduleFields
+        idPrefix={campaign.id}
+        startAtValue={startAtText}
+        endAtValue={endAtText}
+        onStartAtChange={(value) => {
+          setStartAtText(value);
+          setDraft({ ...draft, startAt: localInputValueToIso(value) });
+        }}
+        onEndAtChange={(value) => {
+          setEndAtText(value);
+          setDraft({ ...draft, endAt: localInputValueToIso(value) });
+        }}
+      />
 
       <div>
         <span className="block text-xs text-text-secondary">Reward</span>
@@ -392,9 +315,7 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
           <select
             aria-label={`reward type ${campaign.id}`}
             value={draft.rewardType ?? 'FIXED'}
-            onChange={(event) =>
-              setDraft({ ...draft, rewardType: event.target.value as backendApi.DepositRewardType })
-            }
+            onChange={(event) => setDraft({ ...draft, rewardType: event.target.value as backendApi.DepositRewardType })}
             className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
           >
             <option value="FIXED">Fixed amount</option>
@@ -535,10 +456,7 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
                 placeholder="No minimum"
                 onChange={(event) => {
                   setMinStakeText(event.target.value);
-                  setDraft({
-                    ...draft,
-                    minStakeCents: event.target.value === '' ? null : displayToCents(event.target.value),
-                  });
+                  setDraft({ ...draft, minStakeCents: event.target.value === '' ? null : displayToCents(event.target.value) });
                 }}
                 className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
               />
@@ -597,41 +515,13 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
         </>
       )}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="flex items-center gap-1.5 text-sm text-text-secondary">
-          Audience
-          <select
-            aria-label={`audience ${campaign.id}`}
-            value={draft.audienceMode ?? 'ALL'}
-            onChange={(event) => setDraft({ ...draft, audienceMode: event.target.value as AudienceMode })}
-            className="rounded-md border border-border bg-background px-2 py-1 text-sm"
-          >
-            {AUDIENCE_MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {audienceLabel(mode)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {draft.audienceMode === 'SEGMENTS' && (
-        <div className="flex flex-wrap gap-2">
-          {(segments ?? []).length === 0 && (
-            <span className="text-xs text-text-muted">No player segments exist yet.</span>
-          )}
-          {segments?.map((segment) => (
-            <label key={segment.id} className="flex items-center gap-1 text-xs text-text-secondary">
-              <input
-                type="checkbox"
-                checked={(draft.segmentIds ?? []).includes(segment.id)}
-                onChange={() => toggleSegment(segment.id)}
-              />
-              {segment.name}
-            </label>
-          ))}
-        </div>
-      )}
+      <CampaignAudienceEditor
+        idPrefix={campaign.id}
+        audienceMode={draft.audienceMode ?? 'ALL'}
+        segmentIds={draft.segmentIds ?? []}
+        onAudienceModeChange={(mode) => setDraft({ ...draft, audienceMode: mode as AudienceMode })}
+        onToggleSegment={toggleSegment}
+      />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex items-center gap-2 text-sm">
@@ -655,10 +545,7 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
               placeholder="Unlimited"
               onChange={(event) => {
                 setMaxRedemptionsText(event.target.value);
-                setDraft({
-                  ...draft,
-                  maxRedemptionsPerPlayer: event.target.value === '' ? null : Number(event.target.value),
-                });
+                setDraft({ ...draft, maxRedemptionsPerPlayer: event.target.value === '' ? null : Number(event.target.value) });
               }}
               className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
             />
@@ -690,7 +577,6 @@ interface CampaignCardProps {
 function CampaignCard({ campaign }: CampaignCardProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleEnabledMutation = useMutation({
     mutationFn: () => backendApi.updateDepositCampaign(campaign.id, { enabled: !campaign.enabled }),
@@ -716,105 +602,58 @@ function CampaignCard({ campaign }: CampaignCardProps) {
       : `${campaign.rewardPercent ?? 0}% up to £${centsToDisplay(campaign.rewardCapCents ?? 0)}`;
 
   return (
-    <Card className="p-0">
-      <button
-        type="button"
-        aria-expanded={isExpanded}
-        onClick={() => setIsExpanded((value) => !value)}
-        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-              campaign.enabled ? 'bg-highlight/20 text-highlight' : 'bg-background text-text-muted'
-            }`}
-          >
-            {campaign.enabled ? 'Live' : 'Draft'}
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold">{campaign.name}</span>
-            <span className="block text-xs text-text-secondary">
-              {rewardSummary} · min deposit £{centsToDisplay(campaign.minDepositAmountCents)} ·{' '}
-              {campaign.requiresBet ? `requires bet (${campaign.trigger.toLowerCase()})` : 'no bet required'}
-            </span>
-            {(campaign.startAt || campaign.endAt) && (
-              <span className="block text-xs text-text-secondary">{formatScheduleWindow(campaign)}</span>
-            )}
-          </span>
-        </span>
-        <ChevronIcon className={`h-4 w-4 shrink-0 text-text-muted ${isExpanded ? 'rotate-180' : ''}`} />
-      </button>
-
-      {isExpanded && (
-        <div className="space-y-4 border-t border-border p-4 pt-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={campaign.enabled}
-              disabled={toggleEnabledMutation.isPending}
-              onChange={() => toggleEnabledMutation.mutate()}
-            />
-            Enabled (visible to players and eligible to grant rewards)
-          </label>
-
-          <CampaignDetailsForm campaign={campaign} />
-
-          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-            <Button
-              variant="secondary"
-              onClick={() =>
-                navigate('/push-notifications', {
-                  state: { depositCampaignId: campaign.id, campaignName: campaign.name },
-                })
-              }
-            >
-              Send push for this campaign
-            </Button>
-            <Button variant="ghost" onClick={() => removeMutation.mutate()} disabled={removeMutation.isPending}>
-              Delete campaign
-            </Button>
-          </div>
-        </div>
-      )}
-    </Card>
+    <CampaignCardShell
+      name={campaign.name}
+      enabled={campaign.enabled}
+      summary={`${rewardSummary} · min deposit £${centsToDisplay(campaign.minDepositAmountCents)} · ${campaign.requiresBet ? `requires bet (${campaign.trigger.toLowerCase()})` : 'no bet required'}`}
+      scheduleLine={campaign.startAt || campaign.endAt ? formatScheduleWindow(campaign) : null}
+      onToggleEnabled={() => toggleEnabledMutation.mutate()}
+      isTogglingEnabled={toggleEnabledMutation.isPending}
+      onDelete={() => removeMutation.mutate()}
+      isDeleting={removeMutation.isPending}
+      extraActions={
+        <Button
+          variant="secondary"
+          onClick={() => navigate('/push-notifications', { state: { depositCampaignId: campaign.id, campaignName: campaign.name } })}
+        >
+          Send push for this campaign
+        </Button>
+      }
+    >
+      <CampaignDetailsForm campaign={campaign} />
+    </CampaignCardShell>
   );
 }
 
-export default function DepositCampaignsPage() {
-  const {
-    data: campaigns,
-    isPending,
-    isError,
-  } = useQuery({ queryKey: campaignsQueryKey, queryFn: backendApi.listDepositCampaigns });
+export function DepositCampaignsTab() {
+  const { data: campaigns, isPending, isError } = useQuery({
+    queryKey: campaignsQueryKey,
+    queryFn: backendApi.listDepositCampaigns,
+  });
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold">Deposit campaigns</h1>
-      <p className="mt-1 text-sm text-text-secondary">
+    <div className="space-y-4">
+      <p className="text-sm text-text-secondary">
         Freebet rewards for players who deposit, shown as a modal right after login when a player is targeted by an
         eligible campaign. A player who doesn't deposit through the popup can still redeem via a promo card on the
         homepage or Promotions page.
       </p>
 
-      <div className="mt-4 space-y-4">
-        <NewCampaignForm />
+      <NewCampaignForm />
 
-        {isPending && (
-          <div className="space-y-2" aria-label="Loading campaigns" role="status">
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
-          </div>
-        )}
-        {isError && <p className="text-sm text-danger">Failed to load deposit campaigns.</p>}
-        {!isPending && campaigns?.length === 0 && (
-          <p className="text-sm text-text-secondary">No campaigns yet - create one above.</p>
-        )}
-
-        <div className="space-y-2">
-          {campaigns?.map((campaign) => (
-            <CampaignCard key={campaign.id} campaign={campaign} />
-          ))}
+      {isPending && (
+        <div className="space-y-2" aria-label="Loading campaigns" role="status">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
         </div>
+      )}
+      {isError && <p className="text-sm text-danger">Failed to load deposit campaigns.</p>}
+      {!isPending && campaigns?.length === 0 && <p className="text-sm text-text-secondary">No campaigns yet - create one above.</p>}
+
+      <div className="space-y-2">
+        {campaigns?.map((campaign) => (
+          <CampaignCard key={campaign.id} campaign={campaign} />
+        ))}
       </div>
     </div>
   );

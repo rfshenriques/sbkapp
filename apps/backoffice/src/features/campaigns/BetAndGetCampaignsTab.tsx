@@ -2,43 +2,22 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import type { Match } from '@sportsbook/shared';
-import { MatchDrilldown } from '../components/MatchDrilldown';
-import { Button } from '../components/ui/Button';
-import { Card } from '../components/ui/Card';
-import { Skeleton } from '../components/ui/Skeleton';
-import { ChevronIcon } from '../components/ui/ChevronIcon';
-import { toast, errorMessage } from '../features/toast/toastStore';
-import * as backendApi from '../lib/backendApi';
-import type { AudienceMode } from '../lib/backendApi';
-import { formatScheduleWindow, isoToLocalInputValue, localInputValueToIso } from '../lib/dateTimeInput';
-import * as oddsEngineApi from '../lib/oddsEngineApi';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
+import { Skeleton } from '../../components/ui/Skeleton';
+import { toast, errorMessage } from '../toast/toastStore';
+import * as backendApi from '../../lib/backendApi';
+import type { AudienceMode } from '../../lib/backendApi';
+import { formatScheduleWindow, isoToLocalInputValue, localInputValueToIso } from '../../lib/dateTimeInput';
+import * as oddsEngineApi from '../../lib/oddsEngineApi';
+import { CampaignAudienceEditor } from './CampaignAudienceEditor';
+import { CampaignCardShell } from './CampaignCardShell';
+import { CampaignScheduleFields } from './CampaignScheduleFields';
+import { CampaignScopeEditor } from './CampaignScopeEditor';
+import { centsToDisplay, displayToCents } from './campaignFormatters';
 
 const campaignsQueryKey = ['bet-and-get-campaigns'] as const;
 const matchesQueryKey = ['live-matches'] as const;
-const segmentsQueryKey = ['player-segments'] as const;
-
-function centsToDisplay(cents: number): string {
-  return (cents / 100).toFixed(2);
-}
-
-function displayToCents(value: string): number {
-  return Math.round(Number(value) * 100);
-}
-
-function audienceLabel(mode: AudienceMode): string {
-  switch (mode) {
-    case 'ALL':
-      return 'Everyone';
-    case 'LOGGED_OUT':
-      return 'Logged-out players only';
-    case 'LOGGED_IN':
-      return 'Logged-in players only';
-    case 'SEGMENTS':
-      return 'Specific player segments';
-  }
-}
-
-const AUDIENCE_MODES: AudienceMode[] = ['ALL', 'LOGGED_OUT', 'LOGGED_IN', 'SEGMENTS'];
 
 const DEFAULT_REWARD_AMOUNT = '10.00';
 const DEFAULT_REWARD_PERCENT = '10';
@@ -93,7 +72,7 @@ function NewCampaignForm() {
 
   return (
     <Card className="space-y-3">
-      <h2 className="text-sm font-semibold">New campaign</h2>
+      <h2 className="text-sm font-semibold">New Bet & Get campaign</h2>
       <p className="text-xs text-text-secondary">
         Created disabled - configure conditions, scope, and reward below, then enable it when it's ready to go live.
       </p>
@@ -161,30 +140,13 @@ function NewCampaignForm() {
         </Button>
       </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-        <div>
-          <label className="block text-xs text-text-secondary" htmlFor="new-campaign-start">
-            Starts (optional)
-          </label>
-          <input
-            id="new-campaign-start"
-            type="datetime-local"
-            value={startAt}
-            onChange={(event) => setStartAt(event.target.value)}
-            className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-text-secondary" htmlFor="new-campaign-end">
-            Ends (optional)
-          </label>
-          <input
-            id="new-campaign-end"
-            type="datetime-local"
-            value={endAt}
-            onChange={(event) => setEndAt(event.target.value)}
-            className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
-          />
-        </div>
+        <CampaignScheduleFields
+          idPrefix="new-bag-campaign"
+          startAtValue={startAt}
+          endAtValue={endAt}
+          onStartAtChange={setStartAt}
+          onEndAtChange={setEndAt}
+        />
         <p className="text-xs text-text-secondary">
           Leave either blank to run with no boundary on that side - enabling still requires the checkbox below.
         </p>
@@ -205,11 +167,6 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
     segmentIds: campaign.segments.map((segment) => segment.segmentId),
   });
 
-  // Free-typed number/currency fields keep their own string draft, synced
-  // from the campaign only (never re-derived from `draft` on every
-  // keystroke) - deriving display text straight from the numeric value
-  // would silently strip a trailing "." or "0" as the user types it,
-  // making decimals like 1.50 impossible to enter.
   const [rewardAmountText, setRewardAmountText] = useState(
     campaign.rewardAmountCents != null ? centsToDisplay(campaign.rewardAmountCents) : '',
   );
@@ -225,20 +182,12 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
   const [startAtText, setStartAtText] = useState(isoToLocalInputValue(campaign.startAt));
   const [endAtText, setEndAtText] = useState(isoToLocalInputValue(campaign.endAt));
 
-  const { data: segments } = useQuery({
-    queryKey: segmentsQueryKey,
-    queryFn: backendApi.listPlayerSegments,
-    enabled: draft.audienceMode === 'SEGMENTS',
-  });
-
   function toggleSegment(segmentId: string) {
     setDraft((previous) => {
       const current = previous.segmentIds ?? [];
       return {
         ...previous,
-        segmentIds: current.includes(segmentId)
-          ? current.filter((id) => id !== segmentId)
-          : [...current, segmentId],
+        segmentIds: current.includes(segmentId) ? current.filter((id) => id !== segmentId) : [...current, segmentId],
       };
     });
   }
@@ -302,9 +251,7 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
           <select
             aria-label={`reward type ${campaign.id}`}
             value={draft.rewardType ?? 'FIXED'}
-            onChange={(event) =>
-              setDraft({ ...draft, rewardType: event.target.value as backendApi.BetAndGetRewardType })
-            }
+            onChange={(event) => setDraft({ ...draft, rewardType: event.target.value as backendApi.BetAndGetRewardType })}
             className="rounded-md border border-border bg-background px-2 py-1.5 text-sm"
           >
             <option value="FIXED">Fixed amount</option>
@@ -376,38 +323,19 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <div>
-          <label className="block text-xs text-text-secondary" htmlFor={`start-${campaign.id}`}>
-            Starts (optional)
-          </label>
-          <input
-            id={`start-${campaign.id}`}
-            type="datetime-local"
-            value={startAtText}
-            onChange={(event) => {
-              setStartAtText(event.target.value);
-              setDraft({ ...draft, startAt: localInputValueToIso(event.target.value) });
-            }}
-            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-text-secondary" htmlFor={`end-${campaign.id}`}>
-            Ends (optional)
-          </label>
-          <input
-            id={`end-${campaign.id}`}
-            type="datetime-local"
-            value={endAtText}
-            onChange={(event) => {
-              setEndAtText(event.target.value);
-              setDraft({ ...draft, endAt: localInputValueToIso(event.target.value) });
-            }}
-            className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
-          />
-        </div>
-      </div>
+      <CampaignScheduleFields
+        idPrefix={campaign.id}
+        startAtValue={startAtText}
+        endAtValue={endAtText}
+        onStartAtChange={(value) => {
+          setStartAtText(value);
+          setDraft({ ...draft, startAt: localInputValueToIso(value) });
+        }}
+        onEndAtChange={(value) => {
+          setEndAtText(value);
+          setDraft({ ...draft, endAt: localInputValueToIso(value) });
+        }}
+      />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
@@ -514,10 +442,7 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
             placeholder="No minimum"
             onChange={(event) => {
               setMinCombinedOddsText(event.target.value);
-              setDraft({
-                ...draft,
-                minCombinedOdds: event.target.value === '' ? null : Number(event.target.value),
-              });
+              setDraft({ ...draft, minCombinedOdds: event.target.value === '' ? null : Number(event.target.value) });
             }}
             className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
           />
@@ -562,9 +487,7 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
           <select
             id={`betting-timing-${campaign.id}`}
             value={draft.bettingTiming ?? 'EITHER'}
-            onChange={(event) =>
-              setDraft({ ...draft, bettingTiming: event.target.value as backendApi.BetAndGetTiming })
-            }
+            onChange={(event) => setDraft({ ...draft, bettingTiming: event.target.value as backendApi.BetAndGetTiming })}
             className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
           >
             <option value="EITHER">Either</option>
@@ -574,41 +497,13 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="flex items-center gap-1.5 text-sm text-text-secondary">
-          Audience
-          <select
-            aria-label={`audience ${campaign.id}`}
-            value={draft.audienceMode ?? 'ALL'}
-            onChange={(event) => setDraft({ ...draft, audienceMode: event.target.value as AudienceMode })}
-            className="rounded-md border border-border bg-background px-2 py-1 text-sm"
-          >
-            {AUDIENCE_MODES.map((mode) => (
-              <option key={mode} value={mode}>
-                {audienceLabel(mode)}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {draft.audienceMode === 'SEGMENTS' && (
-        <div className="flex flex-wrap gap-2">
-          {(segments ?? []).length === 0 && (
-            <span className="text-xs text-text-muted">No player segments exist yet.</span>
-          )}
-          {segments?.map((segment) => (
-            <label key={segment.id} className="flex items-center gap-1 text-xs text-text-secondary">
-              <input
-                type="checkbox"
-                checked={(draft.segmentIds ?? []).includes(segment.id)}
-                onChange={() => toggleSegment(segment.id)}
-              />
-              {segment.name}
-            </label>
-          ))}
-        </div>
-      )}
+      <CampaignAudienceEditor
+        idPrefix={campaign.id}
+        audienceMode={draft.audienceMode ?? 'ALL'}
+        segmentIds={draft.segmentIds ?? []}
+        onAudienceModeChange={(mode) => setDraft({ ...draft, audienceMode: mode as AudienceMode })}
+        onToggleSegment={toggleSegment}
+      />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex items-center gap-2 text-sm">
@@ -632,10 +527,7 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
               placeholder="Unlimited"
               onChange={(event) => {
                 setMaxRedemptionsText(event.target.value);
-                setDraft({
-                  ...draft,
-                  maxRedemptionsPerPlayer: event.target.value === '' ? null : Number(event.target.value),
-                });
+                setDraft({ ...draft, maxRedemptionsPerPlayer: event.target.value === '' ? null : Number(event.target.value) });
               }}
               className="mt-1 w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm"
             />
@@ -654,138 +546,6 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
   );
 }
 
-interface CampaignScopeEditorProps {
-  campaign: backendApi.BetAndGetCampaign;
-  matches: Match[] | undefined;
-  matchesLoading: boolean;
-  matchesError: boolean;
-}
-
-function CampaignScopeEditor({ campaign, matches, matchesLoading, matchesError }: CampaignScopeEditorProps) {
-  const queryClient = useQueryClient();
-  const [draft, setDraft] = useState(campaign.scopes.map(({ scopeType, scopeValue }) => ({ scopeType, scopeValue })));
-  const [isPicking, setIsPicking] = useState(false);
-
-  useEffect(
-    () => setDraft(campaign.scopes.map(({ scopeType, scopeValue }) => ({ scopeType, scopeValue }))),
-    [campaign.scopes],
-  );
-
-  const saveMutation = useMutation({
-    mutationFn: () => backendApi.setBetAndGetCampaignScopes(campaign.id, draft),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: campaignsQueryKey });
-      toast.success('Scope saved');
-    },
-    onError: (error) => toast.error(errorMessage(error, 'Failed to save scope')),
-  });
-
-  function has(scopeType: backendApi.BetAndGetScopeType, scopeValue: string): boolean {
-    return draft.some((entry) => entry.scopeType === scopeType && entry.scopeValue === scopeValue);
-  }
-  function add(scopeType: backendApi.BetAndGetScopeType, scopeValue: string) {
-    if (has(scopeType, scopeValue)) return;
-    setDraft((previous) => [...previous, { scopeType, scopeValue }]);
-  }
-  function remove(scopeType: backendApi.BetAndGetScopeType, scopeValue: string) {
-    setDraft((previous) => previous.filter((entry) => !(entry.scopeType === scopeType && entry.scopeValue === scopeValue)));
-  }
-
-  const isDirty =
-    draft.length !== campaign.scopes.length ||
-    draft.some((entry) => !campaign.scopes.some((s) => s.scopeType === entry.scopeType && s.scopeValue === entry.scopeValue));
-
-  return (
-    <div className="space-y-3">
-      <div>
-        <span className="block text-xs text-text-secondary">
-          Sports, competitions, and matches this campaign applies to (a bet only qualifies when every one of its
-          selections falls within this scope)
-        </span>
-        {draft.length === 0 && <p className="mt-1 text-sm text-text-secondary">No scope set yet - this campaign matches nothing.</p>}
-        {draft.length > 0 && (
-          <div className="mt-2 flex flex-wrap gap-2">
-            {draft.map((entry) => (
-              <span
-                key={`${entry.scopeType}:${entry.scopeValue}`}
-                className="flex items-center gap-1 rounded-full bg-background px-3 py-1 text-xs"
-              >
-                <span className="text-text-muted">{entry.scopeType}</span> {entry.scopeValue}
-                <button
-                  type="button"
-                  aria-label={`Remove ${entry.scopeValue} from scope`}
-                  onClick={() => remove(entry.scopeType, entry.scopeValue)}
-                  className="ml-1 text-text-muted hover:text-danger"
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <Button variant="ghost" onClick={() => setIsPicking((value) => !value)}>
-        {isPicking ? 'Hide match picker' : 'Add from live matches'}
-      </Button>
-
-      {isPicking && (
-        <MatchDrilldown
-          matches={matches}
-          isLoading={matchesLoading}
-          isError={matchesError}
-          renderLeague={(node) => {
-            const sport = node.matches[0]?.sport;
-            return (
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-2">
-                  {sport && (
-                    <Button
-                      variant="secondary"
-                      disabled={has('SPORT', sport)}
-                      onClick={() => add('SPORT', sport)}
-                    >
-                      {has('SPORT', sport) ? `Sport "${sport}" added` : `Add whole sport: ${sport}`}
-                    </Button>
-                  )}
-                  <Button
-                    variant="secondary"
-                    disabled={has('COMPETITION', node.competition)}
-                    onClick={() => add('COMPETITION', node.competition)}
-                  >
-                    {has('COMPETITION', node.competition)
-                      ? `Competition "${node.competition}" added`
-                      : `Add whole competition: ${node.competition}`}
-                  </Button>
-                </div>
-                <div className="space-y-1">
-                  {node.matches.map((match) => (
-                    <div
-                      key={match.id}
-                      className="flex items-center justify-between gap-2 rounded-md bg-background px-3 py-2 text-sm"
-                    >
-                      <span className="min-w-0 truncate">
-                        {match.homeTeam} vs {match.awayTeam}
-                      </span>
-                      <Button variant="ghost" disabled={has('MATCH', match.id)} onClick={() => add('MATCH', match.id)}>
-                        {has('MATCH', match.id) ? 'Added' : 'Add match'}
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          }}
-        />
-      )}
-
-      <Button variant="secondary" disabled={!isDirty || saveMutation.isPending} onClick={() => saveMutation.mutate()}>
-        Save scope
-      </Button>
-    </div>
-  );
-}
-
 interface CampaignCardProps {
   campaign: backendApi.BetAndGetCampaign;
   matches: Match[] | undefined;
@@ -796,7 +556,6 @@ interface CampaignCardProps {
 function CampaignCard({ campaign, matches, matchesLoading, matchesError }: CampaignCardProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [isExpanded, setIsExpanded] = useState(false);
 
   const toggleEnabledMutation = useMutation({
     mutationFn: () => backendApi.updateBetAndGetCampaign(campaign.id, { enabled: !campaign.enabled }),
@@ -805,6 +564,16 @@ function CampaignCard({ campaign, matches, matchesLoading, matchesError }: Campa
       toast.success(campaign.enabled ? 'Campaign disabled' : 'Campaign enabled');
     },
     onError: (error) => toast.error(errorMessage(error, 'Failed to update campaign')),
+  });
+
+  const setScopesMutation = useMutation({
+    mutationFn: (scopes: { scopeType: backendApi.BetAndGetScopeType; scopeValue: string }[]) =>
+      backendApi.setBetAndGetCampaignScopes(campaign.id, scopes),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: campaignsQueryKey });
+      toast.success('Scope saved');
+    },
+    onError: (error) => toast.error(errorMessage(error, 'Failed to save scope')),
   });
 
   const removeMutation = useMutation({
@@ -822,125 +591,74 @@ function CampaignCard({ campaign, matches, matchesLoading, matchesError }: Campa
       : `£${centsToDisplay(campaign.rewardAmountCents ?? 0)} freebet`;
 
   return (
-    <Card className="p-0">
-      <button
-        type="button"
-        aria-expanded={isExpanded}
-        onClick={() => setIsExpanded((value) => !value)}
-        className="flex w-full items-center justify-between gap-2 px-4 py-3 text-left"
-      >
-        <span className="flex min-w-0 items-center gap-2">
-          <span
-            className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-              campaign.enabled ? 'bg-highlight/20 text-highlight' : 'bg-background text-text-muted'
-            }`}
-          >
-            {campaign.enabled ? 'Live' : 'Draft'}
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold">{campaign.name}</span>
-            <span className="block text-xs text-text-secondary">
-              {rewardSummary} · {campaign.trigger.toLowerCase()} ·{' '}
-              {campaign.scopes.length} scope {campaign.scopes.length === 1 ? 'entry' : 'entries'}
-            </span>
-            {(campaign.startAt || campaign.endAt) && (
-              <span className="block text-xs text-text-secondary">{formatScheduleWindow(campaign)}</span>
-            )}
-          </span>
-        </span>
-        <ChevronIcon className={`h-4 w-4 shrink-0 text-text-muted ${isExpanded ? 'rotate-180' : ''}`} />
-      </button>
-
-      {isExpanded && (
-        <div className="space-y-4 border-t border-border p-4 pt-3">
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={campaign.enabled}
-              disabled={toggleEnabledMutation.isPending}
-              onChange={() => toggleEnabledMutation.mutate()}
-            />
-            Enabled (visible to players and eligible to grant rewards)
-          </label>
-
-          <CampaignDetailsForm campaign={campaign} />
-
-          <div className="border-t border-border pt-3">
-            <CampaignScopeEditor
-              campaign={campaign}
-              matches={matches}
-              matchesLoading={matchesLoading}
-              matchesError={matchesError}
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 border-t border-border pt-3">
-            <Button
-              variant="secondary"
-              onClick={() =>
-                navigate('/push-notifications', {
-                  state: { betAndGetCampaignId: campaign.id, campaignName: campaign.name },
-                })
-              }
-            >
-              Send push for this campaign
-            </Button>
-            <Button variant="ghost" onClick={() => removeMutation.mutate()} disabled={removeMutation.isPending}>
-              Delete campaign
-            </Button>
-          </div>
-        </div>
-      )}
-    </Card>
+    <CampaignCardShell
+      name={campaign.name}
+      enabled={campaign.enabled}
+      summary={`${rewardSummary} · ${campaign.trigger.toLowerCase()} · ${campaign.scopes.length} scope ${campaign.scopes.length === 1 ? 'entry' : 'entries'}`}
+      scheduleLine={campaign.startAt || campaign.endAt ? formatScheduleWindow(campaign) : null}
+      onToggleEnabled={() => toggleEnabledMutation.mutate()}
+      isTogglingEnabled={toggleEnabledMutation.isPending}
+      onDelete={() => removeMutation.mutate()}
+      isDeleting={removeMutation.isPending}
+      extraActions={
+        <Button
+          variant="secondary"
+          onClick={() => navigate('/push-notifications', { state: { betAndGetCampaignId: campaign.id, campaignName: campaign.name } })}
+        >
+          Send push for this campaign
+        </Button>
+      }
+    >
+      <CampaignDetailsForm campaign={campaign} />
+      <div className="border-t border-border pt-3">
+        <CampaignScopeEditor
+          idPrefix={campaign.id}
+          initialScopes={campaign.scopes.map(({ scopeType, scopeValue }) => ({ scopeType, scopeValue }))}
+          onSave={(scopes) => setScopesMutation.mutate(scopes)}
+          isSaving={setScopesMutation.isPending}
+          matches={matches}
+          matchesLoading={matchesLoading}
+          matchesError={matchesError}
+        />
+      </div>
+    </CampaignCardShell>
   );
 }
 
-export default function BetAndGetCampaignsPage() {
-  const {
-    data: campaigns,
-    isPending,
-    isError,
-  } = useQuery({ queryKey: campaignsQueryKey, queryFn: backendApi.listBetAndGetCampaigns });
+export function BetAndGetCampaignsTab() {
+  const { data: campaigns, isPending, isError } = useQuery({
+    queryKey: campaignsQueryKey,
+    queryFn: backendApi.listBetAndGetCampaigns,
+  });
 
-  const {
-    data: matches,
-    isPending: matchesLoading,
-    isError: matchesError,
-  } = useQuery({ queryKey: matchesQueryKey, queryFn: oddsEngineApi.fetchMatches });
+  const { data: matches, isPending: matchesLoading, isError: matchesError } = useQuery({
+    queryKey: matchesQueryKey,
+    queryFn: oddsEngineApi.fetchMatches,
+  });
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold">Bet & Get campaigns</h1>
-      <p className="mt-1 text-sm text-text-secondary">
+    <div className="space-y-4">
+      <p className="text-sm text-text-secondary">
         Freebet rewards - a fixed amount or a percentage of the qualifying bet's own stake, capped - for bets on
         a chosen sport, competition, or match. A bet only qualifies when every one of its selections falls
-        within the campaign's scope and meets its conditions. Accumulated-across-bets variants are a later
-        build, not this one.
+        within the campaign's scope and meets its conditions.
       </p>
 
-      <div className="mt-4 space-y-4">
-        <NewCampaignForm />
+      <NewCampaignForm />
 
-        {isPending && (
-          <div className="space-y-2" aria-label="Loading campaigns" role="status">
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
-          </div>
-        )}
-        {isError && <p className="text-sm text-danger">Failed to load Bet & Get campaigns.</p>}
-        {!isPending && campaigns?.length === 0 && <p className="text-sm text-text-secondary">No campaigns yet - create one above.</p>}
-
-        <div className="space-y-2">
-          {campaigns?.map((campaign) => (
-            <CampaignCard
-              key={campaign.id}
-              campaign={campaign}
-              matches={matches}
-              matchesLoading={matchesLoading}
-              matchesError={matchesError}
-            />
-          ))}
+      {isPending && (
+        <div className="space-y-2" aria-label="Loading campaigns" role="status">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-full" />
         </div>
+      )}
+      {isError && <p className="text-sm text-danger">Failed to load Bet & Get campaigns.</p>}
+      {!isPending && campaigns?.length === 0 && <p className="text-sm text-text-secondary">No campaigns yet - create one above.</p>}
+
+      <div className="space-y-2">
+        {campaigns?.map((campaign) => (
+          <CampaignCard key={campaign.id} campaign={campaign} matches={matches} matchesLoading={matchesLoading} matchesError={matchesError} />
+        ))}
       </div>
     </div>
   );
