@@ -31,6 +31,8 @@ const draftCampaign: BetAndGetCampaign = {
   minSelections: null,
   allowMultipleRedemptions: false,
   maxRedemptionsPerPlayer: null,
+  audienceMode: 'ALL',
+  segments: [],
   createdAt: '2026-07-24T00:00:00Z',
   updatedAt: '2026-07-24T00:00:00Z',
   scopes: [],
@@ -191,6 +193,43 @@ describe('BetAndGetCampaignsPage', () => {
     expect(fetchMock).toHaveBeenCalledWith(
       '/backend/admin/bet-and-get-campaigns/campaign-1',
       expect.objectContaining({ method: 'DELETE' }),
+    );
+  });
+
+  it('choosing "Specific player segments" audience loads and shows segments, and saving sends audienceMode + segmentIds', async () => {
+    const fetchMock = stubFetch((url, method, init) => {
+      if (method === 'GET' && url === '/backend/admin/bet-and-get-campaigns') {
+        return new Response(JSON.stringify([draftCampaign]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/player-segments') {
+        return new Response(
+          JSON.stringify([
+            { id: 'seg-1', brandId: 'brand-1', name: 'VIPs', description: null, colorHex: null, createdAt: '', updatedAt: '', members: [] },
+          ]),
+          { status: 200 },
+        );
+      }
+      if (method === 'PATCH' && url === '/backend/admin/bet-and-get-campaigns/campaign-1') {
+        const body = JSON.parse(init!.body as string);
+        expect(body.audienceMode).toBe('SEGMENTS');
+        expect(body.segmentIds).toEqual(['seg-1']);
+        return new Response(JSON.stringify({ ...draftCampaign, audienceMode: 'SEGMENTS' }), { status: 200 });
+      }
+      return undefined;
+    });
+
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: /CL Bet & Get/ }));
+
+    await userEvent.selectOptions(screen.getByLabelText(/^audience campaign-1$/), 'SEGMENTS');
+    expect(await screen.findByText('VIPs')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByLabelText('VIPs'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save details' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/bet-and-get-campaigns/campaign-1',
+      expect.objectContaining({ method: 'PATCH' }),
     );
   });
 

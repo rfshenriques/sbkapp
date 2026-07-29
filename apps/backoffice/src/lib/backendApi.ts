@@ -1246,6 +1246,12 @@ export interface BetAndGetCampaignScope {
   scopeValue: string;
 }
 
+export interface BetAndGetCampaignSegment {
+  id: string;
+  campaignId: string;
+  segmentId: string;
+}
+
 export interface BetAndGetCampaign {
   id: string;
   brandId: string;
@@ -1277,6 +1283,8 @@ export interface BetAndGetCampaign {
   bettingTiming: BetAndGetTiming;
   allowMultipleRedemptions: boolean;
   maxRedemptionsPerPlayer: number | null;
+  audienceMode: AudienceMode;
+  segments: BetAndGetCampaignSegment[];
   createdAt: string;
   updatedAt: string;
   scopes: BetAndGetCampaignScope[];
@@ -1297,7 +1305,9 @@ export interface CreateBetAndGetCampaignPayload {
 }
 
 export type UpdateBetAndGetCampaignPayload = Partial<
-  Omit<BetAndGetCampaign, 'id' | 'brandId' | 'createdAt' | 'updatedAt' | 'scopes'>
+  Omit<BetAndGetCampaign, 'id' | 'brandId' | 'createdAt' | 'updatedAt' | 'scopes' | 'segments'> & {
+    segmentIds: string[];
+  }
 >;
 
 export async function listBetAndGetCampaigns(): Promise<BetAndGetCampaign[]> {

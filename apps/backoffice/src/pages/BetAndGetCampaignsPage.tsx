@@ -9,11 +9,13 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { ChevronIcon } from '../components/ui/ChevronIcon';
 import { toast, errorMessage } from '../features/toast/toastStore';
 import * as backendApi from '../lib/backendApi';
+import type { AudienceMode } from '../lib/backendApi';
 import { formatScheduleWindow, isoToLocalInputValue, localInputValueToIso } from '../lib/dateTimeInput';
 import * as oddsEngineApi from '../lib/oddsEngineApi';
 
 const campaignsQueryKey = ['bet-and-get-campaigns'] as const;
 const matchesQueryKey = ['live-matches'] as const;
+const segmentsQueryKey = ['player-segments'] as const;
 
 function centsToDisplay(cents: number): string {
   return (cents / 100).toFixed(2);
@@ -22,6 +24,21 @@ function centsToDisplay(cents: number): string {
 function displayToCents(value: string): number {
   return Math.round(Number(value) * 100);
 }
+
+function audienceLabel(mode: AudienceMode): string {
+  switch (mode) {
+    case 'ALL':
+      return 'Everyone';
+    case 'LOGGED_OUT':
+      return 'Logged-out players only';
+    case 'LOGGED_IN':
+      return 'Logged-in players only';
+    case 'SEGMENTS':
+      return 'Specific player segments';
+  }
+}
+
+const AUDIENCE_MODES: AudienceMode[] = ['ALL', 'LOGGED_OUT', 'LOGGED_IN', 'SEGMENTS'];
 
 const DEFAULT_REWARD_AMOUNT = '10.00';
 const DEFAULT_REWARD_PERCENT = '10';
@@ -183,7 +200,10 @@ interface CampaignDetailsFormProps {
 
 function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
   const queryClient = useQueryClient();
-  const [draft, setDraft] = useState<backendApi.UpdateBetAndGetCampaignPayload>(campaign);
+  const [draft, setDraft] = useState<backendApi.UpdateBetAndGetCampaignPayload>({
+    ...campaign,
+    segmentIds: campaign.segments.map((segment) => segment.segmentId),
+  });
 
   // Free-typed number/currency fields keep their own string draft, synced
   // from the campaign only (never re-derived from `draft` on every
@@ -205,8 +225,26 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
   const [startAtText, setStartAtText] = useState(isoToLocalInputValue(campaign.startAt));
   const [endAtText, setEndAtText] = useState(isoToLocalInputValue(campaign.endAt));
 
+  const { data: segments } = useQuery({
+    queryKey: segmentsQueryKey,
+    queryFn: backendApi.listPlayerSegments,
+    enabled: draft.audienceMode === 'SEGMENTS',
+  });
+
+  function toggleSegment(segmentId: string) {
+    setDraft((previous) => {
+      const current = previous.segmentIds ?? [];
+      return {
+        ...previous,
+        segmentIds: current.includes(segmentId)
+          ? current.filter((id) => id !== segmentId)
+          : [...current, segmentId],
+      };
+    });
+  }
+
   useEffect(() => {
-    setDraft(campaign);
+    setDraft({ ...campaign, segmentIds: campaign.segments.map((segment) => segment.segmentId) });
     setRewardAmountText(campaign.rewardAmountCents != null ? centsToDisplay(campaign.rewardAmountCents) : '');
     setRewardPercentText(campaign.rewardPercent?.toString() ?? '');
     setRewardCapText(campaign.rewardCapCents != null ? centsToDisplay(campaign.rewardCapCents) : '');
@@ -535,6 +573,42 @@ function CampaignDetailsForm({ campaign }: CampaignDetailsFormProps) {
           </select>
         </div>
       </div>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <label className="flex items-center gap-1.5 text-sm text-text-secondary">
+          Audience
+          <select
+            aria-label={`audience ${campaign.id}`}
+            value={draft.audienceMode ?? 'ALL'}
+            onChange={(event) => setDraft({ ...draft, audienceMode: event.target.value as AudienceMode })}
+            className="rounded-md border border-border bg-background px-2 py-1 text-sm"
+          >
+            {AUDIENCE_MODES.map((mode) => (
+              <option key={mode} value={mode}>
+                {audienceLabel(mode)}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+
+      {draft.audienceMode === 'SEGMENTS' && (
+        <div className="flex flex-wrap gap-2">
+          {(segments ?? []).length === 0 && (
+            <span className="text-xs text-text-muted">No player segments exist yet.</span>
+          )}
+          {segments?.map((segment) => (
+            <label key={segment.id} className="flex items-center gap-1 text-xs text-text-secondary">
+              <input
+                type="checkbox"
+                checked={(draft.segmentIds ?? []).includes(segment.id)}
+                onChange={() => toggleSegment(segment.id)}
+              />
+              {segment.name}
+            </label>
+          ))}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex items-center gap-2 text-sm">
