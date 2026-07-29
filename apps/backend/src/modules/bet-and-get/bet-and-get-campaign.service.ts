@@ -1,8 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import type { AudienceMode, BetAndGetBetType, BetAndGetScopeType, BetAndGetTiming, BetAndGetTrigger } from '@prisma/client';
+import type { AudienceMode, BetAndGetBetType, BetAndGetScopeType, BetAndGetTiming, BetAndGetTrigger, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { betQualifiesForCampaign, matchIsInCampaignScope, matchTimingQualifies, type ScopeMatchInput } from './bet-and-get';
+
+/** Same PrismaClientLike convention as FreebetService.grantSystem - lets a caller pass the active settlement transaction so the redemption count it reads is consistent with the grant it's about to write. */
+type PrismaClientLike = PrismaService | Prisma.TransactionClient;
 
 export interface CreateBetAndGetCampaignInput {
   name: string;
@@ -237,23 +240,33 @@ export class BetAndGetCampaignService {
   }
 
   /** How many times this player has already been rewarded by this campaign - counts every BET_AND_GET freebet grant tagged with it, regardless of that grant's current status. */
-  async countRedemptions(campaignId: string, userId: string): Promise<number> {
-    return this.prisma.freebetGrant.count({
+  async countRedemptions(campaignId: string, userId: string, client: PrismaClientLike = this.prisma): Promise<number> {
+    return client.freebetGrant.count({
       where: { source: 'BET_AND_GET', sourceCampaignId: campaignId, userId },
     });
   }
 
-  /** Whether this player can still earn a reward from this campaign right now, given how many times they already have. */
+  /**
+   * Whether this player can still earn a reward from this campaign right
+   * now, given how many times they already have. Callers granting a
+   * SETTLEMENT-triggered reward must pass their own settlement transaction
+   * as `client` - a player can have several qualifying bets outstanding at
+   * once (none of them have granted anything yet since none have settled),
+   * so checking against `this.prisma` outside that transaction would still
+   * see zero redemptions for every one of them and let each grant its own
+   * reward instead of only the first to settle.
+   */
   async canRedeem(
     campaign: { id: string; allowMultipleRedemptions: boolean; maxRedemptionsPerPlayer: number | null },
     userId: string,
+    client: PrismaClientLike = this.prisma,
   ): Promise<boolean> {
     if (!campaign.allowMultipleRedemptions) {
-      return (await this.countRedemptions(campaign.id, userId)) === 0;
+      return (await this.countRedemptions(campaign.id, userId, client)) === 0;
     }
     if (campaign.maxRedemptionsPerPlayer === null) {
       return true;
     }
-    return (await this.countRedemptions(campaign.id, userId)) < campaign.maxRedemptionsPerPlayer;
+    return (await this.countRedemptions(campaign.id, userId, client)) < campaign.maxRedemptionsPerPlayer;
   }
 }

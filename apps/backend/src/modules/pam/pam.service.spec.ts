@@ -1072,6 +1072,44 @@ describe('PamService', () => {
       expect(grant.sourceCampaignId).toBe(campaign.id);
     });
 
+    it('grants a SETTLEMENT-trigger reward only once, even when several qualifying bets are outstanding and settle one after another', async () => {
+      // Regression test: canRedeem was only ever checked once, at each
+      // bet's own placement time - before any of them had settled, so all
+      // three placements saw zero existing redemptions and linked to the
+      // campaign. The bug was that settlement itself never re-checked
+      // canRedeem before granting, so all three settlements each granted
+      // their own reward instead of only the first.
+      const campaign = await createEnabledCampaign({ trigger: 'SETTLEMENT', triggerOnLost: true });
+      const userId = await createTestUser(100_000);
+
+      const betA = await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'match-1', odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+      const betB = await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'match-2', odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+      const betC = await pamService.placeBet(userId, {
+        selections: [buildSelection({ matchId: 'match-3', odds: 2.0 })],
+        stakeCents: 1_000,
+      });
+      expect(betA.betAndGetCampaignId).toBe(campaign.id);
+      expect(betB.betAndGetCampaignId).toBe(campaign.id);
+      expect(betC.betAndGetCampaignId).toBe(campaign.id);
+
+      await pamService.settleSelection(testBrandId, betA.id, betA.selections[0]!.id, 'LOST', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, betB.id, betB.selections[0]!.id, 'LOST', TEST_ACTOR);
+      await pamService.settleSelection(testBrandId, betC.id, betC.selections[0]!.id, 'LOST', TEST_ACTOR);
+
+      const grants = await prisma.freebetGrant.findMany({
+        where: { userId, source: 'BET_AND_GET', sourceCampaignId: campaign.id },
+      });
+      expect(grants).toHaveLength(1);
+      expect(grants[0]!.amountCents).toBe(500);
+      expect(grants[0]!.sourceBetId).toBe(betA.id);
+    });
+
     it('never grants a SETTLEMENT-trigger campaign on an outcome its flags do not cover', async () => {
       await createEnabledCampaign({ trigger: 'SETTLEMENT', triggerOnLost: true });
       const userId = await createTestUser(100_000);

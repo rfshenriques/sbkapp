@@ -1005,7 +1005,17 @@ export class PamService {
         const stillQualifies =
           campaign !== null &&
           betQualifiesForCampaign(campaign, { stakeCents: updatedBet.stakeCents, legOdds: effectiveLegOdds });
-        if (campaign && outcomeTriggersCampaign && stillQualifies) {
+        // canRedeem was already checked once at placement time, but that
+        // was before any of this player's qualifying bets on this campaign
+        // had settled - a player can have several such bets outstanding at
+        // once, each of which passed that check seeing zero redemptions so
+        // far. Re-checking here, inside this same settlement transaction,
+        // is what actually limits the reward to the first of them to
+        // settle: once its grant commits, every other bet's settlement
+        // (whenever it runs) sees that redemption and skips its own grant.
+        const canStillRedeem =
+          campaign !== null && (await this.betAndGetCampaignService.canRedeem(campaign, updatedBet.userId, tx));
+        if (campaign && outcomeTriggersCampaign && stillQualifies && canStillRedeem) {
           await this.freebetService.grantSystem(
             {
               userId: updatedBet.userId,
