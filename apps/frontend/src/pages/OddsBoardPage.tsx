@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { MatchCard } from '../features/odds-board/MatchCard';
 import { MatchListSkeleton } from '../features/odds-board/MatchListSkeleton';
@@ -68,12 +68,14 @@ interface FeaturedMatchCardProps {
  * this is the shape that already supports it, the caller just needs to
  * pass more of them into the HorizontalScroller around it.
  *
- * A gradient (--color-brand -> --color-highlight) frames the card as a
- * thin border plus a thicker left "spine", with an MOTD badge and the two
- * teams as initials-badge rows - stays brand-neutral by building the duo
- * tone from the two colors every brand already configures, rather than a
- * fixed red/gold. The full match-result market (not just one promoted
- * odd) sits at the bottom so every price is still one tap away.
+ * Frames the card with a two-color border built from the listed teams'
+ * own colors (home -> away, same duo every regular MatchCard glows with),
+ * plus a thicker left "spine" in the same duo, and an MOTD badge and the
+ * two teams as initials-badge rows. The inner surface carries the same
+ * blurred team-color glow (`.match-card-glow`) as every other match card,
+ * so this hero reads as "a match card, emphasized" rather than a
+ * differently-branded one. The full match-result market (not just one
+ * promoted odd) sits at the bottom so every price is still one tap away.
  */
 function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardProps) {
   const navigate = useNavigate();
@@ -83,25 +85,31 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
   const href = `/matches/${match.id}`;
   const homeTeamLabel = displayName('TEAM', match.homeTeam);
   const awayTeamLabel = displayName('TEAM', match.awayTeam);
+  const homeColor = teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam);
+  const awayColor = teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam);
 
   return (
     <div
       className={cn('flex cursor-pointer flex-col rounded-3xl p-[2px] transition-transform hover:scale-[1.005]', className)}
-      style={{ background: 'linear-gradient(160deg, var(--color-brand), var(--color-highlight))' }}
+      style={{ background: `linear-gradient(160deg, ${homeColor}, ${awayColor})` }}
       onClick={() => navigate(href)}
       onMouseEnter={() => prefetchMatchDetail(match.id)}
       onTouchStart={() => prefetchMatchDetail(match.id)}
     >
-      <section className="relative flex flex-1 flex-col overflow-hidden rounded-[22px] bg-surface pl-3.5 text-text-primary">
+      <section
+        className="relative flex flex-1 flex-col overflow-hidden rounded-[22px] bg-surface pl-3.5 text-text-primary"
+        style={{ '--home-glow': homeColor, '--away-glow': awayColor } as CSSProperties}
+      >
+        <div className="match-card-glow" aria-hidden="true" />
         {/* The thicker accent along the left edge, distinct from the thin
             gradient border the outer wrapper's padding creates. */}
         <span
           aria-hidden="true"
           className="absolute inset-y-0 left-0 w-1.5 rounded-l-[inherit]"
-          style={{ background: 'linear-gradient(180deg, var(--color-brand), var(--color-highlight))' }}
+          style={{ background: `linear-gradient(180deg, ${homeColor}, ${awayColor})` }}
         />
 
-        <div className="relative flex flex-1 flex-col p-5">
+        <div className="relative z-10 flex flex-1 flex-col p-5">
           <div className="flex items-center justify-between gap-2">
             <span
               className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-extrabold tracking-wide text-white uppercase"
