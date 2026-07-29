@@ -17,6 +17,7 @@ const ChallengesPage = lazy(() => import('../pages/ChallengesPage'));
 const BoostsPage = lazy(() => import('../pages/BoostsPage'));
 const SpecialsPage = lazy(() => import('../pages/SpecialsPage'));
 const ResponsibleGamblingPage = lazy(() => import('../pages/ResponsibleGamblingPage'));
+const SettingsPage = lazy(() => import('../pages/SettingsPage'));
 const SharedBetPage = lazy(() => import('../pages/SharedBetPage'));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage'));
 
@@ -37,6 +38,7 @@ export const routes: RouteObject[] = [
       { path: 'boosts', Component: BoostsPage },
       { path: 'specials', Component: SpecialsPage },
       { path: 'responsible-gambling', Component: ResponsibleGamblingPage },
+      { path: 'settings', Component: SettingsPage },
       { path: 'shared-bet', Component: SharedBetPage },
       // Bookmarkable/shareable URLs - open the auth modal (rendered by
       // AppShell over whatever page is actually current) then redirect to

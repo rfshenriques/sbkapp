@@ -4,7 +4,7 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { BottomSheet } from '../../components/ui/BottomSheet';
 import { ChevronIcon } from '../../components/ui/ChevronIcon';
-import { AccountIcon, MyBetsIcon } from '../../components/ui/NavIcons';
+import { AccountIcon, GearIcon, MyBetsIcon } from '../../components/ui/NavIcons';
 import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
 import { useDepositModalStore } from '../deposit/depositModalStore';
@@ -127,6 +127,9 @@ export function AccountMenu() {
                 </AccountLinkRow>
                 <AccountLinkRow to="/responsible-gambling" onNavigate={close}>
                   Responsible Gambling
+                </AccountLinkRow>
+                <AccountLinkRow to="/settings" icon={<GearIcon width={18} height={18} />} onNavigate={close}>
+                  Settings
                 </AccountLinkRow>
               </div>
 

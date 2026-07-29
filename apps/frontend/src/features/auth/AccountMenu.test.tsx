@@ -65,7 +65,7 @@ describe('AccountMenu', () => {
     expect(await screen.findByText('50.00 €')).toBeInTheDocument();
   });
 
-  it('only shows real destinations: My Bets, Responsible Gambling, Add funds, Log out', async () => {
+  it('only shows real destinations: My Bets, Responsible Gambling, Settings, Add funds, Log out', async () => {
     renderMenu();
 
     await userEvent.click(screen.getByRole('button', { name: 'Account' }));
@@ -75,6 +75,7 @@ describe('AccountMenu', () => {
       'href',
       '/responsible-gambling',
     );
+    expect(screen.getByRole('link', { name: /settings/i })).toHaveAttribute('href', '/settings');
     expect(screen.getByRole('button', { name: 'Add funds' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Log out' })).toBeInTheDocument();
   });
