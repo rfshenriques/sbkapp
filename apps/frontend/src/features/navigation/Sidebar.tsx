@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { CountryFlag } from '../../components/ui/CountryFlag';
-import { BoostIcon, SearchIcon, SpecialsIcon } from '../../components/ui/NavIcons';
+import { BoostIcon, SearchIcon, SpecialsIcon, TrophyIcon } from '../../components/ui/NavIcons';
 import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
 import { SportIcon } from '../../components/ui/SportIcon';
 import { cn } from '../../lib/cn';
@@ -177,6 +177,14 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
           >
             <SpecialsIcon width={18} height={18} className="text-highlight" />
             Specials
+          </Link>
+          <Link
+            to="/leaderboards"
+            onClick={onNavigate}
+            className="col-span-2 flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:bg-white/5"
+          >
+            <TrophyIcon width={18} height={18} className="text-highlight" />
+            Leaderboards
           </Link>
         </div>
       )}

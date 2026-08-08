@@ -11,6 +11,8 @@ import { useCampaignsForMatch } from '../features/bet-and-get/useCampaignsForMat
 import { BoostedOddsRow } from '../features/bet-slip/BoostedOddsRow';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
+import { LeaderboardContextBanner } from '../features/leaderboards/LeaderboardContextBanner';
+import { useLeaderboardsForMatch } from '../features/leaderboards/useLeaderboardsForMatch';
 import { LiveMatchTracker } from '../features/match-detail/LiveMatchTracker';
 import { useLiveMatch } from '../features/match-detail/useLiveMatch';
 import { useMatch } from '../features/match-detail/useMatch';
@@ -38,6 +40,7 @@ export default function MatchDetailPage() {
   const { data: liveState } = useLiveMatch(matchId, match?.isLive ?? false);
   const { data: allMatches } = useMatches();
   const { data: applicableCampaigns } = useCampaignsForMatch(match?.id);
+  const { data: applicableLeaderboards } = useLeaderboardsForMatch(match?.id);
   const displayName = useDisplayNames();
   const teamColors = useTeamColors();
 
@@ -192,10 +195,12 @@ export default function MatchDetailPage() {
         )}
       </section>
 
-      {applicableCampaigns && applicableCampaigns.length > 0 && (
+      {((applicableCampaigns && applicableCampaigns.length > 0) ||
+        (applicableLeaderboards && applicableLeaderboards.length > 0)) && (
         <div className="mt-6 space-y-3">
-          {applicableCampaigns.map((campaign) => (
-            <CampaignContextBanner key={campaign.id} campaign={campaign} />
+          {applicableCampaigns?.map((campaign) => <CampaignContextBanner key={campaign.id} campaign={campaign} />)}
+          {applicableLeaderboards?.map((campaign) => (
+            <LeaderboardContextBanner key={campaign.id} campaign={campaign} />
           ))}
         </div>
       )}

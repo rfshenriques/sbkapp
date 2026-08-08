@@ -433,6 +433,117 @@ export async function recordDeposit(amountCents: number): Promise<DepositResult>
   return parseJsonOrThrow(response, `Failed to record deposit: ${response.status}`);
 }
 
+export interface LeaderboardRewardTier {
+  id: string;
+  rankFrom: number;
+  rankTo: number;
+  rewardAmountCents: number;
+}
+
+export interface LeaderboardCampaign {
+  id: string;
+  name: string;
+  description: string | null;
+  startAt: string | null;
+  /** Required - a leaderboard always has a definite end (see LeaderboardCampaignService). */
+  endAt: string;
+  pointsPerEuroStaked: number;
+  useCombinedOddsAsMultiplier: boolean;
+  /** true = only bets that settle WON earn points; false = every settled outcome that still qualifies earns points. */
+  onlySettledWonCounts: boolean;
+  minStakeCents: number | null;
+  minOddsPerLeg: number | null;
+  minCombinedOdds: number | null;
+  betType: BetAndGetBetType;
+  minSelections: number | null;
+  bettingTiming: BetAndGetTiming;
+  rewardTiers: LeaderboardRewardTier[];
+  /** Set once end-of-campaign prizes have been granted - null until then. */
+  prizesGrantedAt: string | null;
+}
+
+/** A campaign as returned for a specific match - adds whether it's in scope but blocked by the timing requirement, same shape as BetAndGetCampaignForMatch. */
+export interface LeaderboardCampaignForMatch extends LeaderboardCampaign {
+  timingBlocked: boolean;
+}
+
+/** One ranked row - see apps/backend's LeaderboardPublicController.getEntries. Every username but the viewer's own is masked server-side (maskUsername); username is set ONLY on the viewer's own row. */
+export interface LeaderboardEntryView {
+  entryId: string;
+  rank: number;
+  pointsTotal: number;
+  maskedUsername: string;
+  username: string | null;
+  isViewer: boolean;
+}
+
+/** A player's own opt-in row - see apps/backend's LeaderboardController. */
+export interface LeaderboardEntry {
+  id: string;
+  pointsTotal: number;
+  joinedAt: string;
+}
+
+/** Every enabled leaderboard campaign for the acting brand. */
+export async function getLeaderboardCampaigns(brandId: string): Promise<LeaderboardCampaign[]> {
+  const response = await fetch(`${BASE_URL}/public/leaderboard-campaigns/${encodeURIComponent(brandId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch leaderboard campaigns: ${response.status}`);
+  }
+  return (await response.json()) as LeaderboardCampaign[];
+}
+
+export async function getLeaderboardCampaign(brandId: string, id: string): Promise<LeaderboardCampaign> {
+  const response = await fetch(
+    `${BASE_URL}/public/leaderboard-campaigns/${encodeURIComponent(brandId)}/${encodeURIComponent(id)}`,
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch leaderboard campaign: ${response.status}`);
+  }
+  return (await response.json()) as LeaderboardCampaign;
+}
+
+/** Ranked entries, masked per apps/backend's LeaderboardPublicController.getEntries - attaches the viewer's token (when logged in) so their own row comes back unmasked. */
+export async function getLeaderboardCampaignEntries(brandId: string, id: string): Promise<LeaderboardEntryView[]> {
+  const response = await fetch(
+    `${BASE_URL}/public/leaderboard-campaigns/${encodeURIComponent(brandId)}/${encodeURIComponent(id)}/entries`,
+    { headers: optionalAuthHeaders() },
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch leaderboard entries: ${response.status}`);
+  }
+  return (await response.json()) as LeaderboardEntryView[];
+}
+
+/** Every enabled leaderboard covering this one match - backs the match-detail context banner. */
+export async function getLeaderboardCampaignsForMatch(
+  brandId: string,
+  matchId: string,
+): Promise<LeaderboardCampaignForMatch[]> {
+  const response = await fetch(
+    `${BASE_URL}/public/leaderboard-campaigns/${encodeURIComponent(brandId)}/match/${encodeURIComponent(matchId)}`,
+    { headers: optionalAuthHeaders() },
+  );
+  if (!response.ok) {
+    throw new Error(`Failed to fetch leaderboards for match: ${response.status}`);
+  }
+  return (await response.json()) as LeaderboardCampaignForMatch[];
+}
+
+/** Opts the logged-in player into a leaderboard's ranking - idempotent, returns the existing entry if already joined. */
+export async function joinLeaderboardCampaign(id: string): Promise<LeaderboardEntry> {
+  const response = await authenticatedFetch(`/leaderboard-campaigns/${encodeURIComponent(id)}/join`, {
+    method: 'POST',
+  });
+  return parseJsonOrThrow(response, `Failed to join leaderboard: ${response.status}`);
+}
+
+/** The logged-in player's own entry for this leaderboard, or null if they haven't joined. */
+export async function getMyLeaderboardEntry(id: string): Promise<LeaderboardEntry | null> {
+  const response = await authenticatedFetch(`/leaderboard-campaigns/${encodeURIComponent(id)}/my-entry`);
+  return parseJsonOrThrow(response, `Failed to load your leaderboard entry: ${response.status}`);
+}
+
 export type PromoCardStatus = 'ACTIVE' | 'EARLY_ENDED';
 
 export interface PromoCardItem {
@@ -443,6 +554,8 @@ export interface PromoCardItem {
   sortOrder: number;
   betAndGetCampaignId: string | null;
   depositCampaignId: string | null;
+  registerCampaignId: string | null;
+  leaderboardCampaignId: string | null;
   /** False for a card auto-created for a campaign with no staff-uploaded image yet - see PromoCardTile. */
   hasImage: boolean;
   /** Live-computed from the linked campaign, never persisted - DISABLED campaigns are already dropped server-side, so this is only ever ACTIVE or EARLY_ENDED. */

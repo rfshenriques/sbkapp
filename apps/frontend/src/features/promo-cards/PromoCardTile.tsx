@@ -16,9 +16,12 @@ export interface PromoCardTileProps {
  * One CMS-managed promo card, with an optional title/subtitle and an
  * optional click-through to its linked campaign - a Bet & Get campaign
  * navigates to its matches page, a deposit campaign reopens the same modal
- * the post-login trigger uses (see DepositCampaignModal). A card with
- * neither id set is purely decorative (no link). See apps/backend's
- * PromoCardService and the backoffice's CMS Promo Cards page.
+ * the post-login trigger uses (see DepositCampaignModal), a leaderboard
+ * navigates to its detail page. A register campaign has no browsable page
+ * of its own (it's an automatic welcome bonus, not something to browse),
+ * so it only contributes to the trophy badge below, never a click target.
+ * A card with none of the 4 ids set is purely decorative (no link). See
+ * apps/backend's PromoCardService and the backoffice's CMS Promo Cards page.
  *
  * `hasImage: false` (see PromoCardAutoSyncService) means a campaign went
  * live before staff uploaded any artwork for it - rendered as a short,
@@ -36,7 +39,9 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
   const [isLoadingDepositCampaign, setIsLoadingDepositCampaign] = useState(false);
   const brandContrast = useContrastColor('--color-brand');
   const hasCaption = Boolean(card.title || card.subtitle);
-  const isChallenge = Boolean(card.betAndGetCampaignId || card.depositCampaignId);
+  const isChallenge = Boolean(
+    card.betAndGetCampaignId || card.depositCampaignId || card.registerCampaignId || card.leaderboardCampaignId,
+  );
   const isEarlyEnded = card.status === 'EARLY_ENDED';
 
   const content = card.hasImage ? (
@@ -92,6 +97,17 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
     return (
       <Link
         to={`/campaigns/${card.betAndGetCampaignId}`}
+        className={`relative block overflow-hidden rounded-3xl ${frameClassName} ${className ?? ''}`}
+      >
+        {content}
+      </Link>
+    );
+  }
+
+  if (card.leaderboardCampaignId) {
+    return (
+      <Link
+        to={`/leaderboards/${card.leaderboardCampaignId}`}
         className={`relative block overflow-hidden rounded-3xl ${frameClassName} ${className ?? ''}`}
       >
         {content}

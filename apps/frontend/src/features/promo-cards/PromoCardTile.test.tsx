@@ -14,6 +14,8 @@ const decorativeCard: PromoCardItem = {
   sortOrder: 0,
   betAndGetCampaignId: null,
   depositCampaignId: null,
+  registerCampaignId: null,
+  leaderboardCampaignId: null,
   hasImage: true,
   status: 'ACTIVE',
 };
@@ -64,6 +66,16 @@ describe('PromoCardTile', () => {
 
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
     expect(screen.getByText('Welcome offer')).toBeInTheDocument();
+  });
+
+  it('links to the leaderboard detail page for a leaderboard-linked card', () => {
+    render(
+      <MemoryRouter>
+        <PromoCardTile card={{ ...decorativeCard, leaderboardCampaignId: 'leaderboard-1' }} brandId="brand-1" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/leaderboards/leaderboard-1');
   });
 
   it('fetches and opens the deposit campaign modal for a deposit-linked card', async () => {
