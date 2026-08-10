@@ -460,15 +460,15 @@ export function AppShell() {
           the identical backdrop-blur + fixed-positioning combination. */}
       <nav
         ref={bottomNavRef}
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 transform-gpu border-t border-border bg-background/95 px-1 py-1.5 backdrop-blur will-change-transform sm:hidden"
-        style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
+        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 transform-gpu border-t border-border bg-background/95 px-1 py-1 backdrop-blur will-change-transform sm:hidden"
+        style={{ paddingBottom: 'calc(0.25rem + env(safe-area-inset-bottom))' }}
         aria-label="App navigation"
       >
         <button
           type="button"
           aria-pressed={isNavOpen}
           onClick={() => setIsNavOpen((open) => !open)}
-          className={`flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isNavOpen ? 'text-highlight' : 'text-text-secondary'}`}
+          className={`flex flex-col items-center gap-0.5 py-1 text-[10px] font-bold ${isNavOpen ? 'text-highlight' : 'text-text-secondary'}`}
         >
           <SearchIcon width={19} height={19} />
           Search
@@ -478,7 +478,7 @@ export function AppShell() {
           end
           onClick={() => setIsNavOpen(false)}
           className={({ isActive }) =>
-            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
+            `flex flex-col items-center gap-0.5 py-1 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
           }
         >
           <FireIcon width={19} height={19} />
@@ -488,7 +488,7 @@ export function AppShell() {
           to="/live"
           onClick={() => setIsNavOpen(false)}
           className={({ isActive }) =>
-            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
+            `flex flex-col items-center gap-0.5 py-1 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
           }
         >
           <LiveIcon width={19} height={19} />
@@ -498,7 +498,7 @@ export function AppShell() {
           to="/my-bets"
           onClick={() => setIsNavOpen(false)}
           className={({ isActive }) =>
-            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
+            `flex flex-col items-center gap-0.5 py-1 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
           }
         >
           <MyBetsIcon width={19} height={19} />
@@ -508,7 +508,7 @@ export function AppShell() {
           to="/challenges"
           onClick={() => setIsNavOpen(false)}
           className={({ isActive }) =>
-            `flex flex-col items-center gap-0.5 py-1.5 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
+            `flex flex-col items-center gap-0.5 py-1 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
           }
         >
           <TrophyIcon width={19} height={19} />
