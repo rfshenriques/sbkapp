@@ -235,6 +235,10 @@ export default function OddsBoardPage() {
   const brandId = useBrandStore((state) => state.brandId);
   const displayName = useDisplayNames();
   const [selectedSport, setSelectedSport] = useState<string | undefined>(undefined);
+  // Mobile-only content-type toggle (see the tab-pill row rendered right
+  // below the header) - desktop keeps its own always-visible Live now +
+  // Upcoming stacked sections instead, so this only matters below `sm`.
+  const [mobileTab, setMobileTab] = useState<'live' | 'upcoming'>('upcoming');
 
   const sorted = matches ? sortMatches(matches, 'time') : undefined;
   // The earliest-kickoff match only becomes "featured" if it actually has a
@@ -259,9 +263,13 @@ export default function OddsBoardPage() {
   const upcomingForSport = effectiveSport
     ? upcomingAll.filter((match) => match.sport === effectiveSport)
     : upcomingAll;
+  // Mobile's unified tab view extends the same sport filter to live matches
+  // too (desktop's separate Live now section stays unfiltered, unchanged).
+  const liveForSport = effectiveSport ? liveMatches.filter((match) => match.sport === effectiveSport) : liveMatches;
 
   const liveCapped = liveMatches.slice(0, MAX_HOMEPAGE_ITEMS);
   const upcomingCapped = upcomingForSport.slice(0, MAX_HOMEPAGE_ITEMS);
+  const liveForSportCapped = liveForSport.slice(0, MAX_HOMEPAGE_ITEMS);
 
   // The "Challenges" slot next to Match of the day: staff-managed CMS promo
   // cards (see the backoffice's Promo Cards page) when the brand has any,
@@ -288,6 +296,40 @@ export default function OddsBoardPage() {
 
   return (
     <div>
+      {/* Mobile-only: content-type filter, right below the header and
+          above the carousel - desktop keeps its own always-visible Live
+          now + Upcoming sections further down instead. Only worth showing
+          when there's actually a live match to switch to. */}
+      {liveMatches.length > 0 && (
+        // The breakpoint utility lives on a plain wrapper, not directly on
+        // the .tab-pill element - .tab-pill is unlayered custom CSS (see
+        // index.css), which always outranks Tailwind's @layer-scoped
+        // `sm:hidden` on the same element regardless of viewport, so
+        // combining them there would never actually hide it on desktop.
+        <div className="sm:hidden">
+          <div className="tab-pill mb-4" role="tablist" aria-label="Match list filter">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileTab === 'live'}
+              className={`tab-pill-btn${mobileTab === 'live' ? ' active' : ''}`}
+              onClick={() => setMobileTab('live')}
+            >
+              Live
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={mobileTab === 'upcoming'}
+              className={`tab-pill-btn${mobileTab === 'upcoming' ? ' active' : ''}`}
+              onClick={() => setMobileTab('upcoming')}
+            >
+              Upcoming
+            </button>
+          </div>
+        </div>
+      )}
+
       {featured && featuredMatchResult && (
         <div className="mb-8">
           {/* Mobile: one swipeable block mixing the featured match and
@@ -340,36 +382,82 @@ export default function OddsBoardPage() {
       {isPending && <MatchListSkeleton />}
       {isError && <Card className="text-danger">Failed to load matches.</Card>}
 
-      {liveMatches.length > 0 && (
-        <section className="mb-8">
+      {/* Desktop: the two sections always stack, unfiltered by the mobile
+          tab above (which doesn't render at this breakpoint anyway). */}
+      <div className="hidden sm:block">
+        {liveMatches.length > 0 && (
+          <section className="mb-8">
+            <div className="mb-3 flex items-center gap-2">
+              <LiveIcon width={22} height={22} />
+              <h2 className="font-display text-lg">Live now</h2>
+            </div>
+            <HorizontalScroller itemCount={liveCapped.length} ariaLabel="Live matches">
+              {liveCapped.map((match, index) => (
+                <div key={match.id} className="w-72 shrink-0 snap-start">
+                  <MatchCard match={match} style={staggerDelay(index)} />
+                </div>
+              ))}
+            </HorizontalScroller>
+            {liveMatches.length > MAX_HOMEPAGE_ITEMS && (
+              <Link to="/sports/all" className="btn-ghost mt-3 inline-flex w-auto items-center justify-center">
+                Load more
+              </Link>
+            )}
+          </section>
+        )}
+
+        <section>
           <div className="mb-3 flex items-center gap-2">
-            <LiveIcon width={22} height={22} />
-            <h2 className="font-display text-lg">Live now</h2>
+            <CalendarIcon width={22} height={22} />
+            <h2 className="font-display text-lg">Upcoming</h2>
           </div>
-          <HorizontalScroller itemCount={liveCapped.length} ariaLabel="Live matches">
-            {liveCapped.map((match, index) => (
-              <div key={match.id} className="w-72 shrink-0 snap-start">
-                <MatchCard match={match} style={staggerDelay(index)} />
-              </div>
-            ))}
-          </HorizontalScroller>
-          {liveMatches.length > MAX_HOMEPAGE_ITEMS && (
+
+          {sportsPresent.length > 1 && (
+            <div
+              className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
+              role="group"
+              aria-label="Filter by sport"
+              data-horizontal-scroll="true"
+            >
+              {sportsPresent.map((sport) => (
+                <button
+                  key={sport}
+                  type="button"
+                  className={`tab shrink-0${sport === effectiveSport ? ' active' : ''}`}
+                  aria-pressed={sport === effectiveSport}
+                  onClick={() => setSelectedSport(sport)}
+                >
+                  <SportIcon sport={sport} size={16} />
+                  {displayName('SPORT', sport)}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {sorted && rest.length === 0 && !featured && (
+            <Card className="text-text-secondary">No matches available right now.</Card>
+          )}
+          {upcomingCapped.length > 0 && (
+            <div className="space-y-3">
+              {upcomingCapped.map((match, index) => (
+                <MatchCard key={match.id} match={match} style={staggerDelay(index)} />
+              ))}
+            </div>
+          )}
+          {upcomingForSport.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
             <Link
-              to="/sports/all"
-              className="btn-ghost mt-3 flex w-full items-center justify-center sm:inline-flex sm:w-auto"
+              to={`/sports/${encodeURIComponent(effectiveSport)}`}
+              className="btn-ghost mt-3 inline-flex w-auto items-center justify-center"
             >
               Load more
             </Link>
           )}
         </section>
-      )}
+      </div>
 
-      <section>
-        <div className="mb-3 flex items-center gap-2">
-          <CalendarIcon width={22} height={22} />
-          <h2 className="font-display text-lg">Upcoming</h2>
-        </div>
-
+      {/* Mobile: sport filters then a single tab-driven matches list, per
+          the requested order (filters, carousel, sport filters, matches). */}
+      <div className="sm:hidden">
         {sportsPresent.length > 1 && (
           <div
             className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
@@ -395,22 +483,44 @@ export default function OddsBoardPage() {
         {sorted && rest.length === 0 && !featured && (
           <Card className="text-text-secondary">No matches available right now.</Card>
         )}
-        {upcomingCapped.length > 0 && (
-          <div className="space-y-3">
-            {upcomingCapped.map((match, index) => (
-              <MatchCard key={match.id} match={match} style={staggerDelay(index)} />
-            ))}
-          </div>
+
+        {mobileTab === 'live' ? (
+          <>
+            {liveForSportCapped.length > 0 ? (
+              <div className="space-y-3">
+                {liveForSportCapped.map((match, index) => (
+                  <MatchCard key={match.id} match={match} style={staggerDelay(index)} />
+                ))}
+              </div>
+            ) : (
+              liveMatches.length > 0 && <Card className="text-text-secondary">No live matches for this sport right now.</Card>
+            )}
+            {liveMatches.length > MAX_HOMEPAGE_ITEMS && (
+              <Link to="/sports/all" className="btn-ghost mt-3 flex w-full items-center justify-center">
+                Load more
+              </Link>
+            )}
+          </>
+        ) : (
+          <>
+            {upcomingCapped.length > 0 && (
+              <div className="space-y-3">
+                {upcomingCapped.map((match, index) => (
+                  <MatchCard key={match.id} match={match} style={staggerDelay(index)} />
+                ))}
+              </div>
+            )}
+            {upcomingForSport.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
+              <Link
+                to={`/sports/${encodeURIComponent(effectiveSport)}`}
+                className="btn-ghost mt-3 flex w-full items-center justify-center"
+              >
+                Load more
+              </Link>
+            )}
+          </>
         )}
-        {upcomingForSport.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
-          <Link
-            to={`/sports/${encodeURIComponent(effectiveSport)}`}
-            className="btn-ghost mt-3 flex w-full items-center justify-center sm:inline-flex sm:w-auto"
-          >
-            Load more
-          </Link>
-        )}
-      </section>
+      </div>
     </div>
   );
 }

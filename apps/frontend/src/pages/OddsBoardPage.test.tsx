@@ -98,7 +98,10 @@ describe('OddsBoardPage', () => {
 
     expect(screen.getByRole('status', { name: 'Loading matches' })).toBeInTheDocument();
 
-    expect(await screen.findByRole('link', { name: 'Arsenal vs Chelsea' })).toBeInTheDocument();
+    // The Upcoming list renders twice - a mobile copy and a desktop copy,
+    // each CSS-hidden at the other breakpoint but both present in the DOM
+    // (jsdom doesn't apply that CSS) - either copy is fine here.
+    expect((await screen.findAllByRole('link', { name: 'Arsenal vs Chelsea' }))[0]).toBeInTheDocument();
     expect(screen.queryByRole('status', { name: 'Loading matches' })).not.toBeInTheDocument();
   });
 
@@ -200,7 +203,8 @@ describe('OddsBoardPage', () => {
     // The earlier-kickoff match without a match-result market never becomes
     // "featured" (see FeaturedMatchCard's odds requirement) - it must still
     // show up in the plain Upcoming list rather than vanishing entirely.
-    expect(await screen.findByRole('link', { name: 'No Odds Home vs No Odds Away' })).toBeInTheDocument();
+    // (Duplicated mobile/desktop copies again - see the loading-skeleton test.)
+    expect((await screen.findAllByRole('link', { name: 'No Odds Home vs No Odds Away' }))[0]).toBeInTheDocument();
     // The next match, which does have odds, becomes the featured card.
     expect(await screen.findAllByRole('heading', { name: 'Has Odds Home vs Has Odds Away' })).toHaveLength(2);
   });
@@ -209,14 +213,17 @@ describe('OddsBoardPage', () => {
     stubOddsEngineFetch(buildManySportsMatches());
     renderPage();
 
-    await screen.findByRole('link', { name: 'Football Home 1 vs Football Away 1' });
-    // 13 football matches, minus 1 taken as "Featured", leaves 12 - capped to 10 visible here.
+    await screen.findAllByRole('link', { name: 'Football Home 1 vs Football Away 1' });
+    // 13 football matches, minus 1 taken as "Featured", leaves 12 - capped to
+    // 10 visible here, doubled to 20 across the mobile+desktop copies.
     expect(screen.getAllByRole('link', { name: /Football Home \d+ vs Football Away \d+/ })).toHaveLength(
-      10,
+      20,
     );
 
-    const loadMore = screen.getByRole('link', { name: 'Load more' });
-    expect(loadMore).toHaveAttribute('href', '/sports/Football');
+    const loadMoreLinks = screen.getAllByRole('link', { name: 'Load more' });
+    for (const link of loadMoreLinks) {
+      expect(link).toHaveAttribute('href', '/sports/Football');
+    }
   });
 
   it('always leads chips with Football, Tennis, Basketball in that order when present', async () => {
@@ -234,11 +241,13 @@ describe('OddsBoardPage', () => {
     ]);
     renderPage();
 
-    await screen.findByRole('group', { name: 'Filter by sport' });
+    // The chip row renders twice (mobile + desktop copies, see the
+    // loading-skeleton test) - scope to just the first one.
+    const groups = await screen.findAllByRole('group', { name: 'Filter by sport' });
     const knownSports = ['Boxing', 'Basketball', 'Ice Hockey', 'Tennis', 'Football'];
     // Each chip's textContent is now "<icon emoji><sport name>" - match on
     // suffix rather than exact equality so the icon doesn't break this.
-    const chipLabels = screen
+    const chipLabels = within(groups[0]!)
       .getAllByRole('button')
       .map((button) => knownSports.find((sport) => (button.textContent ?? '').endsWith(sport)))
       .filter((sport): sport is string => sport !== undefined);
@@ -250,13 +259,16 @@ describe('OddsBoardPage', () => {
     stubOddsEngineFetch(buildManySportsMatches());
     renderPage();
 
-    await screen.findByRole('link', { name: 'Football Home 1 vs Football Away 1' });
-    expect(screen.queryByRole('link', { name: 'Hockey Home 0 vs Hockey Away 0' })).not.toBeInTheDocument();
+    await screen.findAllByRole('link', { name: 'Football Home 1 vs Football Away 1' });
+    expect(screen.queryAllByRole('link', { name: 'Hockey Home 0 vs Hockey Away 0' })).toHaveLength(0);
 
-    await userEvent.click(screen.getByRole('button', { name: /Ice Hockey/ }));
+    // Two chip instances (mobile + desktop copies) share the same selected-
+    // sport state, so clicking either one updates both.
+    const iceHockeyChips = screen.getAllByRole('button', { name: /Ice Hockey/ });
+    await userEvent.click(iceHockeyChips[0]!);
 
-    expect(await screen.findByRole('link', { name: 'Hockey Home 0 vs Hockey Away 0' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Football Home/ })).not.toBeInTheDocument();
+    expect(await screen.findAllByRole('link', { name: 'Hockey Home 0 vs Hockey Away 0' })).not.toHaveLength(0);
+    expect(screen.queryAllByRole('link', { name: /Football Home/ })).toHaveLength(0);
   });
 
   it('renders CMS promo cards in the same Challenges slot as the Match of the day row, replacing the static Welcome Bonus card', async () => {
