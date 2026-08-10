@@ -61,9 +61,9 @@ export function MatchCard({ match, style, animate = true }: MatchCardProps) {
           top of the team names/odds instead of behind them. */}
       <div className="relative z-10">
         <div className="match-card-glow" aria-hidden="true" />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <div className="min-w-0 flex-1">
-            <p className="mb-1 flex min-w-0 items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-text-muted">
+            <p className="mb-0.5 flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
               <SportCountryBadge sport={match.sport} country={match.country} />
               <span className="min-w-0 flex-1 truncate">
                 {displayName('COMPETITION', match.competition)}
@@ -146,7 +146,7 @@ export function MatchCard({ match, style, animate = true }: MatchCardProps) {
           )}
         </div>
         {matchResult ? (
-          <div className="mt-3">
+          <div className="mt-2">
             <MarketSelections
               matchId={match.id}
               matchLabel={matchLabel}
@@ -161,7 +161,7 @@ export function MatchCard({ match, style, animate = true }: MatchCardProps) {
           <Link
             to={matchHref}
             onClick={(event) => event.stopPropagation()}
-            className="btn-primary mt-3 flex w-full items-center justify-center"
+            className="btn-primary mt-2 flex w-full items-center justify-center"
           >
             Bet Now
           </Link>

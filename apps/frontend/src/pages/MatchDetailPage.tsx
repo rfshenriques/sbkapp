@@ -1,8 +1,9 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { BackButton } from '../components/ui/BackButton';
 import { Breadcrumb, type BreadcrumbSegment } from '../components/ui/Breadcrumb';
 import { Card } from '../components/ui/Card';
-import { BoostIcon, MarketIcon, SpecialsIcon } from '../components/ui/NavIcons';
+import { BoostIcon, SpecialsIcon } from '../components/ui/NavIcons';
 import { Skeleton } from '../components/ui/Skeleton';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { TeamColorAccent } from '../components/ui/TeamColorAccent';
@@ -20,6 +21,7 @@ import { useMatches } from '../features/odds-board/useMatches';
 import { useTeamColors } from '../features/odds-board/useTeamColors';
 import { fallbackTeamColor } from '../lib/fallbackTeamColor';
 import { formatKickoff } from '../lib/formatKickoff';
+import { groupMarketsByCategory, MARKET_CATEGORY_LABELS, type MarketCategory } from '../lib/marketCategory';
 import { matchPeriodLabel } from '../lib/matchPeriodLabel';
 import type { Match } from '@sportsbook/shared';
 
@@ -36,6 +38,7 @@ function kickoffMeta(candidate: Match) {
 
 export default function MatchDetailPage() {
   const { matchId } = useParams();
+  const [selectedCategory, setSelectedCategory] = useState<MarketCategory>('main');
   const { data: match, isPending, isError } = useMatch(matchId);
   const { data: liveState } = useLiveMatch(matchId, match?.isLive ?? false);
   const { data: allMatches } = useMatches();
@@ -63,6 +66,17 @@ export default function MatchDetailPage() {
   // as SpecialsPage - the rest keep their own section below Match Result.
   const otherMarkets = match.markets.filter((market) => market.id !== 'match-result' && !market.isSpecial);
   const specialMarkets = match.markets.filter((market) => market.id !== 'match-result' && market.isSpecial);
+  // Match Result plus every other non-special market, grouped into a
+  // small set of tabs (Main/Totals/Handicaps) instead of one heading-and-
+  // Card block per market - a match with 4-5 markets otherwise reads as
+  // one long undifferentiated scroll.
+  const marketsByCategory = groupMarketsByCategory(matchResult ? [matchResult, ...otherMarkets] : otherMarkets);
+  const availableCategories = (Object.keys(MARKET_CATEGORY_LABELS) as MarketCategory[]).filter(
+    (category) => marketsByCategory[category].length > 0,
+  );
+  const activeCategory = availableCategories.includes(selectedCategory)
+    ? selectedCategory
+    : (availableCategories[0] ?? 'main');
   // originalOdds is only ever set when a boost actually changed the price
   // (see BoostService.applyBoosts) - flattened here the same way the
   // Boosts page flattens BoostedSelectionSummary, so this match's boosted
@@ -238,41 +252,43 @@ export default function MatchDetailPage() {
         </div>
       )}
 
-      {matchResult ? (
-        <div className="mt-6">
-          <div className="mb-3 flex items-center gap-2">
-            <MarketIcon width={22} height={22} />
-            <h2 className="font-display text-lg">{displayName('MARKET', matchResult.name)}</h2>
+      {availableCategories.length > 0 ? (
+        <div className="mt-5">
+          {availableCategories.length > 1 && (
+            <div className="mb-3 flex gap-1.5 overflow-x-auto">
+              {availableCategories.map((category) => (
+                <button
+                  key={category}
+                  type="button"
+                  className={`tab${activeCategory === category ? ' active' : ''}`}
+                  onClick={() => setSelectedCategory(category)}
+                >
+                  {MARKET_CATEGORY_LABELS[category]}
+                </button>
+              ))}
+            </div>
+          )}
+          <div className="space-y-3">
+            {marketsByCategory[activeCategory].map((market) => (
+              <div key={market.id}>
+                <h2 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
+                  {displayName('MARKET', market.name)}
+                </h2>
+                <Card>
+                  <MarketSelections
+                    matchId={match.id}
+                    matchLabel={matchLabel}
+                    competition={match.competition}
+                    market={market}
+                  />
+                </Card>
+              </div>
+            ))}
           </div>
-          <Card>
-            <MarketSelections
-              matchId={match.id}
-              matchLabel={matchLabel}
-              competition={match.competition}
-              market={matchResult}
-            />
-          </Card>
         </div>
       ) : (
         <p className="mt-6 text-text-secondary">No odds available for this match yet.</p>
       )}
-
-      {otherMarkets.map((market) => (
-        <div key={market.id} className="mt-6">
-          <div className="mb-3 flex items-center gap-2">
-            <MarketIcon width={22} height={22} />
-            <h2 className="font-display text-lg">{displayName('MARKET', market.name)}</h2>
-          </div>
-          <Card>
-            <MarketSelections
-              matchId={match.id}
-              matchLabel={matchLabel}
-              competition={match.competition}
-              market={market}
-            />
-          </Card>
-        </div>
-      ))}
 
       {specialMarkets.length > 0 && (
         <div className="mt-6">

@@ -109,8 +109,8 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 1px;
-  min-width: 64px;
-  padding: 6px 10px;
+  min-width: 52px;
+  padding: 4px 8px;
   border-radius: 12px;
   /* One shade lighter than the surface-2 cards these buttons usually sit
      on (see MatchCard, the bet slip's selection cards) - matching fills
@@ -151,16 +151,16 @@ body {
   color: var(--color-text-muted);
 }
 .odd-btn .odd-label {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--color-text-secondary);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.4px;
 }
 .odd-btn .odd-value {
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 14.5px;
+  font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
 /* Same solid diagonal-gradient-plus-black-text formula as .tab.active /
