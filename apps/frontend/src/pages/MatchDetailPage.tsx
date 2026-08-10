@@ -244,12 +244,14 @@ export default function MatchDetailPage() {
             <MarketIcon width={22} height={22} />
             <h2 className="font-display text-lg">{displayName('MARKET', matchResult.name)}</h2>
           </div>
-          <MarketSelections
-            matchId={match.id}
-            matchLabel={matchLabel}
-            competition={match.competition}
-            market={matchResult}
-          />
+          <Card>
+            <MarketSelections
+              matchId={match.id}
+              matchLabel={matchLabel}
+              competition={match.competition}
+              market={matchResult}
+            />
+          </Card>
         </div>
       ) : (
         <p className="mt-6 text-text-secondary">No odds available for this match yet.</p>
@@ -261,12 +263,14 @@ export default function MatchDetailPage() {
             <MarketIcon width={22} height={22} />
             <h2 className="font-display text-lg">{displayName('MARKET', market.name)}</h2>
           </div>
-          <MarketSelections
-            matchId={match.id}
-            matchLabel={matchLabel}
-            competition={match.competition}
-            market={market}
-          />
+          <Card>
+            <MarketSelections
+              matchId={match.id}
+              matchLabel={matchLabel}
+              competition={match.competition}
+              market={market}
+            />
+          </Card>
         </div>
       ))}
 
@@ -276,9 +280,12 @@ export default function MatchDetailPage() {
             <SpecialsIcon width={22} height={22} />
             <h2 className="font-display text-lg">Specials</h2>
           </div>
-          <div className="space-y-4">
-            {specialMarkets.map((market) => (
-              <div key={market.id}>
+          <Card className="space-y-4">
+            {specialMarkets.map((market, index) => (
+              <div
+                key={market.id}
+                className={index > 0 ? 'border-t border-border pt-4' : undefined}
+              >
                 <p className="mb-1.5 text-xs font-semibold text-text-secondary">
                   {displayName('MARKET', market.name)}
                 </p>
@@ -302,7 +309,7 @@ export default function MatchDetailPage() {
                 )}
               </div>
             ))}
-          </div>
+          </Card>
         </div>
       )}
     </div>
