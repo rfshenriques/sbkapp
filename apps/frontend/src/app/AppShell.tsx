@@ -8,6 +8,7 @@ import { useBetPlacedModalStore } from '../features/bet-slip/betPlacedModalStore
 import { useBetSlipSheetStore } from '../features/bet-slip/betSlipSheetStore';
 import { getSingleStake, useBetSlipStore } from '../features/bet-slip/betSlipStore';
 import { useCampaignPreview } from '../features/bet-slip/useCampaignPreview';
+import { LiveMatchesStrip } from '../features/odds-board/LiveMatchesStrip';
 import { invalidAccumulatorReason } from '../features/bet-slip/accumulatorValidity';
 import { useWinCelebrationDetector } from '../features/bet-history/useWinCelebrationDetector';
 import { WinCelebrationModal } from '../features/bet-history/WinCelebrationModal';
@@ -387,6 +388,7 @@ export function AppShell() {
         </aside>
 
         <main className="min-w-0 flex-1">
+          <LiveMatchesStrip />
           <Suspense fallback={<PageSkeleton />}>
             <div key={location.pathname} className="fade-in-up">
               <Outlet />
