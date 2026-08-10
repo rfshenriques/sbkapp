@@ -163,6 +163,19 @@ body {
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
+/* Label-beside-value instead of stacked - the compact match-card odds row
+   (see MatchCard's MarketSelections variant="inline"). A modifier on top of
+   .odd-btn rather than changing its base layout, since the base stacked
+   form is still what the bet slip's "Odds" pill and match-detail page's
+   per-market cards want. */
+.odd-btn.inline-odds {
+  flex-direction: row;
+  gap: 4px;
+  min-width: 0;
+}
+.odd-btn.inline-odds .odd-label {
+  font-size: 10px;
+}
 /* Same solid diagonal-gradient-plus-black-text formula as .tab.active /
    .tab-pill-btn.active - a selected odd is functionally the same kind of
    "active" state, so it reuses that formula instead of its own one-off

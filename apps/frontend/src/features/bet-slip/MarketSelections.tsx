@@ -12,6 +12,11 @@ interface MarketSelectionsProps {
   /** Raw feed competition name, e.g. "EPL" - checked against competition-level suspensions, which lock every selection here regardless of any market/selection-level suspension. */
   competition: string;
   market: Market;
+  /** 'stacked' (default) is the label-above-value .odd-btn used by the bet
+   * slip and match-detail page's per-market cards. 'inline' is the
+   * label-beside-value compact style MatchCard's Lucky.fun-style match
+   * list rows use. */
+  variant?: 'stacked' | 'inline';
 }
 
 interface SelectionButtonProps {
@@ -19,10 +24,11 @@ interface SelectionButtonProps {
   label: string;
   isSelected: boolean;
   isSuspended: boolean;
+  variant: 'stacked' | 'inline';
   onSelect: () => void;
 }
 
-function SelectionButton({ selection, label, isSelected, isSuspended, onSelect }: SelectionButtonProps) {
+function SelectionButton({ selection, label, isSelected, isSuspended, variant, onSelect }: SelectionButtonProps) {
   const flash = useOddsFlash(selection.odds);
   // originalOdds is only ever set by the backend when a boost actually changed the price (see BoostService.applyBoosts).
   const isBoosted = selection.originalOdds !== undefined;
@@ -42,7 +48,7 @@ function SelectionButton({ selection, label, isSelected, isSuspended, onSelect }
               }`
             : undefined
       }
-      className={`odd-btn${isSelected ? ' selected' : ''}${isSuspended ? ' suspended' : ''}${flash ? ` flash-${flash}` : ''}`}
+      className={`odd-btn${variant === 'inline' ? ' inline-odds' : ''}${isSelected ? ' selected' : ''}${isSuspended ? ' suspended' : ''}${flash ? ` flash-${flash}` : ''}`}
       onClick={(event) => {
         // MatchCard's whole card is clickable and navigates to the match -
         // stop this from also triggering that when picking an odd.
@@ -75,7 +81,13 @@ function SelectionButton({ selection, label, isSelected, isSuspended, onSelect }
   );
 }
 
-export function MarketSelections({ matchId, matchLabel, competition, market }: MarketSelectionsProps) {
+export function MarketSelections({
+  matchId,
+  matchLabel,
+  competition,
+  market,
+  variant = 'stacked',
+}: MarketSelectionsProps) {
   const toggleSelection = useBetSlipStore((state) => state.toggleSelection);
   const selectedSelectionId = useBetSlipStore(
     (state) =>
@@ -103,6 +115,7 @@ export function MarketSelections({ matchId, matchLabel, competition, market }: M
             label={selectionLabel}
             isSelected={selectedSelectionId === selection.id}
             isSuspended={competitionSuspended || isSuspended(matchId, market.id, selection.id)}
+            variant={variant}
             onSelect={() =>
               toggleSelection({
                 matchId,

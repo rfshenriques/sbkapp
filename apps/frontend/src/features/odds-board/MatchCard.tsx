@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
+import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
 import { TeamColorAccent } from '../../components/ui/TeamColorAccent';
 import { MarketSelections } from '../bet-slip/MarketSelections';
@@ -36,137 +37,117 @@ export function MatchCard({ match, style, animate = true }: MatchCardProps) {
   const matchHref = `/matches/${match.id}`;
   const { data: liveState } = useLiveMatch(match.id, match.isLive);
   const teamColors = useTeamColors();
-  const homeColor = teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam);
-  const awayColor = teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam);
 
   return (
     <Card
-      // bg-surface reads almost identically to the page's own bg-background
-      // behind it (both near-black) - bg-surface-2 gives the card real
-      // separation instead of nearly vanishing into the page. relative +
-      // overflow-hidden so .match-card-glow (an absolutely-positioned
-      // child) stays clipped to the card's own rounded corners instead of
-      // bleeding its blur onto the page behind it.
-      className={`${animate ? 'fade-in-up ' : ''}relative cursor-pointer overflow-hidden bg-surface-2 transition-colors hover:border-text-muted`}
-      style={{ ...style, '--home-glow': homeColor, '--away-glow': awayColor } as CSSProperties}
+      className={`${animate ? 'fade-in-up ' : ''}relative cursor-pointer bg-surface-2 transition-colors hover:border-text-muted`}
+      style={style}
       onClick={() => navigate(matchHref)}
       onMouseEnter={() => prefetchMatchDetail(match.id)}
       onTouchStart={() => prefetchMatchDetail(match.id)}
     >
-      {/* z-10 wrapper around every real content block (not just the first
-          one) - .match-card-glow is position:absolute with the default
-          z-index:auto, which per CSS painting order actually paints ABOVE
-          plain in-flow static content, not below it. Without an explicit
-          higher stacking context around the content, the glow would sit on
-          top of the team names/odds instead of behind them. */}
-      <div className="relative z-10">
-        <div className="match-card-glow" aria-hidden="true" />
-        <div className="flex items-center gap-1.5">
-          <div className="min-w-0 flex-1">
-            <p className="mb-0.5 flex min-w-0 items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-              <SportCountryBadge sport={match.sport} country={match.country} />
-              <span className="min-w-0 flex-1 truncate">
-                {displayName('COMPETITION', match.competition)}
-              </span>
-              {match.isLive ? (
-                liveState && (
-                  <span className="ml-auto shrink-0 truncate text-highlight">
-                    {matchPeriodLabel(liveState.period)} · {liveState.minute}'
-                  </span>
-                )
-              ) : (
-                <span className="ml-auto shrink-0 text-highlight">{formatKickoff(kickoff)}</span>
-              )}
-            </p>
-            {/* Real link kept for keyboard/screen-reader navigation and a
-              correct accessible name - the card's onClick above is a mouse/
-              touch convenience that enlarges the clickable area to the
-              whole card, not the primary access path. */}
-            {match.isLive ? (
-              // Stacked rows (not side-by-side with a centered score, like the
-              // pre-match layout below) - a narrow carousel card splitting its
-              // width between two team names plus a centered score truncates
-              // both team names hard. Each row gets nearly the full card width
-              // instead, with the score right-aligned.
-              <Link
-                to={matchHref}
-                className="block min-w-0 space-y-1"
-                aria-label={matchLabel}
-                onClick={(event) => event.stopPropagation()}
-              >
-                <span className="flex items-center gap-1.5">
-                  <TeamColorAccent
-                    colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)}
-                  />
-                  <span className="min-w-0 flex-1 truncate font-semibold">{homeTeamLabel}</span>
-                  <span className="shrink-0 font-display text-sm tabular-nums">
-                    {liveState ? liveState.homeScore : '-'}
-                  </span>
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <TeamColorAccent
-                    colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)}
-                  />
-                  <span className="min-w-0 flex-1 truncate font-semibold">{awayTeamLabel}</span>
-                  <span className="shrink-0 font-display text-sm tabular-nums">
-                    {liveState ? liveState.awayScore : '-'}
-                  </span>
-                </span>
-              </Link>
-            ) : (
-              <Link
-                to={matchHref}
-                className="flex items-center gap-2"
-                aria-label={matchLabel}
-                // Avoid a duplicate history entry from the card's own onClick
-                // (React Router navigates internally on the link's click
-                // before it bubbles to the card).
-                onClick={(event) => event.stopPropagation()}
-              >
-                <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
-                  <TeamColorAccent
-                    colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)}
-                  />
-                  <span className="min-w-0 truncate font-semibold">{homeTeamLabel}</span>
-                </span>
-                <span className="shrink-0 text-xs font-bold text-text-muted tabular-nums">vs</span>
-                <span className="flex min-w-0 flex-1 items-center justify-center gap-1.5">
-                  <span className="min-w-0 truncate font-semibold">{awayTeamLabel}</span>
-                  <TeamColorAccent
-                    colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)}
-                  />
-                </span>
-              </Link>
-            )}
-          </div>
-          {match.isLive && (
-            <span className="shrink-0 rounded-full bg-price-down px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-widest text-white">
-              LIVE
-            </span>
-          )}
-        </div>
-        {matchResult ? (
-          <div className="mt-2">
-            <MarketSelections
-              matchId={match.id}
-              matchLabel={matchLabel}
-              competition={match.competition}
-              market={matchResult}
-            />
-          </div>
+      <p className="mb-1 flex min-w-0 items-center gap-1.5 text-[10px] font-semibold text-text-muted">
+        <SportCountryBadge sport={match.sport} country={match.country} size={14} />
+        <span className="min-w-0 flex-1 truncate">
+          {displayName('COUNTRY', match.country)} · {displayName('COMPETITION', match.competition)}
+        </span>
+      </p>
+
+      <div className="mb-2 flex items-center justify-between gap-2">
+        {match.isLive ? (
+          <span className="text-[11px] font-bold text-highlight">
+            {liveState ? `${matchPeriodLabel(liveState.period)} · ${liveState.minute}'` : 'Live'}
+          </span>
         ) : (
-          // No odds to show inline yet (feed hasn't priced this match, or
-          // every market's currently suspended) - a full-width CTA into the
-          // match detail page instead of leaving the card odds-less/dead.
-          <Link
-            to={matchHref}
-            onClick={(event) => event.stopPropagation()}
-            className="btn-primary mt-2 flex w-full items-center justify-center"
-          >
-            Bet Now
-          </Link>
+          <span className="text-[11px] font-semibold text-text-secondary">{formatKickoff(kickoff)}</span>
+        )}
+        {match.isLive && (
+          <span className="shrink-0 rounded-full bg-price-down px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest text-white">
+            LIVE
+          </span>
         )}
       </div>
+
+      {/* Team rows always stacked, one per line - a narrow card splitting
+          its width between two team names plus a centered "vs" truncates
+          both names hard, and stacking reads closer to how a real sportsbook
+          list row shows the two sides regardless of live/pre-match state. */}
+      <Link
+        to={matchHref}
+        className="mb-2.5 block min-w-0 space-y-1.5"
+        aria-label={matchLabel}
+        // Avoid a duplicate history entry from the card's own onClick
+        // (React Router navigates internally on the link's click before it
+        // bubbles to the card).
+        onClick={(event) => event.stopPropagation()}
+      >
+        <span className="flex items-center gap-2">
+          <TeamColorAccent
+            colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)}
+            className="h-2 w-2 shrink-0 rounded-full"
+          />
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{homeTeamLabel}</span>
+          {match.isLive && (
+            <span className="shrink-0 font-display text-sm tabular-nums">
+              {liveState ? liveState.homeScore : '-'}
+            </span>
+          )}
+        </span>
+        <span className="flex items-center gap-2">
+          <TeamColorAccent
+            colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)}
+            className="h-2 w-2 shrink-0 rounded-full"
+          />
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{awayTeamLabel}</span>
+          {match.isLive && (
+            <span className="shrink-0 font-display text-sm tabular-nums">
+              {liveState ? liveState.awayScore : '-'}
+            </span>
+          )}
+        </span>
+      </Link>
+
+      {matchResult ? (
+        <div>
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+            {displayName('MARKET', matchResult.name)}
+          </p>
+          <div className="flex items-stretch gap-1.5">
+            <div className="min-w-0 flex-1">
+              <MarketSelections
+                matchId={match.id}
+                matchLabel={matchLabel}
+                competition={match.competition}
+                market={matchResult}
+                variant="inline"
+              />
+            </div>
+            {/* Same navigation as the rest of the card - a visual affordance
+                into the match's full market list, not a separate expand
+                behavior (the card doesn't inline any markets beyond this
+                one). */}
+            <Link
+              to={matchHref}
+              onClick={(event) => event.stopPropagation()}
+              aria-label="More markets"
+              className="flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface-hover px-2.5 text-text-secondary transition-colors hover:text-text-primary"
+            >
+              <ChevronIcon width={14} height={14} className="-rotate-90" />
+            </Link>
+          </div>
+        </div>
+      ) : (
+        // No odds to show inline yet (feed hasn't priced this match, or
+        // every market's currently suspended) - a full-width CTA into the
+        // match detail page instead of leaving the card odds-less/dead.
+        <Link
+          to={matchHref}
+          onClick={(event) => event.stopPropagation()}
+          className="btn-primary flex w-full items-center justify-center"
+        >
+          Bet Now
+        </Link>
+      )}
     </Card>
   );
 }

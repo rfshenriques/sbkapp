@@ -54,10 +54,10 @@ afterEach(() => {
 });
 
 describe('MatchCard', () => {
-  it('renders the competition, teams, and a link to the match detail page', () => {
+  it('renders the country, competition, teams, and a link to the match detail page', () => {
     renderMatchCard(baseMatch);
 
-    expect(screen.getByText('Premier League')).toBeInTheDocument();
+    expect(screen.getByText('England · Premier League')).toBeInTheDocument();
     const link = screen.getByRole('link', { name: 'Arsenal vs Chelsea' });
     expect(link).toHaveAttribute('href', '/matches/match-1');
   });
@@ -70,12 +70,14 @@ describe('MatchCard', () => {
     expect(texts).toEqual(['Home2.10', 'Draw3.40', 'Away3.20']);
   });
 
-  it('shows "vs" centered between the teams for a pre-match fixture', () => {
+  it('renders both team names stacked, with no score, for a pre-match fixture', () => {
     renderMatchCard(baseMatch);
-    expect(screen.getByText('vs')).toBeInTheDocument();
+    expect(screen.getByText('Arsenal')).toBeInTheDocument();
+    expect(screen.getByText('Chelsea')).toBeInTheDocument();
+    expect(screen.queryByText('vs')).not.toBeInTheDocument();
   });
 
-  it('replaces "vs" with each team\'s live score once it loads for a live match', async () => {
+  it('shows each team\'s live score once it loads for a live match', async () => {
     const liveMatch: Match = { ...baseMatch, isLive: true };
     stubOddsEngineFetch([liveMatch], {
       [liveMatch.id]: {
@@ -162,7 +164,7 @@ describe('MatchCard', () => {
       </QueryClientProvider>,
     );
 
-    await userEvent.click(screen.getByText('Premier League'));
+    await userEvent.click(screen.getByText('England · Premier League'));
 
     expect(await screen.findByText('Match detail page')).toBeInTheDocument();
   });
