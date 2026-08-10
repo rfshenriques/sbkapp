@@ -264,6 +264,13 @@ export default function MatchDetailPage() {
                   onClick={() => setSelectedCategory(category)}
                 >
                   {MARKET_CATEGORY_LABELS[category]}
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold not-italic tabular-nums ${
+                      activeCategory === category ? 'bg-black/15' : 'bg-black/20'
+                    }`}
+                  >
+                    {marketsByCategory[category].length}
+                  </span>
                 </button>
               ))}
             </div>

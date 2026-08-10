@@ -170,11 +170,15 @@ body {
    per-market cards want. */
 .odd-btn.inline-odds {
   flex-direction: row;
-  gap: 4px;
+  gap: 5px;
   min-width: 0;
+  padding: 8px;
 }
 .odd-btn.inline-odds .odd-label {
-  font-size: 10px;
+  font-size: 12px;
+}
+.odd-btn.inline-odds .odd-value {
+  font-size: 15px;
 }
 /* Same solid diagonal-gradient-plus-black-text formula as .tab.active /
    .tab-pill-btn.active - a selected odd is functionally the same kind of
