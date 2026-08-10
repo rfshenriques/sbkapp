@@ -16,6 +16,30 @@ import { buildSportTree, competitionCountryMap, competitionSportMap } from './bu
 /** Sidebar stays short and scannable - the rest is reachable through the sport/country/competition drill-down below. */
 const MAX_QUICKLINKS = 6;
 
+/** A checklist glyph for the "Select multiple" toggle - two checked boxes stacked, echoing the multi-select checkboxes the tree switches into once tapped. */
+function MultiSelectIcon(props: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 20 20"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      width={14}
+      height={14}
+      className={props.className}
+    >
+      <rect x="2.5" y="2.5" width="6" height="6" rx="1.3" />
+      <path d="M4 5.5 5.2 6.7 7 4.5" />
+      <rect x="2.5" y="11.5" width="6" height="6" rx="1.3" />
+      <path d="M4 14.5 5.2 15.7 7 13.5" />
+      <line x1="11.5" y1="5.5" x2="17.5" y2="5.5" />
+      <line x1="11.5" y1="14.5" x2="17.5" y2="14.5" />
+    </svg>
+  );
+}
+
 /**
  * Sidebar content only - no drawer chrome or desktop column wrapper, same
  * split as BetSlipPanel. AppShell supplies the persistent desktop aside and
@@ -181,10 +205,18 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
           <Link
             to="/leaderboards"
             onClick={onNavigate}
-            className="col-span-2 flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary transition-colors hover:bg-white/5"
+            className="flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary transition-colors hover:bg-white/5"
           >
             <TrophyIcon width={18} height={18} className="text-highlight" />
             Leaderboards
+          </Link>
+          <Link
+            to="/challenges"
+            onClick={onNavigate}
+            className="flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary transition-colors hover:bg-white/5"
+          >
+            <TrophyIcon width={18} height={18} className="text-highlight" />
+            Challenges
           </Link>
         </div>
       )}
@@ -272,8 +304,9 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
             <button
               type="button"
               onClick={() => (isMultiSelectMode ? resetMultiSelect() : setIsMultiSelectMode(true))}
-              className="text-xs font-semibold text-highlight"
+              className="flex items-center gap-1 text-xs font-semibold text-highlight"
             >
+              {!isMultiSelectMode && <MultiSelectIcon />}
               {isMultiSelectMode ? 'Cancel' : 'Select multiple'}
             </button>
           </div>

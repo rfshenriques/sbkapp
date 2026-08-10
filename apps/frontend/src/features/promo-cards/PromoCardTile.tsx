@@ -30,9 +30,10 @@ export interface PromoCardTileProps {
  * cards (endAt already passed) render grayscale - see ChallengesPage's
  * "Early ended" section.
  *
- * The bright highlight-colored ring and trophy corner badge mark this as a
- * "challenge" - decorative framing only, since neither campaign type has a
- * real progress field to render (no fabricated "won" state).
+ * The trophy corner badge marks this as a "challenge" - decorative only,
+ * since neither campaign type has a real progress field to render (no
+ * fabricated "won" state). No ring/border framing - a flat card matching
+ * the rest of the design system rather than a separately-styled one.
  */
 export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) {
   const openDepositCampaignModal = useDepositCampaignModalStore((state) => state.open);
@@ -59,11 +60,9 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
         className="absolute inset-0 h-full w-full object-cover"
       />
       {isChallenge && (
-        <TrophyIcon
-          width={22}
-          height={22}
-          className="absolute right-3 top-3 text-highlight drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]"
-        />
+        <span className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-highlight text-black">
+          <TrophyIcon width={16} height={16} />
+        </span>
       )}
       {hasCaption && (
         <>
@@ -86,12 +85,7 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
     </div>
   );
 
-  const frameClassName = [
-    isChallenge ? 'border-2 border-highlight' : '',
-    isEarlyEnded ? 'grayscale' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
+  const frameClassName = [isEarlyEnded ? 'grayscale' : ''].filter(Boolean).join(' ');
 
   if (card.betAndGetCampaignId) {
     return (

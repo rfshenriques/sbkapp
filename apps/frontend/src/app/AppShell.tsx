@@ -584,10 +584,9 @@ export function AppShell() {
           under the header instead of below it. */}
       {isNavOpen && (
         <div
-          className="slide-in-down scrollbar-hide fixed inset-x-0 top-0 z-20 flex flex-col overflow-y-auto bg-background p-4 sm:hidden"
+          className="slide-in-down scrollbar-hide fixed inset-x-0 top-0 z-20 flex flex-col overflow-y-auto bg-background p-4 pb-6 sm:hidden"
           style={{ paddingTop: headerHeight + 16, bottom: bottomNavHeight }}
         >
-          <h2 className="mb-3 font-display text-lg">Sports</h2>
           <Sidebar onNavigate={() => setIsNavOpen(false)} stickyBgClassName="bg-background" />
         </div>
       )}

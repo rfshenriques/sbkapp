@@ -26,6 +26,7 @@ function renderShell(initialEntries: string[] = ['/']) {
           <Route path="/" element={<AppShell />}>
             <Route index element={<div>Page content</div>} />
             <Route path="register" element={<RegisterDeepLink />} />
+            <Route path="live" element={<div>Live page content</div>} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -186,7 +187,11 @@ describe('AppShell', () => {
     const nav = screen.getByRole('navigation', { name: 'App navigation' });
     await userEvent.click(within(nav).getByRole('button', { name: /Search/ }));
 
-    expect(screen.getAllByRole('heading', { name: 'Sports' }).length).toBeGreaterThan(0);
+    // The persistent desktop Sidebar column always renders one copy of its
+    // own search box - a second one (the mobile drawer's own Sidebar
+    // instance) appearing means the drawer opened. No heading of its own
+    // (removed per design) - the search box is the drawer's own content.
+    expect(screen.getAllByPlaceholderText('Search teams, competitions...')).toHaveLength(2);
   });
 
   it('clicking the Search button again closes the drawer, with no separate close button', async () => {
@@ -195,11 +200,11 @@ describe('AppShell', () => {
     const nav = screen.getByRole('navigation', { name: 'App navigation' });
     const searchButton = within(nav).getByRole('button', { name: /Search/ });
     await userEvent.click(searchButton);
-    expect(screen.getAllByRole('heading', { name: 'Sports' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByPlaceholderText('Search teams, competitions...')).toHaveLength(2);
     expect(screen.queryByRole('button', { name: /close sports/i })).not.toBeInTheDocument();
 
     await userEvent.click(searchButton);
-    expect(screen.queryByRole('heading', { name: 'Sports' })).not.toBeInTheDocument();
+    expect(screen.getAllByPlaceholderText('Search teams, competitions...')).toHaveLength(1);
   });
 
   it('clicking another bottom-nav tab while the drawer is open closes it and navigates', async () => {
@@ -207,10 +212,10 @@ describe('AppShell', () => {
 
     const nav = screen.getByRole('navigation', { name: 'App navigation' });
     await userEvent.click(within(nav).getByRole('button', { name: /Search/ }));
-    expect(screen.getAllByRole('heading', { name: 'Sports' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByPlaceholderText('Search teams, competitions...')).toHaveLength(2);
 
     await userEvent.click(within(nav).getByRole('link', { name: /Live/ }));
-    expect(screen.queryByRole('heading', { name: 'Sports' })).not.toBeInTheDocument();
+    expect(screen.getAllByPlaceholderText('Search teams, competitions...')).toHaveLength(1);
   });
 
   it('does not show a hamburger button in the header - only the logo', () => {
