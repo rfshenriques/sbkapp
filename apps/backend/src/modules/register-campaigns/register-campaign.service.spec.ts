@@ -136,13 +136,44 @@ describe('RegisterCampaignService', () => {
   describe('canRedeem', () => {
     it('is true with no existing redemption, false once one exists - at most once per player, ever', async () => {
       const campaign = await service.create(brandAId, FIXED_INPUT, TEST_ACTOR);
-      expect(await service.canRedeem(campaign.id, userId)).toBe(true);
+      expect(await service.canRedeem(campaign, userId)).toBe(true);
 
       await prisma.registerCampaignRedemption.create({
         data: { registerCampaignId: campaign.id, userId, brandId: brandAId, rewardAmountCents: 1_000, status: 'GRANTED' },
       });
 
-      expect(await service.canRedeem(campaign.id, userId)).toBe(false);
+      expect(await service.canRedeem(campaign, userId)).toBe(false);
+    });
+
+    it('is false once the player\'s own signup window has closed, even with no existing redemption row', async () => {
+      // Mirrors a player whose account predates this campaign's creation
+      // (or otherwise was never granted an initial PENDING_BET redemption)
+      // - a pure existence check would read as "still eligible" forever.
+      const campaign = await service.create(
+        brandAId,
+        { ...FIXED_INPUT, requiresBet: true, qualifyingBetWindowDays: 7 },
+        TEST_ACTOR,
+      );
+      await prisma.user.update({
+        where: { id: userId },
+        data: { createdAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) },
+      });
+
+      expect(await service.canRedeem(campaign, userId)).toBe(false);
+    });
+
+    it('is true while still inside the qualifying window, for a requiresBet campaign', async () => {
+      const campaign = await service.create(
+        brandAId,
+        { ...FIXED_INPUT, requiresBet: true, qualifyingBetWindowDays: 7 },
+        TEST_ACTOR,
+      );
+      await prisma.user.update({
+        where: { id: userId },
+        data: { createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) },
+      });
+
+      expect(await service.canRedeem(campaign, userId)).toBe(true);
     });
   });
 

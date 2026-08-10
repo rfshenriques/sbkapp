@@ -407,25 +407,25 @@ export function AppShell() {
           // sat right on top of (and got visually cut off by) the nav on
           // devices with a home-indicator safe area.
           style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
-          className="btn-primary cta-spring-in fixed inset-x-3 z-30 flex items-center justify-between gap-3 rounded-2xl px-[22px] py-[15px] text-left shadow-lg sm:hidden"
+          className="btn-primary cta-spring-in fixed inset-x-3 z-30 flex items-center justify-between gap-2.5 rounded-2xl px-4 py-3 text-left shadow-lg sm:hidden"
         >
           {hasQualifyingCampaign && (
             <span
-              className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full ring-4 ring-background"
+              className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full ring-4 ring-background"
               title="This bet qualifies for a campaign reward"
             >
-              <GiftBadgeIcon width={24} height={24} />
+              <GiftBadgeIcon width={20} height={20} />
             </span>
           )}
-          <span className="flex items-center gap-3">
-            <span className="flex h-6 min-w-6 items-center justify-center rounded-lg bg-black/20 font-display text-sm">
+          <span className="flex items-center gap-2.5">
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-lg bg-black/20 font-display text-xs">
               {selections.length}
             </span>
-            <span className="font-display text-base">
+            <span className="font-display text-sm">
               {selections.length === 1 ? 'Single' : accumulatorInvalidReason ? 'Singles' : 'Accumulator'}
             </span>
           </span>
-          <span className="font-display text-base">
+          <span className="font-display text-sm">
             {selections.length === 1
               ? selections[0]?.odds.toFixed(2)
               : accumulatorInvalidReason
@@ -552,12 +552,16 @@ export function AppShell() {
           by design (it's meant to blur the page scrolling underneath it),
           so stopping the drawer right at the header's bottom edge left the
           still-mounted page behind it (not this drawer) showing dimly
-          blurred through that translucent strip. Extra pt-20 keeps the
-          drawer's own content starting below the header as before. */}
+          blurred through that translucent strip. Top padding uses the same
+          measured headerHeight the main content spacer uses (not a fixed
+          pt-20) - a hardcoded value drifts out of sync whenever the header's
+          own height changes (a two-line brand name, wallet-balance pills
+          once authenticated, ...), leaving this drawer's content starting
+          under the header instead of below it. */}
       {isNavOpen && (
         <div
-          className="slide-in-down scrollbar-hide fixed inset-x-0 top-0 z-20 flex flex-col overflow-y-auto bg-background p-4 pt-20 sm:hidden"
-          style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
+          className="slide-in-down scrollbar-hide fixed inset-x-0 top-0 z-20 flex flex-col overflow-y-auto bg-background p-4 sm:hidden"
+          style={{ paddingTop: headerHeight + 16, bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
         >
           <h2 className="mb-3 font-display text-lg">Sports</h2>
           <Sidebar onNavigate={() => setIsNavOpen(false)} stickyBgClassName="bg-background" />

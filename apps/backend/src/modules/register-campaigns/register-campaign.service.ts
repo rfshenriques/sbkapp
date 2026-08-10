@@ -207,12 +207,41 @@ export class RegisterCampaignService {
     });
   }
 
-  /** Whether this player has already redeemed this campaign - a simple existence check, unlike DepositCampaignService.canRedeem's counted-redemptions logic, since registration is a one-time event enforced by RegisterCampaignRedemption's own @@unique(registerCampaignId, userId). */
-  async canRedeem(campaignId: string, userId: string): Promise<boolean> {
+  /**
+   * Whether this player can still redeem this campaign: no existing
+   * redemption row (a simple existence check, unlike DepositCampaignService.
+   * canRedeem's counted-redemptions logic, since registration is a one-time
+   * event enforced by RegisterCampaignRedemption's own @@unique(
+   * registerCampaignId, userId)) AND, when the campaign requires a
+   * qualifying bet, the player's own signup is still inside the configured
+   * day window.
+   *
+   * The window check matters even though AuthService.register already
+   * creates a PENDING_BET redemption (and so a real existence-check hit)
+   * for anyone eligible at signup time: a player whose account predates
+   * this campaign's creation - or who was otherwise never granted an
+   * initial redemption row - has no existing row to find, so a pure
+   * existence check would read as "still eligible" forever even once their
+   * personal window has closed.
+   */
+  async canRedeem(
+    campaign: { id: string; requiresBet: boolean; qualifyingBetWindowDays: number | null },
+    userId: string,
+  ): Promise<boolean> {
     const existing = await this.prisma.registerCampaignRedemption.findUnique({
-      where: { registerCampaignId_userId: { registerCampaignId: campaignId, userId } },
+      where: { registerCampaignId_userId: { registerCampaignId: campaign.id, userId } },
     });
-    return existing === null;
+    if (existing !== null) {
+      return false;
+    }
+    if (!campaign.requiresBet) {
+      return true;
+    }
+    const user = await this.prisma.user.findUnique({ where: { id: userId }, select: { createdAt: true } });
+    if (!user) {
+      return false;
+    }
+    return isWithinQualifyingBetWindow(user.createdAt, campaign.qualifyingBetWindowDays!);
   }
 
   /** The first enabled campaign (oldest first) this new signup is both targeted by and hasn't already redeemed - resolved at registration time (see AuthService.register). A brand-new user has no segments yet, so a SEGMENTS-mode campaign correctly never matches a fresh signup. */
@@ -224,7 +253,7 @@ export class RegisterCampaignService {
         campaign.segments.map((segment) => segment.segmentId),
         viewer,
       );
-      if (inAudience && (await this.canRedeem(campaign.id, userId))) {
+      if (inAudience && (await this.canRedeem(campaign, userId))) {
         return campaign;
       }
     }

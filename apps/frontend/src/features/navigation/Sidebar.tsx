@@ -165,7 +165,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
           <Link
             to="/boosts"
             onClick={onNavigate}
-            className="flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:bg-white/5"
+            className="flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary transition-colors hover:bg-white/5"
           >
             <BoostIcon width={18} height={18} className="text-highlight" />
             Boosts
@@ -173,7 +173,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
           <Link
             to="/specials"
             onClick={onNavigate}
-            className="flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:bg-white/5"
+            className="flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary transition-colors hover:bg-white/5"
           >
             <SpecialsIcon width={18} height={18} className="text-highlight" />
             Specials
@@ -181,7 +181,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
           <Link
             to="/leaderboards"
             onClick={onNavigate}
-            className="col-span-2 flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:bg-white/5"
+            className="col-span-2 flex items-center gap-2 rounded-2xl bg-surface-2 px-3 py-2 text-sm font-semibold text-text-primary transition-colors hover:bg-white/5"
           >
             <TrophyIcon width={18} height={18} className="text-highlight" />
             Leaderboards
@@ -202,7 +202,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                 <li key={match.id}>
                   <Link
                     to={`/matches/${match.id}`}
-                    className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
+                    className="flex items-center gap-3 px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
                     onClick={onNavigate}
                   >
                     <SportCountryBadge sport={match.sport} country={match.country} size={22} />
@@ -245,7 +245,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                           ? `/sports/${encodeURIComponent(sport)}?competition=${encodeURIComponent(quicklink.competition)}`
                           : `/sports/all?competition=${encodeURIComponent(quicklink.competition)}`
                       }
-                      className="flex items-center gap-3 px-3 py-2.5 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
+                      className="flex items-center gap-3 px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
                       onClick={onNavigate}
                     >
                       {sport && country ? (
@@ -287,7 +287,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                     <button
                       type="button"
                       aria-expanded={isSportOpen}
-                      className="flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-white/5"
+                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors hover:bg-white/5"
                       onClick={() => {
                         setExpandedSport(isSportOpen ? null : sportNode.sport);
                         setExpandedCountry(null);
@@ -323,7 +323,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                           <li>
                             <Link
                               to={`/sports/${encodeURIComponent(sportNode.sport)}`}
-                              className="flex items-center py-2.5 pr-3 pl-8 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
+                              className="flex items-center py-2 pr-3 pl-8 text-sm font-semibold text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
                               onClick={onNavigate}
                             >
                               All matches
@@ -337,7 +337,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                               <button
                                 type="button"
                                 aria-expanded={isCountryOpen}
-                                className="flex w-full items-center gap-3 py-2.5 pr-3 pl-8 text-left transition-colors hover:bg-white/5"
+                                className="flex w-full items-center gap-3 py-2 pr-3 pl-8 text-left transition-colors hover:bg-white/5"
                                 onClick={() =>
                                   setExpandedCountry(isCountryOpen ? null : countryNode.country)
                                 }
@@ -374,7 +374,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                                     return (
                                       <li key={competitionNode.competition}>
                                         {isMultiSelectMode ? (
-                                          <label className="flex cursor-pointer items-center justify-between gap-2 py-2.5 pr-3 pl-14 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary">
+                                          <label className="flex cursor-pointer items-center justify-between gap-2 py-2 pr-3 pl-14 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary">
                                             <span className="flex items-center gap-2">
                                               <input
                                                 type="checkbox"
@@ -391,7 +391,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                                         ) : (
                                           <Link
                                             to={`/sports/${encodeURIComponent(sportNode.sport)}?competition=${encodeURIComponent(competitionNode.competition)}`}
-                                            className="flex items-center justify-between py-2.5 pr-3 pl-14 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
+                                            className="flex items-center justify-between py-2 pr-3 pl-14 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
                                             onClick={onNavigate}
                                           >
                                             {competitionLabel}

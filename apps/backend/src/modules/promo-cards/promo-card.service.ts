@@ -109,7 +109,7 @@ export class PromoCardService {
       const campaign = await this.registerCampaignService.get(brandId, card.registerCampaignId);
       return {
         campaign,
-        exhausted: userId !== null && !(await this.registerCampaignService.canRedeem(campaign.id, userId)),
+        exhausted: userId !== null && !(await this.registerCampaignService.canRedeem(campaign, userId)),
       };
     }
     if (card.leaderboardCampaignId) {

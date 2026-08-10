@@ -270,19 +270,17 @@ export default function MatchDetailPage() {
           )}
           <div className="space-y-3">
             {marketsByCategory[activeCategory].map((market) => (
-              <div key={market.id}>
+              <Card key={market.id}>
                 <h2 className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-text-secondary">
                   {displayName('MARKET', market.name)}
                 </h2>
-                <Card>
-                  <MarketSelections
-                    matchId={match.id}
-                    matchLabel={matchLabel}
-                    competition={match.competition}
-                    market={market}
-                  />
-                </Card>
-              </div>
+                <MarketSelections
+                  matchId={match.id}
+                  matchLabel={matchLabel}
+                  competition={match.competition}
+                  market={market}
+                />
+              </Card>
             ))}
           </div>
         </div>
