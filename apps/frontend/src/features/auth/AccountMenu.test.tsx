@@ -70,14 +70,47 @@ describe('AccountMenu', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Account' }));
 
+    // My Bets is a real route (also a primary bottom-nav destination) -
+    // Responsible Gambling and Settings open as sub-views inside this same
+    // sheet instead (see the next test), so they're buttons, not links.
     expect(screen.getByRole('link', { name: /my bets/i })).toHaveAttribute('href', '/my-bets');
-    expect(screen.getByRole('link', { name: /responsible gambling/i })).toHaveAttribute(
-      'href',
-      '/responsible-gambling',
-    );
-    expect(screen.getByRole('link', { name: /settings/i })).toHaveAttribute('href', '/settings');
+    expect(screen.getByRole('button', { name: /responsible gambling/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /settings/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add funds' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Log out' })).toBeInTheDocument();
+  });
+
+  it('opens Settings as a sub-view inside the same sheet, with a back button that returns to the menu', async () => {
+    renderMenu();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Account' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Settings' }));
+
+    // The menu content (player identity) is gone, replaced by the settings view.
+    expect(screen.queryByText('player1')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Settings' })).toBeInTheDocument();
+    expect(screen.getByText('Appearance')).toBeInTheDocument();
+    // Log out is menu-only chrome - it shouldn't follow into a sub-view.
+    expect(screen.queryByRole('button', { name: 'Log out' })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back to account menu' }));
+
+    expect(screen.getByText('player1')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Account' })).toBeInTheDocument();
+  });
+
+  it('opens Responsible Gambling as a sub-view, and the X still closes the whole sheet from inside it', async () => {
+    renderMenu();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Account' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Responsible Gambling' }));
+
+    expect(screen.getByRole('heading', { name: 'Responsible Gambling' })).toBeInTheDocument();
+
+    const closeButtons = screen.getAllByRole('button', { name: 'Close account' });
+    await userEvent.click(closeButtons[closeButtons.length - 1]!);
+
+    expect(screen.queryByRole('heading', { name: 'Responsible Gambling' })).not.toBeInTheDocument();
   });
 
   it('opens the deposit modal and closes itself when Add funds is clicked', async () => {

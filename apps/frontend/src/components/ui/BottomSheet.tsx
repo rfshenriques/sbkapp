@@ -13,6 +13,10 @@ export interface BottomSheetProps {
   onClose: () => void;
   /** aria-label shared by both the backdrop and the circular close button. */
   closeLabel: string;
+  /** When set, renders a circular back-chevron button before the icon/title, for a sheet that swaps between an internal menu and a sub-view (e.g. AccountMenu's Settings) instead of navigating to a separate route - closing the whole sheet stays available via the X regardless. */
+  onBack?: () => void;
+  /** aria-label for the back button - required together with onBack. */
+  backLabel?: string;
   /** Extra content under the title row (e.g. the bet slip's balance line). */
   headerExtra?: ReactNode;
   /** Fixed at the bottom, outside the scrollable body - a submit button is never scrolled out of reach. */
@@ -53,6 +57,8 @@ export function BottomSheet({
   icon,
   onClose,
   closeLabel,
+  onBack,
+  backLabel,
   headerExtra,
   footer,
   children,
@@ -129,9 +135,30 @@ export function BottomSheet({
         </div>
         <div className="shrink-0 border-b border-border p-4 pb-3">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              {onBack && (
+                <button
+                  type="button"
+                  aria-label={backLabel}
+                  onClick={onBack}
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
+                >
+                  <svg
+                    viewBox="0 0 20 20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    width="18"
+                    height="18"
+                  >
+                    <path d="M12.5 5 7.5 10 12.5 15" />
+                  </svg>
+                </button>
+              )}
               {icon}
-              <h1 className="font-display text-xl">{title}</h1>
+              <h1 className="truncate font-display text-xl">{title}</h1>
             </div>
             <button
               type="button"
@@ -144,7 +171,10 @@ export function BottomSheet({
           </div>
           {headerExtra}
         </div>
-        <div className={bodyClassName ?? 'scrollbar-hide min-h-0 flex-1 overflow-y-auto p-4'}>
+        {/* Keyed by title - swapping between an internal menu and a
+            sub-view (see onBack above) remounts the body, replaying the
+            fade-in-up entrance rather than jump-cutting between them. */}
+        <div key={title} className={cn('fade-in-up', bodyClassName ?? 'scrollbar-hide min-h-0 flex-1 overflow-y-auto p-4')}>
           {children}
         </div>
         {footer && <div className="shrink-0 border-t border-border p-4 pt-3">{footer}</div>}

@@ -102,6 +102,26 @@ export function AppShell() {
     return () => observer.disconnect();
   }, []);
 
+  // Same measured-not-hardcoded reasoning as headerHeight above, for the
+  // fixed bottom nav - the floating bet-slip pill and the mobile drawer
+  // both need to clear its real height (padding included) rather than
+  // guessing a fixed 4.25rem, which drifts the moment the nav's own
+  // padding or safe-area inset differs from that guess. getBoundingClientRect
+  // (not entry.contentRect) is used deliberately - contentRect excludes the
+  // nav's own padding, which is exactly where the safe-area-inset-bottom
+  // padding this height needs to account for actually lives.
+  const bottomNavRef = useRef<HTMLElement>(null);
+  const [bottomNavHeight, setBottomNavHeight] = useState(68);
+  useEffect(() => {
+    const nav = bottomNavRef.current;
+    if (!nav) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry) setBottomNavHeight(entry.target.getBoundingClientRect().height);
+    });
+    observer.observe(nav);
+    return () => observer.disconnect();
+  }, []);
+
   const brandName = brandQuery.data?.name ?? 'Sportsbook';
   const combinedOdds = selections.reduce((total, selection) => total * selection.odds, 1);
   // Mirrors BetSlipPanel's own accumulatorInvalidReason gate - the unopened
@@ -402,11 +422,12 @@ export function AppShell() {
         <button
           type="button"
           onClick={openSlip}
-          // Cleared with the same env(safe-area-inset-bottom) the bottom nav
-          // itself pads with, plus its own visible height - a plain bottom-14
-          // sat right on top of (and got visually cut off by) the nav on
-          // devices with a home-indicator safe area.
-          style={{ bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
+          // Cleared by the bottom nav's own measured height (bottomNavHeight
+          // above), not a hardcoded guess - a plain bottom-14 sat right on
+          // top of (and got visually cut off by) the nav on devices with a
+          // home-indicator safe area, and a fixed rem value drifts the
+          // moment the nav's real height doesn't match it.
+          style={{ bottom: bottomNavHeight }}
           className="btn-primary cta-spring-in fixed inset-x-3 z-30 flex items-center justify-between gap-2.5 rounded-2xl px-4 py-3 text-left shadow-lg sm:hidden"
         >
           {hasQualifyingCampaign && (
@@ -438,6 +459,7 @@ export function AppShell() {
       {/* Same GPU-layer fix as the header above - the fixed bottom nav shares
           the identical backdrop-blur + fixed-positioning combination. */}
       <nav
+        ref={bottomNavRef}
         className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 transform-gpu border-t border-border bg-background/95 px-1 py-1.5 backdrop-blur will-change-transform sm:hidden"
         style={{ paddingBottom: 'calc(0.375rem + env(safe-area-inset-bottom))' }}
         aria-label="App navigation"
@@ -561,7 +583,7 @@ export function AppShell() {
       {isNavOpen && (
         <div
           className="slide-in-down scrollbar-hide fixed inset-x-0 top-0 z-20 flex flex-col overflow-y-auto bg-background p-4 sm:hidden"
-          style={{ paddingTop: headerHeight + 16, bottom: 'calc(4.25rem + env(safe-area-inset-bottom))' }}
+          style={{ paddingTop: headerHeight + 16, bottom: bottomNavHeight }}
         >
           <h2 className="mb-3 font-display text-lg">Sports</h2>
           <Sidebar onNavigate={() => setIsNavOpen(false)} stickyBgClassName="bg-background" />
