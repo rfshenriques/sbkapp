@@ -10,8 +10,10 @@ import type { Match } from '@sportsbook/shared';
 
 /** Home, Sport, and Live (which is just SportPage at /live) already have
  * their own full live-match browsing (a whole section or the live/upcoming
- * tabs) - a second, redundant slider there would just be visual noise. */
-const EXCLUDED_ROUTES = [/^\/$/, /^\/sports\//, /^\/live$/];
+ * tabs) - a second, redundant slider there would just be visual noise.
+ * Challenges is its own focused, campaign-only page - live match browsing
+ * doesn't belong there either. */
+const EXCLUDED_ROUTES = [/^\/$/, /^\/sports\//, /^\/live$/, /^\/challenges$/];
 
 const MAX_CHIPS = 12;
 
