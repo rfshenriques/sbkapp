@@ -12,6 +12,7 @@ import { HorizontalScroller } from '../components/ui/HorizontalScroller';
 import { CalendarIcon, LiveIcon } from '../components/ui/NavIcons';
 import { SportIcon } from '../components/ui/SportIcon';
 import { cn } from '../lib/cn';
+import { HOURS_WINDOWS, HOURS_WINDOW_LABELS, isWithinHoursWindow, type HoursWindow } from '../lib/hoursWindow';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBrandStore } from '../features/brand/brandStore';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
@@ -239,6 +240,9 @@ export default function OddsBoardPage() {
   // below the header) - desktop keeps its own always-visible Live now +
   // Upcoming stacked sections instead, so this only matters below `sm`.
   const [mobileTab, setMobileTab] = useState<'live' | 'upcoming'>('upcoming');
+  // Upcoming-section-only ("how soon") filter - Live matches are already
+  // happening now, so a kickoff time window doesn't apply to them.
+  const [hoursWindow, setHoursWindow] = useState<HoursWindow>('all');
 
   const sorted = matches ? sortMatches(matches, 'time') : undefined;
   // The earliest-kickoff match only becomes "featured" if it actually has a
@@ -267,8 +271,21 @@ export default function OddsBoardPage() {
   // too (desktop's separate Live now section stays unfiltered, unchanged).
   const liveForSport = effectiveSport ? liveMatches.filter((match) => match.sport === effectiveSport) : liveMatches;
 
+  // "How soon" window, layered on top of the sport filter - counts are
+  // computed against upcomingForSport so switching sport updates them too,
+  // same as the reference's combined sport+time filter.
+  const upcomingWindowCounts = Object.fromEntries(
+    HOURS_WINDOWS.map((window) => [
+      window,
+      upcomingForSport.filter((match) => isWithinHoursWindow(window, new Date(match.kickoff))).length,
+    ]),
+  ) as Record<HoursWindow, number>;
+  const upcomingFiltered = upcomingForSport.filter((match) =>
+    isWithinHoursWindow(hoursWindow, new Date(match.kickoff)),
+  );
+
   const liveCapped = liveMatches.slice(0, MAX_HOMEPAGE_ITEMS);
-  const upcomingCapped = upcomingForSport.slice(0, MAX_HOMEPAGE_ITEMS);
+  const upcomingCapped = upcomingFiltered.slice(0, MAX_HOMEPAGE_ITEMS);
   const liveForSportCapped = liveForSport.slice(0, MAX_HOMEPAGE_ITEMS);
 
   // The "Challenges" slot next to Match of the day: staff-managed CMS promo
@@ -434,8 +451,37 @@ export default function OddsBoardPage() {
             </div>
           )}
 
+          <div
+            className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
+            role="group"
+            aria-label="Filter by kickoff time"
+            data-horizontal-scroll="true"
+          >
+            {HOURS_WINDOWS.map((window) => (
+              <button
+                key={window}
+                type="button"
+                className={`tab shrink-0${window === hoursWindow ? ' active' : ''}`}
+                aria-pressed={window === hoursWindow}
+                onClick={() => setHoursWindow(window)}
+              >
+                {HOURS_WINDOW_LABELS[window]}
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold not-italic tabular-nums ${
+                    window === hoursWindow ? 'bg-black/15' : 'bg-black/20'
+                  }`}
+                >
+                  {upcomingWindowCounts[window]}
+                </span>
+              </button>
+            ))}
+          </div>
+
           {sorted && rest.length === 0 && !featured && (
             <Card className="text-text-secondary">No matches available right now.</Card>
+          )}
+          {upcomingForSport.length > 0 && upcomingFiltered.length === 0 && (
+            <Card className="text-text-secondary">No matches kicking off in this window.</Card>
           )}
           {upcomingCapped.length > 0 && (
             <div className="space-y-3">
@@ -444,7 +490,7 @@ export default function OddsBoardPage() {
               ))}
             </div>
           )}
-          {upcomingForSport.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
+          {upcomingFiltered.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
             <Link
               to={`/sports/${encodeURIComponent(effectiveSport)}`}
               className="btn-ghost mt-3 inline-flex w-auto items-center justify-center"
@@ -503,6 +549,35 @@ export default function OddsBoardPage() {
           </>
         ) : (
           <>
+            <div
+              className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
+              role="group"
+              aria-label="Filter by kickoff time"
+              data-horizontal-scroll="true"
+            >
+              {HOURS_WINDOWS.map((window) => (
+                <button
+                  key={window}
+                  type="button"
+                  className={`tab shrink-0${window === hoursWindow ? ' active' : ''}`}
+                  aria-pressed={window === hoursWindow}
+                  onClick={() => setHoursWindow(window)}
+                >
+                  {HOURS_WINDOW_LABELS[window]}
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold not-italic tabular-nums ${
+                      window === hoursWindow ? 'bg-black/15' : 'bg-black/20'
+                    }`}
+                  >
+                    {upcomingWindowCounts[window]}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {upcomingForSport.length > 0 && upcomingFiltered.length === 0 && (
+              <Card className="text-text-secondary">No matches kicking off in this window.</Card>
+            )}
             {upcomingCapped.length > 0 && (
               <div className="space-y-3">
                 {upcomingCapped.map((match, index) => (
@@ -510,7 +585,7 @@ export default function OddsBoardPage() {
                 ))}
               </div>
             )}
-            {upcomingForSport.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
+            {upcomingFiltered.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
               <Link
                 to={`/sports/${encodeURIComponent(effectiveSport)}`}
                 className="btn-ghost mt-3 flex w-full items-center justify-center"
