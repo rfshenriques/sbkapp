@@ -50,8 +50,12 @@ describe('BrandDetailPage', () => {
 
     expect(await screen.findByDisplayValue('Acme Sportsbook')).toBeInTheDocument();
     expect(screen.getByDisplayValue('www.acme-sportsbook.com')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('#112233')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('#334455')).toBeInTheDocument();
+    // The hex text input and its paired native color-swatch input share the
+    // same value once it's a valid 6-digit hex - getByLabelText scopes to
+    // just the text input (the swatch's accessible name has its own
+    // "... swatch" suffix, see BrandDetailPage.tsx).
+    expect(screen.getByLabelText('Button color')).toHaveValue('#112233');
+    expect(screen.getByLabelText('Filter color')).toHaveValue('#334455');
     expect(screen.getByLabelText('Appearance')).toHaveValue('LIGHT');
   });
 

@@ -158,13 +158,22 @@ export default function BrandDetailPage() {
                   <label htmlFor="brand-button-color" className="block text-xs text-text-secondary">
                     Button color
                   </label>
-                  <input
-                    id="brand-button-color"
-                    value={buttonColorHex}
-                    onChange={(event) => setButtonColorHex(event.target.value)}
-                    placeholder="#22c55e"
-                    className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
-                  />
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      type="color"
+                      aria-label="Button color swatch"
+                      value={/^#[0-9a-fA-F]{6}$/.test(buttonColorHex) ? buttonColorHex : '#000000'}
+                      onChange={(event) => setButtonColorHex(event.target.value)}
+                      className="h-9 w-9 shrink-0 cursor-pointer rounded-md border border-border bg-background p-0.5"
+                    />
+                    <input
+                      id="brand-button-color"
+                      value={buttonColorHex}
+                      onChange={(event) => setButtonColorHex(event.target.value)}
+                      placeholder="#22c55e"
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label
@@ -173,13 +182,22 @@ export default function BrandDetailPage() {
                   >
                     Highlight color
                   </label>
-                  <input
-                    id="brand-highlight-color"
-                    value={highlightColorHex}
-                    onChange={(event) => setHighlightColorHex(event.target.value)}
-                    placeholder="#f59e0b"
-                    className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
-                  />
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      type="color"
+                      aria-label="Highlight color swatch"
+                      value={/^#[0-9a-fA-F]{6}$/.test(highlightColorHex) ? highlightColorHex : '#000000'}
+                      onChange={(event) => setHighlightColorHex(event.target.value)}
+                      className="h-9 w-9 shrink-0 cursor-pointer rounded-md border border-border bg-background p-0.5"
+                    />
+                    <input
+                      id="brand-highlight-color"
+                      value={highlightColorHex}
+                      onChange={(event) => setHighlightColorHex(event.target.value)}
+                      placeholder="#f59e0b"
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
                 <div>
                   <label
@@ -188,13 +206,22 @@ export default function BrandDetailPage() {
                   >
                     Filter color
                   </label>
-                  <input
-                    id="brand-filter-color"
-                    value={filterColorHex}
-                    onChange={(event) => setFilterColorHex(event.target.value)}
-                    placeholder="#22d3ee"
-                    className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
-                  />
+                  <div className="mt-1 flex items-center gap-2">
+                    <input
+                      type="color"
+                      aria-label="Filter color swatch"
+                      value={/^#[0-9a-fA-F]{6}$/.test(filterColorHex) ? filterColorHex : '#000000'}
+                      onChange={(event) => setFilterColorHex(event.target.value)}
+                      className="h-9 w-9 shrink-0 cursor-pointer rounded-md border border-border bg-background p-0.5"
+                    />
+                    <input
+                      id="brand-filter-color"
+                      value={filterColorHex}
+                      onChange={(event) => setFilterColorHex(event.target.value)}
+                      placeholder="#22d3ee"
+                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </div>
                 </div>
               </div>
               <div>
