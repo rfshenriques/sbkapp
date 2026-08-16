@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { CountryFlag } from '../../components/ui/CountryFlag';
@@ -6,6 +6,7 @@ import { BoostIcon, SearchIcon, SpecialsIcon, TrophyIcon } from '../../component
 import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
 import { SportIcon } from '../../components/ui/SportIcon';
 import { cn } from '../../lib/cn';
+import { track } from '../../lib/analytics';
 import { useDisplayNames } from '../display-names/useDisplayNames';
 import { useMatches } from '../odds-board/useMatches';
 import { useCompetitionRankings } from '../odds-board/useCompetitionRankings';
@@ -84,6 +85,18 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
     );
   }, [matches, trimmedQuery, isSearching]);
   const hasMatchResults = isSearching && matchingMatches.length > 0;
+
+  // Debounced rather than one event per keystroke - only the query the
+  // player actually settles on is worth a row, and matchCount doubles as a
+  // signal for searches that found nothing (a team/competition we don't
+  // cover yet).
+  useEffect(() => {
+    if (!isSearching) return;
+    const timer = setTimeout(() => {
+      track('SEARCH', { metadata: { query: trimmedQuery, matchCount: matchingMatches.length } });
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [trimmedQuery, isSearching, matchingMatches.length]);
 
   // Leagues/quicklinks render whenever not searching, or as the fallback
   // when a search finds no matches to show directly.
