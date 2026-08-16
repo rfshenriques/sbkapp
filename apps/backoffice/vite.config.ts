@@ -11,11 +11,12 @@ const backendTarget = process.env.BACKEND_PROXY_TARGET ?? 'http://localhost:3000
 const oddsEngineTarget = process.env.ODDS_ENGINE_PROXY_TARGET ?? 'http://localhost:4001';
 
 export default defineConfig({
-  // Unset (root "/") for local dev. Production sets this to "/backoffice/"
-  // so this app can be reverse-proxied under betsome.me/backoffice - see
-  // infra/nginx/betsome.me.conf. React Router's basename (src/app/router.ts)
-  // reads import.meta.env.BASE_URL, which Vite derives from this, so the
-  // two never drift out of sync.
+  // Own subdomain (backoffice.betsome.me), not a path behind a shared
+  // reverse proxy - base stays "/" in every environment, so VITE_BASE_PATH
+  // is unused. (An earlier draft split staff/master backoffice by URL path
+  // under one betsome.me domain via nginx - see infra/nginx/betsome.me.conf
+  // - superseded in favor of two subdomains, each mapped straight to its
+  // own Railway service via CNAME: no extra reverse-proxy service to run.)
   base: process.env.VITE_BASE_PATH || '/',
   plugins: [react(), tailwindcss()],
   server: {
@@ -23,10 +24,9 @@ export default defineConfig({
     port: 5174,
     // Vite's dev server rejects requests with an unrecognized Host header by
     // default (only localhost out of the box) - without this, Railway's
-    // generated *.up.railway.app domain (and later betsome.me) get a
-    // blocked-request error instead of the app. Same fix apps/frontend
-    // already needed for its own Railway domain.
-    allowedHosts: ['.up.railway.app', 'betsome.me', 'www.betsome.me'],
+    // generated *.up.railway.app domain (and this app's real subdomain) get
+    // a blocked-request error instead of the app.
+    allowedHosts: ['.up.railway.app', 'backoffice.betsome.me'],
     proxy: {
       '/backend': {
         target: backendTarget,
