@@ -1,6 +1,10 @@
-# Dev-mode image: installs the whole workspace, then runs the Vite dev
-# server with hot reload. Build context is the repo root (see
-# infra/docker/docker-compose.yml) so pnpm workspace resolution works.
+# Production build: compiles to static assets, then serves them via
+# "vite preview" (still proxies /backend and /api per vite.config.ts) rather
+# than running the dev server - the dev server serves the whole workspace
+# tree as transformable modules, which lets arbitrary paths reach real
+# visitors as a broadcast HMR error overlay (and leaks server file paths).
+# Build context is the repo root (see infra/docker/docker-compose.yml) so
+# pnpm workspace resolution works.
 FROM node:22-alpine
 
 WORKDIR /workspace
@@ -18,7 +22,8 @@ RUN pnpm install --frozen-lockfile
 COPY packages/shared packages/shared
 COPY apps/backoffice apps/backoffice
 RUN pnpm --filter @sportsbook/shared build
+RUN pnpm --filter @sportsbook/backoffice build
 
 WORKDIR /workspace/apps/backoffice
 EXPOSE 5174
-CMD ["pnpm", "dev", "--host"]
+CMD ["pnpm", "preview", "--host"]

@@ -9,29 +9,43 @@ import { defineConfig } from 'vite';
 // works, no CORS/credentials dance needed.
 const backendTarget = process.env.BACKEND_PROXY_TARGET ?? 'http://localhost:3000';
 
+// Deliberately no custom domain - stays on Railway's auto-generated
+// *.up.railway.app URL. A custom domain would get its own publicly logged
+// TLS certificate (Certificate Transparency), making this owner-only tool
+// trivially discoverable; the random Railway hostname isn't. Shared
+// between the dev server and the production preview server (see
+// Dockerfile - "vite preview" serves the built dist/ and needs the same
+// proxy/host allowlist the dev server had).
+const allowedHosts = ['.up.railway.app'];
+const proxy = {
+  '/backend': {
+    target: backendTarget,
+    changeOrigin: true,
+    rewrite: (path: string) => path.replace(/^\/backend/, ''),
+  },
+};
+
 export default defineConfig({
-  // Own subdomain (super.betsome.me), not a path behind a shared reverse
-  // proxy - base stays "/" in every environment, so VITE_BASE_PATH is
-  // unused. (An earlier draft split staff/master backoffice by URL path
-  // under one betsome.me domain via nginx - see infra/nginx/betsome.me.conf
-  // - superseded in favor of two subdomains, each mapped straight to its
-  // own Railway service via CNAME: no extra reverse-proxy service to run.)
+  // Not served behind a shared reverse proxy - base stays "/" in every
+  // environment, so VITE_BASE_PATH is unused. (An earlier draft split
+  // staff/master backoffice by URL path under one shared domain via nginx -
+  // see infra/nginx/betsome.me.conf - superseded; each app now runs as its
+  // own standalone Railway service.)
   base: process.env.VITE_BASE_PATH || '/',
   plugins: [react(), tailwindcss()],
   server: {
     // Distinct from apps/frontend's 5173 and apps/backoffice's 5174 so all three can run side by side on a bare host.
     port: 5175,
-    // Vite's dev server rejects requests with an unrecognized Host header by
-    // default (only localhost out of the box) - without this, Railway's
-    // generated *.up.railway.app domain (and this app's real subdomain) get
-    // a blocked-request error instead of the app.
-    allowedHosts: ['.up.railway.app', 'super.betsome.me'],
-    proxy: {
-      '/backend': {
-        target: backendTarget,
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/backend/, ''),
-      },
-    },
+    allowedHosts,
+    proxy,
+  },
+  preview: {
+    // Production runs "vite preview" against the built dist/ (see
+    // Dockerfile) rather than the dev server, so it needs its own port,
+    // host allowlist and API proxy - mirrors the dev server config above.
+    host: true,
+    port: 5175,
+    allowedHosts,
+    proxy,
   },
 });
