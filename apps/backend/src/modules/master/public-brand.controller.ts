@@ -1,4 +1,5 @@
-import { Controller, Get, NotFoundException, Param } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, Res, StreamableFile } from '@nestjs/common';
+import type { Response } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import { normalizeDomain } from './normalize-domain';
 
@@ -56,5 +57,27 @@ export class PublicBrandController {
       throw new NotFoundException('Brand not found');
     }
     return brand;
+  }
+
+  /**
+   * Raw bytes of a staff-uploaded logo (see BrandsService.setLogo), for
+   * plain <img src> consumption - what Brand.logoUrl points at once a
+   * brand has one. Unauthenticated for the same reason as the rest of this
+   * controller: the logo has to render before a player ever signs in.
+   */
+  @Get(':id/logo')
+  async getLogo(@Param('id') id: string, @Res({ passthrough: true }) res: Response) {
+    const logo = await this.prisma.brandLogo.findUnique({ where: { brandId: id } });
+    if (!logo) {
+      throw new NotFoundException('Brand has no uploaded logo');
+    }
+
+    res.set({
+      'Content-Type': logo.mimeType,
+      'Cache-Control': 'public, max-age=300',
+    });
+    // Prisma returns Bytes fields as a plain Uint8Array, not a Node Buffer -
+    // wrap it so Express can actually stream it as binary.
+    return new StreamableFile(Buffer.from(logo.data));
   }
 }

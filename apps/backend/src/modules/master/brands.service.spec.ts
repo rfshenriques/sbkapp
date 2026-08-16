@@ -166,4 +166,46 @@ describe('BrandsService', () => {
       expect.objectContaining({ product: 'CASHOUT', enabled: false }),
     ]);
   });
+
+  describe('logo upload', () => {
+    it('stores the uploaded bytes and points logoUrl at the public serving path', async () => {
+      const created = await brandsService.createBrand(buildCreateBrandDto());
+      createdBrandIds.push(created.id);
+
+      const updated = await brandsService.setLogo(created.id, Buffer.from('fake-png-bytes'), 'image/png');
+      expect(updated.logoUrl).toBe(`/backend/public/brands/${created.id}/logo`);
+
+      const stored = await brandsService.getLogoData(created.id);
+      expect(stored?.mimeType).toBe('image/png');
+      expect(Buffer.from(stored!.data).toString()).toBe('fake-png-bytes');
+    });
+
+    it('re-uploading replaces the previous logo in place', async () => {
+      const created = await brandsService.createBrand(buildCreateBrandDto());
+      createdBrandIds.push(created.id);
+
+      await brandsService.setLogo(created.id, Buffer.from('first'), 'image/png');
+      await brandsService.setLogo(created.id, Buffer.from('second'), 'image/webp');
+
+      const stored = await brandsService.getLogoData(created.id);
+      expect(stored?.mimeType).toBe('image/webp');
+      expect(Buffer.from(stored!.data).toString()).toBe('second');
+    });
+
+    it('removes a logo and clears logoUrl', async () => {
+      const created = await brandsService.createBrand(buildCreateBrandDto());
+      createdBrandIds.push(created.id);
+      await brandsService.setLogo(created.id, Buffer.from('bytes'), 'image/png');
+
+      const updated = await brandsService.removeLogo(created.id);
+      expect(updated.logoUrl).toBeNull();
+      expect(await brandsService.getLogoData(created.id)).toBeNull();
+    });
+
+    it('throws NotFoundException when uploading a logo for an unknown brand', async () => {
+      await expect(
+        brandsService.setLogo('does-not-exist', Buffer.from('bytes'), 'image/png'),
+      ).rejects.toBeInstanceOf(NotFoundException);
+    });
+  });
 });

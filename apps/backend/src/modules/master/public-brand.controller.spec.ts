@@ -1,9 +1,18 @@
 import { randomUUID } from 'node:crypto';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, type StreamableFile } from '@nestjs/common';
 import { Test, type TestingModule } from '@nestjs/testing';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import type { Response } from 'express';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PublicBrandController } from './public-brand.controller';
+
+async function readStream(streamable: StreamableFile): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of streamable.getStream()) {
+    chunks.push(chunk as Buffer);
+  }
+  return Buffer.concat(chunks).toString();
+}
 
 describe('PublicBrandController', () => {
   let moduleRef: TestingModule;
@@ -100,5 +109,37 @@ describe('PublicBrandController', () => {
     await expect(
       controller.getBrandByDomain(`${randomUUID().slice(0, 8)}.example.com`),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  describe('getLogo', () => {
+    it('streams the stored bytes with the stored content type', async () => {
+      const unique = randomUUID().slice(0, 8);
+      const brand = await prisma.brand.create({
+        data: { name: `Logo Brand ${unique}`, slug: `logo-brand-${unique}` },
+      });
+      createdBrandIds.push(brand.id);
+      await prisma.brandLogo.create({
+        data: { brandId: brand.id, data: Buffer.from('fake-svg-bytes'), mimeType: 'image/svg+xml' },
+      });
+
+      const res = { set: vi.fn() } as unknown as Response;
+      const result = await controller.getLogo(brand.id, res);
+
+      expect(res.set).toHaveBeenCalledWith(
+        expect.objectContaining({ 'Content-Type': 'image/svg+xml' }),
+      );
+      expect(await readStream(result)).toBe('fake-svg-bytes');
+    });
+
+    it('404s for a brand with no uploaded logo', async () => {
+      const unique = randomUUID().slice(0, 8);
+      const brand = await prisma.brand.create({
+        data: { name: `No Logo Brand ${unique}`, slug: `no-logo-brand-${unique}` },
+      });
+      createdBrandIds.push(brand.id);
+
+      const res = { set: vi.fn() } as unknown as Response;
+      await expect(controller.getLogo(brand.id, res)).rejects.toBeInstanceOf(NotFoundException);
+    });
   });
 });

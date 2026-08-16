@@ -90,4 +90,52 @@ export class BrandsService {
 
     return this.getBrand(brandId);
   }
+
+  /**
+   * Uploading a logo replaces both the stored bytes and Brand.logoUrl (now
+   * pointing at the public serving path below) in one write - a brand that
+   * previously had a pasted external URL just gets overwritten, since only
+   * one logo can be active at a time.
+   */
+  async setLogo(brandId: string, fileData: Buffer, mimeType: string) {
+    await this.getBrand(brandId);
+    // multer's Buffer is typed against ArrayBufferLike (could in theory be a
+    // SharedArrayBuffer), which Prisma's Bytes field rejects - re-wrapping
+    // guarantees a plain ArrayBuffer-backed Buffer instead.
+    const data = Buffer.from(fileData);
+
+    await this.prisma.$transaction([
+      this.prisma.brandLogo.upsert({
+        where: { brandId },
+        create: { brandId, data, mimeType },
+        update: { data, mimeType },
+      }),
+      this.prisma.brand.update({
+        where: { id: brandId },
+        // Every app (apps/frontend, apps/backoffice, apps/master-backoffice)
+        // proxies "/backend/*" to this service with that prefix stripped -
+        // see each app's vite.config.ts - so logoUrl must include it too,
+        // the same as every other path those apps build for themselves.
+        data: { logoUrl: `/backend/public/brands/${brandId}/logo` },
+      }),
+    ]);
+
+    return this.getBrand(brandId);
+  }
+
+  async removeLogo(brandId: string) {
+    await this.getBrand(brandId);
+
+    await this.prisma.$transaction([
+      this.prisma.brandLogo.deleteMany({ where: { brandId } }),
+      this.prisma.brand.update({ where: { id: brandId }, data: { logoUrl: null } }),
+    ]);
+
+    return this.getBrand(brandId);
+  }
+
+  /** Includes the raw bytes - only for serving the actual image (see PublicBrandController). */
+  async getLogoData(brandId: string) {
+    return this.prisma.brandLogo.findUnique({ where: { brandId } });
+  }
 }

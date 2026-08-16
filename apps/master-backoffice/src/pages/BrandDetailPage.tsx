@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
@@ -64,6 +64,31 @@ export default function BrandDetailPage() {
       void queryClient.invalidateQueries({ queryKey: ['brands'] });
     },
   });
+
+  const uploadLogoMutation = useMutation({
+    mutationFn: (file: File) => backendApi.uploadBrandLogo(id!, file),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(brandQueryKey, updated);
+      void queryClient.invalidateQueries({ queryKey: ['brands'] });
+      setLogoUrl(updated.logoUrl ?? '');
+    },
+  });
+
+  const removeLogoMutation = useMutation({
+    mutationFn: () => backendApi.removeBrandLogo(id!),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(brandQueryKey, updated);
+      void queryClient.invalidateQueries({ queryKey: ['brands'] });
+      setLogoUrl('');
+    },
+  });
+
+  function handleLogoFileChange(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    // Reset so picking the same file again still fires onChange.
+    event.target.value = '';
+    if (file) uploadLogoMutation.mutate(file);
+  }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -138,6 +163,42 @@ export default function BrandDetailPage() {
                   placeholder="https://example.com/logo.png"
                   className="mt-1 w-full max-w-md rounded-md border border-border bg-background px-3 py-2 text-sm"
                 />
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  {brand.logoUrl && (
+                    <img
+                      src={brand.logoUrl}
+                      alt="Brand logo preview"
+                      className="h-10 max-w-[8rem] rounded-md border border-border bg-background object-contain p-1"
+                    />
+                  )}
+                  <label className="cursor-pointer rounded-md border border-border bg-surface px-3 py-2 text-sm hover:bg-surface-hover">
+                    {uploadLogoMutation.isPending ? 'Uploading…' : 'Upload from computer'}
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      onChange={handleLogoFileChange}
+                      disabled={uploadLogoMutation.isPending}
+                      className="sr-only"
+                    />
+                  </label>
+                  {brand.logoUrl && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      disabled={removeLogoMutation.isPending}
+                      onClick={() => removeLogoMutation.mutate()}
+                    >
+                      Remove logo
+                    </Button>
+                  )}
+                </div>
+                {uploadLogoMutation.isError && (
+                  <p className="mt-1 text-sm text-danger">
+                    {uploadLogoMutation.error instanceof Error
+                      ? uploadLogoMutation.error.message
+                      : 'Failed to upload logo.'}
+                  </p>
+                )}
               </div>
               <div>
                 <label htmlFor="brand-theme-mode" className="block text-xs text-text-secondary">

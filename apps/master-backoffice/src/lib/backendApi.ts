@@ -194,3 +194,19 @@ export async function setProductFlag(
   );
   return parseJsonOrThrow(response, `Failed to update product flag: ${response.status}`);
 }
+
+/** Replaces any previously uploaded logo. No Content-Type header set - fetch derives the multipart boundary itself from the FormData body. */
+export async function uploadBrandLogo(brandId: string, file: File): Promise<Brand> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await authenticatedFetch(`/master/brands/${brandId}/logo`, {
+    method: 'POST',
+    body: formData,
+  });
+  return parseJsonOrThrow(response, `Failed to upload logo: ${response.status}`);
+}
+
+export async function removeBrandLogo(brandId: string): Promise<Brand> {
+  const response = await authenticatedFetch(`/master/brands/${brandId}/logo`, { method: 'DELETE' });
+  return parseJsonOrThrow(response, `Failed to remove logo: ${response.status}`);
+}

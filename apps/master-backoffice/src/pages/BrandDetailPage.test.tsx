@@ -59,6 +59,66 @@ describe('BrandDetailPage', () => {
     expect(screen.getByLabelText('Appearance')).toHaveValue('LIGHT');
   });
 
+  it('uploading a logo file POSTs it and refreshes the preview from the response', async () => {
+    const withLogo: Brand = { ...brand, logoUrl: '/backend/public/brands/brand-1/logo' };
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'POST' && url === '/backend/master/brands/brand-1/logo') {
+        expect(init!.body).toBeInstanceOf(FormData);
+        expect((init!.body as FormData).get('file')).toBeInstanceOf(File);
+        return new Response(JSON.stringify(withLogo), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/master/brands/brand-1') {
+        return new Response(JSON.stringify(brand), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderBrandDetailPage();
+    await screen.findByDisplayValue('Acme Sportsbook');
+    expect(screen.queryByRole('img', { name: 'Brand logo preview' })).not.toBeInTheDocument();
+
+    const file = new File(['fake-bytes'], 'logo.png', { type: 'image/png' });
+    await userEvent.upload(screen.getByLabelText('Upload from computer'), file);
+
+    expect(await screen.findByRole('img', { name: 'Brand logo preview' })).toHaveAttribute(
+      'src',
+      '/backend/public/brands/brand-1/logo',
+    );
+    expect(screen.getByLabelText('Logo URL')).toHaveValue('/backend/public/brands/brand-1/logo');
+  });
+
+  it('removing an uploaded logo sends a DELETE and clears the field', async () => {
+    const withLogo: Brand = { ...brand, logoUrl: '/backend/public/brands/brand-1/logo' };
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'DELETE' && url === '/backend/master/brands/brand-1/logo') {
+        return new Response(JSON.stringify(brand), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/master/brands/brand-1') {
+        return new Response(JSON.stringify(withLogo), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderBrandDetailPage();
+    await screen.findByRole('img', { name: 'Brand logo preview' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Remove logo' }));
+
+    await screen.findByLabelText('Logo URL');
+    expect(screen.getByLabelText('Logo URL')).toHaveValue('');
+    expect(screen.queryByRole('img', { name: 'Brand logo preview' })).not.toBeInTheDocument();
+  });
+
   it('toggling a product flag sends the right PATCH request', async () => {
     const enabledBrand: Brand = {
       ...brand,

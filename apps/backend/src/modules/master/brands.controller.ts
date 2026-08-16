@@ -2,16 +2,23 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
   Post,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { BrandsService } from './brands.service';
 import { CreateBrandDto, SetProductFlagDto, UpdateBrandDto } from './dto/create-brand.dto';
 import { KNOWN_PRODUCTS } from './dto/known-products';
 import { MasterJwtAuthGuard } from './master-jwt-auth.guard';
+
+const MAX_LOGO_BYTES = 5 * 1024 * 1024;
+const ALLOWED_LOGO_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml'];
 
 @UseGuards(MasterJwtAuthGuard)
 @Controller('master/brands')
@@ -48,5 +55,28 @@ export class BrandsController {
       throw new BadRequestException(`Unknown product "${product}"`);
     }
     return this.brandsService.setProductFlag(id, product, dto.enabled);
+  }
+
+  @Post(':id/logo')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_LOGO_BYTES },
+      fileFilter: (_req, file, callback) => {
+        callback(null, ALLOWED_LOGO_MIME_TYPES.includes(file.mimetype));
+      },
+    }),
+  )
+  uploadLogo(@Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined) {
+    if (!file) {
+      throw new BadRequestException(
+        `No logo uploaded, or it wasn't one of: ${ALLOWED_LOGO_MIME_TYPES.join(', ')}`,
+      );
+    }
+    return this.brandsService.setLogo(id, file.buffer, file.mimetype);
+  }
+
+  @Delete(':id/logo')
+  removeLogo(@Param('id') id: string) {
+    return this.brandsService.removeLogo(id);
   }
 }

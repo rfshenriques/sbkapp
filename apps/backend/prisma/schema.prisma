@@ -1880,6 +1880,7 @@ model Brand {
   marketSuspensions           MarketSuspension[]
   competitionSuspensions      CompetitionSuspension[]
   competitionRankings         CompetitionRanking[]
+  logo                        BrandLogo?
   images                      BrandImage[]
   imageListItems              BrandImageListItem[]
   competitionTiers            CompetitionTier[]
@@ -1939,6 +1940,27 @@ model BrandImage {
   @@unique([brandId, slot])
   @@index([brandId])
   @@map("brand_images")
+}
+
+/**
+ * The brand's own logo, staff-uploaded from the master backoffice - stored
+ * as raw bytes the same way as BrandImage, but one row per brand (no slot)
+ * since there's only ever one logo. Brand.logoUrl is set to the public
+ * serving path for this row once uploaded (see BrandsService.setLogo) so
+ * apps/frontend keeps consuming a plain image URL either way - a manually
+ * pasted external URL still works exactly as before for brands that don't
+ * upload one.
+ */
+model BrandLogo {
+  id        String   @id @default(uuid())
+  brandId   String   @unique
+  brand     Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  data      Bytes
+  mimeType  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("brand_logos")
 }
 
 enum BrandImageListKind {
