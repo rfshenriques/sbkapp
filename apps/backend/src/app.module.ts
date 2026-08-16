@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { EventBusModule } from './event-bus/event-bus.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -73,6 +74,7 @@ import { PushModule } from './modules/push/push.module';
     HomepageCarouselModule,
     WebAuthnModule,
     PushModule,
+    AnalyticsModule,
   ],
 })
 export class AppModule {}

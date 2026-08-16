@@ -72,6 +72,7 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'Reports',
     items: [
+      { to: '/analytics', label: 'Analytics', roles: ['ADMIN'] },
       { to: '/reports', label: 'Business reports', roles: ['ADMIN'] },
       { to: '/bet-history', label: 'Bet history', roles: ['ADMIN'] },
       { to: '/registrations', label: 'Registrations', roles: ['ADMIN'] },

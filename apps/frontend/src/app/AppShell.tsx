@@ -13,6 +13,7 @@ import { invalidAccumulatorReason } from '../features/bet-slip/accumulatorValidi
 import { useWinCelebrationDetector } from '../features/bet-history/useWinCelebrationDetector';
 import { WinCelebrationModal } from '../features/bet-history/WinCelebrationModal';
 import { useBrandTheme } from '../features/brand/useBrandTheme';
+import { useAnalyticsPageViews } from '../features/analytics/useAnalyticsPageViews';
 import { Footer } from '../features/footer/Footer';
 import { AccountMenu } from '../features/auth/AccountMenu';
 import { PasskeyEnrollmentModal } from '../features/auth/PasskeyEnrollmentModal';
@@ -53,6 +54,7 @@ const SWIPE_THRESHOLD_PX = 60;
 export function AppShell() {
   useBootstrapAuth();
   useForceLogout();
+  useAnalyticsPageViews();
   useWinCelebrationDetector();
   useFreebetGrantDetector();
   const brandQuery = useBrandTheme();

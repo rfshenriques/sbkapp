@@ -662,6 +662,40 @@ model AuditLogEntry {
   @@map("audit_log_entries")
 }
 
+enum AnalyticsEventType {
+  PAGE_VIEW
+  SEARCH
+  CLICK
+  LOGIN
+  BET_PLACED
+  BET_NOT_FINISHED
+}
+
+/**
+ * Deliberately no FK relation to User - same reasoning as AuditLogEntry's
+ * actor fields: events must survive account deletion, and most events are
+ * anonymous (userId null) since visitors are tracked before they ever log
+ * in. sessionId is a client-generated anonymous id (kept even after
+ * login, so a single browsing session can be traced end to end regardless
+ * of auth state).
+ */
+model AnalyticsEvent {
+  id        String             @id @default(uuid())
+  type      AnalyticsEventType
+  path      String?
+  sessionId String
+  userId    String?
+  metadata  Json?
+  createdAt DateTime           @default(now())
+
+  brandId String
+  brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Cascade)
+
+  @@index([brandId, type, createdAt])
+  @@index([brandId, userId, createdAt])
+  @@map("analytics_events")
+}
+
 enum BetStatus {
   PENDING
   WON
@@ -1842,6 +1876,7 @@ model Brand {
   staffUsers                  StaffUser[]
   bets                        Bet[]
   auditLogEntries             AuditLogEntry[]
+  analyticsEvents             AnalyticsEvent[]
   marketSuspensions           MarketSuspension[]
   competitionSuspensions      CompetitionSuspension[]
   competitionRankings         CompetitionRanking[]

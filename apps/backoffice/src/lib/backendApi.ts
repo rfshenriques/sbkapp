@@ -206,6 +206,31 @@ export interface GgrTimeSeriesPoint {
   ggrCents: number;
 }
 
+export interface LiveAnalyticsSnapshot {
+  activeSessions: number;
+  loggedInUsers: number;
+  eventsLastMinute: number;
+  windowMinutes: number;
+}
+
+export interface AnalyticsEventTypeCount {
+  type: string;
+  count: number;
+}
+
+export interface AnalyticsPathCount {
+  path: string;
+  count: number;
+}
+
+export interface AnalyticsSummary {
+  from: string | null;
+  to: string | null;
+  totalEvents: number;
+  eventCounts: AnalyticsEventTypeCount[];
+  topPaths: AnalyticsPathCount[];
+}
+
 export type SelectionStatus = 'OPEN' | 'WON' | 'LOST' | 'VOID';
 export type BetStatus = 'PENDING' | 'WON' | 'LOST' | 'VOID';
 
@@ -664,6 +689,16 @@ function rangeQuery(range: ReportRange): string {
   if (range.to) params.set('to', range.to);
   const query = params.toString();
   return query ? `?${query}` : '';
+}
+
+export async function getLiveAnalytics(): Promise<LiveAnalyticsSnapshot> {
+  const response = await authenticatedFetch('/admin/analytics/live');
+  return parseJsonOrThrow(response, `Failed to load live analytics: ${response.status}`);
+}
+
+export async function getAnalyticsSummary(range: ReportRange): Promise<AnalyticsSummary> {
+  const response = await authenticatedFetch(`/admin/analytics/summary${rangeQuery(range)}`);
+  return parseJsonOrThrow(response, `Failed to load analytics summary: ${response.status}`);
 }
 
 export async function getReportSummary(range: ReportRange): Promise<ReportSummary> {

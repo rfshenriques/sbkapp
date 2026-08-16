@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import * as backendApi from '../../lib/backendApi';
+import { track } from '../../lib/analytics';
 import { useAuthStore } from './authStore';
 
 export function useAuth() {
@@ -13,6 +14,7 @@ export function useAuth() {
     async (identifier: string, password: string) => {
       const { accessToken } = await backendApi.login({ identifier, password });
       setAuth(accessToken);
+      track('LOGIN');
     },
     [setAuth],
   );

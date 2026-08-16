@@ -7,6 +7,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { MoneyBeforeAfter } from '../../components/ui/MoneyBeforeAfter';
 import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
+import { track } from '../../lib/analytics';
 import { placeBet } from '../../lib/backendApi';
 import { useAuth } from '../auth/useAuth';
 import { useAuthModalStore } from '../auth/authModalStore';
@@ -540,6 +541,9 @@ export function BetSlipPanel({
   const placeAccumulatorMutation = useMutation({
     mutationFn: placeBet,
     onSuccess: (bet) => {
+      track('BET_PLACED', {
+        metadata: { stakeCents: bet.stakeCents, selectionCount: selections.length, mode: 'accumulator' },
+      });
       clear();
       resetPayMethod();
       openBetPlacedModal({
@@ -584,6 +588,9 @@ export function BetSlipPanel({
       resetPayMethod();
       const totalStakeCents = bets.reduce((total, bet) => total + bet.stakeCents, 0);
       const totalPayoutCents = bets.reduce((total, bet) => total + bet.potentialPayoutCents, 0);
+      track('BET_PLACED', {
+        metadata: { stakeCents: totalStakeCents, selectionCount: bets.length, mode: 'singles' },
+      });
       const betAndGetBet = bets.find((bet) => bet.betAndGetCampaignName !== null);
       const depositCampaignBet = bets.find((bet) => bet.depositCampaignName !== null);
       openBetPlacedModal({
@@ -778,7 +785,12 @@ export function BetSlipPanel({
               type="button"
               aria-label="Clear bet slip"
               className="mb-2 shrink-0 rounded-xl p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-danger"
-              onClick={clear}
+              onClick={() => {
+                if (selections.length > 0) {
+                  track('BET_NOT_FINISHED', { metadata: { selectionCount: selections.length } });
+                }
+                clear();
+              }}
             >
               <TrashIcon className="h-4 w-4" />
             </button>
