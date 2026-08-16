@@ -185,6 +185,7 @@ export interface PlayerRecentBetSelection {
   matchLabel: string;
   marketName: string;
   selectionName: string;
+  odds: string;
   status: SelectionStatus;
 }
 
@@ -196,6 +197,10 @@ export interface PlayerRecentBet {
   settledPayoutCents: number | null;
   status: BetStatus;
   createdAt: string;
+  fundedByFreebets: boolean;
+  insuranceCostPercent: number;
+  accaBoostPercent: number;
+  campaignName: string | null;
   selections: PlayerRecentBetSelection[];
 }
 
@@ -211,6 +216,18 @@ export interface PlayerSegmentMembership {
   colorHex: string | null;
 }
 
+export interface PlayerStats {
+  turnoverCents: number;
+  betCount: number;
+  avgStakeCents: number;
+  ggrCents: number;
+  avgSelectionsPerBet: number;
+  singleBetCount: number;
+  accumulatorBetCount: number;
+  topSports: { sport: string; count: number }[];
+  topCompetitions: { competition: string; count: number }[];
+}
+
 export interface PlayerDetail {
   id: string;
   email: string;
@@ -221,6 +238,7 @@ export interface PlayerDetail {
   balanceCents: number;
   freebetsCents: number;
   segments: PlayerSegmentMembership[];
+  stats: PlayerStats;
   recentBets: PlayerRecentBet[];
   deposits: PlayerDeposit[];
   webauthnCredentialCount: number;

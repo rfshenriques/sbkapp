@@ -1,15 +1,23 @@
+import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
+import { SidePanel } from '../components/ui/SidePanel';
 import * as backendApi from '../lib/backendApi';
+import type { PlayerRecentBet } from '../lib/backendApi';
 
 function formatCents(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
+function shortId(id: string): string {
+  return id.slice(0, 8);
+}
+
 export default function PlayerDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const [openBet, setOpenBet] = useState<PlayerRecentBet | null>(null);
 
   const {
     data: player,
@@ -56,6 +64,66 @@ export default function PlayerDetailPage() {
               <p className="text-xl font-semibold">{player.pushSubscriptionCount}</p>
             </Card>
           </div>
+
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Card>
+              <p className="text-xs text-text-secondary">Turnover staked</p>
+              <p className="text-xl font-semibold">{formatCents(player.stats.turnoverCents)}</p>
+              <p className="text-xs text-text-muted">{player.stats.betCount} bets</p>
+            </Card>
+            <Card>
+              <p className="text-xs text-text-secondary">GGR</p>
+              <p className={`text-xl font-semibold ${player.stats.ggrCents < 0 ? 'text-danger' : ''}`}>
+                {formatCents(player.stats.ggrCents)}
+              </p>
+              <p className="text-xs text-text-muted">Settled bets only</p>
+            </Card>
+            <Card>
+              <p className="text-xs text-text-secondary">Avg stake / bet</p>
+              <p className="text-xl font-semibold">{formatCents(player.stats.avgStakeCents)}</p>
+            </Card>
+            <Card>
+              <p className="text-xs text-text-secondary">Avg selections / bet</p>
+              <p className="text-xl font-semibold">{player.stats.avgSelectionsPerBet.toFixed(1)}</p>
+              <p className="text-xs text-text-muted">
+                {player.stats.singleBetCount} singles · {player.stats.accumulatorBetCount} accas
+              </p>
+            </Card>
+          </div>
+
+          <Card className="mt-4">
+            <h2 className="text-sm font-medium text-text-secondary">Preferences</h2>
+            <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div>
+                <p className="text-xs text-text-secondary">Top sports</p>
+                {player.stats.topSports.length === 0 ? (
+                  <p className="mt-1 text-sm text-text-muted">No data yet.</p>
+                ) : (
+                  <ul className="mt-1 flex flex-wrap gap-1">
+                    {player.stats.topSports.map((row) => (
+                      <li key={row.sport} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs">
+                        {row.sport} <span className="text-text-muted">({row.count})</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+              <div>
+                <p className="text-xs text-text-secondary">Top leagues/competitions</p>
+                {player.stats.topCompetitions.length === 0 ? (
+                  <p className="mt-1 text-sm text-text-muted">No data yet.</p>
+                ) : (
+                  <ul className="mt-1 flex flex-wrap gap-1">
+                    {player.stats.topCompetitions.map((row) => (
+                      <li key={row.competition} className="rounded-full bg-surface-2 px-2 py-0.5 text-xs">
+                        {row.competition} <span className="text-text-muted">({row.count})</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+          </Card>
 
           <Card className="mt-4">
             <h2 className="text-sm font-medium text-text-secondary">Profile</h2>
@@ -110,7 +178,7 @@ export default function PlayerDetailPage() {
               <table className="mt-2 w-full text-left text-sm">
                 <thead>
                   <tr className="border-b border-border text-text-secondary">
-                    <th className="py-2 font-medium">Selections</th>
+                    <th className="py-2 font-medium">Ticket</th>
                     <th className="py-2 font-medium">Stake</th>
                     <th className="py-2 font-medium">Odds</th>
                     <th className="py-2 font-medium">Status</th>
@@ -121,7 +189,13 @@ export default function PlayerDetailPage() {
                   {player.recentBets.map((bet) => (
                     <tr key={bet.id} className="border-b border-border last:border-0">
                       <td className="py-2">
-                        {bet.selections.map((selection) => selection.selectionName).join(', ')}
+                        <button
+                          type="button"
+                          onClick={() => setOpenBet(bet)}
+                          className="font-mono text-xs text-brand hover:underline"
+                        >
+                          #{shortId(bet.id)}
+                        </button>
                       </td>
                       <td className="py-2">{formatCents(bet.stakeCents)}</td>
                       <td className="py-2 text-text-secondary">{bet.combinedOdds}</td>
@@ -159,6 +233,78 @@ export default function PlayerDetailPage() {
           </Card>
         </>
       )}
+
+      <SidePanel title={openBet ? `Ticket #${shortId(openBet.id)}` : ''} isOpen={openBet !== null} onClose={() => setOpenBet(null)}>
+        {openBet && (
+          <div className="space-y-4 text-sm">
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-2">
+              <div>
+                <dt className="text-xs text-text-secondary">Stake</dt>
+                <dd>{formatCents(openBet.stakeCents)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-text-secondary">Combined odds</dt>
+                <dd>{openBet.combinedOdds}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-text-secondary">Potential payout</dt>
+                <dd>{formatCents(openBet.potentialPayoutCents)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-text-secondary">Settled payout</dt>
+                <dd>{openBet.settledPayoutCents === null ? '—' : formatCents(openBet.settledPayoutCents)}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-text-secondary">Status</dt>
+                <dd>{openBet.status}</dd>
+              </div>
+              <div>
+                <dt className="text-xs text-text-secondary">Placed</dt>
+                <dd>{new Date(openBet.createdAt).toLocaleString()}</dd>
+              </div>
+            </dl>
+
+            {(openBet.fundedByFreebets || openBet.insuranceCostPercent > 0 || openBet.accaBoostPercent > 0 || openBet.campaignName) && (
+              <div className="flex flex-wrap gap-1">
+                {openBet.fundedByFreebets && (
+                  <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs">Funded by freebets</span>
+                )}
+                {openBet.insuranceCostPercent > 0 && (
+                  <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs">
+                    Insured ({openBet.insuranceCostPercent}%)
+                  </span>
+                )}
+                {openBet.accaBoostPercent > 0 && (
+                  <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs">
+                    Boosted (+{openBet.accaBoostPercent}%)
+                  </span>
+                )}
+                {openBet.campaignName && (
+                  <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs">{openBet.campaignName}</span>
+                )}
+              </div>
+            )}
+
+            <div>
+              <h3 className="text-xs font-medium text-text-secondary">Selections</h3>
+              <ul className="mt-2 space-y-2">
+                {openBet.selections.map((selection, index) => (
+                  <li key={index} className="rounded-md border border-border p-2">
+                    <p className="font-medium">{selection.matchLabel}</p>
+                    <p className="text-text-secondary">
+                      {selection.marketName}: {selection.selectionName}
+                    </p>
+                    <p className="mt-1 flex items-center justify-between text-xs text-text-muted">
+                      <span>Odds {selection.odds}</span>
+                      <span>{selection.status}</span>
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        )}
+      </SidePanel>
     </div>
   );
 }
