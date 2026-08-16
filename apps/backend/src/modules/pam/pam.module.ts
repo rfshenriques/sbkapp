@@ -22,6 +22,8 @@ import { MarketSuspensionService } from './market-suspension.service';
 import { PamAdminController } from './pam-admin.controller';
 import { PamController } from './pam.controller';
 import { PamService } from './pam.service';
+import { PlayerLookupService } from './player-lookup.service';
+import { PlayersAdminController } from './players-admin.controller';
 import { PublicCampaignPreviewController } from './public-campaign-preview.controller';
 import { PublicCompetitionSuspensionController } from './public-competition-suspension.controller';
 import { PublicMarketSuspensionController } from './public-market-suspension.controller';
@@ -48,6 +50,7 @@ import { PublicStakeLimitPreviewController } from './public-stake-limit-preview.
   controllers: [
     PamController,
     PamAdminController,
+    PlayersAdminController,
     MarketAdminController,
     PublicMarketSuspensionController,
     CompetitionSuspensionAdminController,
@@ -55,6 +58,6 @@ import { PublicStakeLimitPreviewController } from './public-stake-limit-preview.
     PublicStakeLimitPreviewController,
     PublicCampaignPreviewController,
   ],
-  providers: [PamService, MarketSuspensionService, CompetitionSuspensionService, OddsEngineClient],
+  providers: [PamService, PlayerLookupService, MarketSuspensionService, CompetitionSuspensionService, OddsEngineClient],
 })
 export class PamModule {}

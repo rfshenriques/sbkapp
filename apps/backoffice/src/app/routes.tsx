@@ -26,6 +26,8 @@ import PushNotificationsPage from '../pages/PushNotificationsPage';
 import RegistrationsPage from '../pages/RegistrationsPage';
 import ReportsPage from '../pages/ReportsPage';
 import AnalyticsPage from '../pages/AnalyticsPage';
+import PlayersPage from '../pages/PlayersPage';
+import PlayerDetailPage from '../pages/PlayerDetailPage';
 import SettlementPage from '../pages/SettlementPage';
 import StakeLimitsPage from '../pages/StakeLimitsPage';
 import StaffLoginPage from '../pages/StaffLoginPage';
@@ -185,6 +187,26 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN']}>
               <AnalyticsPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'players',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'CRM']}>
+              <PlayersPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'players/:id',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'CRM']}>
+              <PlayerDetailPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

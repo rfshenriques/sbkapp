@@ -19,77 +19,142 @@ interface NavGroup {
   items: NavItem[];
 }
 
-const NAV_GROUPS: NavGroup[] = [
+interface NavSection {
+  key: string;
+  label: string;
+  groups: NavGroup[];
+}
+
+/**
+ * Three top-level sections switched from the top header, each acting like
+ * its own mini-backoffice - the secondary nav row below only ever shows the
+ * active section's groups. Everything day-to-day-operational (trading,
+ * campaigns, content, CRM tooling, staff admin) lives under Operational;
+ * Reports & Analytics and Players are the two things staff go looking for
+ * on their own, not as part of running a campaign.
+ */
+const NAV_SECTIONS: NavSection[] = [
   {
-    label: 'Trading',
-    items: [
-      { to: '/', label: 'Settlement' },
-      { to: '/trading', label: 'Suspensions', roles: ['ADMIN', 'TRADING'] },
-      { to: '/competition-tiers', label: 'Competition tiers', roles: ['ADMIN', 'TRADING'] },
-      { to: '/margins', label: 'Margins', roles: ['ADMIN', 'TRADING'] },
-      { to: '/odds-overrides', label: 'Odds management', roles: ['ADMIN', 'TRADING'] },
-      { to: '/manual-markets', label: 'Manual markets', roles: ['ADMIN', 'TRADING'] },
-      { to: '/odds-ladder', label: 'Odds ladder', roles: ['ADMIN', 'TRADING'] },
-      { to: '/boosts', label: 'Boosts', roles: ['ADMIN', 'TRADING'] },
-      { to: '/stake-limits', label: 'Stake limits', roles: ['ADMIN', 'TRADING'] },
-      { to: '/competition-ranking', label: 'Competition rankings', roles: ['ADMIN', 'CMS'] },
+    key: 'operational',
+    label: 'Operational',
+    groups: [
+      {
+        label: 'Trading',
+        items: [
+          { to: '/', label: 'Settlement' },
+          { to: '/trading', label: 'Suspensions', roles: ['ADMIN', 'TRADING'] },
+          { to: '/competition-tiers', label: 'Competition tiers', roles: ['ADMIN', 'TRADING'] },
+          { to: '/margins', label: 'Margins', roles: ['ADMIN', 'TRADING'] },
+          { to: '/odds-overrides', label: 'Odds management', roles: ['ADMIN', 'TRADING'] },
+          { to: '/manual-markets', label: 'Manual markets', roles: ['ADMIN', 'TRADING'] },
+          { to: '/odds-ladder', label: 'Odds ladder', roles: ['ADMIN', 'TRADING'] },
+          { to: '/boosts', label: 'Boosts', roles: ['ADMIN', 'TRADING'] },
+          { to: '/stake-limits', label: 'Stake limits', roles: ['ADMIN', 'TRADING'] },
+          { to: '/competition-ranking', label: 'Competition rankings', roles: ['ADMIN', 'CMS'] },
+        ],
+      },
+      {
+        label: 'Campaigns',
+        items: [
+          { to: '/campaigns', label: 'Campaigns', roles: ['ADMIN', 'TRADING'] },
+          { to: '/acca-boost', label: 'Acca boost', roles: ['ADMIN', 'TRADING'] },
+          { to: '/acca-rollback', label: 'Acca rollback', roles: ['ADMIN', 'TRADING'] },
+          { to: '/insurance-bet', label: 'Insurance bet', roles: ['ADMIN', 'TRADING'] },
+          { to: '/freebets', label: 'Freebets', roles: ['ADMIN', 'CRM'] },
+        ],
+      },
+      {
+        label: 'CMS',
+        items: [
+          { to: '/cms-images', label: 'Images', roles: ['ADMIN', 'CMS'] },
+          { to: '/cms-sponsors', label: 'Sponsors', roles: ['ADMIN', 'CMS'] },
+          { to: '/cms-payments', label: 'Payments', roles: ['ADMIN', 'CMS'] },
+          { to: '/cms-promo-cards', label: 'Promo Cards', roles: ['ADMIN', 'CMS'] },
+          { to: '/cms-quicklinks', label: 'Quicklinks', roles: ['ADMIN', 'CMS'] },
+        ],
+      },
+      {
+        label: 'CRM',
+        items: [
+          { to: '/player-segments', label: 'Player segments', roles: ['ADMIN', 'CRM'] },
+          { to: '/push-notifications', label: 'Push notifications', roles: ['ADMIN', 'CRM'] },
+        ],
+      },
+      {
+        label: 'Customization',
+        items: [
+          { to: '/display-names', label: 'Translations', roles: ['ADMIN', 'CMS'] },
+          { to: '/team-colors', label: 'Team colors', roles: ['ADMIN', 'CMS'] },
+        ],
+      },
+      {
+        label: 'Staff',
+        items: [
+          { to: '/staff-users', label: 'Staff users', roles: ['ADMIN'] },
+          { to: '/audit-log', label: 'Audit log', roles: ['ADMIN'] },
+        ],
+      },
     ],
   },
   {
-    label: 'Campaigns',
-    items: [
-      { to: '/campaigns', label: 'Campaigns', roles: ['ADMIN', 'TRADING'] },
-      { to: '/acca-boost', label: 'Acca boost', roles: ['ADMIN', 'TRADING'] },
-      { to: '/acca-rollback', label: 'Acca rollback', roles: ['ADMIN', 'TRADING'] },
-      { to: '/insurance-bet', label: 'Insurance bet', roles: ['ADMIN', 'TRADING'] },
-      { to: '/freebets', label: 'Freebets', roles: ['ADMIN', 'CRM'] },
+    key: 'reports',
+    label: 'Reports & Analytics',
+    groups: [
+      {
+        label: 'Reports',
+        items: [
+          { to: '/analytics', label: 'Analytics', roles: ['ADMIN'] },
+          { to: '/reports', label: 'Business reports', roles: ['ADMIN'] },
+          { to: '/bet-history', label: 'Bet history', roles: ['ADMIN'] },
+          { to: '/registrations', label: 'Registrations', roles: ['ADMIN'] },
+          { to: '/marketing-spend', label: 'Marketing spend', roles: ['ADMIN'] },
+        ],
+      },
     ],
   },
   {
-    label: 'CMS',
-    items: [
-      { to: '/cms-images', label: 'Images', roles: ['ADMIN', 'CMS'] },
-      { to: '/cms-sponsors', label: 'Sponsors', roles: ['ADMIN', 'CMS'] },
-      { to: '/cms-payments', label: 'Payments', roles: ['ADMIN', 'CMS'] },
-      { to: '/cms-promo-cards', label: 'Promo Cards', roles: ['ADMIN', 'CMS'] },
-      { to: '/cms-quicklinks', label: 'Quicklinks', roles: ['ADMIN', 'CMS'] },
-    ],
-  },
-  {
-    label: 'CRM',
-    items: [
-      { to: '/player-segments', label: 'Player segments', roles: ['ADMIN', 'CRM'] },
-      { to: '/push-notifications', label: 'Push notifications', roles: ['ADMIN', 'CRM'] },
-    ],
-  },
-  {
-    label: 'Customization',
-    items: [
-      { to: '/display-names', label: 'Translations', roles: ['ADMIN', 'CMS'] },
-      { to: '/team-colors', label: 'Team colors', roles: ['ADMIN', 'CMS'] },
-    ],
-  },
-  {
-    label: 'Reports',
-    items: [
-      { to: '/analytics', label: 'Analytics', roles: ['ADMIN'] },
-      { to: '/reports', label: 'Business reports', roles: ['ADMIN'] },
-      { to: '/bet-history', label: 'Bet history', roles: ['ADMIN'] },
-      { to: '/registrations', label: 'Registrations', roles: ['ADMIN'] },
-      { to: '/marketing-spend', label: 'Marketing spend', roles: ['ADMIN'] },
-    ],
-  },
-  {
-    label: 'Staff',
-    items: [
-      { to: '/staff-users', label: 'Staff users', roles: ['ADMIN'] },
-      { to: '/audit-log', label: 'Audit log', roles: ['ADMIN'] },
+    key: 'players',
+    label: 'Players',
+    groups: [
+      {
+        label: 'Players',
+        items: [{ to: '/players', label: 'Search players', roles: ['ADMIN', 'CRM'] }],
+      },
     ],
   },
 ];
 
 function visibleItemsFor(items: NavItem[], role: StaffRole | undefined): NavItem[] {
   return items.filter((item) => !item.roles || (role && item.roles.includes(role)));
+}
+
+function visibleGroupsFor(groups: NavGroup[], role: StaffRole | undefined): NavGroup[] {
+  return groups
+    .map((group) => ({ ...group, items: visibleItemsFor(group.items, role) }))
+    .filter((group) => group.items.length > 0);
+}
+
+/** True when pathname is this nav item's own route or a sub-route of it (e.g. /players/:id under /players). */
+function pathMatchesItem(pathname: string, itemTo: string): boolean {
+  if (itemTo === '/') return pathname === '/';
+  return pathname === itemTo || pathname.startsWith(`${itemTo}/`);
+}
+
+/** Which section owns the current route - drives which section tab is highlighted and which groups the secondary nav shows. Matched against every item regardless of role, since a directly-typed URL still "belongs" to a section even if this staff member can't see it in the nav. */
+function sectionForPath(pathname: string): NavSection {
+  const match = NAV_SECTIONS.find((section) =>
+    section.groups.some((group) => group.items.some((item) => pathMatchesItem(pathname, item.to))),
+  );
+  return match ?? NAV_SECTIONS[0]!;
+}
+
+/** Where a section's tab link goes - the first item this staff member can actually see, so switching sections never lands on a blocked page. */
+function defaultPathForSection(section: NavSection, role: StaffRole | undefined): string {
+  for (const group of section.groups) {
+    const visible = visibleItemsFor(group.items, role);
+    if (visible.length > 0) return visible[0]!.to;
+  }
+  return '/';
 }
 
 export function AppShell() {
@@ -107,10 +172,13 @@ export function AppShell() {
     setOpenGroup(null);
   }, [location.pathname]);
 
-  const visibleGroups = NAV_GROUPS.map((group) => ({
-    ...group,
-    items: visibleItemsFor(group.items, user?.role),
-  })).filter((group) => group.items.length > 0);
+  const visibleSections = NAV_SECTIONS.map((section) => ({
+    ...section,
+    groups: visibleGroupsFor(section.groups, user?.role),
+  })).filter((section) => section.groups.length > 0);
+
+  const activeSection = sectionForPath(location.pathname);
+  const visibleGroups = visibleGroupsFor(activeSection.groups, user?.role);
 
   return (
     <div className="min-h-screen bg-background text-text-primary">
@@ -130,6 +198,28 @@ export function AppShell() {
             </button>
           )}
           <span className="text-lg font-semibold">Backoffice</span>
+          {/* Three top-level "mini-backoffices" - which one is active is
+              derived from the current route (see sectionForPath), so it
+              always agrees with what's actually on screen even after a
+              direct link or a page reload. */}
+          {isInitialized && isAuthenticated && visibleSections.length > 0 && (
+            <div className="hidden items-center gap-1 sm:flex">
+              {visibleSections.map((section) => (
+                <Link
+                  key={section.key}
+                  to={defaultPathForSection(section, user?.role)}
+                  aria-current={activeSection.key === section.key ? 'page' : undefined}
+                  className={`rounded-md px-3 py-1.5 text-sm font-medium ${
+                    activeSection.key === section.key
+                      ? 'bg-brand text-white'
+                      : 'text-text-secondary hover:bg-surface hover:text-text-primary'
+                  }`}
+                >
+                  {section.label}
+                </Link>
+              ))}
+            </div>
+          )}
           {isInitialized && isAuthenticated && (
             <div className="ml-auto flex items-center gap-3 text-sm">
               <span className="hidden text-text-secondary sm:inline">
@@ -217,6 +307,24 @@ export function AppShell() {
             <div className="mb-3 text-sm text-text-secondary">
               {user?.username} <span className="text-text-muted">({user?.role})</span>
             </div>
+            {visibleSections.length > 0 && (
+              <div className="mb-4 flex flex-col gap-1 border-b border-border pb-4">
+                {visibleSections.map((section) => (
+                  <Link
+                    key={section.key}
+                    to={defaultPathForSection(section, user?.role)}
+                    aria-current={activeSection.key === section.key ? 'page' : undefined}
+                    className={`rounded-md px-3 py-2 text-sm font-medium ${
+                      activeSection.key === section.key
+                        ? 'bg-brand text-white'
+                        : 'text-text-secondary hover:bg-surface hover:text-text-primary'
+                    }`}
+                  >
+                    {section.label}
+                  </Link>
+                ))}
+              </div>
+            )}
             <nav className="flex flex-col gap-1">
               {visibleGroups.map((group) => {
                 const isExpanded = expandedMobileGroup === group.label;

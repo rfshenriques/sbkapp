@@ -172,6 +172,61 @@ export interface StatusBreakdownEntry {
   stakeCents: number;
 }
 
+export interface PlayerSummary {
+  id: string;
+  email: string;
+  username: string;
+  phone: string;
+  balanceCents: number;
+  createdAt: string;
+}
+
+export interface PlayerRecentBetSelection {
+  matchLabel: string;
+  marketName: string;
+  selectionName: string;
+  status: SelectionStatus;
+}
+
+export interface PlayerRecentBet {
+  id: string;
+  stakeCents: number;
+  combinedOdds: string;
+  potentialPayoutCents: number;
+  settledPayoutCents: number | null;
+  status: BetStatus;
+  createdAt: string;
+  selections: PlayerRecentBetSelection[];
+}
+
+export interface PlayerDeposit {
+  id: string;
+  amountCents: number;
+  createdAt: string;
+}
+
+export interface PlayerSegmentMembership {
+  id: string;
+  name: string;
+  colorHex: string | null;
+}
+
+export interface PlayerDetail {
+  id: string;
+  email: string;
+  username: string;
+  phone: string;
+  phoneVerifiedAt: string | null;
+  createdAt: string;
+  balanceCents: number;
+  freebetsCents: number;
+  segments: PlayerSegmentMembership[];
+  recentBets: PlayerRecentBet[];
+  deposits: PlayerDeposit[];
+  webauthnCredentialCount: number;
+  pushSubscriptionCount: number;
+}
+
 export interface ReportSummary {
   from: string | null;
   to: string | null;
@@ -689,6 +744,19 @@ function rangeQuery(range: ReportRange): string {
   if (range.to) params.set('to', range.to);
   const query = params.toString();
   return query ? `?${query}` : '';
+}
+
+export async function searchPlayers(query: string): Promise<PlayerSummary[]> {
+  const params = new URLSearchParams();
+  if (query) params.set('query', query);
+  const suffix = params.toString() ? `?${params.toString()}` : '';
+  const response = await authenticatedFetch(`/admin/players${suffix}`);
+  return parseJsonOrThrow(response, `Failed to search players: ${response.status}`);
+}
+
+export async function getPlayerDetail(id: string): Promise<PlayerDetail> {
+  const response = await authenticatedFetch(`/admin/players/${id}`);
+  return parseJsonOrThrow(response, `Failed to load player: ${response.status}`);
 }
 
 export async function getLiveAnalytics(): Promise<LiveAnalyticsSnapshot> {

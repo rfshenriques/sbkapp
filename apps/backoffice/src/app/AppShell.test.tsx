@@ -5,13 +5,15 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { useStaffAuthStore } from '../features/auth/staffAuthStore';
 import { AppShell } from './AppShell';
 
-function renderShell() {
+function renderShell(initialEntry = '/') {
   return render(
-    <MemoryRouter initialEntries={['/']}>
+    <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
         <Route path="/" element={<AppShell />}>
           <Route index element={<p>Settlement content</p>} />
           <Route path="margins" element={<p>Margins content</p>} />
+          <Route path="analytics" element={<p>Analytics content</p>} />
+          <Route path="players" element={<p>Players content</p>} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -39,8 +41,86 @@ afterAll(() => {
   vi.unstubAllGlobals();
 });
 
+describe('AppShell top-level sections', () => {
+  it('lands on Operational at the root path, showing only its groups', async () => {
+    useStaffAuthStore.setState({
+      accessToken: 'header.payload.signature',
+      user: { sub: 'staff-1', username: 'admin_alice', role: 'ADMIN' },
+      isInitialized: true,
+    });
+
+    renderShell();
+
+    expect(screen.getByRole('link', { name: 'Operational' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Reports & Analytics' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Players' })).not.toHaveAttribute('aria-current');
+
+    expect(screen.getByRole('button', { name: 'Trading' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Staff' })).toBeInTheDocument();
+    // Reports lives under the Reports & Analytics section, not Operational.
+    expect(screen.queryByRole('button', { name: 'Reports' })).not.toBeInTheDocument();
+  });
+
+  it('switching to Reports & Analytics shows its groups and marks it active', async () => {
+    useStaffAuthStore.setState({
+      accessToken: 'header.payload.signature',
+      user: { sub: 'staff-1', username: 'admin_alice', role: 'ADMIN' },
+      isInitialized: true,
+    });
+
+    renderShell();
+    await userEvent.click(screen.getByRole('link', { name: 'Reports & Analytics' }));
+
+    expect(await screen.findByText('Analytics content')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Reports & Analytics' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Reports' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Trading' })).not.toBeInTheDocument();
+  });
+
+  it('switching to Players navigates straight there (only one item, no dropdown group needed)', async () => {
+    useStaffAuthStore.setState({
+      accessToken: 'header.payload.signature',
+      user: { sub: 'staff-1', username: 'admin_alice', role: 'ADMIN' },
+      isInitialized: true,
+    });
+
+    renderShell();
+    await userEvent.click(screen.getByRole('link', { name: 'Players' }));
+
+    expect(await screen.findByText('Players content')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Players' })).toHaveAttribute('aria-current', 'page');
+  });
+
+  it('a direct link into a Reports & Analytics page lands with that section already active', () => {
+    useStaffAuthStore.setState({
+      accessToken: 'header.payload.signature',
+      user: { sub: 'staff-1', username: 'admin_alice', role: 'ADMIN' },
+      isInitialized: true,
+    });
+
+    renderShell('/analytics');
+
+    expect(screen.getByRole('link', { name: 'Reports & Analytics' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: 'Reports' })).toBeInTheDocument();
+  });
+
+  it('CMS-only staff see no Reports & Analytics or Players tab at all', () => {
+    useStaffAuthStore.setState({
+      accessToken: 'header.payload.signature',
+      user: { sub: 'staff-2', username: 'cms_bob', role: 'CMS' },
+      isInitialized: true,
+    });
+
+    renderShell();
+
+    expect(screen.getByRole('link', { name: 'Operational' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Reports & Analytics' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Players' })).not.toBeInTheDocument();
+  });
+});
+
 describe('AppShell navigation groups', () => {
-  it('shows only groups/items the ADMIN role can see, and opens a group dropdown on click', async () => {
+  it('shows only groups/items the ADMIN role can see within Operational, and opens a group dropdown on click', async () => {
     useStaffAuthStore.setState({
       accessToken: 'header.payload.signature',
       user: { sub: 'staff-1', username: 'admin_alice', role: 'ADMIN' },
@@ -52,7 +132,6 @@ describe('AppShell navigation groups', () => {
     expect(screen.getByRole('button', { name: 'Trading' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'CMS' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Customization' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Reports' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Staff' })).toBeInTheDocument();
 
     expect(screen.queryByRole('link', { name: 'Margins' })).not.toBeInTheDocument();
@@ -74,7 +153,6 @@ describe('AppShell navigation groups', () => {
     expect(screen.getByRole('button', { name: 'Trading' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'CMS' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Customization' })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Reports' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Staff' })).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'Trading' }));
