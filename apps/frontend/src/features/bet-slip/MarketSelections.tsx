@@ -1,5 +1,6 @@
 import type { Market, Selection } from '@sportsbook/shared';
 import { LockIcon } from '../../components/ui/LockIcon';
+import { track } from '../../lib/analytics';
 import { useDisplayNames } from '../display-names/useDisplayNames';
 import { useBetSlipStore } from './betSlipStore';
 import { sortMatchResultSelections } from './sortMatchResultSelections';
@@ -116,7 +117,16 @@ export function MarketSelections({
             isSelected={selectedSelectionId === selection.id}
             isSuspended={competitionSuspended || isSuspended(matchId, market.id, selection.id)}
             variant={variant}
-            onSelect={() =>
+            onSelect={() => {
+              track('CLICK', {
+                metadata: {
+                  target: 'odds_selection',
+                  matchId,
+                  marketId: market.id,
+                  selectionId: selection.id,
+                  wasSelected: selectedSelectionId === selection.id,
+                },
+              });
               toggleSelection({
                 matchId,
                 marketId: market.id,
@@ -128,8 +138,8 @@ export function MarketSelections({
                 originalOdds: selection.originalOdds,
                 maxStakeCents: selection.maxStakeCents ?? market.maxStakeCents,
                 marketSinglesOnly: market.singlesOnly,
-              })
-            }
+              });
+            }}
           />
         );
       })}

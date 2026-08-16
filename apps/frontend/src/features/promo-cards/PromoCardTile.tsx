@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TrophyIcon } from '../../components/ui/NavIcons';
+import { track } from '../../lib/analytics';
 import * as backendApi from '../../lib/backendApi';
 import type { PromoCardItem } from '../../lib/backendApi';
 import { useContrastColor } from '../../lib/useContrastColor';
@@ -91,6 +92,9 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
     return (
       <Link
         to={`/campaigns/${card.betAndGetCampaignId}`}
+        onClick={() =>
+          track('CLICK', { metadata: { target: 'promo_card', kind: 'bet_and_get', campaignId: card.betAndGetCampaignId } })
+        }
         className={`relative block overflow-hidden rounded-3xl ${frameClassName} ${className ?? ''}`}
       >
         {content}
@@ -102,6 +106,9 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
     return (
       <Link
         to={`/leaderboards/${card.leaderboardCampaignId}`}
+        onClick={() =>
+          track('CLICK', { metadata: { target: 'promo_card', kind: 'leaderboard', campaignId: card.leaderboardCampaignId } })
+        }
         className={`relative block overflow-hidden rounded-3xl ${frameClassName} ${className ?? ''}`}
       >
         {content}
@@ -112,6 +119,7 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
   if (card.depositCampaignId) {
     const depositCampaignId = card.depositCampaignId;
     async function handleClick() {
+      track('CLICK', { metadata: { target: 'promo_card', kind: 'deposit', campaignId: depositCampaignId } });
       setIsLoadingDepositCampaign(true);
       try {
         const campaign = await backendApi.getDepositCampaign(brandId, depositCampaignId);
