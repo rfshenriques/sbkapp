@@ -221,6 +221,7 @@ export interface PlayerStats {
   betCount: number;
   avgStakeCents: number;
   ggrCents: number;
+  openLiabilityCents: number;
   avgSelectionsPerBet: number;
   singleBetCount: number;
   accumulatorBetCount: number;

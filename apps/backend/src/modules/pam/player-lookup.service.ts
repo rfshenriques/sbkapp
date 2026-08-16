@@ -24,6 +24,8 @@ export interface PlayerStats {
   avgStakeCents: number;
   /** Stakes minus payouts across settled (WON/LOST/VOID) bets only - a VOID nets to ~0 since its payout refunds the stake. */
   ggrCents: number;
+  /** Sum of (potentialPayoutCents - stakeCents) across this player's still-PENDING bets - what the house is currently exposed to lose if every open bet won. */
+  openLiabilityCents: number;
   avgSelectionsPerBet: number;
   singleBetCount: number;
   accumulatorBetCount: number;
@@ -135,7 +137,7 @@ export class PlayerLookupService {
   }
 
   private async computeStats(brandId: string, userId: string): Promise<PlayerStats> {
-    const [turnover, settled, betsWithSelectionCounts, sportRows, competitionRows] = await Promise.all([
+    const [turnover, settled, pending, betsWithSelectionCounts, sportRows, competitionRows] = await Promise.all([
       this.prisma.bet.aggregate({
         where: { userId, brandId },
         _sum: { stakeCents: true },
@@ -145,6 +147,10 @@ export class PlayerLookupService {
       this.prisma.bet.aggregate({
         where: { userId, brandId, status: { in: [...SETTLED_STATUSES] } },
         _sum: { stakeCents: true, settledPayoutCents: true },
+      }),
+      this.prisma.bet.aggregate({
+        where: { userId, brandId, status: 'PENDING' },
+        _sum: { stakeCents: true, potentialPayoutCents: true },
       }),
       this.prisma.bet.findMany({
         where: { userId, brandId },
@@ -171,6 +177,7 @@ export class PlayerLookupService {
       betCount,
       avgStakeCents: betCount > 0 ? Math.round(turnover._avg.stakeCents ?? 0) : 0,
       ggrCents: (settled._sum.stakeCents ?? 0) - (settled._sum.settledPayoutCents ?? 0),
+      openLiabilityCents: (pending._sum.potentialPayoutCents ?? 0) - (pending._sum.stakeCents ?? 0),
       avgSelectionsPerBet: betCount > 0 ? totalSelections / betCount : 0,
       singleBetCount,
       accumulatorBetCount: betCount - singleBetCount,

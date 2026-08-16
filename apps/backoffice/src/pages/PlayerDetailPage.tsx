@@ -15,6 +15,24 @@ function shortId(id: string): string {
   return id.slice(0, 8);
 }
 
+/** WON/LOST get their color, everything else (PENDING, VOID) stays neutral - nothing's been decided either way. */
+function statusColorClass(status: string): string {
+  if (status === 'WON') return 'text-brand';
+  if (status === 'LOST') return 'text-danger';
+  return 'text-text-muted';
+}
+
+/** The settled payout once there is one, otherwise (still open, or voided/refunded) the potential payout - there's no real payout to show yet. */
+function betPayoutCents(bet: PlayerRecentBet): number {
+  return bet.status === 'PENDING' || bet.status === 'VOID' ? bet.potentialPayoutCents : (bet.settledPayoutCents ?? 0);
+}
+
+/** Per-bet GGR (stake kept by the house) only makes sense once WON or LOST - an open bet's exposure belongs in Open liability instead, and a VOID nets to ~0 by construction. */
+function betGgrCents(bet: PlayerRecentBet): number | null {
+  if (bet.status !== 'WON' && bet.status !== 'LOST') return null;
+  return bet.stakeCents - (bet.settledPayoutCents ?? 0);
+}
+
 export default function PlayerDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [openBet, setOpenBet] = useState<PlayerRecentBet | null>(null);
@@ -65,7 +83,7 @@ export default function PlayerDetailPage() {
             </Card>
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+          <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-5">
             <Card>
               <p className="text-xs text-text-secondary">Turnover staked</p>
               <p className="text-xl font-semibold">{formatCents(player.stats.turnoverCents)}</p>
@@ -73,10 +91,17 @@ export default function PlayerDetailPage() {
             </Card>
             <Card>
               <p className="text-xs text-text-secondary">GGR</p>
-              <p className={`text-xl font-semibold ${player.stats.ggrCents < 0 ? 'text-danger' : ''}`}>
+              <p className={`text-xl font-semibold ${player.stats.ggrCents < 0 ? 'text-danger' : 'text-brand'}`}>
                 {formatCents(player.stats.ggrCents)}
               </p>
               <p className="text-xs text-text-muted">Settled bets only</p>
+            </Card>
+            <Card>
+              <p className="text-xs text-text-secondary">Open liability</p>
+              <p className={`text-xl font-semibold ${player.stats.openLiabilityCents > 0 ? 'text-danger' : ''}`}>
+                {formatCents(player.stats.openLiabilityCents)}
+              </p>
+              <p className="text-xs text-text-muted">If every open bet won</p>
             </Card>
             <Card>
               <p className="text-xs text-text-secondary">Avg stake / bet</p>
@@ -181,28 +206,39 @@ export default function PlayerDetailPage() {
                     <th className="py-2 font-medium">Ticket</th>
                     <th className="py-2 font-medium">Stake</th>
                     <th className="py-2 font-medium">Odds</th>
+                    <th className="py-2 font-medium">Payout</th>
+                    <th className="py-2 font-medium">GGR</th>
                     <th className="py-2 font-medium">Status</th>
                     <th className="py-2 font-medium">Placed</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {player.recentBets.map((bet) => (
-                    <tr key={bet.id} className="border-b border-border last:border-0">
-                      <td className="py-2">
-                        <button
-                          type="button"
-                          onClick={() => setOpenBet(bet)}
-                          className="font-mono text-xs text-brand hover:underline"
-                        >
-                          #{shortId(bet.id)}
-                        </button>
-                      </td>
-                      <td className="py-2">{formatCents(bet.stakeCents)}</td>
-                      <td className="py-2 text-text-secondary">{bet.combinedOdds}</td>
-                      <td className="py-2">{bet.status}</td>
-                      <td className="py-2 text-text-secondary">{new Date(bet.createdAt).toLocaleString()}</td>
-                    </tr>
-                  ))}
+                  {player.recentBets.map((bet) => {
+                    const ggrCents = betGgrCents(bet);
+                    return (
+                      <tr key={bet.id} className="border-b border-border last:border-0">
+                        <td className="py-2">
+                          <button
+                            type="button"
+                            onClick={() => setOpenBet(bet)}
+                            className="font-mono text-xs text-brand hover:underline"
+                          >
+                            #{shortId(bet.id)}
+                          </button>
+                        </td>
+                        <td className="py-2">{formatCents(bet.stakeCents)}</td>
+                        <td className="py-2 text-text-secondary">{bet.combinedOdds}</td>
+                        <td className={`py-2 ${bet.status === 'PENDING' || bet.status === 'VOID' ? 'text-text-muted' : ''}`}>
+                          {formatCents(betPayoutCents(bet))}
+                        </td>
+                        <td className={`py-2 ${ggrCents === null ? 'text-text-muted' : ggrCents < 0 ? 'text-danger' : 'text-brand'}`}>
+                          {ggrCents === null ? '—' : formatCents(ggrCents)}
+                        </td>
+                        <td className={`py-2 font-medium ${statusColorClass(bet.status)}`}>{bet.status}</td>
+                        <td className="py-2 text-text-secondary">{new Date(bet.createdAt).toLocaleString()}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             )}
@@ -255,8 +291,14 @@ export default function PlayerDetailPage() {
                 <dd>{openBet.settledPayoutCents === null ? '—' : formatCents(openBet.settledPayoutCents)}</dd>
               </div>
               <div>
+                <dt className="text-xs text-text-secondary">GGR</dt>
+                <dd className={betGgrCents(openBet) === null ? 'text-text-muted' : betGgrCents(openBet)! < 0 ? 'text-danger' : 'text-brand'}>
+                  {betGgrCents(openBet) === null ? '—' : formatCents(betGgrCents(openBet)!)}
+                </dd>
+              </div>
+              <div>
                 <dt className="text-xs text-text-secondary">Status</dt>
-                <dd>{openBet.status}</dd>
+                <dd className={`font-medium ${statusColorClass(openBet.status)}`}>{openBet.status}</dd>
               </div>
               <div>
                 <dt className="text-xs text-text-secondary">Placed</dt>
@@ -294,9 +336,9 @@ export default function PlayerDetailPage() {
                     <p className="text-text-secondary">
                       {selection.marketName}: {selection.selectionName}
                     </p>
-                    <p className="mt-1 flex items-center justify-between text-xs text-text-muted">
-                      <span>Odds {selection.odds}</span>
-                      <span>{selection.status}</span>
+                    <p className="mt-1 flex items-center justify-between text-xs">
+                      <span className="text-text-muted">Odds {selection.odds}</span>
+                      <span className={`font-medium ${statusColorClass(selection.status)}`}>{selection.status}</span>
                     </p>
                   </li>
                 ))}
