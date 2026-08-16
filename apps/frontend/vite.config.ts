@@ -8,6 +8,23 @@ import { VitePWA } from 'vite-plugin-pwa';
 const oddsEngineTarget = process.env.ODDS_ENGINE_PROXY_TARGET ?? 'http://localhost:4001';
 const backendTarget = process.env.BACKEND_PROXY_TARGET ?? 'http://localhost:3000';
 
+// Shared between the dev server and the production preview server (see
+// Dockerfile - "vite preview" serves the built dist/ and needs the same
+// proxy/host allowlist the dev server had).
+const allowedHosts = ['.up.railway.app', 'betsome.pt', 'www.betsome.pt'];
+const proxy = {
+  '/api': {
+    target: oddsEngineTarget,
+    changeOrigin: true,
+    rewrite: (path: string) => path.replace(/^\/api/, ''),
+  },
+  '/backend': {
+    target: backendTarget,
+    changeOrigin: true,
+    rewrite: (path: string) => path.replace(/^\/backend/, ''),
+  },
+};
+
 export default defineConfig({
   plugins: [
     react(),
@@ -37,21 +54,17 @@ export default defineConfig({
     }),
   ],
   server: {
-    // Vite's dev server rejects unrecognized Host headers by default. This
-    // is served in dev mode even in production for now (see Dockerfile) so
-    // real inbound hostnames need to be allow-listed here.
-    allowedHosts: ['.up.railway.app', 'betsome.pt', 'www.betsome.pt'],
-    proxy: {
-      '/api': {
-        target: oddsEngineTarget,
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ''),
-      },
-      '/backend': {
-        target: backendTarget,
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/backend/, ''),
-      },
-    },
+    // Vite's dev server rejects unrecognized Host headers by default.
+    allowedHosts,
+    proxy,
+  },
+  preview: {
+    // Production runs "vite preview" against the built dist/ (see
+    // Dockerfile) rather than the dev server, so it needs its own port,
+    // host allowlist and API proxy - mirrors the dev server config above.
+    host: true,
+    port: 5173,
+    allowedHosts,
+    proxy,
   },
 });
