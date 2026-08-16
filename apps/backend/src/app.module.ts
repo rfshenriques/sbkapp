@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { EventBusModule } from './event-bus/event-bus.module';
 import { HealthModule } from './health/health.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -34,6 +35,12 @@ import { PushModule } from './modules/push/push.module';
 
 @Module({
   imports: [
+    // Registered globally (ThrottlerModule.forRoot is @Global()) so
+    // ThrottlerGuard can be applied per-route on the login/bootstrap
+    // endpoints without every feature module importing this itself. Not
+    // applied as a global APP_GUARD - most routes stay unthrottled, only
+    // the routes that opt in with @UseGuards(ThrottlerGuard) are limited.
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 100 }]),
     PrismaModule,
     EventBusModule,
     HealthModule,

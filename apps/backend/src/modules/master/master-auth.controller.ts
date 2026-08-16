@@ -10,6 +10,7 @@ import {
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { MasterLoginDto } from './dto/master-login.dto';
 import { MasterAuthService } from './master-auth.service';
@@ -38,6 +39,10 @@ function refreshCookieOptions() {
 export class MasterAuthController {
   constructor(private readonly masterAuthService: MasterAuthService) {}
 
+  // 5 attempts/min per IP, then blocked for 5 more minutes - slows down
+  // credential stuffing without needing a CAPTCHA for normal logins.
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 5, ttl: 60_000, blockDuration: 300_000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(@Body() dto: MasterLoginDto, @Res({ passthrough: true }) res: Response) {
