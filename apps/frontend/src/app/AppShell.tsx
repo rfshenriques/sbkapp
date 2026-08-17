@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useRef, useState, type TouchEvent } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { AppBootScreen } from '../components/ui/AppBootScreen';
 import { BottomSheet } from '../components/ui/BottomSheet';
 import { PageSkeleton } from '../components/ui/PageSkeleton';
 import { BetSlipPanel } from '../features/bet-slip/BetSlipPanel';
@@ -255,6 +256,14 @@ export function AppShell() {
       setIsNavOpen(false);
       navigate(next.path);
     }
+  }
+
+  // Renders the neutral boot spinner instead of the real header/nav until
+  // the brand's fetch settles (success or failure) - without this gate the
+  // first paint used the generic "Sportsbook" name and fallback colors,
+  // then visibly snapped to the real brand a moment later.
+  if (brandQuery.isPending) {
+    return <AppBootScreen />;
   }
 
   return (

@@ -39,7 +39,11 @@ describe('router', () => {
   it('renders the app shell nav and the odds board page at the root path', async () => {
     renderAt('/');
 
-    expect(screen.getByText('Sportsbook')).toBeInTheDocument();
+    // The mocked brand's real name (see stubOddsEngineFetch) - AppShell no
+    // longer ever shows the generic "Sportsbook" fallback once a brand
+    // resolves, it shows the boot spinner until then instead (see
+    // AppBootScreen.tsx).
+    expect(await screen.findByText('Test Brand')).toBeInTheDocument();
     // Real Madrid vs Barcelona is the only isLive:true fixture, so it's always
     // the featured match's heading regardless of kickoff-time sort order.
     // The featured card renders twice (a mobile copy and a desktop copy,

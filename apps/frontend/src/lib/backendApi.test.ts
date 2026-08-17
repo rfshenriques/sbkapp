@@ -63,12 +63,12 @@ describe('getPublicBrand', () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it('returns undefined when neither the hostname nor the fallback resolve to a brand', async () => {
+  it('returns null (never undefined - react-query rejects an undefined queryFn result) when neither the hostname nor the fallback resolve to a brand', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 404 })));
 
     const result = await getPublicBrand();
 
-    expect(result).toBeUndefined();
+    expect(result).toBeNull();
   });
 });
 

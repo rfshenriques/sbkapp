@@ -198,7 +198,14 @@ export interface PublicBrand {
  * register() sends - see useBrandTheme, which is what actually calls this
  * and stores the result in useBrandStore.
  */
-export async function getPublicBrand(): Promise<PublicBrand | undefined> {
+/**
+ * Returns null (never undefined) when no brand resolves - react-query
+ * treats a queryFn resolving to undefined as invalid ("Query data cannot
+ * be undefined") and the query never settles out of isPending, which
+ * AppShell's boot screen depends on to ever stop showing (see
+ * AppBootScreen.tsx).
+ */
+export async function getPublicBrand(): Promise<PublicBrand | null> {
   const byDomainResponse = await fetch(
     `${BASE_URL}/public/brands/by-domain/${encodeURIComponent(window.location.hostname)}`,
   );
@@ -206,9 +213,9 @@ export async function getPublicBrand(): Promise<PublicBrand | undefined> {
     return (await byDomainResponse.json()) as PublicBrand;
   }
 
-  if (!FALLBACK_BRAND_ID) return undefined;
+  if (!FALLBACK_BRAND_ID) return null;
   const byIdResponse = await fetch(`${BASE_URL}/public/brands/${FALLBACK_BRAND_ID}`);
-  if (!byIdResponse.ok) return undefined;
+  if (!byIdResponse.ok) return null;
   return (await byIdResponse.json()) as PublicBrand;
 }
 

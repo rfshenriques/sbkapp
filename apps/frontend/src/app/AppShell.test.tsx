@@ -70,25 +70,25 @@ afterEach(() => {
 });
 
 describe('AppShell', () => {
-  it('always renders the bet slip panel (desktop persistent panel), even when empty', () => {
+  it('always renders the bet slip panel (desktop persistent panel), even when empty', async () => {
     renderShell();
 
     // Desktop's persistent panel uses the fuller, promotional empty state.
-    expect(screen.getByText('Add selections to your bet slip')).toBeInTheDocument();
+    expect(await screen.findByText('Add selections to your bet slip')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Browse matches' })).toBeInTheDocument();
   });
 
-  it('the desktop panel shows a Bet Slip / History tab pair', () => {
+  it('the desktop panel shows a Bet Slip / History tab pair', async () => {
     renderShell();
 
-    expect(screen.getByRole('tab', { name: 'Bet Slip' })).toBeInTheDocument();
+    expect(await screen.findByRole('tab', { name: 'Bet Slip' })).toBeInTheDocument();
     expect(screen.getByRole('tab', { name: 'Bet History' })).toBeInTheDocument();
   });
 
-  it('has Highlights, Live, My Bets, and Challenges links plus a Search button in the mobile bottom nav', () => {
+  it('has Highlights, Live, My Bets, and Challenges links plus a Search button in the mobile bottom nav', async () => {
     renderShell();
 
-    const nav = screen.getByRole('navigation', { name: 'App navigation' });
+    const nav = await screen.findByRole('navigation', { name: 'App navigation' });
     expect(within(nav).getByRole('link', { name: /Highlights/ })).toHaveAttribute('href', '/');
     expect(within(nav).getByRole('link', { name: /Live/ })).toHaveAttribute('href', '/live');
     expect(within(nav).getByRole('link', { name: /My Bets/ })).toHaveAttribute('href', '/my-bets');
@@ -106,26 +106,26 @@ describe('AppShell', () => {
     expect(screen.queryByText('Accumulator')).not.toBeInTheDocument();
   });
 
-  it('the mobile floating bar reads "Single" with that one odd aligned to the right for exactly one selection', () => {
+  it('the mobile floating bar reads "Single" with that one odd aligned to the right for exactly one selection', async () => {
     useBetSlipStore.setState({ selections: [homeSelection] });
     renderShell();
 
-    const floatingBar = screen.getByRole('button', { name: /Single/ });
+    const floatingBar = await screen.findByRole('button', { name: /Single/ });
     expect(floatingBar).toHaveTextContent('Single');
     expect(floatingBar).toHaveTextContent('2.10');
   });
 
-  it('the mobile floating bar reads "Accumulator" with the combined odds for 2+ selections', () => {
+  it('the mobile floating bar reads "Accumulator" with the combined odds for 2+ selections', async () => {
     useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
     renderShell();
 
     // 2.1 * 2.5 = 5.25
-    const floatingBar = screen.getByRole('button', { name: /Accumulator/ });
+    const floatingBar = await screen.findByRole('button', { name: /Accumulator/ });
     expect(floatingBar).toHaveTextContent('Accumulator');
     expect(floatingBar).toHaveTextContent('5.25');
   });
 
-  it('the mobile floating bar reads "Singles" with a slash for two selections from the same event', () => {
+  it('the mobile floating bar reads "Singles" with a slash for two selections from the same event', async () => {
     const totalGoalsSelection = {
       ...homeSelection,
       marketId: 'total-goals',
@@ -136,7 +136,7 @@ describe('AppShell', () => {
     useBetSlipStore.setState({ selections: [homeSelection, totalGoalsSelection] });
     renderShell();
 
-    const floatingBar = screen.getByRole('button', { name: /Singles/ });
+    const floatingBar = await screen.findByRole('button', { name: /Singles/ });
     expect(floatingBar).toHaveTextContent('Singles');
     expect(floatingBar).toHaveTextContent('/');
     expect(floatingBar).not.toHaveTextContent('Accumulator');
@@ -146,7 +146,7 @@ describe('AppShell', () => {
     useBetSlipStore.setState({ selections: [homeSelection] });
     renderShell();
 
-    await userEvent.click(screen.getByRole('button', { name: /Single/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /Single/ }));
 
     // Two elements share this label: the backdrop and the modal's own ✕ button.
     expect(screen.getAllByRole('button', { name: 'Close bet slip' }).length).toBeGreaterThan(0);
@@ -156,7 +156,7 @@ describe('AppShell', () => {
     useBetSlipStore.setState({ selections: [homeSelection] });
     renderShell();
 
-    await userEvent.click(screen.getByRole('button', { name: /Single/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /Single/ }));
     expect(screen.getAllByRole('button', { name: 'Close bet slip' }).length).toBeGreaterThan(0);
 
     useBetPlacedModalStore.setState({
@@ -184,7 +184,7 @@ describe('AppShell', () => {
   it('clicking the mobile bottom-nav Search button opens the sports navigation drawer', async () => {
     renderShell();
 
-    const nav = screen.getByRole('navigation', { name: 'App navigation' });
+    const nav = await screen.findByRole('navigation', { name: 'App navigation' });
     await userEvent.click(within(nav).getByRole('button', { name: /Search/ }));
 
     // The persistent desktop Sidebar column always renders one copy of its
@@ -197,7 +197,7 @@ describe('AppShell', () => {
   it('clicking the Search button again closes the drawer, with no separate close button', async () => {
     renderShell();
 
-    const nav = screen.getByRole('navigation', { name: 'App navigation' });
+    const nav = await screen.findByRole('navigation', { name: 'App navigation' });
     const searchButton = within(nav).getByRole('button', { name: /Search/ });
     await userEvent.click(searchButton);
     expect(screen.getAllByPlaceholderText('Search teams, competitions...')).toHaveLength(2);
@@ -210,7 +210,7 @@ describe('AppShell', () => {
   it('clicking another bottom-nav tab while the drawer is open closes it and navigates', async () => {
     renderShell();
 
-    const nav = screen.getByRole('navigation', { name: 'App navigation' });
+    const nav = await screen.findByRole('navigation', { name: 'App navigation' });
     await userEvent.click(within(nav).getByRole('button', { name: /Search/ }));
     expect(screen.getAllByPlaceholderText('Search teams, competitions...')).toHaveLength(2);
 
@@ -218,10 +218,40 @@ describe('AppShell', () => {
     expect(screen.getAllByPlaceholderText('Search teams, competitions...')).toHaveLength(1);
   });
 
-  it('does not show a hamburger button in the header - only the logo', () => {
+  it('does not show a hamburger button in the header - only the logo', async () => {
     renderShell();
+    await screen.findByRole('navigation', { name: 'App navigation' });
 
     expect(screen.queryByRole('button', { name: 'Open sports navigation' })).not.toBeInTheDocument();
+  });
+
+  describe('boot screen', () => {
+    it('shows a neutral spinner (no generic brand name/colors) while the brand fetch is in flight, then the real app once it settles', async () => {
+      let resolveBrandFetch: ((response: Response) => void) | undefined;
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((input: RequestInfo | URL) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          if (url.includes('/public/brands/by-domain/')) {
+            return new Promise<Response>((resolve) => {
+              resolveBrandFetch = resolve;
+            });
+          }
+          return Promise.resolve(new Response(null, { status: 401 }));
+        }),
+      );
+
+      renderShell();
+
+      expect(screen.getByRole('status', { name: 'Loading' })).toBeInTheDocument();
+      expect(screen.queryByText('Sportsbook')).not.toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: 'App navigation' })).not.toBeInTheDocument();
+
+      resolveBrandFetch!(new Response(null, { status: 404 }));
+
+      await screen.findByRole('navigation', { name: 'App navigation' });
+      expect(screen.queryByRole('status', { name: 'Loading' })).not.toBeInTheDocument();
+    });
   });
 
   describe('forced login on load', () => {
