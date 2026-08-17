@@ -8,7 +8,7 @@ import { sortMatches } from '../features/odds-board/sortMatches';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { Card } from '../components/ui/Card';
 import { HorizontalScroller } from '../components/ui/HorizontalScroller';
-import { CalendarIcon, LiveIcon } from '../components/ui/NavIcons';
+import { CalendarIcon, ClockIcon, LiveIcon } from '../components/ui/NavIcons';
 import { SportIcon } from '../components/ui/SportIcon';
 import { cn } from '../lib/cn';
 import { HOURS_WINDOWS, HOURS_WINDOW_LABELS, isWithinHoursWindow, type HoursWindow } from '../lib/hoursWindow';
@@ -196,8 +196,11 @@ export default function OddsBoardPage() {
   // Upcoming stacked sections instead, so this only matters below `sm`.
   const [mobileTab, setMobileTab] = useState<'live' | 'upcoming'>('upcoming');
   // Upcoming-section-only ("how soon") filter - Live matches are already
-  // happening now, so a kickoff time window doesn't apply to them.
+  // happening now, so a kickoff time window doesn't apply to them. Defaults
+  // to 'all' with its own row collapsed (see hoursMenuOpen) rather than
+  // always taking up a row of its own.
   const [hoursWindow, setHoursWindow] = useState<HoursWindow>('all');
+  const [hoursMenuOpen, setHoursMenuOpen] = useState(false);
 
   const sorted = matches ? sortMatches(matches, 'time') : undefined;
   // The earliest-kickoff match only becomes "featured" if it actually has a
@@ -386,53 +389,66 @@ export default function OddsBoardPage() {
             <h2 className="font-display text-lg">Upcoming</h2>
           </div>
 
-          {sportsPresent.length > 1 && (
+          <div className="mb-3 flex items-center gap-2">
+            {sportsPresent.length > 1 && (
+              <div
+                className="scrollbar-hide -mx-1 flex flex-1 gap-2 overflow-x-auto px-1 pb-1"
+                role="group"
+                aria-label="Filter by sport"
+                data-horizontal-scroll="true"
+              >
+                {sportsPresent.map((sport) => (
+                  <button
+                    key={sport}
+                    type="button"
+                    className={`tab shrink-0${sport === effectiveSport ? ' active' : ''}`}
+                    aria-pressed={sport === effectiveSport}
+                    onClick={() => setSelectedSport(sport)}
+                  >
+                    <SportIcon sport={sport} size={16} />
+                    {displayName('SPORT', sport)}
+                  </button>
+                ))}
+              </div>
+            )}
+            <button
+              type="button"
+              className={`tab shrink-0${hoursMenuOpen ? ' active' : ''}`}
+              aria-expanded={hoursMenuOpen}
+              aria-label="Filter by kickoff time"
+              onClick={() => setHoursMenuOpen((open) => !open)}
+            >
+              <ClockIcon width={16} height={16} />
+            </button>
+          </div>
+
+          {hoursMenuOpen && (
             <div
               className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
               role="group"
-              aria-label="Filter by sport"
+              aria-label="Filter by kickoff time"
               data-horizontal-scroll="true"
             >
-              {sportsPresent.map((sport) => (
+              {HOURS_WINDOWS.map((window) => (
                 <button
-                  key={sport}
+                  key={window}
                   type="button"
-                  className={`tab shrink-0${sport === effectiveSport ? ' active' : ''}`}
-                  aria-pressed={sport === effectiveSport}
-                  onClick={() => setSelectedSport(sport)}
+                  className={`tab shrink-0${window === hoursWindow ? ' active' : ''}`}
+                  aria-pressed={window === hoursWindow}
+                  onClick={() => setHoursWindow(window)}
                 >
-                  <SportIcon sport={sport} size={16} />
-                  {displayName('SPORT', sport)}
+                  {HOURS_WINDOW_LABELS[window]}
+                  <span
+                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold not-italic tabular-nums ${
+                      window === hoursWindow ? 'bg-black/15' : 'bg-black/20'
+                    }`}
+                  >
+                    {upcomingWindowCounts[window]}
+                  </span>
                 </button>
               ))}
             </div>
           )}
-
-          <div
-            className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
-            role="group"
-            aria-label="Filter by kickoff time"
-            data-horizontal-scroll="true"
-          >
-            {HOURS_WINDOWS.map((window) => (
-              <button
-                key={window}
-                type="button"
-                className={`tab shrink-0${window === hoursWindow ? ' active' : ''}`}
-                aria-pressed={window === hoursWindow}
-                onClick={() => setHoursWindow(window)}
-              >
-                {HOURS_WINDOW_LABELS[window]}
-                <span
-                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold not-italic tabular-nums ${
-                    window === hoursWindow ? 'bg-black/15' : 'bg-black/20'
-                  }`}
-                >
-                  {upcomingWindowCounts[window]}
-                </span>
-              </button>
-            ))}
-          </div>
 
           {sorted && rest.length === 0 && !featured && (
             <Card className="text-text-secondary">No matches available right now.</Card>
@@ -461,25 +477,40 @@ export default function OddsBoardPage() {
       {/* Mobile: sport filters then a single tab-driven matches list, per
           the requested order (filters, carousel, sport filters, matches). */}
       <div className="sm:hidden">
-        {sportsPresent.length > 1 && (
-          <div
-            className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
-            role="group"
-            aria-label="Filter by sport"
-            data-horizontal-scroll="true"
-          >
-            {sportsPresent.map((sport) => (
-              <button
-                key={sport}
-                type="button"
-                className={`tab shrink-0${sport === effectiveSport ? ' active' : ''}`}
-                aria-pressed={sport === effectiveSport}
-                onClick={() => setSelectedSport(sport)}
+        {(sportsPresent.length > 1 || mobileTab === 'upcoming') && (
+          <div className="mb-3 flex items-center gap-2">
+            {sportsPresent.length > 1 && (
+              <div
+                className="scrollbar-hide -mx-1 flex flex-1 gap-2 overflow-x-auto px-1 pb-1"
+                role="group"
+                aria-label="Filter by sport"
+                data-horizontal-scroll="true"
               >
-                <SportIcon sport={sport} size={16} />
-                {displayName('SPORT', sport)}
+                {sportsPresent.map((sport) => (
+                  <button
+                    key={sport}
+                    type="button"
+                    className={`tab shrink-0${sport === effectiveSport ? ' active' : ''}`}
+                    aria-pressed={sport === effectiveSport}
+                    onClick={() => setSelectedSport(sport)}
+                  >
+                    <SportIcon sport={sport} size={16} />
+                    {displayName('SPORT', sport)}
+                  </button>
+                ))}
+              </div>
+            )}
+            {mobileTab === 'upcoming' && (
+              <button
+                type="button"
+                className={`tab shrink-0${hoursMenuOpen ? ' active' : ''}`}
+                aria-expanded={hoursMenuOpen}
+                aria-label="Filter by kickoff time"
+                onClick={() => setHoursMenuOpen((open) => !open)}
+              >
+                <ClockIcon width={16} height={16} />
               </button>
-            ))}
+            )}
           </div>
         )}
 
@@ -506,31 +537,33 @@ export default function OddsBoardPage() {
           </>
         ) : (
           <>
-            <div
-              className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
-              role="group"
-              aria-label="Filter by kickoff time"
-              data-horizontal-scroll="true"
-            >
-              {HOURS_WINDOWS.map((window) => (
-                <button
-                  key={window}
-                  type="button"
-                  className={`tab shrink-0${window === hoursWindow ? ' active' : ''}`}
-                  aria-pressed={window === hoursWindow}
-                  onClick={() => setHoursWindow(window)}
-                >
-                  {HOURS_WINDOW_LABELS[window]}
-                  <span
-                    className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold not-italic tabular-nums ${
-                      window === hoursWindow ? 'bg-black/15' : 'bg-black/20'
-                    }`}
+            {hoursMenuOpen && (
+              <div
+                className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
+                role="group"
+                aria-label="Filter by kickoff time"
+                data-horizontal-scroll="true"
+              >
+                {HOURS_WINDOWS.map((window) => (
+                  <button
+                    key={window}
+                    type="button"
+                    className={`tab shrink-0${window === hoursWindow ? ' active' : ''}`}
+                    aria-pressed={window === hoursWindow}
+                    onClick={() => setHoursWindow(window)}
                   >
-                    {upcomingWindowCounts[window]}
-                  </span>
-                </button>
-              ))}
-            </div>
+                    {HOURS_WINDOW_LABELS[window]}
+                    <span
+                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold not-italic tabular-nums ${
+                        window === hoursWindow ? 'bg-black/15' : 'bg-black/20'
+                      }`}
+                    >
+                      {upcomingWindowCounts[window]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
 
             {upcomingForSport.length > 0 && upcomingFiltered.length === 0 && (
               <Card className="text-text-secondary">No matches kicking off in this window.</Card>

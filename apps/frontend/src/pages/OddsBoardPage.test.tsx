@@ -271,6 +271,24 @@ describe('OddsBoardPage', () => {
     expect(screen.queryAllByRole('link', { name: /Football Home/ })).toHaveLength(0);
   });
 
+  it('keeps the kickoff time filter collapsed behind a clock icon until clicked, defaulting to All', async () => {
+    stubOddsEngineFetch(buildManySportsMatches());
+    renderPage();
+
+    await screen.findAllByRole('link', { name: 'Football Home 1 vs Football Away 1' });
+
+    expect(screen.queryByRole('group', { name: 'Filter by kickoff time' })).not.toBeInTheDocument();
+    const toggles = screen.getAllByRole('button', { name: 'Filter by kickoff time' });
+    expect(toggles.length).toBeGreaterThan(0);
+    toggles.forEach((toggle) => expect(toggle).toHaveAttribute('aria-expanded', 'false'));
+
+    await userEvent.click(toggles[0]!);
+
+    const menus = screen.getAllByRole('group', { name: 'Filter by kickoff time' });
+    expect(menus.length).toBeGreaterThan(0);
+    expect(within(menus[0]!).getByRole('button', { name: /All/ })).toHaveClass('active');
+  });
+
   it('renders CMS promo cards in the same Challenges slot next to Match of the day', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
