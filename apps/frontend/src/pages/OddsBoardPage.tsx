@@ -6,14 +6,12 @@ import { useMatches } from '../features/odds-board/useMatches';
 import { usePrefetchMatchDetail } from '../features/odds-board/usePrefetchMatchDetail';
 import { sortMatches } from '../features/odds-board/sortMatches';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
-import { BrandPromoImage } from '../components/ui/BrandPromoImage';
 import { Card } from '../components/ui/Card';
 import { HorizontalScroller } from '../components/ui/HorizontalScroller';
 import { CalendarIcon, LiveIcon } from '../components/ui/NavIcons';
 import { SportIcon } from '../components/ui/SportIcon';
 import { cn } from '../lib/cn';
 import { HOURS_WINDOWS, HOURS_WINDOW_LABELS, isWithinHoursWindow, type HoursWindow } from '../lib/hoursWindow';
-import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBrandStore } from '../features/brand/brandStore';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { PromoCardTile } from '../features/promo-cards/PromoCardTile';
@@ -186,49 +184,6 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
   );
 }
 
-/**
- * Desktop only, next to the featured match - copy/CTA are always shown (the
- * "Claim now" link is real, working navigation, not decorative), with a
- * staff-uploaded HOMEPAGE_OFFER CMS image as the backdrop once one's set
- * (see the backoffice's CMS images page), falling back to a mocked
- * welcome-bonus gradient otherwise.
- */
-function PromoCard({ className }: { className?: string }) {
-  const brandId = useBrandStore((state) => state.brandId);
-  const openAuthModal = useAuthModalStore((state) => state.open);
-
-  return (
-    <aside className={cn('relative overflow-hidden rounded-3xl', className)}>
-      <BrandPromoImage
-        brandId={brandId}
-        slot="HOMEPAGE_OFFER"
-        className="absolute inset-0 h-full w-full object-cover"
-        fallback={
-          <div
-            className="absolute inset-0"
-            style={{
-              background:
-                'linear-gradient(155deg, color-mix(in srgb, var(--color-highlight) 80%, black) 0%, color-mix(in srgb, var(--color-highlight) 25%, black) 55%, #0a0a10 100%)',
-            }}
-          />
-        }
-      />
-      {/* Scrim so the text stays legible over a real (possibly light) photo, not just the mocked gradient which is already dark at this edge. */}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-      <div className="relative flex h-full flex-col justify-end gap-2 p-6 text-white">
-        <span className="inline-flex w-fit items-center gap-2 rounded-full bg-black/30 px-3 py-1 text-[11px] font-bold uppercase tracking-widest backdrop-blur-sm">
-          Welcome Bonus
-        </span>
-        <p className="font-display text-2xl leading-tight">Get up to 50 € in bonus bets</p>
-        <p className="text-sm text-white/80">Sign up and place your first bet on us.</p>
-        <button type="button" onClick={() => openAuthModal('register')} className="btn-primary mt-2 w-fit">
-          Claim now
-        </button>
-      </div>
-    </aside>
-  );
-}
-
 export default function OddsBoardPage() {
   const { data: matches, isPending, isError } = useMatches();
   const { data: promoCards } = usePromoCards();
@@ -290,24 +245,22 @@ export default function OddsBoardPage() {
 
   // The "Challenges" slot next to Match of the day: staff-managed CMS promo
   // cards (see the backoffice's Promo Cards page) when the brand has any,
-  // otherwise the static Welcome Bonus card that's always been there - the
-  // slot itself never disappears or moves, it's swipeable within itself
-  // once there's more than one real card. Only active, imaged cards belong
-  // here - a no-image auto-created banner (see PromoCardTile) is a short
-  // strip, not a fixed-aspect photo, so it doesn't fit this slot's carousel
-  // (it still shows in full on the Challenges page); an early-ended card
-  // is a Challenges-page-only concept too.
+  // swipeable within itself once there's more than one. With none active,
+  // the slot is omitted entirely rather than falling back to fabricated
+  // placeholder copy - see CLAUDE.md's "only build what's backed by real
+  // data". Only active, imaged cards belong here - a no-image auto-created
+  // banner (see PromoCardTile) is a short strip, not a fixed-aspect photo,
+  // so it doesn't fit this slot's carousel (it still shows in full on the
+  // Challenges page); an early-ended card is a Challenges-page-only concept
+  // too.
   const homepagePromoCards = (promoCards ?? []).filter((card) => card.status === 'ACTIVE' && card.hasImage);
   const hasCmsPromoCards = Boolean(homepagePromoCards.length > 0 && brandId);
   function promoSlotItems(className: string) {
-    if (hasCmsPromoCards) {
-      return homepagePromoCards.map((card) => (
-        <PromoCardTile key={card.id} card={card} brandId={brandId as string} className={className} />
-      ));
-    }
-    return [<PromoCard key="static-welcome-bonus" className={className} />];
+    return homepagePromoCards.map((card) => (
+      <PromoCardTile key={card.id} card={card} brandId={brandId as string} className={className} />
+    ));
   }
-  const promoSlotCount = hasCmsPromoCards ? homepagePromoCards.length : 1;
+  const promoSlotCount = hasCmsPromoCards ? homepagePromoCards.length : 0;
   const autoScrollSeconds =
     carouselConfig?.enabled && carouselConfig.autoScrollSeconds > 0 ? carouselConfig.autoScrollSeconds : undefined;
 
@@ -371,7 +324,9 @@ export default function OddsBoardPage() {
               scroller - the match of the day block only ever scrolls
               between match-of-the-day cards, the promo block only between
               promo cards. Arrows/dots appear automatically once either
-              block has more than one card to move between. */}
+              block has more than one card to move between. The promo
+              column is omitted entirely (match of the day takes the full
+              width) when the brand has no active CMS promo cards. */}
           <div className="hidden gap-4 sm:flex sm:items-stretch">
             <div className="min-w-0 sm:flex-1">
               <HorizontalScroller itemCount={1} ariaLabel="Match of the day" className="min-w-0">
@@ -382,16 +337,18 @@ export default function OddsBoardPage() {
                 />
               </HorizontalScroller>
             </div>
-            <div className="min-w-0 sm:w-72 sm:shrink-0">
-              <HorizontalScroller
-                itemCount={promoSlotCount}
-                ariaLabel="Challenges"
-                className="min-w-0"
-                autoScrollSeconds={autoScrollSeconds}
-              >
-                {promoSlotItems('h-full w-full shrink-0 snap-start')}
-              </HorizontalScroller>
-            </div>
+            {hasCmsPromoCards && (
+              <div className="min-w-0 sm:w-72 sm:shrink-0">
+                <HorizontalScroller
+                  itemCount={promoSlotCount}
+                  ariaLabel="Challenges"
+                  className="min-w-0"
+                  autoScrollSeconds={autoScrollSeconds}
+                >
+                  {promoSlotItems('h-full w-full shrink-0 snap-start')}
+                </HorizontalScroller>
+              </div>
+            )}
           </div>
         </div>
       )}
