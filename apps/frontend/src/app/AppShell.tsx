@@ -273,14 +273,17 @@ export function AppShell() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* transform-gpu + will-change-transform force this fixed element onto
-          its own compositing layer - without it, iOS Safari's fixed
-          positioning can visually drift with scrolled content once a
-          backdrop-blur element like this one has to repaint every scroll
-          frame (a well-known Safari fixed+backdrop-filter interaction). */}
+      {/* Fully opaque, same --color-background as the rest of the page - a
+          translucent/blurred header (the old bg-background/90 +
+          backdrop-blur) reads as a different color once real page content
+          scrolls underneath it, however subtly. transform-gpu +
+          will-change-transform stay as a plain fixed-position perf hint
+          (iOS Safari can otherwise visually drift fixed elements with
+          scrolled content), even though the backdrop-filter-specific
+          interaction that originally motivated them no longer applies. */}
       <header
         ref={headerRef}
-        className="app-header fixed inset-x-0 top-0 z-30 transform-gpu border-b border-border bg-background/90 backdrop-blur will-change-transform"
+        className="app-header fixed inset-x-0 top-0 z-30 transform-gpu border-b border-border bg-background will-change-transform"
       >
         <div
           className="mx-auto grid max-w-[1680px] grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3"
@@ -622,12 +625,12 @@ export function AppShell() {
 
           Extends up to top-0, behind the header (header is z-30, this is
           z-20, so it still renders on top) rather than starting at top-16 -
-          the header's bg-background/90 + backdrop-blur is only ~90% opaque
-          by design (it's meant to blur the page scrolling underneath it),
-          so stopping the drawer right at the header's bottom edge left the
-          still-mounted page behind it (not this drawer) showing dimly
-          blurred through that translucent strip. Top padding uses the same
-          measured headerHeight the main content spacer uses (not a fixed
+          the header is fully opaque, but its own height still changes
+          (a two-line brand name, wallet-balance pills once authenticated,
+          ...) between renders, and starting this drawer at a fixed top-16
+          would drift out of sync with the header's real bottom edge the
+          moment that height changes, leaving a sliver of gap or overlap.
+          Top padding uses the same measured headerHeight the main content spacer uses (not a fixed
           pt-20) - a hardcoded value drifts out of sync whenever the header's
           own height changes (a two-line brand name, wallet-balance pills
           once authenticated, ...), leaving this drawer's content starting
