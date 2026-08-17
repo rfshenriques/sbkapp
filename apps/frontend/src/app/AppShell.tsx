@@ -76,6 +76,15 @@ export function AppShell() {
     }
   }, [betPlacedSummary]);
   const selections = useBetSlipStore((state) => state.selections);
+  // Closes the mobile sheet / tablet drawer automatically once the last
+  // selection is removed - an open bet slip with nothing left in it just
+  // sits there uselessly otherwise. Desktop's persistent panel is
+  // unaffected (it's not gated by isSlipOpen at all).
+  useEffect(() => {
+    if (selections.length === 0) {
+      closeSlip();
+    }
+  }, [selections.length]);
   const stake = useBetSlipStore((state) => state.stake);
   const singleStakes = useBetSlipStore((state) => state.singleStakes);
   const { isAuthenticated, isInitialized } = useAuth();

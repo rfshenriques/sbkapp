@@ -152,6 +152,18 @@ describe('AppShell', () => {
     expect(screen.getAllByRole('button', { name: 'Close bet slip' }).length).toBeGreaterThan(0);
   });
 
+  it('auto-closes the mobile bet slip sheet once the last selection is removed', async () => {
+    useBetSlipStore.setState({ selections: [homeSelection] });
+    renderShell();
+
+    await userEvent.click(await screen.findByRole('button', { name: /Single/ }));
+    expect(screen.getAllByRole('button', { name: 'Close bet slip' }).length).toBeGreaterThan(0);
+
+    useBetSlipStore.setState({ selections: [] });
+
+    await waitFor(() => expect(screen.queryAllByRole('button', { name: 'Close bet slip' })).toHaveLength(0));
+  });
+
   it('does not show the tablet-width floating trigger when the slip is empty', () => {
     renderShell();
 
