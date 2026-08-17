@@ -62,7 +62,7 @@ describe('AccountMenu', () => {
 
     expect(screen.getByText('player1')).toBeInTheDocument();
     expect(screen.getByText('player1@example.com')).toBeInTheDocument();
-    expect(await screen.findByText('50.00 €')).toBeInTheDocument();
+    expect(await screen.findByText('50 €')).toBeInTheDocument();
   });
 
   it('only shows real destinations: My Bets, Responsible Gambling, Settings, Add funds, Log out', async () => {

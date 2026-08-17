@@ -47,10 +47,10 @@ export function BalancePills({
   const isFlyTarget = flyActive && freebetsTargetId !== undefined && flyTargetId === freebetsTargetId;
 
   return (
-    <span className={`flex items-center gap-1.5 ${className ?? ''}`}>
+    <span className={`flex min-w-0 items-center gap-1.5 ${className ?? ''}`}>
       <span
         className={cn(
-          'relative flex items-center gap-1 rounded-full border bg-surface-2 px-2 py-1 text-xs text-text-secondary',
+          'relative flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border bg-surface-2 px-2 py-1 text-xs text-text-secondary',
           activeKind === 'cash' ? 'border-highlight' : 'border-transparent',
         )}
         title="Cash balance (paper)"
@@ -81,7 +81,7 @@ export function BalancePills({
         <span
           id={freebetsTargetId}
           className={cn(
-            'flex items-center gap-1 rounded-full border bg-surface-2 px-2 py-1 text-xs text-text-secondary',
+            'flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border bg-surface-2 px-2 py-1 text-xs text-text-secondary',
             activeKind === 'freebets' ? 'border-highlight' : 'border-transparent',
           )}
           title="Freebets balance"
