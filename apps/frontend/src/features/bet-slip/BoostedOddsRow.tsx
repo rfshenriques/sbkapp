@@ -1,4 +1,5 @@
 import { LockIcon } from '../../components/ui/LockIcon';
+import { formatMoney } from '../../lib/currency';
 import { useDisplayNames } from '../display-names/useDisplayNames';
 import { useBetSlipStore } from './betSlipStore';
 import { useMarketSuspensions } from './useMarketSuspensions';
@@ -53,7 +54,7 @@ export function BoostedOddsRow({
         </p>
         {maxStakeCents !== undefined && (
           <p className="text-[11px] text-text-secondary">
-            Max stake for boosted price: {(maxStakeCents / 100).toFixed(2)} €
+            Max stake for boosted price: {formatMoney(maxStakeCents)}
           </p>
         )}
       </div>
@@ -69,7 +70,7 @@ export function BoostedOddsRow({
             suspended
               ? `${selectionName} suspended`
               : `${selectionName} boosted to ${odds.toFixed(2)}, was ${previousOdds.toFixed(2)}${
-                  maxStakeCents !== undefined ? `, max stake ${(maxStakeCents / 100).toFixed(2)} €` : ''
+                  maxStakeCents !== undefined ? `, max stake ${formatMoney(maxStakeCents)}` : ''
                 }`
           }
           className={`odd-btn${isSelected ? ' selected' : ''}${suspended ? ' suspended' : ''}`}

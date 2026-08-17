@@ -5,12 +5,9 @@ import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { ShareIcon } from '../../components/ui/NavIcons';
 import { OddsBadge } from '../../components/ui/OddsBadge';
 import { cn } from '../../lib/cn';
+import { formatMoney } from '../../lib/currency';
 import { BetFooterSummary, BetReferenceFooter, BetSelectionsList, BetTag, SharePendingBetActions } from '../bet-history/betCardShared';
 import { useBetPlacedModalStore } from './betPlacedModalStore';
-
-function formatEuros(cents: number): string {
-  return `${(cents / 100).toFixed(2)} €`;
-}
 
 /**
  * Fires immediately after a successful placement (see BetSlipPanel's two
@@ -59,8 +56,8 @@ export function BetPlacedModal() {
   async function handleShare() {
     const text =
       combinedOdds !== null
-        ? `I just placed a bet! Stake ${formatEuros(stakeCents)} at odds ${combinedOdds.toFixed(2)} - potential payout ${formatEuros(potentialPayoutCents)}.`
-        : `I just placed ${betCount} bets! Total stake ${formatEuros(stakeCents)} - total potential payout ${formatEuros(potentialPayoutCents)}.`;
+        ? `I just placed a bet! Stake ${formatMoney(stakeCents)} at odds ${combinedOdds.toFixed(2)} - potential payout ${formatMoney(potentialPayoutCents)}.`
+        : `I just placed ${betCount} bets! Total stake ${formatMoney(stakeCents)} - total potential payout ${formatMoney(potentialPayoutCents)}.`;
 
     if (navigator.share) {
       try {
@@ -125,7 +122,7 @@ export function BetPlacedModal() {
         </span>
         <p className="font-display text-2xl">Done! Your bet has been placed.</p>
         <p className="text-sm text-text-secondary">Potential payout</p>
-        <p className="font-display text-5xl leading-none">{formatEuros(potentialPayoutCents)}</p>
+        <p className="font-display text-5xl leading-none">{formatMoney(potentialPayoutCents)}</p>
         {bet && (bet.insuranceCostPercent > 0 || bet.accaBoostPercent > 0) && (
           <div className="flex flex-wrap items-center justify-center gap-1.5">
             {bet.insuranceCostPercent > 0 && <BetTag>Insured</BetTag>}
@@ -137,7 +134,7 @@ export function BetPlacedModal() {
       <div className="flex items-center justify-between border-t border-border pt-4">
         <div>
           <p className="text-xs text-text-secondary">Stake</p>
-          <p className="mt-1 font-display text-lg">{formatEuros(stakeCents)}</p>
+          <p className="mt-1 font-display text-lg">{formatMoney(stakeCents)}</p>
         </div>
         <div className="text-right">
           <p className="text-xs text-text-secondary">{combinedOdds !== null ? 'Odds' : 'Bets placed'}</p>

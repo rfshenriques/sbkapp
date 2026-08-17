@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card';
 import { SpecialsIcon } from '../components/ui/NavIcons';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { SportIcon } from '../components/ui/SportIcon';
+import { formatMoney } from '../lib/currency';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
 import { useDisplayNames } from '../features/display-names/useDisplayNames';
 import { useSpecials } from '../features/odds-board/useSpecials';
@@ -98,7 +99,7 @@ export default function SpecialsPage() {
                             <p className="mt-1.5 text-[11px] text-text-secondary">
                               {[
                                 market.maxStakeCents !== undefined
-                                  ? `Max stake: ${(market.maxStakeCents / 100).toFixed(2)} €`
+                                  ? `Max stake: ${formatMoney(market.maxStakeCents)}`
                                   : null,
                                 market.singlesOnly ? 'Singles only' : null,
                               ]

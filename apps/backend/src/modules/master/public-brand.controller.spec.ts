@@ -63,6 +63,7 @@ describe('PublicBrandController', () => {
       shareLogoLightUrl: null,
       shareLogoDarkUrl: null,
       themeMode: 'LIGHT',
+      currencyCode: 'EUR',
       backgroundColor: null,
       buttonColor,
       highlightColor: null,

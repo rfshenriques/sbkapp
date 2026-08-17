@@ -1865,6 +1865,14 @@ model Brand {
    */
   themeMode                 ThemeMode @default(DARK)
   /**
+   * ISO 4217 currency code (e.g. "EUR", "USD", "GBP") this brand's players
+   * see everywhere money is shown - stakes, payouts, potential payouts,
+   * campaign/insurance before-and-after values, wallet balances. Defaults
+   * to EUR, matching every deployment's actual currency before this field
+   * existed.
+   */
+  currencyCode              String    @default("EUR")
+  /**
    * Every brand-configurable color zone (background, button/CTA, highlight,
    * filter, text) is one of these JSON columns, each shaped as
    * { light: ColorValue, dark: ColorValue } where ColorValue is either

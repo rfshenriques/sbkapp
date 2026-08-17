@@ -1,3 +1,4 @@
+import { formatMoney } from '../../lib/currency';
 import { FreebetBadgeIcon } from './NavIcons';
 
 interface CampaignRewardAlertProps {
@@ -26,7 +27,7 @@ export function CampaignRewardAlert({ name, rewardCents }: CampaignRewardAlertPr
       {rewardCents !== null && (
         <p className="mt-0.5 flex items-center gap-1 text-sm font-bold">
           <FreebetBadgeIcon width={16} height={16} className="shrink-0" />
-          <span>{(rewardCents / 100).toFixed(2)} € in Freebets</span>
+          <span>{formatMoney(rewardCents)} in Freebets</span>
         </p>
       )}
     </div>

@@ -13,6 +13,7 @@ const PUBLIC_BRAND_SELECT = {
   shareLogoLightUrl: true,
   shareLogoDarkUrl: true,
   themeMode: true,
+  currencyCode: true,
   backgroundColor: true,
   buttonColor: true,
   highlightColor: true,

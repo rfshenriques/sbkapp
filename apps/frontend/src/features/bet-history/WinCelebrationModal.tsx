@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { BottomSheet } from '../../components/ui/BottomSheet';
-import { BetReceipt, formatEuros } from './betCardShared';
+import { BetReceipt, formatMoney } from './betCardShared';
 import { useBets } from './useBets';
 import { useWinCelebrationStore } from './winCelebrationStore';
 
@@ -66,7 +66,7 @@ export function WinCelebrationModal() {
             🏆
           </span>
           <p className="font-display text-2xl">Congratulations!</p>
-          <p className="font-display text-5xl leading-none text-price-up">{formatEuros(payoutCents)}</p>
+          <p className="font-display text-5xl leading-none text-price-up">{formatMoney(payoutCents)}</p>
           <p className="text-sm text-text-secondary">Your bet won</p>
         </div>
       ) : (

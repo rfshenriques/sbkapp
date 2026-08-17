@@ -9,6 +9,7 @@ import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
 import { track } from '../../lib/analytics';
 import { placeBet } from '../../lib/backendApi';
+import { formatMoney } from '../../lib/currency';
 import { useAuth } from '../auth/useAuth';
 import { useAuthModalStore } from '../auth/authModalStore';
 import { useWallet, walletQueryKey } from '../wallet/useWallet';
@@ -97,7 +98,7 @@ function MaxStakeNote({ selection }: { selection: BetSlipSelection }) {
   const label = selection.originalOdds !== undefined ? 'Max stake for boosted price' : 'Max stake';
   const parts: string[] = [];
   if (selection.maxStakeCents !== undefined) {
-    parts.push(`${label}: ${(selection.maxStakeCents / 100).toFixed(2)} €`);
+    parts.push(`${label}: ${formatMoney(selection.maxStakeCents)}`);
   }
   if (selection.marketSinglesOnly) {
     parts.push('Singles only');
@@ -223,9 +224,9 @@ function StakeLimitAlert({ stakeCents, preview }: { stakeCents: number; preview:
     return null;
   }
 
-  const maxStakeLabel = (preview.effectiveMaxStakeCents / 100).toFixed(2);
+  const maxStakeLabel = formatMoney(preview.effectiveMaxStakeCents);
   if (stakeCents <= preview.effectiveMaxStakeCents) {
-    return <p className="text-[11px] text-text-secondary">Max stake for this bet: {maxStakeLabel} €</p>;
+    return <p className="text-[11px] text-text-secondary">Max stake for this bet: {maxStakeLabel}</p>;
   }
 
   // effectiveMaxStakeCents is whichever of the two caps is smaller (see
@@ -234,7 +235,7 @@ function StakeLimitAlert({ stakeCents, preview }: { stakeCents: number; preview:
   const reason = preview.maxStakeCents === preview.effectiveMaxStakeCents ? 'stake limit' : 'liability limit';
   return (
     <p className="rounded-xl border border-danger/40 bg-danger/10 px-2.5 py-2 text-xs font-medium text-danger">
-      Stake exceeds the maximum allowed for this bet (max {maxStakeLabel} €, {reason})
+      Stake exceeds the maximum allowed for this bet (max {maxStakeLabel}, {reason})
     </p>
   );
 }
@@ -931,8 +932,8 @@ export function BetSlipPanel({
                 <p className="pt-1.5 text-text-secondary">
                   {isCurrentTabValid && currentTabRawPayoutCents > 0 ? (
                     <>
-                      If it wins, you'd get {(currentTabInsurancePreviewCents / 100).toFixed(2)} € instead of{' '}
-                      {(currentTabRawPayoutCents / 100).toFixed(2)} € ({insuranceBetConfig.costPercent}% less). If it
+                      If it wins, you'd get {formatMoney(currentTabInsurancePreviewCents)} instead of{' '}
+                      {formatMoney(currentTabRawPayoutCents)} ({insuranceBetConfig.costPercent}% less). If it
                       loses, your full stake is returned as a freebet.
                     </>
                   ) : (

@@ -1,4 +1,5 @@
 import type { BetAndGetCampaign, BetAndGetTiming } from '../../lib/backendApi';
+import { formatMoney } from '../../lib/currency';
 
 type RequirementFields = Pick<BetAndGetCampaign, 'minStakeCents' | 'minOddsPerLeg' | 'betType' | 'minSelections'> & {
   /** Only present on BetAndGetCampaign - DepositCampaign (the other caller of this shared formatter) has no such condition. */
@@ -11,7 +12,7 @@ export function formatCampaignRequirements(campaign: RequirementFields): string[
   const requirements: string[] = [];
 
   if (campaign.minStakeCents !== null) {
-    requirements.push(`Min stake ${(campaign.minStakeCents / 100).toFixed(2)} €`);
+    requirements.push(`Min stake ${formatMoney(campaign.minStakeCents)}`);
   }
   if (campaign.minOddsPerLeg !== null) {
     requirements.push(`Min odds ${campaign.minOddsPerLeg.toFixed(2)} per leg`);

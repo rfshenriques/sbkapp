@@ -5,11 +5,13 @@ import { ClockIcon, CopyIcon, FreebetBadgeIcon, ShareIcon } from '../../componen
 import { OddsBadge } from '../../components/ui/OddsBadge';
 import { betStatusBadgeClasses, betStatusLabel, betStatusTextClasses } from '../../lib/betStatus';
 import type { PlacedBet, PlacedBetSelection } from '../../lib/backendApi';
-import { displayedPayoutCents, formatEuros, uninsuredPayoutCents, unboostedCombinedOdds } from './betMoney';
+import { formatMoney } from '../../lib/currency';
+import { displayedPayoutCents, uninsuredPayoutCents, unboostedCombinedOdds } from './betMoney';
 import { shareBetImage } from './shareBetImage';
 import { buildSharedBetUrl } from '../bet-slip/sharedBetLink';
 
-export { displayedPayoutCents, formatEuros, uninsuredPayoutCents, unboostedCombinedOdds } from './betMoney';
+export { displayedPayoutCents, uninsuredPayoutCents, unboostedCombinedOdds } from './betMoney';
+export { formatMoney } from '../../lib/currency';
 
 export function BetTag({ children }: { children: ReactNode }) {
   return (
@@ -199,7 +201,7 @@ export function BetCampaignNotes({ bet }: { bet: PlacedBet }) {
       ))}
       {bet.accaRollbackRewardCents !== null && (
         <p className="text-xs text-highlight">
-          {formatEuros(bet.accaRollbackRewardCents)} refunded as a freebet (Acca Rollback)
+          {formatMoney(bet.accaRollbackRewardCents)} refunded as a freebet (Acca Rollback)
         </p>
       )}
     </>
@@ -241,7 +243,7 @@ export function BetFooterSummary({ bet }: { bet: PlacedBet }) {
           {bet.fundedByFreebets && (
             <FreebetBadgeIcon width={15} height={15} className="shrink-0" role="img" aria-label="Funded by freebet" />
           )}
-          {formatEuros(bet.stakeCents)}
+          {formatMoney(bet.stakeCents)}
         </span>
       </div>
       <div className="flex items-center justify-between">
@@ -256,12 +258,12 @@ export function BetFooterSummary({ bet }: { bet: PlacedBet }) {
                 role="img"
                 aria-label="Stake refunded as a freebet"
               />
-              {formatEuros(bet.stakeCents)}
+              {formatMoney(bet.stakeCents)}
             </span>
           ) : showInsuranceBeforeAfter ? (
             <MoneyBeforeAfter beforeCents={uninsuredPayoutCents(bet)} afterCents={payoutCents} />
           ) : (
-            formatEuros(payoutCents)
+            formatMoney(payoutCents)
           )}
         </span>
       </div>
@@ -273,10 +275,10 @@ function shareTextForBet(bet: PlacedBet): string {
   const payoutCents = displayedPayoutCents(bet);
   const outcome = bet.status === 'WON' ? 'won' : bet.status === 'LOST' ? 'lost' : 'settled';
   if (bet.selections.length > 1) {
-    return `My ${bet.selections.length}-selection accumulator ${outcome} - stake ${formatEuros(bet.stakeCents)}, combined odds ${Number(bet.combinedOdds).toFixed(2)}${bet.status === 'WON' ? `, payout ${formatEuros(payoutCents)}` : ''}.`;
+    return `My ${bet.selections.length}-selection accumulator ${outcome} - stake ${formatMoney(bet.stakeCents)}, combined odds ${Number(bet.combinedOdds).toFixed(2)}${bet.status === 'WON' ? `, payout ${formatMoney(payoutCents)}` : ''}.`;
   }
   const selection = bet.selections[0]!;
-  return `My bet on ${selection.selectionName} (${selection.marketName}) ${outcome} - stake ${formatEuros(bet.stakeCents)} at odds ${Number(selection.odds).toFixed(2)}${bet.status === 'WON' ? `, payout ${formatEuros(payoutCents)}` : ''}.`;
+  return `My bet on ${selection.selectionName} (${selection.marketName}) ${outcome} - stake ${formatMoney(bet.stakeCents)} at odds ${Number(selection.odds).toFixed(2)}${bet.status === 'WON' ? `, payout ${formatMoney(payoutCents)}` : ''}.`;
 }
 
 /**
@@ -361,8 +363,8 @@ export function SharePendingBetActions({ bet }: { bet: PlacedBet }) {
   const url = buildSharedBetUrl(bet.selections);
   const text = `${
     bet.selections.length > 1
-      ? `My ${bet.selections.length}-selection accumulator - stake ${formatEuros(bet.stakeCents)}, combined odds ${Number(bet.combinedOdds).toFixed(2)}.`
-      : `My bet on ${bet.selections[0]!.selectionName} (${bet.selections[0]!.marketName}) - stake ${formatEuros(bet.stakeCents)} at odds ${Number(bet.selections[0]!.odds).toFixed(2)}.`
+      ? `My ${bet.selections.length}-selection accumulator - stake ${formatMoney(bet.stakeCents)}, combined odds ${Number(bet.combinedOdds).toFixed(2)}.`
+      : `My bet on ${bet.selections[0]!.selectionName} (${bet.selections[0]!.marketName}) - stake ${formatMoney(bet.stakeCents)} at odds ${Number(bet.selections[0]!.odds).toFixed(2)}.`
   } Copy my bet: ${url}`;
 
   async function shareAsText() {

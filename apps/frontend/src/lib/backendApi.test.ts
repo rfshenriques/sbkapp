@@ -10,6 +10,7 @@ const publicBrand: PublicBrand = {
   shareLogoLightUrl: null,
   shareLogoDarkUrl: null,
   themeMode: 'DARK',
+  currencyCode: 'EUR',
   backgroundColor: null,
   buttonColor: { light: { type: 'solid', hex: '#E02127' }, dark: { type: 'solid', hex: '#E02127' } },
   highlightColor: { light: { type: 'solid', hex: '#2ED573' }, dark: { type: 'solid', hex: '#2ED573' } },

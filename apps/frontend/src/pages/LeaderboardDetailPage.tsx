@@ -3,7 +3,7 @@ import { BackButton } from '../components/ui/BackButton';
 import { Card } from '../components/ui/Card';
 import { TrophyIcon } from '../components/ui/NavIcons';
 import { Skeleton } from '../components/ui/Skeleton';
-import { formatEuros } from '../features/bet-history/betMoney';
+import { formatMoney } from '../lib/currency';
 import { JoinLeaderboardButton } from '../features/leaderboards/JoinLeaderboardButton';
 import { LeaderboardContextBanner } from '../features/leaderboards/LeaderboardContextBanner';
 import { LeaderboardEntryRow } from '../features/leaderboards/LeaderboardEntryRow';
@@ -49,7 +49,7 @@ export default function LeaderboardDetailPage() {
                       <span className="text-text-secondary">
                         {tier.rankFrom === tier.rankTo ? `Rank ${tier.rankFrom}` : `Ranks ${tier.rankFrom}–${tier.rankTo}`}
                       </span>
-                      <span className="font-semibold text-highlight">{formatEuros(tier.rewardAmountCents)} freebet</span>
+                      <span className="font-semibold text-highlight">{formatMoney(tier.rewardAmountCents)} freebet</span>
                     </div>
                   ))}
               </div>

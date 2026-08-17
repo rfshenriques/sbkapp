@@ -8,7 +8,7 @@ import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import type { BrandLogoSlot, ColorZone } from '../lib/backendApi';
 import * as backendApi from '../lib/backendApi';
-import { KNOWN_PRODUCTS } from '../lib/backendApi';
+import { CURRENCY_CODES, KNOWN_PRODUCTS } from '../lib/backendApi';
 
 const PRODUCT_LABELS: Record<string, string> = {
   CASHOUT: 'Cashout',
@@ -40,6 +40,7 @@ export default function BrandDetailPage() {
   const [name, setName] = useState('');
   const [domain, setDomain] = useState('');
   const [themeMode, setThemeMode] = useState<backendApi.ThemeMode>('DARK');
+  const [currencyCode, setCurrencyCode] = useState('EUR');
   const [backgroundColor, setBackgroundColor] = useState<ColorZone | null>(null);
   const [buttonColor, setButtonColor] = useState<ColorZone | null>(null);
   const [highlightColor, setHighlightColor] = useState<ColorZone | null>(null);
@@ -52,6 +53,7 @@ export default function BrandDetailPage() {
     setName(brand.name);
     setDomain(brand.domain ?? '');
     setThemeMode(brand.themeMode);
+    setCurrencyCode(brand.currencyCode);
     setBackgroundColor(brand.backgroundColor);
     setButtonColor(brand.buttonColor);
     setHighlightColor(brand.highlightColor);
@@ -99,6 +101,7 @@ export default function BrandDetailPage() {
       name,
       domain: domain || undefined,
       themeMode,
+      currencyCode,
       backgroundColor: backgroundColor ?? undefined,
       buttonColor: buttonColor ?? undefined,
       highlightColor: highlightColor ?? undefined,
@@ -235,6 +238,26 @@ export default function BrandDetailPage() {
                 <p className="mt-1 text-xs text-text-secondary">
                   Which theme a player sees until they pick their own in Settings - both light and dark are always
                   configured above regardless of this default.
+                </p>
+              </div>
+              <div>
+                <label htmlFor="brand-currency" className="block text-xs text-text-secondary">
+                  Currency
+                </label>
+                <select
+                  id="brand-currency"
+                  value={currencyCode}
+                  onChange={(event) => setCurrencyCode(event.target.value)}
+                  className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  {CURRENCY_CODES.map((code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-text-secondary">
+                  Shown on every stake, payout, campaign, and wallet amount a player sees.
                 </p>
               </div>
               <div>

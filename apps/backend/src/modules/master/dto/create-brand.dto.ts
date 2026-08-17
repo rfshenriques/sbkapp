@@ -38,6 +38,10 @@ export class CreateBrandDto {
   themeMode?: ThemeMode;
 
   @IsOptional()
+  @Matches(/^[A-Z]{3}$/, { message: 'Currency code must be a 3-letter ISO 4217 code, e.g. EUR' })
+  currencyCode?: string;
+
+  @IsOptional()
   @IsColorZone()
   backgroundColor?: ColorZone;
 
@@ -90,6 +94,10 @@ export class UpdateBrandDto {
   @IsOptional()
   @IsEnum(ThemeMode)
   themeMode?: ThemeMode;
+
+  @IsOptional()
+  @Matches(/^[A-Z]{3}$/, { message: 'Currency code must be a 3-letter ISO 4217 code, e.g. EUR' })
+  currencyCode?: string;
 
   @IsOptional()
   @IsColorZone()

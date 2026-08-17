@@ -7,6 +7,7 @@ import { BoostIcon, SpecialsIcon } from '../components/ui/NavIcons';
 import { Skeleton } from '../components/ui/Skeleton';
 import { SportCountryBadge } from '../components/ui/SportCountryBadge';
 import { TeamColorAccent } from '../components/ui/TeamColorAccent';
+import { formatMoney } from '../lib/currency';
 import { CampaignContextBanner } from '../features/bet-and-get/CampaignContextBanner';
 import { useCampaignsForMatch } from '../features/bet-and-get/useCampaignsForMatch';
 import { BoostedOddsRow } from '../features/bet-slip/BoostedOddsRow';
@@ -320,7 +321,7 @@ export default function MatchDetailPage() {
                   <p className="mt-1.5 text-[11px] text-text-secondary">
                     {[
                       market.maxStakeCents !== undefined
-                        ? `Max stake: ${(market.maxStakeCents / 100).toFixed(2)} €`
+                        ? `Max stake: ${formatMoney(market.maxStakeCents)}`
                         : null,
                       market.singlesOnly ? 'Singles only' : null,
                     ]

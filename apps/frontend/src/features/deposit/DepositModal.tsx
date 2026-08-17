@@ -6,6 +6,7 @@ import { FreebetBadgeIcon, WalletIcon } from '../../components/ui/NavIcons';
 import * as backendApi from '../../lib/backendApi';
 import type { DepositResult } from '../../lib/backendApi';
 import { cn } from '../../lib/cn';
+import { activeCurrencySymbol, formatMoney } from '../../lib/currency';
 import { formatRewardHeadline } from '../deposit-campaigns/DepositCampaignModal';
 import { useEligibleDepositCampaign } from '../deposit-campaigns/useEligibleDepositCampaign';
 import { freebetsQueryKey } from '../wallet/useFreebets';
@@ -14,10 +15,6 @@ import { useDepositModalStore } from './depositModalStore';
 
 const DEPOSIT_FORM_ID = 'deposit-form';
 const PRESET_AMOUNTS = [10, 20, 30, 50];
-
-function formatCents(cents: number): string {
-  return (cents / 100).toFixed(2);
-}
 
 /**
  * Generic paper-money top-up - opened from the header's cash balance "+"
@@ -94,7 +91,7 @@ export function DepositModal() {
               disabled={isSubmitting || !isValidAmount}
               className="btn-primary w-full disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isSubmitting ? 'Depositing…' : `Deposit ${isValidAmount ? formatCents(amountCents) : '0.00'} €`}
+              {isSubmitting ? 'Depositing…' : `Deposit ${formatMoney(isValidAmount ? amountCents : 0)}`}
             </button>
             <p className="mt-3 flex items-center justify-center gap-1.5 text-xs text-text-muted">
               <LockIcon width={12} height={12} />
@@ -107,12 +104,12 @@ export function DepositModal() {
       {result ? (
         result.redemption ? (
           <p className="text-center text-sm text-text-primary">
-            Deposit successful! A {formatCents(result.redemption.rewardAmountCents)} € freebet has been added to
+            Deposit successful! A {formatMoney(result.redemption.rewardAmountCents)} freebet has been added to
             your account.
           </p>
         ) : (
           <p className="text-center text-sm text-text-secondary">
-            Your deposit of {formatCents(result.deposit.amountCents)} € was successful.
+            Your deposit of {formatMoney(result.deposit.amountCents)} was successful.
           </p>
         )
       ) : (
@@ -149,7 +146,7 @@ export function DepositModal() {
               >
                 {meetsCampaignMinimum
                   ? '✅ This deposit qualifies for the reward!'
-                  : `Deposit at least ${formatCents(eligibleCampaign.minDepositAmountCents)} € to unlock this reward.`}
+                  : `Deposit at least ${formatMoney(eligibleCampaign.minDepositAmountCents)} to unlock this reward.`}
               </p>
             </div>
           )}
@@ -170,7 +167,7 @@ export function DepositModal() {
                 className="font-display w-32 bg-transparent text-center text-5xl leading-none text-text-primary outline-none"
                 required
               />
-              <span className="font-display text-3xl leading-none text-text-secondary">€</span>
+              <span className="font-display text-3xl leading-none text-text-secondary">{activeCurrencySymbol()}</span>
             </div>
           </div>
 
@@ -182,7 +179,7 @@ export function DepositModal() {
                 onClick={() => setAmount(String(preset))}
                 className={`tab justify-center${Number(amount) === preset ? ' active' : ''}`}
               >
-                {preset} €
+                {preset} {activeCurrencySymbol()}
               </button>
             ))}
           </div>

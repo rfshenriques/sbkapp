@@ -4,16 +4,13 @@ import { BottomSheet } from '../../components/ui/BottomSheet';
 import { FreebetBadgeIcon, WalletIcon } from '../../components/ui/NavIcons';
 import * as backendApi from '../../lib/backendApi';
 import type { DepositCampaign, DepositResult } from '../../lib/backendApi';
+import { activeCurrencySymbol, formatMoney } from '../../lib/currency';
 import { formatCampaignRequirements, formatCampaignTrigger } from '../bet-and-get/formatCampaignRequirements';
 import { freebetsQueryKey } from '../wallet/useFreebets';
 import { walletQueryKey } from '../wallet/useWallet';
 import { useDepositCampaignModalStore } from './depositCampaignModalStore';
 
 const DEPOSIT_FORM_ID = 'deposit-campaign-form';
-
-function formatCents(cents: number): string {
-  return `${(cents / 100).toFixed(2)} €`;
-}
 
 /** Plain "10.00" with no currency symbol - only for the deposit-amount input's value, which must stay a parseable number. */
 function centsToPlainAmount(cents: number): string {
@@ -22,11 +19,11 @@ function centsToPlainAmount(cents: number): string {
 
 /** One sentence describing the reward shape - fixed amount or percent-up-to-a-cap. */
 function formatRewardExplanation(campaign: DepositCampaign): string {
-  const minDeposit = formatCents(campaign.minDepositAmountCents);
+  const minDeposit = formatMoney(campaign.minDepositAmountCents);
   if (campaign.rewardType === 'FIXED') {
-    return `Deposit ${minDeposit} or more and get a ${formatCents(campaign.fixedRewardAmountCents ?? 0)} freebet.`;
+    return `Deposit ${minDeposit} or more and get a ${formatMoney(campaign.fixedRewardAmountCents ?? 0)} freebet.`;
   }
-  return `Get ${campaign.rewardPercent}% of your deposit as a freebet, up to ${formatCents(
+  return `Get ${campaign.rewardPercent}% of your deposit as a freebet, up to ${formatMoney(
     campaign.rewardCapCents ?? 0,
   )} - minimum deposit ${minDeposit}.`;
 }
@@ -34,11 +31,11 @@ function formatRewardExplanation(campaign: DepositCampaign): string {
 /** The big hero figure/caption pair - the fixed amount itself, or the percent with its cap as the caption. Also reused by DepositModal's compact top-of-sheet campaign card. */
 export function formatRewardHeadline(campaign: DepositCampaign): { figure: string; caption: string } {
   if (campaign.rewardType === 'FIXED') {
-    return { figure: formatCents(campaign.fixedRewardAmountCents ?? 0), caption: 'in Freebets' };
+    return { figure: formatMoney(campaign.fixedRewardAmountCents ?? 0), caption: 'in Freebets' };
   }
   return {
     figure: `${campaign.rewardPercent}%`,
-    caption: `in Freebets, up to ${formatCents(campaign.rewardCapCents ?? 0)}`,
+    caption: `in Freebets, up to ${formatMoney(campaign.rewardCapCents ?? 0)}`,
   };
 }
 
@@ -76,7 +73,7 @@ function SuccessMessage({ campaign, result }: { campaign: DepositCampaign; resul
   if (!result.redemption) {
     return (
       <p className="text-center text-sm text-text-secondary">
-        Your deposit of {formatCents(result.deposit.amountCents)} was successful. This deposit didn't qualify for
+        Your deposit of {formatMoney(result.deposit.amountCents)} was successful. This deposit didn't qualify for
         the promotion.
       </p>
     );
@@ -85,7 +82,7 @@ function SuccessMessage({ campaign, result }: { campaign: DepositCampaign; resul
   if (result.redemption.status === 'GRANTED') {
     return (
       <p className="text-center text-sm text-text-primary">
-        Deposit successful! A {formatCents(result.redemption.rewardAmountCents)} freebet has been added to your
+        Deposit successful! A {formatMoney(result.redemption.rewardAmountCents)} freebet has been added to your
         account.
       </p>
     );
@@ -93,7 +90,7 @@ function SuccessMessage({ campaign, result }: { campaign: DepositCampaign; resul
 
   return (
     <p className="text-center text-sm text-text-primary">
-      Deposit successful! Your {formatCents(result.redemption.rewardAmountCents)} freebet is on its way -{' '}
+      Deposit successful! Your {formatMoney(result.redemption.rewardAmountCents)} freebet is on its way -{' '}
       {formatCampaignTrigger(campaign).toLowerCase()}
     </p>
   );
@@ -202,7 +199,7 @@ export function DepositCampaignModal() {
         ) : (
           <form id={DEPOSIT_FORM_ID} onSubmit={handleSubmit}>
             <label htmlFor="deposit-amount" className="block text-sm text-text-secondary">
-              Deposit amount (€)
+              Deposit amount ({activeCurrencySymbol()})
             </label>
             <input
               id="deposit-amount"

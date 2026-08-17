@@ -15,6 +15,9 @@ interface BrandState {
   logoUrl: string | null;
   shareLogoUrl: string | null;
   setLogoUrls: (logoUrl: string | null, shareLogoUrl: string | null) => void;
+  /** ISO 4217 code (see Brand.currencyCode) - defaults to EUR until useBrandTheme's fetch resolves, matching every deployment's actual currency before this field existed. Read via lib/currency.ts's formatMoney/formatMoneySmart, both inside and outside React. */
+  currencyCode: string;
+  setCurrencyCode: (currencyCode: string) => void;
 }
 
 /**
@@ -30,4 +33,6 @@ export const useBrandStore = create<BrandState>((set) => ({
   logoUrl: null,
   shareLogoUrl: null,
   setLogoUrls: (logoUrl, shareLogoUrl) => set({ logoUrl, shareLogoUrl }),
+  currencyCode: 'EUR',
+  setCurrencyCode: (currencyCode) => set({ currencyCode }),
 }));

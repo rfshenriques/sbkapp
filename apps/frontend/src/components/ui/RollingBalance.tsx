@@ -58,7 +58,7 @@ interface RollingBalanceProps {
   className?: string;
 }
 
-/** Renders formatCents(toCents), each digit odometer-rolling up from the corresponding digit of formatCents(fromCents) - the header balance's "counting up" effect while FreebetFlyOverlay's icons arrive. Non-digit characters (the decimal point) render statically. */
+/** Renders formatCents(toCents), each digit odometer-rolling up from the corresponding digit of formatCents(fromCents) - the header balance's "counting up" effect while FreebetFlyOverlay's icons arrive. Non-digit characters (the decimal point, the currency symbol) render statically. */
 export function RollingBalance({ fromCents, toCents, className }: RollingBalanceProps) {
   const fromStr = formatCents(Math.max(fromCents, 0));
   const toStr = formatCents(Math.max(toCents, 0));

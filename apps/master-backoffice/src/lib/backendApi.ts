@@ -17,6 +17,9 @@ export type KnownProduct = (typeof KNOWN_PRODUCTS)[number];
 export const THEME_MODES = ['LIGHT', 'DARK'] as const;
 export type ThemeMode = (typeof THEME_MODES)[number];
 
+/** Common ISO 4217 codes offered in the brand currency picker - any valid 3-letter code is accepted by the backend, this is just a curated shortlist. */
+export const CURRENCY_CODES = ['EUR', 'USD', 'GBP', 'BRL', 'MXN', 'CAD', 'AUD', 'CHF'] as const;
+
 export const BRAND_LOGO_SLOTS = ['SITE_LIGHT', 'SITE_DARK', 'SHARE_LIGHT', 'SHARE_DARK'] as const;
 export type BrandLogoSlot = (typeof BRAND_LOGO_SLOTS)[number];
 
@@ -60,6 +63,7 @@ export interface Brand {
   shareLogoLightUrl: string | null;
   shareLogoDarkUrl: string | null;
   themeMode: ThemeMode;
+  currencyCode: string;
   backgroundColor: ColorZone | null;
   buttonColor: ColorZone | null;
   highlightColor: ColorZone | null;
@@ -81,6 +85,7 @@ export interface CreateBrandPayload {
   shareLogoLightUrl?: string;
   shareLogoDarkUrl?: string;
   themeMode?: ThemeMode;
+  currencyCode?: string;
   backgroundColor?: ColorZone;
   buttonColor?: ColorZone;
   highlightColor?: ColorZone;
@@ -96,6 +101,7 @@ export interface UpdateBrandPayload {
   shareLogoLightUrl?: string;
   shareLogoDarkUrl?: string;
   themeMode?: ThemeMode;
+  currencyCode?: string;
   backgroundColor?: ColorZone;
   buttonColor?: ColorZone;
   highlightColor?: ColorZone;

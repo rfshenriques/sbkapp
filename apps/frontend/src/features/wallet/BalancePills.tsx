@@ -64,7 +64,7 @@ export function BalancePills({
           </span>
         )}
         <WalletIcon width={14} height={14} className="shrink-0" />
-        <span className="font-semibold text-text-primary">{formatCents(cashCents)} €</span>
+        <span className="font-semibold text-text-primary">{formatCents(cashCents)}</span>
         {onAddFunds && (
           <button
             type="button"
@@ -88,7 +88,7 @@ export function BalancePills({
         >
           <FreebetBadgeIcon width={15} height={15} className="shrink-0" />
           <span className="font-semibold text-text-primary">
-            {isFlyTarget ? <RollingBalance fromCents={flyFromCents} toCents={flyToCents} /> : formatCents(freebetsCents)} €
+            {isFlyTarget ? <RollingBalance fromCents={flyFromCents} toCents={flyToCents} /> : formatCents(freebetsCents)}
           </span>
         </span>
       )}

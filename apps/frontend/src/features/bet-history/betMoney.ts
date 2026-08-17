@@ -1,9 +1,5 @@
 import type { PlacedBet } from '../../lib/backendApi';
 
-export function formatEuros(cents: number): string {
-  return `${(cents / 100).toFixed(2)} €`;
-}
-
 /**
  * combinedOdds/potentialPayoutCents already have any acca boost/insurance
  * baked in as of placement time (see PamService.placeBet) - the

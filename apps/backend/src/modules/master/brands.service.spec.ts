@@ -77,6 +77,19 @@ describe('BrandsService', () => {
     expect(brand.themeMode).toBe('DARK');
   });
 
+  it('defaults a new brand to EUR and lets it be set and later changed', async () => {
+    const created = await brandsService.createBrand(buildCreateBrandDto());
+    createdBrandIds.push(created.id);
+    expect(created.currencyCode).toBe('EUR');
+
+    const withUsd = await brandsService.createBrand(buildCreateBrandDto({ currencyCode: 'USD' }));
+    createdBrandIds.push(withUsd.id);
+    expect(withUsd.currencyCode).toBe('USD');
+
+    const updated = await brandsService.updateBrand(withUsd.id, { currencyCode: 'GBP' });
+    expect(updated.currencyCode).toBe('GBP');
+  });
+
   it('rejects creating a brand with an already-used slug', async () => {
     const dto = buildCreateBrandDto();
     const first = await brandsService.createBrand(dto);

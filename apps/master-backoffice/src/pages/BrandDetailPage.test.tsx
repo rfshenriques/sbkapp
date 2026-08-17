@@ -20,6 +20,7 @@ const brand: Brand = {
   shareLogoLightUrl: null,
   shareLogoDarkUrl: null,
   themeMode: 'LIGHT',
+  currencyCode: 'EUR',
   backgroundColor: null,
   buttonColor: solidZone('#112233'),
   highlightColor: null,
@@ -60,6 +61,7 @@ describe('BrandDetailPage', () => {
     expect(await screen.findByDisplayValue('Acme Sportsbook')).toBeInTheDocument();
     expect(screen.getByDisplayValue('www.acme-sportsbook.com')).toBeInTheDocument();
     expect(screen.getByLabelText('Default appearance')).toHaveValue('LIGHT');
+    expect(screen.getByLabelText('Currency')).toHaveValue('EUR');
 
     const buttonZone = screen.getByText('Button / CTA').closest('div')!;
     expect(within(buttonZone).getByLabelText('Light color')).toHaveValue('#112233');
@@ -176,5 +178,32 @@ describe('BrandDetailPage', () => {
     await userEvent.click(within(cashoutRow).getByRole('button', { name: 'Disabled' }));
 
     expect(await within(cashoutRow).findByRole('button', { name: 'Enabled' })).toBeInTheDocument();
+  });
+
+  it('changing the currency and saving sends it in the PATCH payload', async () => {
+    const usdBrand: Brand = { ...brand, currencyCode: 'USD' };
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'PATCH' && url === '/backend/master/brands/brand-1') {
+        expect(JSON.parse(init!.body as string)).toEqual(expect.objectContaining({ currencyCode: 'USD' }));
+        return new Response(JSON.stringify(usdBrand), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/master/brands/brand-1') {
+        return new Response(JSON.stringify(brand), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderBrandDetailPage();
+    await screen.findByDisplayValue('Acme Sportsbook');
+
+    await userEvent.selectOptions(screen.getByLabelText('Currency'), 'USD');
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(await screen.findByLabelText('Currency')).toHaveValue('USD');
   });
 });

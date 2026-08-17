@@ -1,6 +1,7 @@
 import type { Market, Selection } from '@sportsbook/shared';
 import { LockIcon } from '../../components/ui/LockIcon';
 import { track } from '../../lib/analytics';
+import { formatMoney } from '../../lib/currency';
 import { useDisplayNames } from '../display-names/useDisplayNames';
 import { useBetSlipStore } from './betSlipStore';
 import { sortMatchResultSelections } from './sortMatchResultSelections';
@@ -44,7 +45,7 @@ function SelectionButton({ selection, label, isSelected, isSuspended, variant, o
           : isBoosted
             ? `${label} boosted to ${selection.odds.toFixed(2)}, was ${selection.originalOdds!.toFixed(2)}${
                 selection.maxStakeCents !== undefined
-                  ? `, max stake ${(selection.maxStakeCents / 100).toFixed(2)} €`
+                  ? `, max stake ${formatMoney(selection.maxStakeCents)}`
                   : ''
               }`
             : undefined

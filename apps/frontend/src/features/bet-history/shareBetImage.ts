@@ -1,7 +1,8 @@
 import { betStatusCategory, betStatusLabel, type BetStatusCategory } from '../../lib/betStatus';
 import type { PlacedBet } from '../../lib/backendApi';
 import { useBrandStore } from '../brand/brandStore';
-import { displayedPayoutCents, formatEuros, uninsuredPayoutCents, unboostedCombinedOdds } from './betMoney';
+import { formatMoney } from '../../lib/currency';
+import { displayedPayoutCents, uninsuredPayoutCents, unboostedCombinedOdds } from './betMoney';
 
 /**
  * Best-effort image load for the brand's share logo (see
@@ -352,15 +353,15 @@ export async function renderBetCardImage(bet: PlacedBet): Promise<Blob> {
     bold: true,
   });
 
-  footerRow('Stake', `${bet.fundedByFreebets ? 'F ' : ''}${formatEuros(bet.stakeCents)}`);
+  footerRow('Stake', `${bet.fundedByFreebets ? 'F ' : ''}${formatMoney(bet.stakeCents)}`);
 
   const payoutLabel = bet.status === 'PENDING' ? 'Potential payout' : 'Payout';
   if (isInsuredLoss) {
-    footerRow(payoutLabel, `F ${formatEuros(bet.stakeCents)}`, { bold: true });
+    footerRow(payoutLabel, `F ${formatMoney(bet.stakeCents)}`, { bold: true });
   } else if (showInsuranceBeforeAfter) {
-    footerRow(payoutLabel, `${formatEuros(uninsuredPayoutCents(bet))} → ${formatEuros(payoutCents)}`, { bold: true });
+    footerRow(payoutLabel, `${formatMoney(uninsuredPayoutCents(bet))} → ${formatMoney(payoutCents)}`, { bold: true });
   } else {
-    footerRow(payoutLabel, formatEuros(payoutCents), { bold: true });
+    footerRow(payoutLabel, formatMoney(payoutCents), { bold: true });
   }
 
   if (bet.accaBoostPercent > 0 && isAccumulator) {
