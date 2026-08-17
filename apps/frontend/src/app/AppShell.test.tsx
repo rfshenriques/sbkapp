@@ -61,6 +61,11 @@ beforeEach(() => {
   useAuthModalStore.setState({ mode: null });
   useBetPlacedModalStore.setState({ summary: null });
   useBrandStore.setState({ brandId: undefined });
+  // The forced-login prompt's once-an-hour throttle (see
+  // forcedLoginPrompt.ts) is persisted here - jsdom's localStorage survives
+  // across tests within a file otherwise, letting an earlier test's prompt
+  // suppress a later one's.
+  localStorage.clear();
   // Not logged in by default - the silent-refresh call on mount finds no session.
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
 });
@@ -288,6 +293,23 @@ describe('AppShell', () => {
 
   describe('forced login on load', () => {
     it('opens the login sheet once the silent-refresh bootstrap finds no session', async () => {
+      renderShell();
+
+      expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();
+    });
+
+    it('does not reopen the login sheet on a refresh within the same hour', async () => {
+      localStorage.setItem('sportsbook_last_forced_login_prompt_at', String(Date.now() - 5 * 60 * 1000));
+
+      renderShell();
+
+      await screen.findByText('Page content');
+      expect(screen.queryByRole('heading', { name: 'Log in' })).not.toBeInTheDocument();
+    });
+
+    it('opens the login sheet again once an hour has passed since it last showed', async () => {
+      localStorage.setItem('sportsbook_last_forced_login_prompt_at', String(Date.now() - 61 * 60 * 1000));
+
       renderShell();
 
       expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();

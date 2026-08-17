@@ -25,6 +25,7 @@ import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBootstrapAuth } from '../features/auth/useBootstrapAuth';
 import { useForceLogout } from '../features/auth/useForceLogout';
 import { attemptBiometricLogin } from '../lib/webauthn';
+import { recordForcedLoginPromptShown, shouldShowForcedLoginPrompt } from '../lib/forcedLoginPrompt';
 import { DepositCampaignModal } from '../features/deposit-campaigns/DepositCampaignModal';
 import { useEligibleDepositCampaign } from '../features/deposit-campaigns/useEligibleDepositCampaign';
 import { DepositModal } from '../features/deposit/DepositModal';
@@ -166,15 +167,20 @@ export function AppShell() {
     pillCampaignPreview?.betAndGetCampaignName || pillCampaignPreview?.depositCampaignName,
   );
 
-  // Force the login sheet on the first load of a fresh session so promos
-  // shown after login stay meaningful - only once per app open. Opens as a
-  // modal over whatever page is current (see authModalStore) rather than
-  // navigating to a separate /login route, so the page underneath stays
-  // mounted and visible instead of leaving an empty page behind the sheet.
-  // Dismissible like any other bottom sheet: anonymous browsing is still
-  // fully supported once closed. First tries a silent biometric/passkey
-  // login (see lib/webauthn.ts) - the password form only opens once that
-  // fails, isn't available on this device, or the player cancels it.
+  // Force the login sheet so promos shown after login stay meaningful - but
+  // at most once an hour per device (see forcedLoginPrompt.ts), not on
+  // every single page load. A plain in-memory ref only guards against
+  // firing twice within one already-mounted tab; the hour-long throttle
+  // itself is persisted in localStorage so it survives a refresh, which
+  // remounts this whole component and would otherwise reset an in-memory
+  // guard right back to "never shown". Opens as a modal over whatever page
+  // is current (see authModalStore) rather than navigating to a separate
+  // /login route, so the page underneath stays mounted and visible instead
+  // of leaving an empty page behind the sheet. Dismissible like any other
+  // bottom sheet: anonymous browsing is still fully supported once closed.
+  // First tries a silent biometric/passkey login (see lib/webauthn.ts) -
+  // the password form only opens once that fails, isn't available on this
+  // device, or the player cancels it.
   const hasForcedLoginRef = useRef(false);
   useEffect(() => {
     if (!isInitialized || hasForcedLoginRef.current) {
@@ -185,7 +191,8 @@ export function AppShell() {
     // opened a mode by the time this runs - child effects fire before the
     // parent's on mount - so don't clobber a deliberate Register deep link
     // back to Login.
-    if (!isAuthenticated && useAuthModalStore.getState().mode === null) {
+    if (!isAuthenticated && useAuthModalStore.getState().mode === null && shouldShowForcedLoginPrompt()) {
+      recordForcedLoginPromptShown();
       void attemptBiometricLogin().then((loggedIn) => {
         if (!loggedIn && useAuthModalStore.getState().mode === null) {
           openAuthModal('login');
