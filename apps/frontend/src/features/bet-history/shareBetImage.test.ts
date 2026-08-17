@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlacedBet } from '../../lib/backendApi';
+import { useBrandStore } from '../brand/brandStore';
 import { renderBetCardImage, shareBetImage } from './shareBetImage';
 
 function buildBet(overrides: Partial<PlacedBet> = {}): PlacedBet {
@@ -58,6 +59,7 @@ function stubCanvas() {
     fill: vi.fn(),
     stroke: vi.fn(),
     fillText: vi.fn(),
+    drawImage: vi.fn(),
     measureText: vi.fn(() => ({ width: 40 })),
     fillStyle: '',
     strokeStyle: '',
@@ -82,12 +84,46 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  useBrandStore.setState({ logoUrl: null, shareLogoUrl: null });
 });
+
+/** jsdom never actually loads image sources - firing onload itself is the only way loadImage's promise resolves. */
+class FakeImage {
+  width = 200;
+  height = 50;
+  onload: (() => void) | null = null;
+  onerror: (() => void) | null = null;
+  set src(_value: string) {
+    queueMicrotask(() => this.onload?.());
+  }
+}
 
 describe('renderBetCardImage', () => {
   it('resolves a PNG blob for a single bet', async () => {
     const blob = await renderBetCardImage(buildBet());
     expect(blob.type).toBe('image/png');
+  });
+
+  it('draws the brand share logo onto the card when one is configured for the active theme', async () => {
+    vi.stubGlobal('Image', FakeImage);
+    useBrandStore.setState({ shareLogoUrl: '/backend/public/brands/brand-1/logo/SHARE_LIGHT' });
+    const context = HTMLCanvasElement.prototype.getContext(
+      '2d',
+    ) as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    await renderBetCardImage(buildBet());
+
+    expect(context.drawImage).toHaveBeenCalled();
+  });
+
+  it('skips the logo band entirely when no share logo is configured', async () => {
+    const context = HTMLCanvasElement.prototype.getContext(
+      '2d',
+    ) as unknown as { drawImage: ReturnType<typeof vi.fn> };
+
+    await renderBetCardImage(buildBet());
+
+    expect(context.drawImage).not.toHaveBeenCalled();
   });
 
   it('resolves a PNG blob for a multi-leg accumulator', async () => {

@@ -13,6 +13,7 @@ import { invalidAccumulatorReason } from '../features/bet-slip/accumulatorValidi
 import { useWinCelebrationDetector } from '../features/bet-history/useWinCelebrationDetector';
 import { WinCelebrationModal } from '../features/bet-history/WinCelebrationModal';
 import { useBrandTheme } from '../features/brand/useBrandTheme';
+import { useBrandStore } from '../features/brand/brandStore';
 import { useAnalyticsPageViews } from '../features/analytics/useAnalyticsPageViews';
 import { Footer } from '../features/footer/Footer';
 import { AccountMenu } from '../features/auth/AccountMenu';
@@ -58,6 +59,7 @@ export function AppShell() {
   useWinCelebrationDetector();
   useFreebetGrantDetector();
   const brandQuery = useBrandTheme();
+  const brandLogoUrl = useBrandStore((state) => state.logoUrl);
   const isSlipOpen = useBetSlipSheetStore((state) => state.isOpen);
   const openSlip = useBetSlipSheetStore((state) => state.open);
   const closeSlip = useBetSlipSheetStore((state) => state.close);
@@ -275,8 +277,8 @@ export function AppShell() {
           style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}
         >
           <NavLink to="/" className="flex shrink-0 items-center gap-2">
-            {brandQuery.data?.logoUrl ? (
-              <img src={brandQuery.data.logoUrl} alt={brandName} className="h-8 max-w-[10rem] object-contain" />
+            {brandLogoUrl ? (
+              <img src={brandLogoUrl} alt={brandName} className="h-8 max-w-[10rem] object-contain" />
             ) : (
               <span className="font-display text-xl">{brandName}</span>
             )}

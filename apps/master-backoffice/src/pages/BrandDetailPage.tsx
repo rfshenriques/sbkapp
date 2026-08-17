@@ -1,9 +1,12 @@
-import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useParams } from 'react-router-dom';
+import { ColorZoneEditor } from '../components/ColorZoneEditor';
+import { LogoSlotUploader } from '../components/LogoSlotUploader';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
+import type { BrandLogoSlot, ColorZone } from '../lib/backendApi';
 import * as backendApi from '../lib/backendApi';
 import { KNOWN_PRODUCTS } from '../lib/backendApi';
 
@@ -11,6 +14,13 @@ const PRODUCT_LABELS: Record<string, string> = {
   CASHOUT: 'Cashout',
   BET_BUILDER: 'Bet builder',
 };
+
+const LOGO_SLOTS: { slot: BrandLogoSlot; label: string; urlField: 'logoLightUrl' | 'logoDarkUrl' | 'shareLogoLightUrl' | 'shareLogoDarkUrl' }[] = [
+  { slot: 'SITE_LIGHT', label: 'Site logo (light)', urlField: 'logoLightUrl' },
+  { slot: 'SITE_DARK', label: 'Site logo (dark)', urlField: 'logoDarkUrl' },
+  { slot: 'SHARE_LIGHT', label: 'Bet-share logo (light)', urlField: 'shareLogoLightUrl' },
+  { slot: 'SHARE_DARK', label: 'Bet-share logo (dark)', urlField: 'shareLogoDarkUrl' },
+];
 
 export default function BrandDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -29,22 +39,24 @@ export default function BrandDetailPage() {
 
   const [name, setName] = useState('');
   const [domain, setDomain] = useState('');
-  const [logoUrl, setLogoUrl] = useState('');
   const [themeMode, setThemeMode] = useState<backendApi.ThemeMode>('DARK');
-  const [buttonColorHex, setButtonColorHex] = useState('');
-  const [highlightColorHex, setHighlightColorHex] = useState('');
-  const [filterColorHex, setFilterColorHex] = useState('');
+  const [backgroundColor, setBackgroundColor] = useState<ColorZone | null>(null);
+  const [buttonColor, setButtonColor] = useState<ColorZone | null>(null);
+  const [highlightColor, setHighlightColor] = useState<ColorZone | null>(null);
+  const [filterColor, setFilterColor] = useState<ColorZone | null>(null);
+  const [textColor, setTextColor] = useState<ColorZone | null>(null);
   const [freebetStakeReturnedOnWin, setFreebetStakeReturnedOnWin] = useState(true);
 
   useEffect(() => {
     if (!brand) return;
     setName(brand.name);
     setDomain(brand.domain ?? '');
-    setLogoUrl(brand.logoUrl ?? '');
     setThemeMode(brand.themeMode);
-    setButtonColorHex(brand.buttonColorHex ?? '');
-    setHighlightColorHex(brand.highlightColorHex ?? '');
-    setFilterColorHex(brand.filterColorHex ?? '');
+    setBackgroundColor(brand.backgroundColor);
+    setButtonColor(brand.buttonColor);
+    setHighlightColor(brand.highlightColor);
+    setFilterColor(brand.filterColor);
+    setTextColor(brand.textColor);
     setFreebetStakeReturnedOnWin(brand.freebetStakeReturnedOnWin);
   }, [brand]);
 
@@ -66,40 +78,32 @@ export default function BrandDetailPage() {
   });
 
   const uploadLogoMutation = useMutation({
-    mutationFn: (file: File) => backendApi.uploadBrandLogo(id!, file),
+    mutationFn: ({ slot, file }: { slot: BrandLogoSlot; file: File }) => backendApi.uploadBrandLogo(id!, slot, file),
     onSuccess: (updated) => {
       queryClient.setQueryData(brandQueryKey, updated);
       void queryClient.invalidateQueries({ queryKey: ['brands'] });
-      setLogoUrl(updated.logoUrl ?? '');
     },
   });
 
   const removeLogoMutation = useMutation({
-    mutationFn: () => backendApi.removeBrandLogo(id!),
+    mutationFn: (slot: BrandLogoSlot) => backendApi.removeBrandLogo(id!, slot),
     onSuccess: (updated) => {
       queryClient.setQueryData(brandQueryKey, updated);
       void queryClient.invalidateQueries({ queryKey: ['brands'] });
-      setLogoUrl('');
     },
   });
-
-  function handleLogoFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    // Reset so picking the same file again still fires onChange.
-    event.target.value = '';
-    if (file) uploadLogoMutation.mutate(file);
-  }
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     updateMutation.mutate({
       name,
       domain: domain || undefined,
-      logoUrl: logoUrl || undefined,
       themeMode,
-      buttonColorHex: buttonColorHex || undefined,
-      highlightColorHex: highlightColorHex || undefined,
-      filterColorHex: filterColorHex || undefined,
+      backgroundColor: backgroundColor ?? undefined,
+      buttonColor: buttonColor ?? undefined,
+      highlightColor: highlightColor ?? undefined,
+      filterColor: filterColor ?? undefined,
+      textColor: textColor ?? undefined,
       freebetStakeReturnedOnWin,
     });
   }
@@ -125,6 +129,69 @@ export default function BrandDetailPage() {
 
       {brand && (
         <>
+          <Card className="mt-4">
+            <h2 className="text-sm font-medium text-text-secondary">Logos</h2>
+            <p className="mt-1 text-xs text-text-secondary">
+              Site logos render in the header; bet-share logos render on the image generated when a player shares a
+              bet slip. Each has its own light and dark variant since a single logo often reads badly against one of
+              the two backgrounds.
+            </p>
+            <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">
+              {LOGO_SLOTS.map(({ slot, label, urlField }) => (
+                <LogoSlotUploader
+                  key={slot}
+                  inputId={`brand-logo-${slot}`}
+                  label={label}
+                  url={brand[urlField]}
+                  isUploading={uploadLogoMutation.isPending && uploadLogoMutation.variables?.slot === slot}
+                  isRemoving={removeLogoMutation.isPending && removeLogoMutation.variables === slot}
+                  onFileSelected={(file) => uploadLogoMutation.mutate({ slot, file })}
+                  onRemove={() => removeLogoMutation.mutate(slot)}
+                />
+              ))}
+            </div>
+            {uploadLogoMutation.isError && (
+              <p className="mt-2 text-sm text-danger">
+                {uploadLogoMutation.error instanceof Error ? uploadLogoMutation.error.message : 'Failed to upload logo.'}
+              </p>
+            )}
+          </Card>
+
+          <Card className="mt-4">
+            <h2 className="text-sm font-medium text-text-secondary">Colors</h2>
+            <p className="mt-1 text-xs text-text-secondary">
+              Every zone is independent for light and dark, and each can be a solid color or a 2-stop gradient. Leave
+              a zone unchecked to keep the fixed built-in default for it.
+            </p>
+            <div className="mt-3 space-y-3">
+              <ColorZoneEditor
+                label="Background"
+                description="The page background behind everything else."
+                value={backgroundColor}
+                onChange={setBackgroundColor}
+              />
+              <ColorZoneEditor
+                label="Button / CTA"
+                description="Register, Place Bet, Browse matches, and other primary actions."
+                value={buttonColor}
+                onChange={setButtonColor}
+              />
+              <ColorZoneEditor
+                label="Highlight"
+                description="General accent - selected odds, kickoff times, status badges."
+                value={highlightColor}
+                onChange={setHighlightColor}
+              />
+              <ColorZoneEditor
+                label="Filter"
+                description="Tab and filter-chip active states - kept distinct from Button so a filter never reads as a CTA."
+                value={filterColor}
+                onChange={setFilterColor}
+              />
+              <ColorZoneEditor label="Text" description="Primary text color." value={textColor} onChange={setTextColor} />
+            </div>
+          </Card>
+
           <Card className="mt-4">
             <h2 className="text-sm font-medium text-text-secondary">Brand configuration</h2>
             <form onSubmit={handleSubmit} className="mt-3 space-y-3">
@@ -153,56 +220,8 @@ export default function BrandDetailPage() {
                 />
               </div>
               <div>
-                <label htmlFor="brand-logo" className="block text-xs text-text-secondary">
-                  Logo URL
-                </label>
-                <input
-                  id="brand-logo"
-                  value={logoUrl}
-                  onChange={(event) => setLogoUrl(event.target.value)}
-                  placeholder="https://example.com/logo.png"
-                  className="mt-1 w-full max-w-md rounded-md border border-border bg-background px-3 py-2 text-sm"
-                />
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                  {brand.logoUrl && (
-                    <img
-                      src={brand.logoUrl}
-                      alt="Brand logo preview"
-                      className="h-10 max-w-[8rem] rounded-md border border-border bg-background object-contain p-1"
-                    />
-                  )}
-                  <label className="cursor-pointer rounded-md border border-border bg-surface px-3 py-2 text-sm hover:bg-surface-hover">
-                    {uploadLogoMutation.isPending ? 'Uploading…' : 'Upload from computer'}
-                    <input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
-                      onChange={handleLogoFileChange}
-                      disabled={uploadLogoMutation.isPending}
-                      className="sr-only"
-                    />
-                  </label>
-                  {brand.logoUrl && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      disabled={removeLogoMutation.isPending}
-                      onClick={() => removeLogoMutation.mutate()}
-                    >
-                      Remove logo
-                    </Button>
-                  )}
-                </div>
-                {uploadLogoMutation.isError && (
-                  <p className="mt-1 text-sm text-danger">
-                    {uploadLogoMutation.error instanceof Error
-                      ? uploadLogoMutation.error.message
-                      : 'Failed to upload logo.'}
-                  </p>
-                )}
-              </div>
-              <div>
                 <label htmlFor="brand-theme-mode" className="block text-xs text-text-secondary">
-                  Appearance
+                  Default appearance
                 </label>
                 <select
                   id="brand-theme-mode"
@@ -213,77 +232,10 @@ export default function BrandDetailPage() {
                   <option value="DARK">Dark</option>
                   <option value="LIGHT">Light</option>
                 </select>
-              </div>
-              <div className="flex gap-4">
-                <div>
-                  <label htmlFor="brand-button-color" className="block text-xs text-text-secondary">
-                    Button color
-                  </label>
-                  <div className="mt-1 flex items-center gap-2">
-                    <input
-                      type="color"
-                      aria-label="Button color swatch"
-                      value={/^#[0-9a-fA-F]{6}$/.test(buttonColorHex) ? buttonColorHex : '#000000'}
-                      onChange={(event) => setButtonColorHex(event.target.value)}
-                      className="h-9 w-9 shrink-0 cursor-pointer rounded-md border border-border bg-background p-0.5"
-                    />
-                    <input
-                      id="brand-button-color"
-                      value={buttonColorHex}
-                      onChange={(event) => setButtonColorHex(event.target.value)}
-                      placeholder="#22c55e"
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label
-                    htmlFor="brand-highlight-color"
-                    className="block text-xs text-text-secondary"
-                  >
-                    Highlight color
-                  </label>
-                  <div className="mt-1 flex items-center gap-2">
-                    <input
-                      type="color"
-                      aria-label="Highlight color swatch"
-                      value={/^#[0-9a-fA-F]{6}$/.test(highlightColorHex) ? highlightColorHex : '#000000'}
-                      onChange={(event) => setHighlightColorHex(event.target.value)}
-                      className="h-9 w-9 shrink-0 cursor-pointer rounded-md border border-border bg-background p-0.5"
-                    />
-                    <input
-                      id="brand-highlight-color"
-                      value={highlightColorHex}
-                      onChange={(event) => setHighlightColorHex(event.target.value)}
-                      placeholder="#f59e0b"
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <label
-                    htmlFor="brand-filter-color"
-                    className="block text-xs text-text-secondary"
-                  >
-                    Filter color
-                  </label>
-                  <div className="mt-1 flex items-center gap-2">
-                    <input
-                      type="color"
-                      aria-label="Filter color swatch"
-                      value={/^#[0-9a-fA-F]{6}$/.test(filterColorHex) ? filterColorHex : '#000000'}
-                      onChange={(event) => setFilterColorHex(event.target.value)}
-                      className="h-9 w-9 shrink-0 cursor-pointer rounded-md border border-border bg-background p-0.5"
-                    />
-                    <input
-                      id="brand-filter-color"
-                      value={filterColorHex}
-                      onChange={(event) => setFilterColorHex(event.target.value)}
-                      placeholder="#22d3ee"
-                      className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                    />
-                  </div>
-                </div>
+                <p className="mt-1 text-xs text-text-secondary">
+                  Which theme a player sees until they pick their own in Settings - both light and dark are always
+                  configured above regardless of this default.
+                </p>
               </div>
               <div>
                 <label className="flex items-center gap-2 text-sm text-text-secondary">

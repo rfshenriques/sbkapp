@@ -149,14 +149,41 @@ async function parseJsonOrThrow<T>(response: Response, fallbackMessage: string):
  */
 const FALLBACK_BRAND_ID = import.meta.env.VITE_BRAND_ID as string | undefined;
 
+export type GradientDirection = 'to-t' | 'to-b' | 'to-l' | 'to-r' | 'to-tl' | 'to-tr' | 'to-bl' | 'to-br';
+
+export interface SolidColor {
+  type: 'solid';
+  hex: string;
+}
+
+export interface GradientColor {
+  type: 'gradient';
+  direction: GradientDirection;
+  fromHex: string;
+  toHex: string;
+}
+
+export type ColorValue = SolidColor | GradientColor;
+
+/** A brand-configurable color zone - always both a light and a dark value, see useBrandTheme. */
+export interface ColorZone {
+  light: ColorValue;
+  dark: ColorValue;
+}
+
 export interface PublicBrand {
   id: string;
   name: string;
-  logoUrl: string | null;
+  logoLightUrl: string | null;
+  logoDarkUrl: string | null;
+  shareLogoLightUrl: string | null;
+  shareLogoDarkUrl: string | null;
   themeMode: 'LIGHT' | 'DARK';
-  buttonColorHex: string | null;
-  highlightColorHex: string | null;
-  filterColorHex: string | null;
+  backgroundColor: ColorZone | null;
+  buttonColor: ColorZone | null;
+  highlightColor: ColorZone | null;
+  filterColor: ColorZone | null;
+  textColor: ColorZone | null;
   supportHelplineText: string | null;
 }
 

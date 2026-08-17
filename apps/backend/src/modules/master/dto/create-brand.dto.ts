@@ -1,13 +1,8 @@
-import {
-  IsBoolean,
-  IsEnum,
-  IsHexColor,
-  IsOptional,
-  IsUrl,
-  Matches,
-  MinLength,
-} from 'class-validator';
+import { IsBoolean, IsEnum, IsOptional, Matches, MinLength } from 'class-validator';
 import { ThemeMode } from '@prisma/client';
+import type { ColorZone } from './brand-color';
+import { IsColorZone } from './is-color-zone';
+import { IsUrlOrOwnLogoPath } from './is-url-or-own-logo-path';
 
 export class CreateBrandDto {
   @MinLength(2)
@@ -23,24 +18,44 @@ export class CreateBrandDto {
   domain?: string;
 
   @IsOptional()
-  @IsUrl()
-  logoUrl?: string;
+  @IsUrlOrOwnLogoPath()
+  logoLightUrl?: string;
+
+  @IsOptional()
+  @IsUrlOrOwnLogoPath()
+  logoDarkUrl?: string;
+
+  @IsOptional()
+  @IsUrlOrOwnLogoPath()
+  shareLogoLightUrl?: string;
+
+  @IsOptional()
+  @IsUrlOrOwnLogoPath()
+  shareLogoDarkUrl?: string;
 
   @IsOptional()
   @IsEnum(ThemeMode)
   themeMode?: ThemeMode;
 
   @IsOptional()
-  @IsHexColor()
-  buttonColorHex?: string;
+  @IsColorZone()
+  backgroundColor?: ColorZone;
 
   @IsOptional()
-  @IsHexColor()
-  highlightColorHex?: string;
+  @IsColorZone()
+  buttonColor?: ColorZone;
 
   @IsOptional()
-  @IsHexColor()
-  filterColorHex?: string;
+  @IsColorZone()
+  highlightColor?: ColorZone;
+
+  @IsOptional()
+  @IsColorZone()
+  filterColor?: ColorZone;
+
+  @IsOptional()
+  @IsColorZone()
+  textColor?: ColorZone;
 }
 
 export class UpdateBrandDto {
@@ -57,24 +72,44 @@ export class UpdateBrandDto {
   domain?: string;
 
   @IsOptional()
-  @IsUrl()
-  logoUrl?: string;
+  @IsUrlOrOwnLogoPath()
+  logoLightUrl?: string;
+
+  @IsOptional()
+  @IsUrlOrOwnLogoPath()
+  logoDarkUrl?: string;
+
+  @IsOptional()
+  @IsUrlOrOwnLogoPath()
+  shareLogoLightUrl?: string;
+
+  @IsOptional()
+  @IsUrlOrOwnLogoPath()
+  shareLogoDarkUrl?: string;
 
   @IsOptional()
   @IsEnum(ThemeMode)
   themeMode?: ThemeMode;
 
   @IsOptional()
-  @IsHexColor()
-  buttonColorHex?: string;
+  @IsColorZone()
+  backgroundColor?: ColorZone;
 
   @IsOptional()
-  @IsHexColor()
-  highlightColorHex?: string;
+  @IsColorZone()
+  buttonColor?: ColorZone;
 
   @IsOptional()
-  @IsHexColor()
-  filterColorHex?: string;
+  @IsColorZone()
+  highlightColor?: ColorZone;
+
+  @IsOptional()
+  @IsColorZone()
+  filterColor?: ColorZone;
+
+  @IsOptional()
+  @IsColorZone()
+  textColor?: ColorZone;
 }
 
 export class SetProductFlagDto {

@@ -17,6 +17,32 @@ export type KnownProduct = (typeof KNOWN_PRODUCTS)[number];
 export const THEME_MODES = ['LIGHT', 'DARK'] as const;
 export type ThemeMode = (typeof THEME_MODES)[number];
 
+export const BRAND_LOGO_SLOTS = ['SITE_LIGHT', 'SITE_DARK', 'SHARE_LIGHT', 'SHARE_DARK'] as const;
+export type BrandLogoSlot = (typeof BRAND_LOGO_SLOTS)[number];
+
+export const GRADIENT_DIRECTIONS = ['to-t', 'to-b', 'to-l', 'to-r', 'to-tl', 'to-tr', 'to-bl', 'to-br'] as const;
+export type GradientDirection = (typeof GRADIENT_DIRECTIONS)[number];
+
+export interface SolidColor {
+  type: 'solid';
+  hex: string;
+}
+
+export interface GradientColor {
+  type: 'gradient';
+  direction: GradientDirection;
+  fromHex: string;
+  toHex: string;
+}
+
+export type ColorValue = SolidColor | GradientColor;
+
+/** A brand-configurable color zone - always both a light and a dark value, so switching theme never loses the other's setting. */
+export interface ColorZone {
+  light: ColorValue;
+  dark: ColorValue;
+}
+
 export interface BrandProductFlag {
   id: string;
   brandId: string;
@@ -29,11 +55,16 @@ export interface Brand {
   name: string;
   slug: string;
   domain: string | null;
-  logoUrl: string | null;
+  logoLightUrl: string | null;
+  logoDarkUrl: string | null;
+  shareLogoLightUrl: string | null;
+  shareLogoDarkUrl: string | null;
   themeMode: ThemeMode;
-  buttonColorHex: string | null;
-  highlightColorHex: string | null;
-  filterColorHex: string | null;
+  backgroundColor: ColorZone | null;
+  buttonColor: ColorZone | null;
+  highlightColor: ColorZone | null;
+  filterColor: ColorZone | null;
+  textColor: ColorZone | null;
   /** Whether a winning freebet-funded bet credits its stake back alongside net winnings - always to the player's cash balance, never back into freebets. */
   freebetStakeReturnedOnWin: boolean;
   createdAt: string;
@@ -45,21 +76,31 @@ export interface CreateBrandPayload {
   name: string;
   slug: string;
   domain?: string;
-  logoUrl?: string;
+  logoLightUrl?: string;
+  logoDarkUrl?: string;
+  shareLogoLightUrl?: string;
+  shareLogoDarkUrl?: string;
   themeMode?: ThemeMode;
-  buttonColorHex?: string;
-  highlightColorHex?: string;
-  filterColorHex?: string;
+  backgroundColor?: ColorZone;
+  buttonColor?: ColorZone;
+  highlightColor?: ColorZone;
+  filterColor?: ColorZone;
+  textColor?: ColorZone;
 }
 
 export interface UpdateBrandPayload {
   name?: string;
   domain?: string;
-  logoUrl?: string;
+  logoLightUrl?: string;
+  logoDarkUrl?: string;
+  shareLogoLightUrl?: string;
+  shareLogoDarkUrl?: string;
   themeMode?: ThemeMode;
-  buttonColorHex?: string;
-  highlightColorHex?: string;
-  filterColorHex?: string;
+  backgroundColor?: ColorZone;
+  buttonColor?: ColorZone;
+  highlightColor?: ColorZone;
+  filterColor?: ColorZone;
+  textColor?: ColorZone;
   freebetStakeReturnedOnWin?: boolean;
 }
 
@@ -195,18 +236,18 @@ export async function setProductFlag(
   return parseJsonOrThrow(response, `Failed to update product flag: ${response.status}`);
 }
 
-/** Replaces any previously uploaded logo. No Content-Type header set - fetch derives the multipart boundary itself from the FormData body. */
-export async function uploadBrandLogo(brandId: string, file: File): Promise<Brand> {
+/** Replaces whatever was previously uploaded to this slot only - the other 3 slots are untouched. No Content-Type header set - fetch derives the multipart boundary itself from the FormData body. */
+export async function uploadBrandLogo(brandId: string, slot: BrandLogoSlot, file: File): Promise<Brand> {
   const formData = new FormData();
   formData.append('file', file);
-  const response = await authenticatedFetch(`/master/brands/${brandId}/logo`, {
+  const response = await authenticatedFetch(`/master/brands/${brandId}/logo/${slot}`, {
     method: 'POST',
     body: formData,
   });
   return parseJsonOrThrow(response, `Failed to upload logo: ${response.status}`);
 }
 
-export async function removeBrandLogo(brandId: string): Promise<Brand> {
-  const response = await authenticatedFetch(`/master/brands/${brandId}/logo`, { method: 'DELETE' });
+export async function removeBrandLogo(brandId: string, slot: BrandLogoSlot): Promise<Brand> {
+  const response = await authenticatedFetch(`/master/brands/${brandId}/logo/${slot}`, { method: 'DELETE' });
   return parseJsonOrThrow(response, `Failed to remove logo: ${response.status}`);
 }

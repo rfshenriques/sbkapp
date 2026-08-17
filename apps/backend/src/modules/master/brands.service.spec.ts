@@ -4,6 +4,7 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PrismaService } from '../../prisma/prisma.service';
 import { BrandsService } from './brands.service';
+import type { ColorZone } from './dto/brand-color';
 import type { CreateBrandDto } from './dto/create-brand.dto';
 
 function buildCreateBrandDto(overrides: Partial<CreateBrandDto> = {}): CreateBrandDto {
@@ -13,6 +14,10 @@ function buildCreateBrandDto(overrides: Partial<CreateBrandDto> = {}): CreateBra
     slug: `test-brand-${unique}`,
     ...overrides,
   };
+}
+
+function solidZone(hex: string): ColorZone {
+  return { light: { type: 'solid', hex }, dark: { type: 'solid', hex } };
 }
 
 describe('BrandsService', () => {
@@ -42,11 +47,12 @@ describe('BrandsService', () => {
   it('creates a brand with the given theme fields', async () => {
     const dto = buildCreateBrandDto({
       domain: `${randomUUID().slice(0, 8)}.example.com`,
-      logoUrl: 'https://example.com/logo.png',
+      logoLightUrl: 'https://example.com/logo-light.png',
+      logoDarkUrl: 'https://example.com/logo-dark.png',
       themeMode: 'LIGHT',
-      buttonColorHex: '#112233',
-      highlightColorHex: '#445566',
-      filterColorHex: '#778899',
+      buttonColor: solidZone('#112233'),
+      highlightColor: solidZone('#445566'),
+      filterColor: solidZone('#778899'),
     });
 
     const brand = await brandsService.createBrand(dto);
@@ -56,9 +62,11 @@ describe('BrandsService', () => {
     expect(brand.slug).toBe(dto.slug);
     expect(brand.domain).toBe(dto.domain);
     expect(brand.themeMode).toBe('LIGHT');
-    expect(brand.buttonColorHex).toBe('#112233');
-    expect(brand.highlightColorHex).toBe('#445566');
-    expect(brand.filterColorHex).toBe('#778899');
+    expect(brand.logoLightUrl).toBe('https://example.com/logo-light.png');
+    expect(brand.logoDarkUrl).toBe('https://example.com/logo-dark.png');
+    expect(brand.buttonColor).toEqual(solidZone('#112233'));
+    expect(brand.highlightColor).toEqual(solidZone('#445566'));
+    expect(brand.filterColor).toEqual(solidZone('#778899'));
     expect(brand.productFlags).toEqual([]);
   });
 
@@ -135,12 +143,25 @@ describe('BrandsService', () => {
     const updated = await brandsService.updateBrand(created.id, {
       name: 'Renamed Brand',
       themeMode: 'LIGHT',
-      buttonColorHex: '#abcdef',
+      buttonColor: solidZone('#abcdef'),
     });
 
     expect(updated.name).toBe('Renamed Brand');
     expect(updated.themeMode).toBe('LIGHT');
-    expect(updated.buttonColorHex).toBe('#abcdef');
+    expect(updated.buttonColor).toEqual(solidZone('#abcdef'));
+  });
+
+  it('accepts a gradient color for a zone', async () => {
+    const created = await brandsService.createBrand(buildCreateBrandDto());
+    createdBrandIds.push(created.id);
+
+    const gradientZone: ColorZone = {
+      light: { type: 'gradient', direction: 'to-r', fromHex: '#ff0000', toHex: '#0000ff' },
+      dark: { type: 'solid', hex: '#112233' },
+    };
+    const updated = await brandsService.updateBrand(created.id, { highlightColor: gradientZone });
+
+    expect(updated.highlightColor).toEqual(gradientZone);
   });
 
   it('defaults freebetStakeReturnedOnWin to true and lets it be toggled off', async () => {
@@ -168,43 +189,65 @@ describe('BrandsService', () => {
   });
 
   describe('logo upload', () => {
-    it('stores the uploaded bytes and points logoUrl at the public serving path', async () => {
+    it('stores the uploaded bytes and points the matching *Url field at the public serving path', async () => {
       const created = await brandsService.createBrand(buildCreateBrandDto());
       createdBrandIds.push(created.id);
 
-      const updated = await brandsService.setLogo(created.id, Buffer.from('fake-png-bytes'), 'image/png');
-      expect(updated.logoUrl).toBe(`/backend/public/brands/${created.id}/logo`);
+      const updated = await brandsService.setLogo(
+        created.id,
+        'SITE_LIGHT',
+        Buffer.from('fake-png-bytes'),
+        'image/png',
+      );
+      expect(updated.logoLightUrl).toBe(`/backend/public/brands/${created.id}/logo/SITE_LIGHT`);
+      expect(updated.logoDarkUrl).toBeNull();
 
-      const stored = await brandsService.getLogoData(created.id);
+      const stored = await brandsService.getLogoData(created.id, 'SITE_LIGHT');
       expect(stored?.mimeType).toBe('image/png');
       expect(Buffer.from(stored!.data).toString()).toBe('fake-png-bytes');
     });
 
-    it('re-uploading replaces the previous logo in place', async () => {
+    it('each of the 4 slots is independent - uploading one never touches the others', async () => {
       const created = await brandsService.createBrand(buildCreateBrandDto());
       createdBrandIds.push(created.id);
 
-      await brandsService.setLogo(created.id, Buffer.from('first'), 'image/png');
-      await brandsService.setLogo(created.id, Buffer.from('second'), 'image/webp');
+      await brandsService.setLogo(created.id, 'SITE_LIGHT', Buffer.from('site-light'), 'image/png');
+      const updated = await brandsService.setLogo(created.id, 'SHARE_DARK', Buffer.from('share-dark'), 'image/png');
 
-      const stored = await brandsService.getLogoData(created.id);
+      expect(updated.logoLightUrl).toBe(`/backend/public/brands/${created.id}/logo/SITE_LIGHT`);
+      expect(updated.shareLogoDarkUrl).toBe(`/backend/public/brands/${created.id}/logo/SHARE_DARK`);
+      expect(updated.logoDarkUrl).toBeNull();
+      expect(updated.shareLogoLightUrl).toBeNull();
+    });
+
+    it('re-uploading to the same slot replaces the previous logo in place', async () => {
+      const created = await brandsService.createBrand(buildCreateBrandDto());
+      createdBrandIds.push(created.id);
+
+      await brandsService.setLogo(created.id, 'SITE_LIGHT', Buffer.from('first'), 'image/png');
+      await brandsService.setLogo(created.id, 'SITE_LIGHT', Buffer.from('second'), 'image/webp');
+
+      const stored = await brandsService.getLogoData(created.id, 'SITE_LIGHT');
       expect(stored?.mimeType).toBe('image/webp');
       expect(Buffer.from(stored!.data).toString()).toBe('second');
     });
 
-    it('removes a logo and clears logoUrl', async () => {
+    it('removes a logo from one slot and clears just that field', async () => {
       const created = await brandsService.createBrand(buildCreateBrandDto());
       createdBrandIds.push(created.id);
-      await brandsService.setLogo(created.id, Buffer.from('bytes'), 'image/png');
+      await brandsService.setLogo(created.id, 'SITE_LIGHT', Buffer.from('bytes'), 'image/png');
+      await brandsService.setLogo(created.id, 'SITE_DARK', Buffer.from('bytes'), 'image/png');
 
-      const updated = await brandsService.removeLogo(created.id);
-      expect(updated.logoUrl).toBeNull();
-      expect(await brandsService.getLogoData(created.id)).toBeNull();
+      const updated = await brandsService.removeLogo(created.id, 'SITE_LIGHT');
+      expect(updated.logoLightUrl).toBeNull();
+      expect(updated.logoDarkUrl).not.toBeNull();
+      expect(await brandsService.getLogoData(created.id, 'SITE_LIGHT')).toBeNull();
+      expect(await brandsService.getLogoData(created.id, 'SITE_DARK')).not.toBeNull();
     });
 
     it('throws NotFoundException when uploading a logo for an unknown brand', async () => {
       await expect(
-        brandsService.setLogo('does-not-exist', Buffer.from('bytes'), 'image/png'),
+        brandsService.setLogo('does-not-exist', 'SITE_LIGHT', Buffer.from('bytes'), 'image/png'),
       ).rejects.toBeInstanceOf(NotFoundException);
     });
   });

@@ -1,4 +1,5 @@
-import { Controller, Get, NotFoundException, Param, Res, StreamableFile } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, ParseEnumPipe, Res, StreamableFile } from '@nestjs/common';
+import { BrandLogoSlot } from '@prisma/client';
 import type { Response } from 'express';
 import { PrismaService } from '../../prisma/prisma.service';
 import { normalizeDomain } from './normalize-domain';
@@ -7,11 +8,16 @@ import { normalizeDomain } from './normalize-domain';
 const PUBLIC_BRAND_SELECT = {
   id: true,
   name: true,
-  logoUrl: true,
+  logoLightUrl: true,
+  logoDarkUrl: true,
+  shareLogoLightUrl: true,
+  shareLogoDarkUrl: true,
   themeMode: true,
-  buttonColorHex: true,
-  highlightColorHex: true,
-  filterColorHex: true,
+  backgroundColor: true,
+  buttonColor: true,
+  highlightColor: true,
+  filterColor: true,
+  textColor: true,
   supportHelplineText: true,
 } as const;
 
@@ -61,15 +67,20 @@ export class PublicBrandController {
 
   /**
    * Raw bytes of a staff-uploaded logo (see BrandsService.setLogo), for
-   * plain <img src> consumption - what Brand.logoUrl points at once a
-   * brand has one. Unauthenticated for the same reason as the rest of this
-   * controller: the logo has to render before a player ever signs in.
+   * plain <img src> consumption - what each Brand.*LogoUrl field points at
+   * once a brand has one for that slot. Unauthenticated for the same
+   * reason as the rest of this controller: the logo has to render before a
+   * player ever signs in.
    */
-  @Get(':id/logo')
-  async getLogo(@Param('id') id: string, @Res({ passthrough: true }) res: Response) {
-    const logo = await this.prisma.brandLogo.findUnique({ where: { brandId: id } });
+  @Get(':id/logo/:slot')
+  async getLogo(
+    @Param('id') id: string,
+    @Param('slot', new ParseEnumPipe(BrandLogoSlot)) slot: BrandLogoSlot,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const logo = await this.prisma.brandLogo.findUnique({ where: { brandId_slot: { brandId: id, slot } } });
     if (!logo) {
-      throw new NotFoundException('Brand has no uploaded logo');
+      throw new NotFoundException('Brand has no uploaded logo for this slot');
     }
 
     res.set({

@@ -2,9 +2,11 @@
 
 @theme {
   /* Dark is the default base palette - see the :root[data-theme='light']
-     override below for the light alternative. Neither is brand-configurable
-     (see docs/PROJECT_BRIEF.md Section 10: only button/highlight/filter
-     colors are). */
+     override below for the light alternative. --color-surface*/--color-border
+     and --color-text-secondary/--color-text-muted are never brand-configurable;
+     --color-background and --color-text-primary are (see the brand-driven
+     block below) - these values are only what an unbranded/misconfigured
+     deployment, or a brand that left a zone unset, falls back to. */
   --color-background: #0b0d11;
   --color-surface: #12151b;
   --color-surface-2: #181c24;
@@ -16,13 +18,22 @@
   --color-text-muted: #5b6472;
 
   /* Brand-driven - overridden at runtime from the acting Brand's
-     buttonColorHex/highlightColorHex/filterColorHex (see useBrandTheme).
-     These defaults are only what an unbranded/misconfigured deployment
-     falls back to. Three distinct roles on purpose: brand is the CTA color
-     (Register, Place Bet, Browse matches, ...), highlight is the general
-     accent (selected odds, live kickoff times, status badges), filter is
-     tabs/filter-chip active states - keeping all three visually distinct is
-     what stops a filter or a badge from ever reading as a button. */
+     backgroundColor/buttonColor/highlightColor/filterColor/textColor (see
+     useBrandTheme.ts and, on the backend, brand-color.ts), already resolved
+     to the active theme (light or dark - a player's own choice, falling
+     back to the brand's themeMode default) every time either changes. Each
+     zone is independently either a solid color (this variable holds it
+     directly) or a gradient (this variable holds just the gradient's own
+     "from" stop, so anything that only reads a flat color still looks
+     reasonable - the full gradient lives in the matching --gradient-*
+     variable, applied on .btn-primary/.odd-btn.selected/.tab.active/
+     .tab-pill-btn.active and the body background; see index.css below).
+     Distinct roles on purpose: background is the page backdrop, brand is
+     the CTA color (Register, Place Bet, Browse matches, ...), highlight is
+     the general accent (selected odds, live kickoff times, status badges),
+     filter is tabs/filter-chip active states, text is the primary text
+     color - keeping brand/highlight/filter visually distinct is what stops
+     a filter or a badge from ever reading as a button. */
   --color-brand: #6366f1;
   --color-brand-hover: color-mix(in srgb, var(--color-brand) 85%, black);
   --color-highlight: #f5b301;
@@ -66,6 +77,10 @@ html {
 
 body {
   background-color: var(--color-background);
+  /* Only set when the brand configured a genuine gradient for the
+     Background zone (see useBrandTheme.ts) - otherwise unset, so this
+     falls through to `none` and the flat background-color above shows. */
+  background-image: var(--gradient-background, none);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
   overflow-x: hidden;
@@ -185,10 +200,10 @@ body {
    "active" state, so it reuses that formula instead of its own one-off
    translucent gold wash. */
 .odd-btn.selected {
-  background: linear-gradient(
-    135deg,
-    var(--color-highlight),
-    color-mix(in srgb, var(--color-highlight) 78%, black)
+  /* Same --gradient-{zone}-with-baked-fallback pattern as .btn-primary - see there. */
+  background: var(
+    --gradient-highlight,
+    linear-gradient(135deg, var(--color-highlight), color-mix(in srgb, var(--color-highlight) 78%, black))
   );
   border-color: var(--color-highlight);
 }
@@ -281,10 +296,13 @@ body {
   padding: 9px 20px;
   border-radius: 14px;
   white-space: nowrap;
-  background: linear-gradient(
-    135deg,
-    var(--color-brand),
-    color-mix(in srgb, var(--color-brand) 78%, black)
+  /* --gradient-brand is only set when the brand configured a genuine custom
+     gradient for the Button/CTA zone (see useBrandTheme.ts) - otherwise it's
+     unset and this falls back to the same baked shade-of-the-solid-color
+     formula this always used, now driven by --color-brand either way. */
+  background: var(
+    --gradient-brand,
+    linear-gradient(135deg, var(--color-brand), color-mix(in srgb, var(--color-brand) 78%, black))
   );
   color: #fff;
   transition:
@@ -342,10 +360,10 @@ body {
   color: var(--color-text-primary);
 }
 .tab.active {
-  background: linear-gradient(
-    135deg,
-    var(--color-filter),
-    color-mix(in srgb, var(--color-filter) 78%, black)
+  /* Same --gradient-{zone}-with-baked-fallback pattern as .btn-primary - see there. */
+  background: var(
+    --gradient-filter,
+    linear-gradient(135deg, var(--color-filter), color-mix(in srgb, var(--color-filter) 78%, black))
   );
   color: #000;
 }
@@ -381,10 +399,10 @@ body {
   color: var(--color-text-primary);
 }
 .tab-pill-btn.active {
-  background: linear-gradient(
-    135deg,
-    var(--color-filter),
-    color-mix(in srgb, var(--color-filter) 78%, black)
+  /* Same --gradient-{zone}-with-baked-fallback pattern as .btn-primary - see there. */
+  background: var(
+    --gradient-filter,
+    linear-gradient(135deg, var(--color-filter), color-mix(in srgb, var(--color-filter) 78%, black))
   );
   color: #000;
 }

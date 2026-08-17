@@ -41,14 +41,14 @@ describe('PublicBrandController', () => {
 
   it('returns only the public-safe fields for an existing brand', async () => {
     const unique = randomUUID().slice(0, 8);
+    const buttonColor = { light: { type: 'solid', hex: '#112233' }, dark: { type: 'solid', hex: '#112233' } };
     const brand = await prisma.brand.create({
       data: {
         name: `Public Brand ${unique}`,
         slug: `public-brand-${unique}`,
         domain: `${unique}.example.com`,
         themeMode: 'LIGHT',
-        buttonColorHex: '#112233',
-        highlightColorHex: '#445566',
+        buttonColor,
       },
     });
     createdBrandIds.push(brand.id);
@@ -58,11 +58,16 @@ describe('PublicBrandController', () => {
     expect(result).toEqual({
       id: brand.id,
       name: brand.name,
-      logoUrl: null,
+      logoLightUrl: null,
+      logoDarkUrl: null,
+      shareLogoLightUrl: null,
+      shareLogoDarkUrl: null,
       themeMode: 'LIGHT',
-      buttonColorHex: '#112233',
-      highlightColorHex: '#445566',
-      filterColorHex: null,
+      backgroundColor: null,
+      buttonColor,
+      highlightColor: null,
+      filterColor: null,
+      textColor: null,
       supportHelplineText: null,
     });
     expect(result).not.toHaveProperty('domain');
@@ -119,11 +124,11 @@ describe('PublicBrandController', () => {
       });
       createdBrandIds.push(brand.id);
       await prisma.brandLogo.create({
-        data: { brandId: brand.id, data: Buffer.from('fake-svg-bytes'), mimeType: 'image/svg+xml' },
+        data: { brandId: brand.id, slot: 'SITE_LIGHT', data: Buffer.from('fake-svg-bytes'), mimeType: 'image/svg+xml' },
       });
 
       const res = { set: vi.fn() } as unknown as Response;
-      const result = await controller.getLogo(brand.id, res);
+      const result = await controller.getLogo(brand.id, 'SITE_LIGHT', res);
 
       expect(res.set).toHaveBeenCalledWith(
         expect.objectContaining({ 'Content-Type': 'image/svg+xml' }),
@@ -131,15 +136,18 @@ describe('PublicBrandController', () => {
       expect(await readStream(result)).toBe('fake-svg-bytes');
     });
 
-    it('404s for a brand with no uploaded logo', async () => {
+    it('404s for a brand with no uploaded logo in that slot', async () => {
       const unique = randomUUID().slice(0, 8);
       const brand = await prisma.brand.create({
         data: { name: `No Logo Brand ${unique}`, slug: `no-logo-brand-${unique}` },
       });
       createdBrandIds.push(brand.id);
+      await prisma.brandLogo.create({
+        data: { brandId: brand.id, slot: 'SITE_LIGHT', data: Buffer.from('bytes'), mimeType: 'image/png' },
+      });
 
       const res = { set: vi.fn() } as unknown as Response;
-      await expect(controller.getLogo(brand.id, res)).rejects.toBeInstanceOf(NotFoundException);
+      await expect(controller.getLogo(brand.id, 'SITE_DARK', res)).rejects.toBeInstanceOf(NotFoundException);
     });
   });
 });

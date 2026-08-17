@@ -1,8 +1,17 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { BrandLogoSlot, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import type { CreateBrandDto, UpdateBrandDto } from './dto/create-brand.dto';
 import { normalizeDomain } from './normalize-domain';
+
+/** Which Brand column a given logo slot's resolved serving URL is stored on. */
+const LOGO_URL_FIELD: Record<BrandLogoSlot, 'logoLightUrl' | 'logoDarkUrl' | 'shareLogoLightUrl' | 'shareLogoDarkUrl'> =
+  {
+    SITE_LIGHT: 'logoLightUrl',
+    SITE_DARK: 'logoDarkUrl',
+    SHARE_LIGHT: 'shareLogoLightUrl',
+    SHARE_DARK: 'shareLogoDarkUrl',
+  };
 
 @Injectable()
 export class BrandsService {
@@ -25,11 +34,16 @@ export class BrandsService {
         name: dto.name,
         slug: dto.slug,
         domain,
-        logoUrl: dto.logoUrl,
+        logoLightUrl: dto.logoLightUrl,
+        logoDarkUrl: dto.logoDarkUrl,
+        shareLogoLightUrl: dto.shareLogoLightUrl,
+        shareLogoDarkUrl: dto.shareLogoDarkUrl,
         themeMode: dto.themeMode,
-        buttonColorHex: dto.buttonColorHex,
-        highlightColorHex: dto.highlightColorHex,
-        filterColorHex: dto.filterColorHex,
+        backgroundColor: dto.backgroundColor as Prisma.InputJsonValue | undefined,
+        buttonColor: dto.buttonColor as Prisma.InputJsonValue | undefined,
+        highlightColor: dto.highlightColor as Prisma.InputJsonValue | undefined,
+        filterColor: dto.filterColor as Prisma.InputJsonValue | undefined,
+        textColor: dto.textColor as Prisma.InputJsonValue | undefined,
       },
       include: { productFlags: true },
     });
@@ -62,11 +76,16 @@ export class BrandsService {
         data: {
           name: dto.name,
           domain: dto.domain ? normalizeDomain(dto.domain) : dto.domain,
-          logoUrl: dto.logoUrl,
+          logoLightUrl: dto.logoLightUrl,
+          logoDarkUrl: dto.logoDarkUrl,
+          shareLogoLightUrl: dto.shareLogoLightUrl,
+          shareLogoDarkUrl: dto.shareLogoDarkUrl,
           themeMode: dto.themeMode,
-          buttonColorHex: dto.buttonColorHex,
-          highlightColorHex: dto.highlightColorHex,
-          filterColorHex: dto.filterColorHex,
+          backgroundColor: dto.backgroundColor as Prisma.InputJsonValue | undefined,
+          buttonColor: dto.buttonColor as Prisma.InputJsonValue | undefined,
+          highlightColor: dto.highlightColor as Prisma.InputJsonValue | undefined,
+          filterColor: dto.filterColor as Prisma.InputJsonValue | undefined,
+          textColor: dto.textColor as Prisma.InputJsonValue | undefined,
           freebetStakeReturnedOnWin: dto.freebetStakeReturnedOnWin,
         },
         include: { productFlags: true },
@@ -92,12 +111,12 @@ export class BrandsService {
   }
 
   /**
-   * Uploading a logo replaces both the stored bytes and Brand.logoUrl (now
-   * pointing at the public serving path below) in one write - a brand that
-   * previously had a pasted external URL just gets overwritten, since only
-   * one logo can be active at a time.
+   * Uploading a logo replaces both the stored bytes for that slot and the
+   * matching Brand.*Url column (now pointing at the public serving path
+   * below) in one write - each of the 4 slots (site/share x light/dark) is
+   * independent, so uploading one never touches the others.
    */
-  async setLogo(brandId: string, fileData: Buffer, mimeType: string) {
+  async setLogo(brandId: string, slot: BrandLogoSlot, fileData: Buffer, mimeType: string) {
     await this.getBrand(brandId);
     // multer's Buffer is typed against ArrayBufferLike (could in theory be a
     // SharedArrayBuffer), which Prisma's Bytes field rejects - re-wrapping
@@ -106,36 +125,36 @@ export class BrandsService {
 
     await this.prisma.$transaction([
       this.prisma.brandLogo.upsert({
-        where: { brandId },
-        create: { brandId, data, mimeType },
+        where: { brandId_slot: { brandId, slot } },
+        create: { brandId, slot, data, mimeType },
         update: { data, mimeType },
       }),
       this.prisma.brand.update({
         where: { id: brandId },
         // Every app (apps/frontend, apps/backoffice, apps/master-backoffice)
         // proxies "/backend/*" to this service with that prefix stripped -
-        // see each app's vite.config.ts - so logoUrl must include it too,
-        // the same as every other path those apps build for themselves.
-        data: { logoUrl: `/backend/public/brands/${brandId}/logo` },
+        // see each app's vite.config.ts - so the stored URL must include it
+        // too, the same as every other path those apps build for themselves.
+        data: { [LOGO_URL_FIELD[slot]]: `/backend/public/brands/${brandId}/logo/${slot}` },
       }),
     ]);
 
     return this.getBrand(brandId);
   }
 
-  async removeLogo(brandId: string) {
+  async removeLogo(brandId: string, slot: BrandLogoSlot) {
     await this.getBrand(brandId);
 
     await this.prisma.$transaction([
-      this.prisma.brandLogo.deleteMany({ where: { brandId } }),
-      this.prisma.brand.update({ where: { id: brandId }, data: { logoUrl: null } }),
+      this.prisma.brandLogo.deleteMany({ where: { brandId, slot } }),
+      this.prisma.brand.update({ where: { id: brandId }, data: { [LOGO_URL_FIELD[slot]]: null } }),
     ]);
 
     return this.getBrand(brandId);
   }
 
   /** Includes the raw bytes - only for serving the actual image (see PublicBrandController). */
-  async getLogoData(brandId: string) {
-    return this.prisma.brandLogo.findUnique({ where: { brandId } });
+  async getLogoData(brandId: string, slot: BrandLogoSlot) {
+    return this.prisma.brandLogo.findUnique({ where: { brandId_slot: { brandId, slot } } });
   }
 }

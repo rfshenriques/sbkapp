@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  ParseEnumPipe,
   Patch,
   Post,
   UploadedFile,
@@ -12,6 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { BrandLogoSlot } from '@prisma/client';
 import { BrandsService } from './brands.service';
 import { CreateBrandDto, SetProductFlagDto, UpdateBrandDto } from './dto/create-brand.dto';
 import { KNOWN_PRODUCTS } from './dto/known-products';
@@ -57,7 +59,7 @@ export class BrandsController {
     return this.brandsService.setProductFlag(id, product, dto.enabled);
   }
 
-  @Post(':id/logo')
+  @Post(':id/logo/:slot')
   @UseInterceptors(
     FileInterceptor('file', {
       limits: { fileSize: MAX_LOGO_BYTES },
@@ -66,17 +68,21 @@ export class BrandsController {
       },
     }),
   )
-  uploadLogo(@Param('id') id: string, @UploadedFile() file: Express.Multer.File | undefined) {
+  uploadLogo(
+    @Param('id') id: string,
+    @Param('slot', new ParseEnumPipe(BrandLogoSlot)) slot: BrandLogoSlot,
+    @UploadedFile() file: Express.Multer.File | undefined,
+  ) {
     if (!file) {
       throw new BadRequestException(
         `No logo uploaded, or it wasn't one of: ${ALLOWED_LOGO_MIME_TYPES.join(', ')}`,
       );
     }
-    return this.brandsService.setLogo(id, file.buffer, file.mimetype);
+    return this.brandsService.setLogo(id, slot, file.buffer, file.mimetype);
   }
 
-  @Delete(':id/logo')
-  removeLogo(@Param('id') id: string) {
-    return this.brandsService.removeLogo(id);
+  @Delete(':id/logo/:slot')
+  removeLogo(@Param('id') id: string, @Param('slot', new ParseEnumPipe(BrandLogoSlot)) slot: BrandLogoSlot) {
+    return this.brandsService.removeLogo(id, slot);
   }
 }

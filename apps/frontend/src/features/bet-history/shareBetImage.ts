@@ -1,6 +1,23 @@
 import { betStatusCategory, betStatusLabel, type BetStatusCategory } from '../../lib/betStatus';
 import type { PlacedBet } from '../../lib/backendApi';
+import { useBrandStore } from '../brand/brandStore';
 import { displayedPayoutCents, formatEuros, uninsuredPayoutCents, unboostedCombinedOdds } from './betMoney';
+
+/**
+ * Best-effort image load for the brand's share logo (see
+ * BrandsService.setLogo's SHARE_LIGHT/SHARE_DARK slots, resolved to the
+ * active theme by useBrandTheme into brandStore) - resolves null rather
+ * than rejecting on any failure (missing logo, network hiccup, CORS), so a
+ * broken/unset logo never breaks sharing the bet itself.
+ */
+function loadImage(url: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => resolve(null);
+    image.src = url;
+  });
+}
 
 /**
  * Reads a brand's live CSS custom property rather than hardcoding a color -
@@ -138,12 +155,27 @@ export async function renderBetCardImage(bet: PlacedBet): Promise<Blob> {
   const isInsuredLoss = bet.status === 'LOST' && isInsured;
   const showInsuranceBeforeAfter = isInsured && payoutCents > 0 && !isInsuredLoss;
 
+  const shareLogoUrl = useBrandStore.getState().shareLogoUrl;
+  const logoImage = shareLogoUrl ? await loadImage(shareLogoUrl) : null;
+  const logoMaxHeight = 28;
+  const logoMaxWidth = 160;
+  const logoDrawHeight = logoImage
+    ? Math.min(logoMaxHeight, (logoMaxWidth / logoImage.width) * logoImage.height)
+    : 0;
+  const logoBandHeight = logoImage ? logoDrawHeight + 20 : 0;
+
   const footerLines = 3; // odds (combined for an accumulator, the single's own price otherwise) + stake + payout
   const headerHeight = hasTags ? 88 : 60;
   const footerHeight = footerLines * 34 + 24;
   const refHeight = 40;
   const cardHeight =
-    PADDING + headerHeight + bet.selections.length * ROW_HEIGHT + footerHeight + refHeight + PADDING;
+    PADDING +
+    logoBandHeight +
+    headerHeight +
+    bet.selections.length * ROW_HEIGHT +
+    footerHeight +
+    refHeight +
+    PADDING;
   const height = cardHeight + PADDING * 2;
 
   const dpr = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, 2);
@@ -195,6 +227,16 @@ export async function renderBetCardImage(bet: PlacedBet): Promise<Blob> {
   const contentX = cardX + 24;
   const contentWidth = cardWidth - 48;
   let y = cardY + 24;
+
+  // Brand's share logo (see BrandLogoSlot.SHARE_LIGHT/SHARE_DARK), centered
+  // above the header - purely a letterhead, so it's skipped entirely (no
+  // reserved space either, see logoBandHeight above) rather than showing a
+  // broken-image placeholder when a brand hasn't uploaded one.
+  if (logoImage) {
+    const logoDrawWidth = (logoDrawHeight / logoImage.height) * logoImage.width;
+    ctx.drawImage(logoImage, contentX + (contentWidth - logoDrawWidth) / 2, y, logoDrawWidth, logoDrawHeight);
+    y += logoBandHeight;
+  }
 
   // Header: bet type + status pill.
   ctx.font = "800 20px 'Saira Condensed', sans-serif";

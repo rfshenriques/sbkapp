@@ -5,11 +5,16 @@ import { getCompetitionRankings, getPromoCards, getPublicBrand, type PublicBrand
 const publicBrand: PublicBrand = {
   id: 'brand-1',
   name: 'BETPOR',
-  logoUrl: null,
+  logoLightUrl: null,
+  logoDarkUrl: null,
+  shareLogoLightUrl: null,
+  shareLogoDarkUrl: null,
   themeMode: 'DARK',
-  buttonColorHex: '#E02127',
-  highlightColorHex: '#2ED573',
-  filterColorHex: '#3B82F6',
+  backgroundColor: null,
+  buttonColor: { light: { type: 'solid', hex: '#E02127' }, dark: { type: 'solid', hex: '#E02127' } },
+  highlightColor: { light: { type: 'solid', hex: '#2ED573' }, dark: { type: 'solid', hex: '#2ED573' } },
+  filterColor: { light: { type: 'solid', hex: '#3B82F6' }, dark: { type: 'solid', hex: '#3B82F6' } },
+  textColor: null,
   supportHelplineText: null,
 };
 
