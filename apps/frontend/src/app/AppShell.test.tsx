@@ -152,6 +152,24 @@ describe('AppShell', () => {
     expect(screen.getAllByRole('button', { name: 'Close bet slip' }).length).toBeGreaterThan(0);
   });
 
+  it('does not show the tablet-width floating trigger when the slip is empty', () => {
+    renderShell();
+
+    expect(screen.queryByRole('button', { name: 'Open bet slip' })).not.toBeInTheDocument();
+  });
+
+  it('shows a tablet-width floating trigger, separate from the mobile bar, that opens the bet slip', async () => {
+    useBetSlipStore.setState({ selections: [homeSelection] });
+    renderShell();
+
+    const tabletTrigger = await screen.findByRole('button', { name: 'Open bet slip' });
+    expect(tabletTrigger).toHaveTextContent('Bet Slip');
+
+    await userEvent.click(tabletTrigger);
+
+    expect(useBetSlipSheetStore.getState().isOpen).toBe(true);
+  });
+
   it('auto-closes the mobile bet slip sheet once a bet is placed, so the confirmation is not stacked on top of it', async () => {
     useBetSlipStore.setState({ selections: [homeSelection] });
     renderShell();
@@ -355,7 +373,9 @@ describe('AppShell', () => {
 
       renderShell();
 
-      expect(await screen.findByTitle('This bet qualifies for a campaign reward')).toBeInTheDocument();
+      // Two floating-pill copies exist now (mobile and tablet-width, see
+      // AppShell) - either carries the badge identically.
+      expect((await screen.findAllByTitle('This bet qualifies for a campaign reward')).length).toBeGreaterThan(0);
     });
 
     it('does not show a gift badge on the floating pill when the current bet qualifies for no campaign', async () => {

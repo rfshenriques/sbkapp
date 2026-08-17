@@ -8,6 +8,7 @@ import { BetPlacedModal } from '../features/bet-slip/BetPlacedModal';
 import { useBetPlacedModalStore } from '../features/bet-slip/betPlacedModalStore';
 import { useBetSlipSheetStore } from '../features/bet-slip/betSlipSheetStore';
 import { getSingleStake, useBetSlipStore } from '../features/bet-slip/betSlipStore';
+import { TabletBetSlipDrawer } from '../features/bet-slip/TabletBetSlipDrawer';
 import { useCampaignPreview } from '../features/bet-slip/useCampaignPreview';
 import { LiveMatchesStrip } from '../features/odds-board/LiveMatchesStrip';
 import { invalidAccumulatorReason } from '../features/bet-slip/accumulatorValidity';
@@ -409,9 +410,13 @@ export function AppShell() {
           </Suspense>
         </main>
 
-        {/* Desktop: the bet slip is always visible on the right, not a
-            click-to-open drawer - the mobile drawer below is sm:hidden so
-            the two never coexist. h-full + max-h (not a fixed h-) so
+        {/* Full desktop only (lg:+) - the bet slip is always visible on the
+            right, not a click-to-open drawer. At sm:-to-lg: (tablet) widths
+            there isn't room for nav + content + this column all at once, so
+            it's hidden here and opened on demand as a floating right-edge
+            panel instead (see TabletBetSlipDrawer below); below sm: it's
+            the mobile bottom sheet. Exactly one of the three ever renders
+            for a given viewport width. h-full + max-h (not a fixed h-) so
             BetSlipPanel's "promotional" empty state - which is built as a
             full-height, CTA-driven layout (see its own h-full min-h-0 root,
             BetSlipPanel.tsx) - actually gets a parent with a definite height
@@ -421,7 +426,7 @@ export function AppShell() {
             scroll region and keeps the stake/payout calculator fixed at the
             bottom - this wrapper just gives it a bounded height to work
             within, no overflow of its own. */}
-        <aside className="hidden sm:block sm:w-80 sm:shrink-0">
+        <aside className="hidden lg:block lg:w-80 lg:shrink-0">
           <div className="sticky top-16 flex h-full max-h-[calc(100vh-4.5rem)] min-h-0 flex-col rounded-2xl border border-border bg-surface p-4">
             <BetSlipPanel showHistoryTab emptyStateVariant="promotional" />
           </div>
@@ -468,6 +473,32 @@ export function AppShell() {
                 ? '/'
                 : combinedOdds.toFixed(2)}
           </span>
+        </button>
+      )}
+
+      {/* Tablet only (sm:-to-lg:, see the persistent bet-slip aside above) -
+          there's no bottom nav at these widths to anchor above (that's
+          mobile-only, sm:hidden below), so this floats free in the corner
+          instead of spanning the width like the mobile pill above. */}
+      {selections.length > 0 && (
+        <button
+          type="button"
+          onClick={openSlip}
+          aria-label="Open bet slip"
+          className="btn-primary cta-spring-in fixed right-4 bottom-4 z-30 hidden items-center gap-2 rounded-full px-4 py-3 text-left shadow-lg sm:flex lg:hidden"
+        >
+          {hasQualifyingCampaign && (
+            <span
+              className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full ring-4 ring-background"
+              title="This bet qualifies for a campaign reward"
+            >
+              <GiftBadgeIcon width={20} height={20} />
+            </span>
+          )}
+          <span className="flex h-5 min-w-5 items-center justify-center rounded-lg bg-black/20 font-display text-xs">
+            {selections.length}
+          </span>
+          <span className="font-display text-sm">Bet Slip</span>
         </button>
       )}
 
@@ -554,6 +585,12 @@ export function AppShell() {
           </BottomSheet>
         </div>
       )}
+
+      {/* Tablet-only (sm:-to-lg:) floating right-edge panel - see
+          TabletBetSlipDrawer's own doc comment. The drawer's own root
+          carries the `hidden sm:block lg:hidden` breakpoint gate, same
+          convention as the mobile sheet's wrapper above. */}
+      {isSlipOpen && <TabletBetSlipDrawer onClose={closeSlip} closeLabel="Close bet slip" />}
 
       {/* Rendered as an overlay alongside the Outlet, not as a route the
           Outlet swaps to - keeps whatever page the player was on mounted

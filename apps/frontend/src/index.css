@@ -425,6 +425,25 @@ body {
   animation: sheet-slide-up 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Same easing/overshoot as sheet-slide-up, horizontal instead - the
+   tablet-width floating bet slip panel (see AppShell) slides in from the
+   right edge rather than up from the bottom, since there's room for it to
+   float over the content instead of taking the full viewport. */
+@keyframes sheet-slide-in-right {
+  0% {
+    transform: translateX(100%);
+  }
+  85% {
+    transform: translateX(-1.5%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+.sheet-slide-in-right {
+  animation: sheet-slide-in-right 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 @keyframes backdrop-fade-in {
   from {
     opacity: 0;
