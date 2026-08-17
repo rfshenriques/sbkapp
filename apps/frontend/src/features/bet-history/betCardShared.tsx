@@ -189,6 +189,7 @@ export function BetCampaignNotes({ bet }: { bet: PlacedBet }) {
   const campaignNotes = [
     { name: bet.betAndGetCampaignName, rewardCents: bet.betAndGetCampaignRewardCents },
     { name: bet.depositCampaignName, rewardCents: bet.depositCampaignRewardCents },
+    { name: bet.registerCampaignName, rewardCents: bet.registerCampaignRewardCents },
   ].filter((note): note is { name: string; rewardCents: number | null } => note.name !== null);
 
   if (campaignNotes.length === 0 && bet.accaRollbackRewardCents === null) {

@@ -169,6 +169,8 @@ describe('AppShell', () => {
         betAndGetCampaignRewardCents: null,
         depositCampaignName: null,
         depositCampaignRewardCents: null,
+        registerCampaignName: null,
+        registerCampaignRewardCents: null,
       },
     });
 

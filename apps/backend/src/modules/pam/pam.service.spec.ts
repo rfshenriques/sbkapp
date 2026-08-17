@@ -1788,7 +1788,79 @@ describe('PamService', () => {
         betAndGetCampaignRewardCents: null,
         depositCampaignName: null,
         depositCampaignRewardCents: null,
+        registerCampaignName: null,
+        registerCampaignRewardCents: null,
       });
+    });
+
+    /** Mirrors what AuthService.register would have created at signup - see the same-shaped helper in the "register campaign bet requirement" describe below. */
+    async function createPendingRegisterRedemption(
+      userId: string,
+      overrides: Partial<Parameters<typeof registerCampaignService.create>[1]> = {},
+    ) {
+      const campaign = await registerCampaignService.create(
+        testBrandId,
+        {
+          name: 'Welcome Bonus',
+          rewardType: 'FIXED',
+          rewardAmountCents: 500,
+          requiresBet: true,
+          qualifyingBetWindowDays: 7,
+          trigger: 'PLACEMENT',
+          ...overrides,
+        },
+        TEST_ACTOR,
+      );
+      await registerCampaignService.update(testBrandId, campaign.id, { enabled: true }, TEST_ACTOR);
+      await prisma.registerCampaignRedemption.create({
+        data: { registerCampaignId: campaign.id, userId, brandId: testBrandId, status: 'PENDING_BET' },
+      });
+      return campaign;
+    }
+
+    it('previews the pending register campaign redemption a qualifying bet would fulfil', async () => {
+      const userId = await createTestUser(100_000);
+      const campaign = await createPendingRegisterRedemption(userId);
+
+      const preview = await pamService.previewCampaign(userId, testBrandId, [buildSelection({ odds: 2.0 })], 1_000);
+
+      expect(preview.registerCampaignName).toBe(campaign.name);
+      expect(preview.registerCampaignRewardCents).toBe(500);
+    });
+
+    it('never previews a register campaign for a logged-out browser - a redemption row only ever exists from registration onward', async () => {
+      const userId = await createTestUser(100_000);
+      await createPendingRegisterRedemption(userId);
+
+      const preview = await pamService.previewCampaign(null, testBrandId, [buildSelection({ odds: 2.0 })], 1_000);
+
+      expect(preview.registerCampaignName).toBeNull();
+    });
+
+    it('does not preview a register campaign whose qualifying bet window has already elapsed', async () => {
+      const userId = await createTestUser(100_000);
+      await createPendingRegisterRedemption(userId, { qualifyingBetWindowDays: 7 });
+      await prisma.user.update({
+        where: { id: userId },
+        data: { createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
+      });
+
+      const preview = await pamService.previewCampaign(userId, testBrandId, [buildSelection({ odds: 2.0 })], 1_000);
+
+      expect(preview.registerCampaignName).toBeNull();
+    });
+
+    it('previews a Bet & Get campaign, a deposit campaign, and a register campaign all at once when a bet qualifies for all three', async () => {
+      const userId = await createTestUser(100_000);
+      await createEnabledBetAndGetCampaign();
+      await createPendingDepositRedemption(userId);
+      await createPendingRegisterRedemption(userId);
+
+      const preview = await pamService.previewCampaign(userId, testBrandId, [buildSelection({ odds: 2.0 })], 1_000);
+
+      expect(preview.betAndGetCampaignName).not.toBeNull();
+      expect(preview.depositCampaignName).not.toBeNull();
+      expect(preview.registerCampaignName).not.toBeNull();
     });
 
     it('still previews a Bet & Get campaign match for a logged-out browser, but never a deposit campaign', async () => {

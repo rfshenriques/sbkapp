@@ -258,6 +258,8 @@ export class PamService {
     betAndGetCampaignRewardCents: number | null;
     depositCampaignName: string | null;
     depositCampaignRewardCents: number | null;
+    registerCampaignName: string | null;
+    registerCampaignRewardCents: number | null;
   }> {
     const insuranceBetConfig = await this.insuranceBetService.getConfig(brandId);
     const insuranceApplies = insuranceOptIn && insuranceBetConfig.enabled;
@@ -267,6 +269,8 @@ export class PamService {
         betAndGetCampaignRewardCents: null,
         depositCampaignName: null,
         depositCampaignRewardCents: null,
+        registerCampaignName: null,
+        registerCampaignRewardCents: null,
       };
     }
 
@@ -293,6 +297,21 @@ export class PamService {
       ? await this.depositCampaignService.resolvePendingBetRedemption(userId, qualifyingBet)
       : null;
 
+    // Same "matches an already-existing PENDING_BET redemption" shape as
+    // depositCampaignRedemption above, additionally gated by the campaign's
+    // own qualifyingBetWindowDays counted from this player's own signup -
+    // mirrors placeBet's own resolution exactly (see there), just read-only.
+    // A logged-out preview can never match one: a RegisterCampaignRedemption
+    // is only ever created once, at registration (AuthService.register).
+    const registerCampaignRedemption = userId
+      ? await this.registerCampaignService.resolvePendingBetRedemption(
+          userId,
+          (await this.prisma.user.findUniqueOrThrow({ where: { id: userId }, select: { createdAt: true } }))
+            .createdAt,
+          qualifyingBet,
+        )
+      : null;
+
     return {
       betAndGetCampaignName: betAndGetCampaign?.name ?? null,
       betAndGetCampaignRewardCents: betAndGetCampaign
@@ -300,6 +319,10 @@ export class PamService {
         : null,
       depositCampaignName: depositCampaignRedemption?.depositCampaign.name ?? null,
       depositCampaignRewardCents: depositCampaignRedemption?.rewardAmountCents ?? null,
+      registerCampaignName: registerCampaignRedemption?.registerCampaign.name ?? null,
+      registerCampaignRewardCents: registerCampaignRedemption
+        ? calculateBetAndGetRewardCents(registerCampaignRedemption.registerCampaign, stakeCents)
+        : null,
     };
   }
 

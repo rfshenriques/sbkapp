@@ -9,8 +9,10 @@ import { PamService } from './pam.service';
  * and PamService.placeBet's own resolution, which this mirrors). Soft auth
  * (same as stake-limit-preview): a missing/invalid token still gets a Bet &
  * Get preview (scope/condition matching doesn't need a player), just
- * without a canRedeem check or any deposit-campaign preview, since deposit
- * campaign redemptions are always tied to a specific logged-in player.
+ * without a canRedeem check or any deposit-campaign/register-campaign
+ * preview, since both of those redemptions are always tied to a specific
+ * logged-in player (a register-campaign redemption row only ever exists
+ * from registration onward - see AuthService.grantRegisterCampaignReward).
  */
 @Controller('public/campaign-preview')
 export class PublicCampaignPreviewController {

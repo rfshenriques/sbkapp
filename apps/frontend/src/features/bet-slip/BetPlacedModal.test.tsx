@@ -21,7 +21,7 @@ describe('BetPlacedModal', () => {
 
   it('shows the potential payout, stake, and combined odds for a single accumulator', () => {
     useBetPlacedModalStore.setState({
-      summary: { stakeCents: 1000, potentialPayoutCents: 5250, combinedOdds: 5.25, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null },
+      summary: { stakeCents: 1000, potentialPayoutCents: 5250, combinedOdds: 5.25, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null, registerCampaignName: null, registerCampaignRewardCents: null },
     });
     render(<BetPlacedModal />);
 
@@ -35,7 +35,7 @@ describe('BetPlacedModal', () => {
 
   it('shows a bet count instead of odds when several singles were placed at once', () => {
     useBetPlacedModalStore.setState({
-      summary: { stakeCents: 2000, potentialPayoutCents: 4200, combinedOdds: null, betCount: 2, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null },
+      summary: { stakeCents: 2000, potentialPayoutCents: 4200, combinedOdds: null, betCount: 2, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null, registerCampaignName: null, registerCampaignRewardCents: null },
     });
     render(<BetPlacedModal />);
 
@@ -46,7 +46,7 @@ describe('BetPlacedModal', () => {
 
   it('closes when the close button is clicked', async () => {
     useBetPlacedModalStore.setState({
-      summary: { stakeCents: 1000, potentialPayoutCents: 2100, combinedOdds: 2.1, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null },
+      summary: { stakeCents: 1000, potentialPayoutCents: 2100, combinedOdds: 2.1, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null, registerCampaignName: null, registerCampaignRewardCents: null },
     });
     render(<BetPlacedModal />);
 
@@ -58,7 +58,7 @@ describe('BetPlacedModal', () => {
 
   it('closes when Bet again is clicked', async () => {
     useBetPlacedModalStore.setState({
-      summary: { stakeCents: 1000, potentialPayoutCents: 2100, combinedOdds: 2.1, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null },
+      summary: { stakeCents: 1000, potentialPayoutCents: 2100, combinedOdds: 2.1, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null, registerCampaignName: null, registerCampaignRewardCents: null },
     });
     render(<BetPlacedModal />);
 
@@ -71,7 +71,7 @@ describe('BetPlacedModal', () => {
     const share = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { ...navigator, share });
     useBetPlacedModalStore.setState({
-      summary: { stakeCents: 1000, potentialPayoutCents: 5250, combinedOdds: 5.25, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null },
+      summary: { stakeCents: 1000, potentialPayoutCents: 5250, combinedOdds: 5.25, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null, registerCampaignName: null, registerCampaignRewardCents: null },
     });
     render(<BetPlacedModal />);
 
@@ -86,7 +86,7 @@ describe('BetPlacedModal', () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal('navigator', { ...navigator, share: undefined, clipboard: { writeText } });
     useBetPlacedModalStore.setState({
-      summary: { stakeCents: 2000, potentialPayoutCents: 4200, combinedOdds: null, betCount: 2, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null },
+      summary: { stakeCents: 2000, potentialPayoutCents: 4200, combinedOdds: null, betCount: 2, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null, registerCampaignName: null, registerCampaignRewardCents: null },
     });
     render(<BetPlacedModal />);
 
@@ -109,6 +109,8 @@ describe('BetPlacedModal', () => {
         betAndGetCampaignRewardCents: 1000,
         depositCampaignName: null,
         depositCampaignRewardCents: null,
+        registerCampaignName: null,
+        registerCampaignRewardCents: null,
       },
     });
     const { container } = render(<BetPlacedModal />);
@@ -128,6 +130,8 @@ describe('BetPlacedModal', () => {
         betAndGetCampaignRewardCents: 1000,
         depositCampaignName: 'Welcome Deposit Bonus',
         depositCampaignRewardCents: 2500,
+        registerCampaignName: null,
+        registerCampaignRewardCents: null,
       },
     });
     const { container } = render(<BetPlacedModal />);
@@ -142,7 +146,7 @@ describe('BetPlacedModal', () => {
 
   it('shows no campaign section when the placed bet qualified for none', () => {
     useBetPlacedModalStore.setState({
-      summary: { stakeCents: 1000, potentialPayoutCents: 2100, combinedOdds: 2.1, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null },
+      summary: { stakeCents: 1000, potentialPayoutCents: 2100, combinedOdds: 2.1, betCount: 1, betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null, registerCampaignName: null, registerCampaignRewardCents: null },
     });
     render(<BetPlacedModal />);
 
@@ -179,6 +183,8 @@ describe('BetPlacedModal', () => {
       betAndGetCampaignRewardCents: null,
       depositCampaignName: null,
       depositCampaignRewardCents: null,
+      registerCampaignName: null,
+      registerCampaignRewardCents: null,
       accaRollbackRewardCents: null,
     };
 
@@ -193,6 +199,8 @@ describe('BetPlacedModal', () => {
           betAndGetCampaignRewardCents: null,
           depositCampaignName: null,
           depositCampaignRewardCents: null,
+          registerCampaignName: null,
+          registerCampaignRewardCents: null,
           bet,
         },
       });
@@ -220,6 +228,8 @@ describe('BetPlacedModal', () => {
           betAndGetCampaignRewardCents: null,
           depositCampaignName: null,
           depositCampaignRewardCents: null,
+          registerCampaignName: null,
+          registerCampaignRewardCents: null,
           bet,
         },
       });
@@ -242,6 +252,8 @@ describe('BetPlacedModal', () => {
           betAndGetCampaignRewardCents: null,
           depositCampaignName: null,
           depositCampaignRewardCents: null,
+          registerCampaignName: null,
+          registerCampaignRewardCents: null,
           bet,
         },
       });
@@ -264,6 +276,8 @@ describe('BetPlacedModal', () => {
           betAndGetCampaignRewardCents: null,
           depositCampaignName: null,
           depositCampaignRewardCents: null,
+          registerCampaignName: null,
+          registerCampaignRewardCents: null,
         },
       });
       render(<BetPlacedModal />);
@@ -283,6 +297,8 @@ describe('BetPlacedModal', () => {
           betAndGetCampaignRewardCents: null,
           depositCampaignName: null,
           depositCampaignRewardCents: null,
+          registerCampaignName: null,
+          registerCampaignRewardCents: null,
           bet: { ...bet, insuranceCostPercent: 10, accaBoostPercent: 5 },
         },
       });
@@ -303,6 +319,8 @@ describe('BetPlacedModal', () => {
           betAndGetCampaignRewardCents: null,
           depositCampaignName: null,
           depositCampaignRewardCents: null,
+          registerCampaignName: null,
+          registerCampaignRewardCents: null,
           bet,
         },
       });

@@ -255,6 +255,7 @@ function CampaignQualificationNote({ preview }: { preview: CampaignPreview | nul
   const notes = [
     { name: preview.betAndGetCampaignName, rewardCents: preview.betAndGetCampaignRewardCents },
     { name: preview.depositCampaignName, rewardCents: preview.depositCampaignRewardCents },
+    { name: preview.registerCampaignName, rewardCents: preview.registerCampaignRewardCents },
   ].filter((note): note is { name: string; rewardCents: number | null } => note.name !== null);
 
   if (notes.length === 0) {
@@ -556,6 +557,8 @@ export function BetSlipPanel({
         betAndGetCampaignRewardCents: bet.betAndGetCampaignRewardCents,
         depositCampaignName: bet.depositCampaignName,
         depositCampaignRewardCents: bet.depositCampaignRewardCents,
+        registerCampaignName: bet.registerCampaignName,
+        registerCampaignRewardCents: bet.registerCampaignRewardCents,
         bet,
       });
       void queryClient.invalidateQueries({ queryKey: walletQueryKey });
@@ -594,6 +597,7 @@ export function BetSlipPanel({
       });
       const betAndGetBet = bets.find((bet) => bet.betAndGetCampaignName !== null);
       const depositCampaignBet = bets.find((bet) => bet.depositCampaignName !== null);
+      const registerCampaignBet = bets.find((bet) => bet.registerCampaignName !== null);
       openBetPlacedModal({
         stakeCents: totalStakeCents,
         potentialPayoutCents: totalPayoutCents,
@@ -603,6 +607,8 @@ export function BetSlipPanel({
         betAndGetCampaignRewardCents: betAndGetBet?.betAndGetCampaignRewardCents ?? null,
         depositCampaignName: depositCampaignBet?.depositCampaignName ?? null,
         depositCampaignRewardCents: depositCampaignBet?.depositCampaignRewardCents ?? null,
+        registerCampaignName: registerCampaignBet?.registerCampaignName ?? null,
+        registerCampaignRewardCents: registerCampaignBet?.registerCampaignRewardCents ?? null,
         bet: bets.length === 1 ? bets[0] : undefined,
       });
       void queryClient.invalidateQueries({ queryKey: walletQueryKey });

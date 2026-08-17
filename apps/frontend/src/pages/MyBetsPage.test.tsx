@@ -24,6 +24,8 @@ function buildBet(overrides: Partial<PlacedBet> = {}): PlacedBet {
     betAndGetCampaignRewardCents: null,
     depositCampaignName: null,
     depositCampaignRewardCents: null,
+    registerCampaignName: null,
+    registerCampaignRewardCents: null,
     accaRollbackRewardCents: null,
     selections: [
       {

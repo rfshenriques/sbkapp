@@ -119,6 +119,10 @@ export interface PlacedBet {
   depositCampaignName: string | null;
   /** The deposit campaign redemption's own freebet reward, in cents (fixed or percentage-derived - see computeDepositReward) - null exactly when depositCampaignName is null. */
   depositCampaignRewardCents: number | null;
+  /** Name of the register (welcome) campaign this bet fulfilled the bet-requirement for, if any. */
+  registerCampaignName: string | null;
+  /** The register campaign redemption's own freebet reward, in cents - null exactly when registerCampaignName is null. */
+  registerCampaignRewardCents: number | null;
   /** How much was refunded as a freebet via the acca rollback promotion, if this bet triggered one - derived, not a property of the bet itself (see PamService.enrichBetsWithRollbackReward). */
   accaRollbackRewardCents: number | null;
 }
@@ -718,6 +722,9 @@ export interface CampaignPreview {
   /** Name of the deposit campaign redemption this exact bet would fulfil, if any - always null for a logged-out preview, since a redemption is tied to a specific already-logged-in player. */
   depositCampaignName: string | null;
   depositCampaignRewardCents: number | null;
+  /** Name of the register (welcome) campaign redemption this exact bet would fulfil, if any - always null for a logged-out preview, same reasoning as depositCampaignName (a redemption row only ever exists from registration onward). */
+  registerCampaignName: string | null;
+  registerCampaignRewardCents: number | null;
 }
 
 /**

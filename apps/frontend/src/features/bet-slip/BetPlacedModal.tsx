@@ -42,11 +42,14 @@ export function BetPlacedModal() {
     betAndGetCampaignRewardCents,
     depositCampaignName,
     depositCampaignRewardCents,
+    registerCampaignName,
+    registerCampaignRewardCents,
     bet,
   } = summary;
   const campaignNotes = [
     { name: betAndGetCampaignName, rewardCents: betAndGetCampaignRewardCents },
     { name: depositCampaignName, rewardCents: depositCampaignRewardCents },
+    { name: registerCampaignName, rewardCents: registerCampaignRewardCents },
   ].filter((note): note is { name: string; rewardCents: number | null } => note.name !== null);
 
   // Only a multi-singles placement (several independent bets from one

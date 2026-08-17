@@ -558,6 +558,8 @@ describe('BetSlipPanel', () => {
       betAndGetCampaignRewardCents: number | null;
       depositCampaignName: string | null;
       depositCampaignRewardCents: number | null;
+      registerCampaignName?: string | null;
+      registerCampaignRewardCents?: number | null;
     }) {
       vi.stubGlobal(
         'fetch',
@@ -565,7 +567,10 @@ describe('BetSlipPanel', () => {
           const url = typeof input === 'string' ? input : input.toString();
           const method = init?.method ?? 'GET';
           if (method === 'POST' && url === '/backend/public/campaign-preview/brand-1') {
-            return new Response(JSON.stringify(preview), { status: 200 });
+            return new Response(
+              JSON.stringify({ registerCampaignName: null, registerCampaignRewardCents: null, ...preview }),
+              { status: 200 },
+            );
           }
           return new Response(null, { status: 404 });
         }),
@@ -755,8 +760,22 @@ describe('BetSlipPanel', () => {
           return new Response(
             JSON.stringify(
               body.useFreebets
-                ? { betAndGetCampaignName: null, betAndGetCampaignRewardCents: null, depositCampaignName: null, depositCampaignRewardCents: null }
-                : { betAndGetCampaignName: 'CL Bet & Get', betAndGetCampaignRewardCents: 1000, depositCampaignName: null, depositCampaignRewardCents: null },
+                ? {
+                    betAndGetCampaignName: null,
+                    betAndGetCampaignRewardCents: null,
+                    depositCampaignName: null,
+                    depositCampaignRewardCents: null,
+                    registerCampaignName: null,
+                    registerCampaignRewardCents: null,
+                  }
+                : {
+                    betAndGetCampaignName: 'CL Bet & Get',
+                    betAndGetCampaignRewardCents: 1000,
+                    depositCampaignName: null,
+                    depositCampaignRewardCents: null,
+                    registerCampaignName: null,
+                    registerCampaignRewardCents: null,
+                  },
             ),
             { status: 200 },
           );
@@ -1041,6 +1060,8 @@ describe('BetSlipPanel', () => {
       betAndGetCampaignRewardCents: null,
       depositCampaignName: null,
       depositCampaignRewardCents: null,
+      registerCampaignName: null,
+      registerCampaignRewardCents: null,
     });
     expect(useBetSlipStore.getState().selections).toEqual([]);
     const betCalls = fetchMock.mock.calls.filter((call) => call[0] === '/backend/bets');

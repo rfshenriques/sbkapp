@@ -19,6 +19,8 @@ export interface PlacedBetSummary {
   betAndGetCampaignRewardCents: number | null;
   depositCampaignName: string | null;
   depositCampaignRewardCents: number | null;
+  registerCampaignName: string | null;
+  registerCampaignRewardCents: number | null;
   /**
    * The full placed bet - only set when this placement produced exactly one
    * bet (a single or an accumulator; never set for a multi-singles batch,
