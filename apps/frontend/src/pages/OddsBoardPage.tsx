@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { MatchCard } from '../features/odds-board/MatchCard';
 import { MatchListSkeleton } from '../features/odds-board/MatchListSkeleton';
 import { useMatches } from '../features/odds-board/useMatches';
+import { useMatchOfTheDay } from '../features/odds-board/useMatchOfTheDay';
 import { usePrefetchMatchDetail } from '../features/odds-board/usePrefetchMatchDetail';
 import { sortMatches } from '../features/odds-board/sortMatches';
 import { MarketSelections } from '../features/bet-slip/MarketSelections';
@@ -22,6 +23,7 @@ import { fallbackTeamColor } from '../lib/fallbackTeamColor';
 import { formatKickoff } from '../lib/formatKickoff';
 import { sortSportsByPriority } from '../lib/sportPriority';
 import { staggerDelay } from '../lib/staggerDelay';
+import { useMediaQuery } from '../lib/useMediaQuery';
 import type { Market, Match } from '@sportsbook/shared';
 
 /** Homepage sections stay short; "Load more" hands off to the full sport page. */
@@ -62,10 +64,10 @@ interface FeaturedMatchCardProps {
 }
 
 /**
- * The "Match of the day" hero. Just one match today (the earliest/live
- * one, computed client-side) - once the backoffice can pin more than one,
- * this is the shape that already supports it, the caller just needs to
- * pass more of them into the HorizontalScroller around it.
+ * The "Match of the day" hero - one card per staff-picked entry (see
+ * useMatchOfTheDay/the backoffice's CMS Match of the day page). Never
+ * auto-picked; the caller decides how many of these to show at once and
+ * how (see FeaturedMatchesBlock below).
  *
  * Frames the card with a two-color border built from the listed teams'
  * own colors (home -> away, same duo every regular MatchCard glows with),
@@ -184,8 +186,54 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
   );
 }
 
+function featuredMatchResultFor(match: Match): Market {
+  return match.markets.find((market) => market.id === 'match-result')!;
+}
+
+/**
+ * Desktop's "Match of the day" column - takes the flex-1 slot next to the
+ * Challenges column (see OddsBoardPage). With exactly 2 staff-picked
+ * matches active at once, shows both side by side once there's real desktop
+ * width to spare (the `xl` breakpoint - `sm`/`md`/`lg` still cycle one at a
+ * time, same as any other count). Checked via useMediaQuery (real JS, not a
+ * pair of Tailwind-breakpoint-hidden siblings) so exactly one layout is
+ * ever in the DOM at once - two hidden copies would double up every
+ * FeaturedMatchCard's links/text for anything querying the page.
+ */
+function FeaturedMatchesBlock({ matches }: { matches: Match[] }) {
+  const isWideDesktop = useMediaQuery('(min-width: 1280px)');
+
+  if (matches.length === 2 && isWideDesktop) {
+    return (
+      <div className="flex h-full min-w-0 gap-4 sm:flex-1">
+        {matches.map((match) => (
+          <div key={match.id} className="min-w-0 flex-1">
+            <FeaturedMatchCard match={match} matchResult={featuredMatchResultFor(match)} className="h-full w-full" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-w-0 sm:flex-1">
+      <HorizontalScroller itemCount={matches.length} ariaLabel="Match of the day" className="min-w-0">
+        {matches.map((match) => (
+          <FeaturedMatchCard
+            key={match.id}
+            match={match}
+            matchResult={featuredMatchResultFor(match)}
+            className="h-full w-full shrink-0 snap-start"
+          />
+        ))}
+      </HorizontalScroller>
+    </div>
+  );
+}
+
 export default function OddsBoardPage() {
   const { data: matches, isPending, isError } = useMatches();
+  const { data: motdEntries } = useMatchOfTheDay();
   const { data: promoCards } = usePromoCards();
   const { data: carouselConfig } = useHomepageCarouselConfig();
   const brandId = useBrandStore((state) => state.brandId);
@@ -203,17 +251,21 @@ export default function OddsBoardPage() {
   const [hoursMenuOpen, setHoursMenuOpen] = useState(false);
 
   const sorted = matches ? sortMatches(matches, 'time') : undefined;
-  // The earliest-kickoff match only becomes "featured" if it actually has a
-  // match-result market to show odds for - a match with only special/manual
-  // markets (or one odds-engine hasn't priced yet) falls through to the
-  // next-earliest one instead. Finding the index (rather than always taking
-  // [0]) matters just as much for `rest`: excluding a fixed [0] regardless
-  // of whether the featured card actually renders was silently dropping
-  // that match everywhere, including from the plain Upcoming list.
-  const featuredIndex = sorted?.findIndex((match) => match.markets.some((market) => market.id === 'match-result')) ?? -1;
-  const featured = featuredIndex >= 0 ? sorted![featuredIndex] : undefined;
-  const rest = sorted ? sorted.filter((_, index) => index !== featuredIndex) : [];
-  const featuredMatchResult = featured?.markets.find((market) => market.id === 'match-result');
+  // Never auto-picked - only the staff-configured entries that are both
+  // currently scheduled-active (see the backend's isCampaignScheduledActive)
+  // and still resolve to a live match with a match-result market to show
+  // odds for. A pick whose match has since kicked off out of the feed, or
+  // never had a match-result market, just silently drops rather than
+  // erroring. Order follows the CMS's own sortOrder (already the order
+  // motdEntries arrives in). Excluding these from `rest` (used by every
+  // other section below) matters just as much as picking them - a featured
+  // match staying in the plain Upcoming list too would show it twice.
+  const matchById = new Map((sorted ?? []).map((match) => [match.id, match] as const));
+  const featuredMatches = (motdEntries ?? [])
+    .map((entry) => matchById.get(entry.matchId))
+    .filter((match): match is Match => match !== undefined && match.markets.some((market) => market.id === 'match-result'));
+  const featuredMatchIds = new Set(featuredMatches.map((match) => match.id));
+  const rest = sorted ? sorted.filter((match) => !featuredMatchIds.has(match.id)) : [];
 
   const liveMatches = rest.filter((match) => match.isLive);
   const upcomingAll = rest.filter((match) => !match.isLive);
@@ -303,43 +355,40 @@ export default function OddsBoardPage() {
         </div>
       )}
 
-      {featured && featuredMatchResult && (
+      {(featuredMatches.length > 0 || hasCmsPromoCards) && (
         <div className="mb-8">
-          {/* Mobile: one swipeable block mixing the featured match and
-              promo cards, all the same size - dots show there's more than
+          {/* Mobile: one swipeable block mixing every featured match and
+              promo card, all the same size - dots show there's more than
               one card, no arrows (touch swipe covers it). */}
           <div className="sm:hidden">
             <HorizontalScroller
-              itemCount={1 + promoSlotCount}
+              itemCount={featuredMatches.length + promoSlotCount}
               ariaLabel="Featured content"
               autoScrollSeconds={autoScrollSeconds}
             >
-              <FeaturedMatchCard
-                match={featured}
-                matchResult={featuredMatchResult}
-                className="w-full shrink-0 snap-center"
-              />
+              {featuredMatches.map((match) => (
+                <FeaturedMatchCard
+                  key={match.id}
+                  match={match}
+                  matchResult={featuredMatchResultFor(match)}
+                  className="w-full shrink-0 snap-center"
+                />
+              ))}
               {promoSlotItems('w-full shrink-0 snap-center')}
             </HorizontalScroller>
           </div>
 
           {/* Desktop: two separate blocks side by side, each its own
               scroller - the match of the day block only ever scrolls
-              between match-of-the-day cards, the promo block only between
-              promo cards. Arrows/dots appear automatically once either
-              block has more than one card to move between. The promo
-              column is omitted entirely (match of the day takes the full
-              width) when the brand has no active CMS promo cards. */}
+              between match-of-the-day cards (or, with exactly 2 active and
+              enough width, shows both at once - see FeaturedMatchesBlock),
+              the promo block only between promo cards. Either column is
+              omitted entirely when it has nothing to show, so a brand with
+              only promo cards configured (no Match of the day) or only a
+              Match of the day (no promo cards) never leaves an empty gap
+              beside it. */}
           <div className="hidden gap-4 sm:flex sm:items-stretch">
-            <div className="min-w-0 sm:flex-1">
-              <HorizontalScroller itemCount={1} ariaLabel="Match of the day" className="min-w-0">
-                <FeaturedMatchCard
-                  match={featured}
-                  matchResult={featuredMatchResult}
-                  className="h-full w-full shrink-0 snap-start"
-                />
-              </HorizontalScroller>
-            </div>
+            {featuredMatches.length > 0 && <FeaturedMatchesBlock matches={featuredMatches} />}
             {hasCmsPromoCards && (
               <div className="min-w-0 sm:w-72 sm:shrink-0">
                 <HorizontalScroller
@@ -450,7 +499,7 @@ export default function OddsBoardPage() {
             </div>
           )}
 
-          {sorted && rest.length === 0 && !featured && (
+          {sorted && rest.length === 0 && featuredMatches.length === 0 && (
             <Card className="text-text-secondary">No matches available right now.</Card>
           )}
           {upcomingForSport.length > 0 && upcomingFiltered.length === 0 && (
@@ -514,7 +563,7 @@ export default function OddsBoardPage() {
           </div>
         )}
 
-        {sorted && rest.length === 0 && !featured && (
+        {sorted && rest.length === 0 && featuredMatches.length === 0 && (
           <Card className="text-text-secondary">No matches available right now.</Card>
         )}
 

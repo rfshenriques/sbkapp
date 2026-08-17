@@ -71,6 +71,7 @@ const NAV_SECTIONS: NavSection[] = [
           { to: '/cms-payments', label: 'Payments', roles: ['ADMIN', 'CMS'] },
           { to: '/cms-promo-cards', label: 'Promo Cards', roles: ['ADMIN', 'CMS'] },
           { to: '/cms-quicklinks', label: 'Quicklinks', roles: ['ADMIN', 'CMS'] },
+          { to: '/cms-match-of-the-day', label: 'Match of the day', roles: ['ADMIN', 'CMS'] },
         ],
       },
       {

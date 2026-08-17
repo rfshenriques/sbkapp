@@ -1889,6 +1889,72 @@ export async function reorderPromoCards(ids: string[]): Promise<PromoCard[]> {
   return parseJsonOrThrow(response, `Failed to reorder promo cards: ${response.status}`);
 }
 
+export interface MatchOfTheDayEntry {
+  id: string;
+  brandId: string;
+  matchId: string;
+  sortOrder: number;
+  enabled: boolean;
+  startAt: string | null;
+  endAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AddMatchOfTheDayPayload {
+  matchId: string;
+  enabled?: boolean;
+  startAt?: string | null;
+  endAt?: string | null;
+}
+
+export interface UpdateMatchOfTheDayPayload {
+  matchId?: string;
+  enabled?: boolean;
+  startAt?: string | null;
+  endAt?: string | null;
+}
+
+export async function listMatchOfTheDay(): Promise<MatchOfTheDayEntry[]> {
+  const response = await authenticatedFetch('/admin/match-of-the-day');
+  return parseJsonOrThrow(response, `Failed to load Match of the day entries: ${response.status}`);
+}
+
+export async function addMatchOfTheDay(payload: AddMatchOfTheDayPayload): Promise<MatchOfTheDayEntry> {
+  const response = await authenticatedFetch('/admin/match-of-the-day', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to add Match of the day entry: ${response.status}`);
+}
+
+export async function updateMatchOfTheDay(id: string, payload: UpdateMatchOfTheDayPayload): Promise<MatchOfTheDayEntry> {
+  const response = await authenticatedFetch(`/admin/match-of-the-day/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to update Match of the day entry: ${response.status}`);
+}
+
+export async function removeMatchOfTheDay(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/match-of-the-day/${id}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(`Failed to remove Match of the day entry: ${response.status}`);
+  }
+}
+
+/** `ids` must be exactly the current set of Match of the day entries, in the desired order. */
+export async function reorderMatchOfTheDay(ids: string[]): Promise<MatchOfTheDayEntry[]> {
+  const response = await authenticatedFetch('/admin/match-of-the-day/reorder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  });
+  return parseJsonOrThrow(response, `Failed to reorder Match of the day entries: ${response.status}`);
+}
+
 export type PushNotificationKind = 'CUSTOM' | 'BET_WON' | 'BET_AND_GET_CAMPAIGN' | 'DEPOSIT_CAMPAIGN';
 export type PushDeliveryStatus = 'SENT' | 'FAILED';
 

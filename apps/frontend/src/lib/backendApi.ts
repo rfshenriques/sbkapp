@@ -237,6 +237,22 @@ export async function getHomepageCarouselConfig(brandId: string): Promise<Homepa
   return (await response.json()) as HomepageCarouselConfig;
 }
 
+/** A staff-picked "Match of the day" entry, already filtered server-side to only the ones currently within their (optional) scheduling window - see apps/backend's MatchOfTheDayModule. `matchId` is resolved against the live match list client-side (see OddsBoardPage); an entry whose match has since kicked off/expired from the feed just silently drops. */
+export interface MatchOfTheDayEntry {
+  id: string;
+  matchId: string;
+  sortOrder: number;
+}
+
+/** Never auto-picked - an empty array means the brand hasn't configured one, and apps/frontend shows no featured match at all rather than fabricating one. */
+export async function getMatchOfTheDay(brandId: string): Promise<MatchOfTheDayEntry[]> {
+  const response = await fetch(`${BASE_URL}/public/match-of-the-day/${encodeURIComponent(brandId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Match of the day entries: ${response.status}`);
+  }
+  return (await response.json()) as MatchOfTheDayEntry[];
+}
+
 export interface CompetitionRanking {
   competition: string;
   rank: number;

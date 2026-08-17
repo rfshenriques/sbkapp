@@ -37,6 +37,7 @@ function renderAt(initialPath: string) {
 
 describe('router', () => {
   it('renders the app shell nav and the odds board page at the root path', async () => {
+    stubOddsEngineFetch(undefined, {}, ['match-3']);
     renderAt('/');
 
     // The mocked brand's real name (see stubOddsEngineFetch) - AppShell no
@@ -44,11 +45,11 @@ describe('router', () => {
     // resolves, it shows the boot spinner until then instead (see
     // AppBootScreen.tsx).
     expect(await screen.findByText('Test Brand')).toBeInTheDocument();
-    // Real Madrid vs Barcelona is the only isLive:true fixture, so it's always
-    // the featured match's heading regardless of kickoff-time sort order.
-    // The featured card renders twice (a mobile copy and a desktop copy,
-    // each CSS-hidden at the other breakpoint but both present in jsdom),
-    // so this expects at least one rather than exactly one.
+    // match-3 (Real Madrid vs Barcelona) was configured as Match of the day
+    // above - never auto-picked (see task #11/OddsBoardPage). The featured
+    // card renders twice (a mobile copy and a desktop copy, each
+    // CSS-hidden at the other breakpoint but both present in jsdom), so
+    // this expects at least one rather than exactly one.
     expect(
       (await screen.findAllByRole('heading', { name: 'Real Madrid vs Barcelona' })).length,
     ).toBeGreaterThan(0);

@@ -6,6 +6,7 @@ import BetHistoryReportPage from '../pages/BetHistoryReportPage';
 import CampaignsPage from '../pages/CampaignsPage';
 import InsuranceBetPage from '../pages/InsuranceBetPage';
 import CmsImagesPage from '../pages/CmsImagesPage';
+import CmsMatchOfTheDayPage from '../pages/CmsMatchOfTheDayPage';
 import CmsPaymentsPage from '../pages/CmsPaymentsPage';
 import CmsPromoCardsPage from '../pages/CmsPromoCardsPage';
 import CmsQuicklinksPage from '../pages/CmsQuicklinksPage';
@@ -367,6 +368,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'CMS']}>
               <CmsQuicklinksPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'cms-match-of-the-day',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'CMS']}>
+              <CmsMatchOfTheDayPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

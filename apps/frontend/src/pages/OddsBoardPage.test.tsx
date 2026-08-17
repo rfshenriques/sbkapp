@@ -106,11 +106,13 @@ describe('OddsBoardPage', () => {
   });
 
   it('navigates to the featured match when clicking anywhere on its card', async () => {
+    stubOddsEngineFetch(mockMatches, {}, ['match-3']);
     renderPageWithRouting();
 
-    // mockMatches' only live fixture (Real Madrid vs Barcelona) sorts first.
-    // The featured card renders twice - a mobile copy and a desktop copy,
-    // each CSS-hidden at the other breakpoint but both present in the DOM
+    // match-3 (Real Madrid vs Barcelona) was explicitly configured as
+    // Match of the day above - see task #11, it's never auto-picked. The
+    // featured card renders twice - a mobile copy and a desktop copy, each
+    // CSS-hidden at the other breakpoint but both present in the DOM
     // (jsdom doesn't apply that CSS) - either copy behaves identically, so
     // this just picks the first.
     const headings = await screen.findAllByRole('heading', { name: 'Real Madrid vs Barcelona' });
@@ -120,6 +122,7 @@ describe('OddsBoardPage', () => {
   });
 
   it('does not navigate when picking an odd on the featured card', async () => {
+    stubOddsEngineFetch(mockMatches, {}, ['match-3']);
     renderPageWithRouting();
 
     await screen.findAllByRole('heading', { name: 'Real Madrid vs Barcelona' });
@@ -135,6 +138,9 @@ describe('OddsBoardPage', () => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === `/backend/public/matches/${TEST_BRAND_ID}`) {
         return new Response(JSON.stringify(mockMatches), { status: 200 });
+      }
+      if (url === `/backend/public/match-of-the-day/${TEST_BRAND_ID}`) {
+        return new Response(JSON.stringify([{ id: 'motd-1', matchId: 'match-3', sortOrder: 0 }]), { status: 200 });
       }
       if (url === '/backend/public/team-colors') {
         return new Response(JSON.stringify([{ name: 'Real Madrid', colorHex: '#FEBE10' }]), {
@@ -172,7 +178,56 @@ describe('OddsBoardPage', () => {
     }
   });
 
-  it('features the next-earliest match with a match-result market, without dropping the earliest one that lacks it', async () => {
+  it('shows no Match of the day section at all when the brand has none configured, rather than auto-picking one', async () => {
+    stubOddsEngineFetch(mockMatches, {}, []);
+    renderPage();
+
+    await screen.findAllByRole('link', { name: 'Arsenal vs Chelsea' });
+    expect(screen.queryByRole('group', { name: 'Match of the day' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /vs/ })).not.toBeInTheDocument();
+  });
+
+  it('features exactly the staff-picked match, even when it is not the earliest kickoff', async () => {
+    // match-2 (Liverpool vs Manchester City) kicks off after match-1
+    // (Arsenal vs Chelsea) and the live match-3 - it only becomes featured
+    // because it was explicitly configured, never because of its kickoff.
+    stubOddsEngineFetch(mockMatches, {}, ['match-2']);
+    renderPage();
+
+    expect(await screen.findAllByRole('heading', { name: 'Liverpool vs Manchester City' })).toHaveLength(2);
+    // Every other match, including the earlier ones, stays in the plain
+    // Upcoming/Live lists rather than also being pulled out as "featured".
+    expect((await screen.findAllByRole('link', { name: 'Arsenal vs Chelsea' }))[0]).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Arsenal vs Chelsea' })).not.toBeInTheDocument();
+  });
+
+  it('cycles through 2 Match of the day picks one at a time when there is no wide-desktop width to show both at once', async () => {
+    stubOddsEngineFetch(mockMatches, {}, ['match-1', 'match-2']);
+    renderPage();
+
+    // No matchMedia stub in this test - useMediaQuery falls back to false
+    // (see its own unit test), same as jsdom always reports outside a real
+    // browser, so this exercises the narrower "cycle one at a time" branch.
+    const scroller = await screen.findByRole('group', { name: 'Match of the day' });
+    expect(within(scroller).getAllByRole('heading', { name: /vs/ })).toHaveLength(2);
+  });
+
+  it('shows 2 Match of the day picks side by side once there is wide-desktop width to spare', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+    );
+    stubOddsEngineFetch(mockMatches, {}, ['match-1', 'match-2']);
+    renderPage();
+
+    // The side-by-side layout isn't a HorizontalScroller (nothing to
+    // scroll between), so both cards' headings are directly on the page.
+    await screen.findAllByRole('heading', { name: 'Arsenal vs Chelsea' });
+    expect(screen.queryByRole('group', { name: 'Match of the day' })).not.toBeInTheDocument();
+    expect(await screen.findAllByRole('heading', { name: 'Liverpool vs Manchester City' })).toHaveLength(2);
+  });
+
+  it('silently drops a Match of the day pick whose match has no match-result market, without erroring or removing it from Upcoming', async () => {
     const noOddsYet = buildMatch({
       id: 'no-odds-yet',
       homeTeam: 'No Odds Home',
@@ -180,33 +235,20 @@ describe('OddsBoardPage', () => {
       kickoff: '2026-07-19T08:00:00Z',
       markets: [{ id: 'anytime-assist', name: 'Anytime Assist', selections: [{ id: 'yes', name: 'Yes', odds: 2.1 }] }],
     });
-    const hasOdds = buildMatch({
-      id: 'has-odds',
-      homeTeam: 'Has Odds Home',
-      awayTeam: 'Has Odds Away',
-      kickoff: '2026-07-19T09:00:00Z',
-      markets: [
-        {
-          id: 'match-result',
-          name: 'Match Result',
-          selections: [
-            { id: 'home', name: 'Home', odds: 1.9 },
-            { id: 'away', name: 'Away', odds: 3.5 },
-          ],
-        },
-      ],
-    });
-    stubOddsEngineFetch([noOddsYet, hasOdds]);
+    stubOddsEngineFetch([noOddsYet], {}, ['no-odds-yet']);
 
     renderPage();
 
-    // The earlier-kickoff match without a match-result market never becomes
-    // "featured" (see FeaturedMatchCard's odds requirement) - it must still
-    // show up in the plain Upcoming list rather than vanishing entirely.
-    // (Duplicated mobile/desktop copies again - see the loading-skeleton test.)
     expect((await screen.findAllByRole('link', { name: 'No Odds Home vs No Odds Away' }))[0]).toBeInTheDocument();
-    // The next match, which does have odds, becomes the featured card.
-    expect(await screen.findAllByRole('heading', { name: 'Has Odds Home vs Has Odds Away' })).toHaveLength(2);
+    expect(screen.queryByRole('group', { name: 'Match of the day' })).not.toBeInTheDocument();
+  });
+
+  it('silently drops a Match of the day pick whose match has since disappeared from the live feed', async () => {
+    stubOddsEngineFetch(mockMatches, {}, ['match-that-no-longer-exists']);
+    renderPage();
+
+    await screen.findAllByRole('link', { name: 'Arsenal vs Chelsea' });
+    expect(screen.queryByRole('group', { name: 'Match of the day' })).not.toBeInTheDocument();
   });
 
   it('caps the Upcoming list at 10 and shows a Load more link to the sport page', async () => {
@@ -329,6 +371,7 @@ describe('OddsBoardPage', () => {
   });
 
   it('omits the Challenges slot entirely when the brand has no active promo cards, rather than showing fabricated placeholder copy', async () => {
+    stubOddsEngineFetch(mockMatches, {}, ['match-3']);
     renderPage();
 
     await screen.findByRole('group', { name: 'Match of the day' });

@@ -31,6 +31,7 @@ import { MarketingSpendModule } from './modules/marketing-spend/marketing-spend.
 import { FreebetModule } from './modules/freebets/freebet.module';
 import { PromoCardModule } from './modules/promo-cards/promo-card.module';
 import { HomepageCarouselModule } from './modules/homepage-carousel/homepage-carousel.module';
+import { MatchOfTheDayModule } from './modules/match-of-the-day/match-of-the-day.module';
 import { WebAuthnModule } from './modules/webauthn/webauthn.module';
 import { PushModule } from './modules/push/push.module';
 
@@ -72,6 +73,7 @@ import { PushModule } from './modules/push/push.module';
     FreebetModule,
     PromoCardModule,
     HomepageCarouselModule,
+    MatchOfTheDayModule,
     WebAuthnModule,
     PushModule,
     AnalyticsModule,

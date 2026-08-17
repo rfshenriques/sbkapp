@@ -248,6 +248,10 @@ enum AuditAction {
   LEADERBOARD_CAMPAIGN_SCOPES_SET
   LEADERBOARD_CAMPAIGN_REWARD_TIERS_SET
   LEADERBOARD_CAMPAIGN_PRIZES_GRANTED
+  MATCH_OF_THE_DAY_ADDED
+  MATCH_OF_THE_DAY_UPDATED
+  MATCH_OF_THE_DAY_REMOVED
+  MATCH_OF_THE_DAY_REORDERED
 }
 
 enum FreebetStatus {
@@ -1761,6 +1765,34 @@ model HomepageCarouselConfig {
 }
 
 /**
+ * Staff-picked "Match of the day" entries (see the backoffice's CMS Match of
+ * the day page) - replaces the old client-side "earliest kickoff with a
+ * match-result market" auto-pick entirely. `matchId` is a plain string, not
+ * a relation - matches/competitions live in the external odds-engine and
+ * are never persisted here (same as Boost.matchId). Scheduling reuses the
+ * same enabled+startAt+endAt shape as BetAndGetCampaign/DepositCampaign
+ * (see isCampaignScheduledActive) - both bounds independently optional.
+ * `sortOrder` is the desired display order when more than one is active at
+ * once (see PublicMatchOfTheDayController - apps/frontend shows up to 2
+ * side by side on wide desktop viewports, cycling through the rest).
+ */
+model MatchOfTheDay {
+  id        String    @id @default(uuid())
+  brandId   String
+  brand     Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  matchId   String
+  sortOrder Int
+  enabled   Boolean   @default(true)
+  startAt   DateTime?
+  endAt     DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([brandId, sortOrder])
+  @@map("match_of_the_day_entries")
+}
+
+/**
  * A snapshot of what was picked at bet time - not a live reference to the
  * odds feed, which has no persistence of its own and can reshuffle/expire.
  */
@@ -1942,6 +1974,7 @@ model Brand {
   leaderboardCampaigns        LeaderboardCampaign[]
   leaderboardEntries          LeaderboardEntry[]
   pushNotifications           PushNotification[]
+  matchOfTheDayEntries        MatchOfTheDay[]
 
   @@map("brands")
 }

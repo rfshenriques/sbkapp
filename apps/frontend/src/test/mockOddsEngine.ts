@@ -16,6 +16,9 @@ export const TEST_BRAND_ID = 'test-brand';
  *   fetches matches from - see backendApi.ts's getMatches/getMatchById)
  * - odds-engine's GET /events/:id/live (the one endpoint still fetched
  *   directly, since live in-play state carries no odds to margin-adjust)
+ * - the backend's public Match of the day list (empty by default - never
+ *   auto-picked, see OddsBoardPage; pass matchOfTheDayMatchIds to feature
+ *   specific matches from the `matches` list, in that order)
  *
  * Also sets useBrandStore's brandId, since useMatches/useMatch are gated
  * on it being present - without this their queries would just stay
@@ -28,6 +31,7 @@ export const TEST_BRAND_ID = 'test-brand';
 export function stubOddsEngineFetch(
   matches: Match[] = mockMatches,
   liveStates: Record<string, LiveMatchState> = {},
+  matchOfTheDayMatchIds: string[] = [],
 ) {
   useBrandStore.setState({ brandId: TEST_BRAND_ID });
 
@@ -64,6 +68,11 @@ export function stubOddsEngineFetch(
 
     if (url === `${BACKEND_BASE_URL}/public/homepage-carousel-config/${TEST_BRAND_ID}`) {
       return new Response(JSON.stringify({ enabled: false, autoScrollSeconds: 6 }), { status: 200 });
+    }
+
+    if (url === `${BACKEND_BASE_URL}/public/match-of-the-day/${TEST_BRAND_ID}`) {
+      const entries = matchOfTheDayMatchIds.map((matchId, index) => ({ id: `motd-${matchId}`, matchId, sortOrder: index }));
+      return new Response(JSON.stringify(entries), { status: 200 });
     }
 
     const liveMatch = new RegExp(`^${ODDS_ENGINE_BASE_URL}/events/([^/]+)/live$`).exec(url);
