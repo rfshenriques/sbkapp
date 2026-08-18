@@ -2,7 +2,7 @@
 
 @theme {
   /* Dark is the default base palette - see the :root[data-theme='light']
-     override below for the light alternative. --color-surface*/--color-border
+     override below for the light alternative. --color-surface, --color-border,
      and --color-text-secondary/--color-text-muted are never brand-configurable;
      --color-background and --color-text-primary are (see the brand-driven
      block below) - these values are only what an unbranded/misconfigured
