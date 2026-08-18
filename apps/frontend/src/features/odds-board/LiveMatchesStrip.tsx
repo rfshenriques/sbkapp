@@ -17,7 +17,8 @@ const EXCLUDED_ROUTES = [/^\/$/, /^\/sports\//, /^\/live$/, /^\/challenges$/];
 
 const MAX_CHIPS = 12;
 
-function LiveMatchChip({ match }: { match: Match }) {
+/** Exported for OddsBoardPage's mobile homepage, which shows this same compact card inline rather than behind a Live/Upcoming tab. */
+export function LiveMatchChip({ match }: { match: Match }) {
   const displayName = useDisplayNames();
   const prefetchMatchDetail = usePrefetchMatchDetail();
   const { data: liveState } = useLiveMatch(match.id, true);

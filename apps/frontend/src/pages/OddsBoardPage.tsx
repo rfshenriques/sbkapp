@@ -1,5 +1,6 @@
 import { useState, type CSSProperties } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { LiveMatchChip } from '../features/odds-board/LiveMatchesStrip';
 import { MatchCard } from '../features/odds-board/MatchCard';
 import { MatchListSkeleton } from '../features/odds-board/MatchListSkeleton';
 import { useMatches } from '../features/odds-board/useMatches';
@@ -239,10 +240,6 @@ export default function OddsBoardPage() {
   const brandId = useBrandStore((state) => state.brandId);
   const displayName = useDisplayNames();
   const [selectedSport, setSelectedSport] = useState<string | undefined>(undefined);
-  // Mobile-only content-type toggle (see the tab-pill row rendered right
-  // below the header) - desktop keeps its own always-visible Live now +
-  // Upcoming stacked sections instead, so this only matters below `sm`.
-  const [mobileTab, setMobileTab] = useState<'live' | 'upcoming'>('upcoming');
   // Upcoming-section-only ("how soon") filter - Live matches are already
   // happening now, so a kickoff time window doesn't apply to them. Defaults
   // to 'all' with its own row collapsed (see hoursMenuOpen) rather than
@@ -277,9 +274,6 @@ export default function OddsBoardPage() {
   const upcomingForSport = effectiveSport
     ? upcomingAll.filter((match) => match.sport === effectiveSport)
     : upcomingAll;
-  // Mobile's unified tab view extends the same sport filter to live matches
-  // too (desktop's separate Live now section stays unfiltered, unchanged).
-  const liveForSport = effectiveSport ? liveMatches.filter((match) => match.sport === effectiveSport) : liveMatches;
 
   // "How soon" window, layered on top of the sport filter - counts are
   // computed against upcomingForSport so switching sport updates them too,
@@ -300,7 +294,6 @@ export default function OddsBoardPage() {
 
   const liveCapped = liveMatches.slice(0, MAX_HOMEPAGE_ITEMS);
   const upcomingCapped = upcomingFiltered.slice(0, MAX_HOMEPAGE_ITEMS);
-  const liveForSportCapped = liveForSport.slice(0, MAX_HOMEPAGE_ITEMS);
 
   // The "Challenges" slot next to Match of the day: staff-managed CMS promo
   // cards (see the backoffice's Promo Cards page) when the brand has any,
@@ -325,36 +318,23 @@ export default function OddsBoardPage() {
 
   return (
     <div>
-      {/* Mobile-only: content-type filter, right below the header and
-          above the carousel - desktop keeps its own always-visible Live
-          now + Upcoming sections further down instead. Only worth showing
-          when there's actually a live match to switch to. */}
+      {/* Mobile-only: live matches shown inline, right below the header and
+          above the carousel, rather than behind a Live/Upcoming tab -
+          sections here are never divided by a live-vs-upcoming filter.
+          Compact cards (see LiveMatchesStrip's own LiveMatchChip), not the
+          full MatchCard desktop's own "Live now" section below uses - a
+          full-size card per live match would dominate the limited mobile
+          viewport above the fold. */}
       {liveMatches.length > 0 && (
-        // The breakpoint utility lives on a plain wrapper, not directly on
-        // the .tab-pill element - .tab-pill is unlayered custom CSS (see
-        // index.css), which always outranks Tailwind's @layer-scoped
-        // `sm:hidden` on the same element regardless of viewport, so
-        // combining them there would never actually hide it on desktop.
-        <div className="sm:hidden">
-          <div className="tab-pill mb-4" role="tablist" aria-label="Match list filter">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mobileTab === 'live'}
-              className={`tab-pill-btn${mobileTab === 'live' ? ' active' : ''}`}
-              onClick={() => setMobileTab('live')}
-            >
-              Live
-            </button>
-            <button
-              type="button"
-              role="tab"
-              aria-selected={mobileTab === 'upcoming'}
-              className={`tab-pill-btn${mobileTab === 'upcoming' ? ' active' : ''}`}
-              onClick={() => setMobileTab('upcoming')}
-            >
-              Upcoming
-            </button>
+        <div className="mb-4 sm:hidden">
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-text-secondary">
+            <LiveIcon width={14} height={14} />
+            Live now
+          </div>
+          <div className="scrollbar-hide flex snap-x gap-2 overflow-x-auto pb-1" role="group" aria-label="Live matches">
+            {liveCapped.map((match) => (
+              <LiveMatchChip key={match.id} match={match} />
+            ))}
           </div>
         </div>
       )}
@@ -527,43 +507,40 @@ export default function OddsBoardPage() {
         </section>
       </div>
 
-      {/* Mobile: sport filters then a single tab-driven matches list, per
-          the requested order (filters, carousel, sport filters, matches). */}
+      {/* Mobile: sport filters then the upcoming matches list - live matches
+          already showed above (see the Live now strip near the top of this
+          page), never behind a tab here. */}
       <div className="sm:hidden">
-        {(sportsPresent.length > 1 || mobileTab === 'upcoming') && (
+        {sportsPresent.length > 1 && (
           <div className="mb-3 flex items-center gap-2">
-            {sportsPresent.length > 1 && (
-              <div
-                className="scrollbar-hide -mx-1 flex flex-1 gap-2 overflow-x-auto px-1 pb-1"
-                role="group"
-                aria-label="Filter by sport"
-                data-horizontal-scroll="true"
-              >
-                {sportsPresent.map((sport) => (
-                  <button
-                    key={sport}
-                    type="button"
-                    className={`tab shrink-0${sport === effectiveSport ? ' active' : ''}`}
-                    aria-pressed={sport === effectiveSport}
-                    onClick={() => setSelectedSport(sport)}
-                  >
-                    <SportIcon sport={sport} size={16} />
-                    {displayName('SPORT', sport)}
-                  </button>
-                ))}
-              </div>
-            )}
-            {mobileTab === 'upcoming' && (
-              <button
-                type="button"
-                className={`icon-toggle shrink-0${hoursMenuOpen ? ' active' : ''}`}
-                aria-expanded={hoursMenuOpen}
-                aria-label="Filter by kickoff time"
-                onClick={() => setHoursMenuOpen((open) => !open)}
-              >
-                <ClockIcon width={16} height={16} />
-              </button>
-            )}
+            <div
+              className="scrollbar-hide -mx-1 flex flex-1 gap-2 overflow-x-auto px-1 pb-1"
+              role="group"
+              aria-label="Filter by sport"
+              data-horizontal-scroll="true"
+            >
+              {sportsPresent.map((sport) => (
+                <button
+                  key={sport}
+                  type="button"
+                  className={`tab shrink-0${sport === effectiveSport ? ' active' : ''}`}
+                  aria-pressed={sport === effectiveSport}
+                  onClick={() => setSelectedSport(sport)}
+                >
+                  <SportIcon sport={sport} size={16} />
+                  {displayName('SPORT', sport)}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              className={`icon-toggle shrink-0${hoursMenuOpen ? ' active' : ''}`}
+              aria-expanded={hoursMenuOpen}
+              aria-label="Filter by kickoff time"
+              onClick={() => setHoursMenuOpen((open) => !open)}
+            >
+              <ClockIcon width={16} height={16} />
+            </button>
           </div>
         )}
 
@@ -571,72 +548,51 @@ export default function OddsBoardPage() {
           <Card className="text-text-secondary">No matches available right now.</Card>
         )}
 
-        {mobileTab === 'live' ? (
-          <>
-            {liveForSportCapped.length > 0 ? (
-              <div className="space-y-3">
-                {liveForSportCapped.map((match, index) => (
-                  <MatchCard key={match.id} match={match} style={staggerDelay(index)} />
-                ))}
-              </div>
-            ) : (
-              liveMatches.length > 0 && <Card className="text-text-secondary">No live matches for this sport right now.</Card>
-            )}
-            {liveMatches.length > MAX_HOMEPAGE_ITEMS && (
-              <Link to="/sports/all" className="btn-ghost mt-3 flex w-full items-center justify-center">
-                Load more
-              </Link>
-            )}
-          </>
-        ) : (
-          <>
-            {hoursMenuOpen && (
-              <div
-                className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
-                role="group"
-                aria-label="Filter by kickoff time"
-                data-horizontal-scroll="true"
+        {hoursMenuOpen && (
+          <div
+            className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
+            role="group"
+            aria-label="Filter by kickoff time"
+            data-horizontal-scroll="true"
+          >
+            {visibleHoursWindows.map((window) => (
+              <button
+                key={window}
+                type="button"
+                className={`tab shrink-0${window === hoursWindow ? ' active' : ''}`}
+                aria-pressed={window === hoursWindow}
+                onClick={() => setHoursWindow(window)}
               >
-                {visibleHoursWindows.map((window) => (
-                  <button
-                    key={window}
-                    type="button"
-                    className={`tab shrink-0${window === hoursWindow ? ' active' : ''}`}
-                    aria-pressed={window === hoursWindow}
-                    onClick={() => setHoursWindow(window)}
-                  >
-                    {HOURS_WINDOW_LABELS[window]}
-                    <span
-                      className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold not-italic tabular-nums ${
-                        window === hoursWindow ? 'bg-black/15' : 'bg-black/20'
-                      }`}
-                    >
-                      {upcomingWindowCounts[window]}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
+                {HOURS_WINDOW_LABELS[window]}
+                <span
+                  className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold not-italic tabular-nums ${
+                    window === hoursWindow ? 'bg-black/15' : 'bg-black/20'
+                  }`}
+                >
+                  {upcomingWindowCounts[window]}
+                </span>
+              </button>
+            ))}
+          </div>
+        )}
 
-            {upcomingForSport.length > 0 && upcomingFiltered.length === 0 && (
-              <Card className="text-text-secondary">No matches kicking off in this window.</Card>
-            )}
-            {upcomingCapped.length > 0 && (
-              <div className="space-y-3">
-                {upcomingCapped.map((match, index) => (
-                  <MatchCard key={match.id} match={match} style={staggerDelay(index)} />
-                ))}
-              </div>
-            )}
-            {upcomingFiltered.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
-              <Link
-                to={`/sports/${encodeURIComponent(effectiveSport)}`}
-                className="btn-ghost mt-3 flex w-full items-center justify-center"
-              >
-                Load more
-              </Link>
-            )}
-          </>
+        {upcomingForSport.length > 0 && upcomingFiltered.length === 0 && (
+          <Card className="text-text-secondary">No matches kicking off in this window.</Card>
+        )}
+        {upcomingCapped.length > 0 && (
+          <div className="space-y-3">
+            {upcomingCapped.map((match, index) => (
+              <MatchCard key={match.id} match={match} style={staggerDelay(index)} />
+            ))}
+          </div>
+        )}
+        {upcomingFiltered.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
+          <Link
+            to={`/sports/${encodeURIComponent(effectiveSport)}`}
+            className="btn-ghost mt-3 flex w-full items-center justify-center"
+          >
+            Load more
+          </Link>
         )}
       </div>
     </div>
