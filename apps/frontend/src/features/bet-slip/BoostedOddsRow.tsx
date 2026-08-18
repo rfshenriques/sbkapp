@@ -58,8 +58,10 @@ export function BoostedOddsRow({
           </p>
         )}
       </div>
-      <div className="flex shrink-0 items-center gap-2">
-        <span className="prev-odds text-sm font-semibold line-through decoration-1">{previousOdds.toFixed(2)}</span>
+      <div className="flex shrink-0 items-center gap-2.5">
+        <span className="prev-odds text-base font-semibold line-through decoration-1">
+          {previousOdds.toFixed(2)}
+        </span>
         <span className="text-text-secondary" aria-hidden="true">
           &rarr;
         </span>
@@ -73,7 +75,7 @@ export function BoostedOddsRow({
                   maxStakeCents !== undefined ? `, max stake ${formatMoney(maxStakeCents)}` : ''
                 }`
           }
-          className={`odd-btn${isSelected ? ' selected' : ''}${suspended ? ' suspended' : ''}`}
+          className={`odd-btn large${isSelected ? ' selected' : ''}${suspended ? ' suspended' : ''}`}
           onClick={() =>
             toggleSelection({
               matchId,

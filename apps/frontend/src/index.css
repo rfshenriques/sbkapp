@@ -216,6 +216,20 @@ body {
 .odd-btn.inline-odds .odd-value {
   font-size: 15px;
 }
+/* A boosted price is the headline of its own row (BoostedOddsRow - the
+   Boosts page and match-detail page's Boosts section), not one odd among
+   three in a market row - the base .odd-btn size read as too small a
+   touch target/figure for that context. Modifier, not a base-size change,
+   since every other .odd-btn usage (market rows, the bet slip's Odds
+   pill) still wants the compact size. */
+.odd-btn.large {
+  min-width: 68px;
+  padding: 8px 14px;
+  border-radius: 14px;
+}
+.odd-btn.large .odd-value {
+  font-size: 19px;
+}
 /* Same solid diagonal-gradient-plus-black-text formula as .tab.active /
    .tab-pill-btn.active - a selected odd is functionally the same kind of
    "active" state, so it reuses that formula instead of its own one-off
