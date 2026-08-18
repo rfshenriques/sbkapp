@@ -1949,21 +1949,29 @@ enum ThemeMode {
 }
 
 /**
+ * Kickoff/match time display - see Brand.timeFormat and apps/frontend's formatKickoff.
+ */
+enum TimeFormat {
+  H12
+  H24
+}
+
+/**
  * One sportsbook brand under the master product. Every player, staff
  * account, bet, audit entry, and market suspension belongs to exactly
  * one brand - see PROJECT_BRIEF.md Section 10 for the brandId retrofit.
  */
 model Brand {
-  id                        String    @id @default(uuid())
+  id                        String     @id @default(uuid())
   name                      String
   /**
    * URL-safe identifier, e.g. for future path-based routing.
    */
-  slug                      String    @unique
+  slug                      String     @unique
   /**
    * The domain that resolves to this brand, once domain routing exists.
    */
-  domain                    String?   @unique
+  domain                    String?    @unique
   /**
    * Resolved public serving paths for the 4 uploadable logo slots (see
    * BrandLogoSlot) - set by BrandsService.setLogo, read back the same way
@@ -1982,7 +1990,7 @@ model Brand {
   /**
    * The deployment's default appearance until a player picks their own (see the account Settings page) - independent of the light/dark color and logo pairs below, which are always both configured regardless of which one is currently active.
    */
-  themeMode                 ThemeMode @default(DARK)
+  themeMode                 ThemeMode  @default(DARK)
   /**
    * ISO 4217 currency code (e.g. "EUR", "USD", "GBP") this brand's players
    * see everywhere money is shown - stakes, payouts, potential payouts,
@@ -1990,7 +1998,12 @@ model Brand {
    * to EUR, matching every deployment's actual currency before this field
    * existed.
    */
-  currencyCode              String    @default("EUR")
+  currencyCode              String     @default("EUR")
+  /**
+   * Whether match/kickoff times display as 12-hour ("6:30 PM") or 24-hour
+   * ("18:30") on the player app - see apps/frontend's formatKickoff.
+   */
+  timeFormat                TimeFormat @default(H24)
   /**
    * Every brand-configurable color zone (background, surface, button/CTA,
    * highlight, filter, text) is one of these JSON columns, each shaped as
@@ -2034,9 +2047,9 @@ model Brand {
    * true; either way the credited amount always lands in the player's cash
    * balance, never back into their freebets balance (see PamService.settleSelection).
    */
-  freebetStakeReturnedOnWin Boolean   @default(true)
-  createdAt                 DateTime  @default(now())
-  updatedAt                 DateTime  @updatedAt
+  freebetStakeReturnedOnWin Boolean    @default(true)
+  createdAt                 DateTime   @default(now())
+  updatedAt                 DateTime   @updatedAt
 
   productFlags                BrandProductFlag[]
   users                       User[]

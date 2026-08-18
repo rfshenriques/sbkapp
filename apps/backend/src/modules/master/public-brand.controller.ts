@@ -14,6 +14,7 @@ const PUBLIC_BRAND_SELECT = {
   shareLogoDarkUrl: true,
   themeMode: true,
   currencyCode: true,
+  timeFormat: true,
   backgroundColor: true,
   surfaceColor: true,
   buttonColor: true,

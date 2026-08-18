@@ -1,3 +1,5 @@
+import { useBrandStore } from '../features/brand/brandStore';
+
 const THREE_DAYS_MS = 3 * 24 * 60 * 60_000;
 
 export function isSameCalendarDay(a: Date, b: Date): boolean {
@@ -16,7 +18,13 @@ export function isSameCalendarDay(a: Date, b: Date): boolean {
  * "19 Jul · 18:30").
  */
 export function formatKickoff(kickoff: Date, now: Date = new Date()): string {
-  const timeStr = kickoff.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  // Explicit hour12, not left to the browser locale's own default (see
+  // Brand.timeFormat) - two visitors on the same brand should see the same
+  // format regardless of their own OS/browser locale, same reasoning as
+  // lib/currency.ts's fixed "amount SYMBOL" convention over Intl's
+  // locale-driven one.
+  const hour12 = useBrandStore.getState().timeFormat === 'H12';
+  const timeStr = kickoff.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12 });
 
   if (isSameCalendarDay(kickoff, now)) {
     return `Today · ${timeStr}`;

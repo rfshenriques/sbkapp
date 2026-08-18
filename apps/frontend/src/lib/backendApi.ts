@@ -184,6 +184,7 @@ export interface PublicBrand {
   shareLogoDarkUrl: string | null;
   themeMode: 'LIGHT' | 'DARK';
   currencyCode: string;
+  timeFormat: 'H12' | 'H24';
   backgroundColor: ColorZone | null;
   surfaceColor: ColorZone | null;
   buttonColor: ColorZone | null;

@@ -100,6 +100,7 @@ export function useBrandTheme() {
         : (brand.shareLogoDarkUrl ?? brand.shareLogoLightUrl);
     useBrandStore.getState().setLogoUrls(logoUrl, shareLogoUrl);
     useBrandStore.getState().setCurrencyCode(brand.currencyCode);
+    useBrandStore.getState().setTimeFormat(brand.timeFormat);
 
     if (brand.name) {
       document.title = brand.name;

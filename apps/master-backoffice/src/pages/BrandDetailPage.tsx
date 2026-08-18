@@ -41,6 +41,7 @@ export default function BrandDetailPage() {
   const [domain, setDomain] = useState('');
   const [themeMode, setThemeMode] = useState<backendApi.ThemeMode>('DARK');
   const [currencyCode, setCurrencyCode] = useState('EUR');
+  const [timeFormat, setTimeFormat] = useState<backendApi.TimeFormat>('H24');
   const [backgroundColor, setBackgroundColor] = useState<ColorZone | null>(null);
   const [surfaceColor, setSurfaceColor] = useState<ColorZone | null>(null);
   const [buttonColor, setButtonColor] = useState<ColorZone | null>(null);
@@ -56,6 +57,7 @@ export default function BrandDetailPage() {
     setDomain(brand.domain ?? '');
     setThemeMode(brand.themeMode);
     setCurrencyCode(brand.currencyCode);
+    setTimeFormat(brand.timeFormat);
     setBackgroundColor(brand.backgroundColor);
     setSurfaceColor(brand.surfaceColor);
     setButtonColor(brand.buttonColor);
@@ -106,6 +108,7 @@ export default function BrandDetailPage() {
       domain: domain || undefined,
       themeMode,
       currencyCode,
+      timeFormat,
       backgroundColor: backgroundColor ?? undefined,
       surfaceColor: surfaceColor ?? undefined,
       buttonColor: buttonColor ?? undefined,
@@ -276,6 +279,23 @@ export default function BrandDetailPage() {
                 </select>
                 <p className="mt-1 text-xs text-text-secondary">
                   Shown on every stake, payout, campaign, and wallet amount a player sees.
+                </p>
+              </div>
+              <div>
+                <label htmlFor="brand-time-format" className="block text-xs text-text-secondary">
+                  Time format
+                </label>
+                <select
+                  id="brand-time-format"
+                  value={timeFormat}
+                  onChange={(event) => setTimeFormat(event.target.value as backendApi.TimeFormat)}
+                  className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-sm"
+                >
+                  <option value="H24">24-hour (18:30)</option>
+                  <option value="H12">12-hour (6:30 PM)</option>
+                </select>
+                <p className="mt-1 text-xs text-text-secondary">
+                  How kickoff and match times display on the player app.
                 </p>
               </div>
               <div>

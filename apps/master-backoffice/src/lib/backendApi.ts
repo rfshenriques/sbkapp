@@ -17,6 +17,9 @@ export type KnownProduct = (typeof KNOWN_PRODUCTS)[number];
 export const THEME_MODES = ['LIGHT', 'DARK'] as const;
 export type ThemeMode = (typeof THEME_MODES)[number];
 
+export const TIME_FORMATS = ['H12', 'H24'] as const;
+export type TimeFormat = (typeof TIME_FORMATS)[number];
+
 /** Common ISO 4217 codes offered in the brand currency picker - any valid 3-letter code is accepted by the backend, this is just a curated shortlist. */
 export const CURRENCY_CODES = ['EUR', 'USD', 'GBP', 'BRL', 'MXN', 'CAD', 'AUD', 'CHF'] as const;
 
@@ -64,6 +67,7 @@ export interface Brand {
   shareLogoDarkUrl: string | null;
   themeMode: ThemeMode;
   currencyCode: string;
+  timeFormat: TimeFormat;
   backgroundColor: ColorZone | null;
   surfaceColor: ColorZone | null;
   buttonColor: ColorZone | null;
@@ -88,6 +92,7 @@ export interface CreateBrandPayload {
   shareLogoDarkUrl?: string;
   themeMode?: ThemeMode;
   currencyCode?: string;
+  timeFormat?: TimeFormat;
   backgroundColor?: ColorZone;
   surfaceColor?: ColorZone;
   buttonColor?: ColorZone;
@@ -106,6 +111,7 @@ export interface UpdateBrandPayload {
   shareLogoDarkUrl?: string;
   themeMode?: ThemeMode;
   currencyCode?: string;
+  timeFormat?: TimeFormat;
   backgroundColor?: ColorZone;
   surfaceColor?: ColorZone;
   buttonColor?: ColorZone;

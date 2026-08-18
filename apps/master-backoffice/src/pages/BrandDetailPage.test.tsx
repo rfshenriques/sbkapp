@@ -20,6 +20,7 @@ const brand: Brand = {
   shareLogoLightUrl: null,
   shareLogoDarkUrl: null,
   themeMode: 'LIGHT',
+  timeFormat: 'H24',
   currencyCode: 'EUR',
   backgroundColor: null,
   surfaceColor: null,
@@ -207,5 +208,34 @@ describe('BrandDetailPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
 
     expect(await screen.findByLabelText('Currency')).toHaveValue('USD');
+  });
+
+  it('changing the time format and saving sends it in the PATCH payload', async () => {
+    const h12Brand: Brand = { ...brand, timeFormat: 'H12' };
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'PATCH' && url === '/backend/master/brands/brand-1') {
+        expect(JSON.parse(init!.body as string)).toEqual(expect.objectContaining({ timeFormat: 'H12' }));
+        return new Response(JSON.stringify(h12Brand), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/master/brands/brand-1') {
+        return new Response(JSON.stringify(brand), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderBrandDetailPage();
+    await screen.findByDisplayValue('Acme Sportsbook');
+
+    expect(screen.getByLabelText('Time format')).toHaveValue('H24');
+
+    await userEvent.selectOptions(screen.getByLabelText('Time format'), 'H12');
+    await userEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+
+    expect(await screen.findByLabelText('Time format')).toHaveValue('H12');
   });
 });

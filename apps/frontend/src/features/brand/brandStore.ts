@@ -18,6 +18,9 @@ interface BrandState {
   /** ISO 4217 code (see Brand.currencyCode) - defaults to EUR until useBrandTheme's fetch resolves, matching every deployment's actual currency before this field existed. Read via lib/currency.ts's formatMoney/formatMoneySmart, both inside and outside React. */
   currencyCode: string;
   setCurrencyCode: (currencyCode: string) => void;
+  /** 12h/24h kickoff-time display (see Brand.timeFormat) - defaults to 24h until useBrandTheme's fetch resolves. Read via lib/formatKickoff.ts. */
+  timeFormat: 'H12' | 'H24';
+  setTimeFormat: (timeFormat: 'H12' | 'H24') => void;
 }
 
 /**
@@ -35,4 +38,6 @@ export const useBrandStore = create<BrandState>((set) => ({
   setLogoUrls: (logoUrl, shareLogoUrl) => set({ logoUrl, shareLogoUrl }),
   currencyCode: 'EUR',
   setCurrencyCode: (currencyCode) => set({ currencyCode }),
+  timeFormat: 'H24',
+  setTimeFormat: (timeFormat) => set({ timeFormat }),
 }));

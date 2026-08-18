@@ -90,6 +90,19 @@ describe('BrandsService', () => {
     expect(updated.currencyCode).toBe('GBP');
   });
 
+  it('defaults a new brand to 24-hour time and lets it be set and later changed', async () => {
+    const created = await brandsService.createBrand(buildCreateBrandDto());
+    createdBrandIds.push(created.id);
+    expect(created.timeFormat).toBe('H24');
+
+    const with12h = await brandsService.createBrand(buildCreateBrandDto({ timeFormat: 'H12' }));
+    createdBrandIds.push(with12h.id);
+    expect(with12h.timeFormat).toBe('H12');
+
+    const updated = await brandsService.updateBrand(with12h.id, { timeFormat: 'H24' });
+    expect(updated.timeFormat).toBe('H24');
+  });
+
   it('rejects creating a brand with an already-used slug', async () => {
     const dto = buildCreateBrandDto();
     const first = await brandsService.createBrand(dto);

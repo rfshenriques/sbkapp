@@ -11,6 +11,7 @@ const publicBrand: PublicBrand = {
   shareLogoDarkUrl: null,
   themeMode: 'DARK',
   currencyCode: 'EUR',
+  timeFormat: 'H24',
   backgroundColor: null,
   surfaceColor: null,
   buttonColor: { light: { type: 'solid', hex: '#E02127' }, dark: { type: 'solid', hex: '#E02127' } },

@@ -1,5 +1,5 @@
 import { IsBoolean, IsEnum, IsOptional, Matches, MinLength } from 'class-validator';
-import { ThemeMode } from '@prisma/client';
+import { ThemeMode, TimeFormat } from '@prisma/client';
 import type { ColorZone } from './brand-color';
 import { IsColorZone } from './is-color-zone';
 import { IsUrlOrOwnLogoPath } from './is-url-or-own-logo-path';
@@ -40,6 +40,10 @@ export class CreateBrandDto {
   @IsOptional()
   @Matches(/^[A-Z]{3}$/, { message: 'Currency code must be a 3-letter ISO 4217 code, e.g. EUR' })
   currencyCode?: string;
+
+  @IsOptional()
+  @IsEnum(TimeFormat)
+  timeFormat?: TimeFormat;
 
   @IsOptional()
   @IsColorZone()
@@ -106,6 +110,10 @@ export class UpdateBrandDto {
   @IsOptional()
   @Matches(/^[A-Z]{3}$/, { message: 'Currency code must be a 3-letter ISO 4217 code, e.g. EUR' })
   currencyCode?: string;
+
+  @IsOptional()
+  @IsEnum(TimeFormat)
+  timeFormat?: TimeFormat;
 
   @IsOptional()
   @IsColorZone()
