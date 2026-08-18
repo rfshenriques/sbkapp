@@ -1,4 +1,5 @@
 import type { Market, Selection } from '@sportsbook/shared';
+import { BoostIcon } from '../../components/ui/BoostIcon';
 import { LockIcon } from '../../components/ui/LockIcon';
 import { track } from '../../lib/analytics';
 import { formatMoney } from '../../lib/currency';
@@ -59,8 +60,17 @@ function SelectionButton({ selection, label, isSelected, isSuspended, variant, o
       }}
     >
       {isBoosted && !isSuspended && (
-        <span className="absolute -top-2 left-1/2 -translate-x-1/2 rounded-full bg-highlight px-1.5 py-px text-[8px] font-extrabold tracking-wide text-black uppercase">
-          Boost
+        // Corner badge, not a centered label pill - centered over the whole
+        // button read as floating/detached from the price on the wider
+        // label-beside-value row layout (variant="inline"), and overlapped
+        // the label text above it on narrow cards. A small icon-only badge
+        // in the corner (same spot the boosted-odds reference mockup used)
+        // stays out of the way of both the label and the price it marks.
+        <span
+          aria-hidden="true"
+          className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-highlight text-black"
+        >
+          <BoostIcon className="h-2.5 w-2.5" />
         </span>
       )}
       <span className="odd-label">{label}</span>

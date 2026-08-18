@@ -309,7 +309,7 @@ describe('MarketSelections', () => {
     expect(homeButton).not.toBeDisabled();
   });
 
-  it('shows the original price struck through next to the boosted price, plus a Boost badge, when originalOdds is set', () => {
+  it('shows the original price struck through next to the boosted price, plus a corner boost badge, when originalOdds is set', () => {
     const boostedMarket: Market = {
       ...matchResult,
       selections: [
@@ -326,11 +326,13 @@ describe('MarketSelections', () => {
       />,
     );
 
-    expect(screen.getByText('Boost')).toBeInTheDocument();
+    const homeButton = screen.getByRole('button', { name: /Home boosted to 2.50, was 2.10/ });
+    expect(homeButton.querySelector('svg')).toBeInTheDocument();
     expect(screen.getByText('2.10')).toBeInTheDocument();
     expect(screen.getByText('2.50')).toBeInTheDocument();
-    // Draw/Away have no originalOdds, so no boost chrome for them.
-    expect(screen.getAllByText('Boost')).toHaveLength(1);
+    // Draw/Away have no originalOdds, so no boost badge for them.
+    const drawButton = screen.getByRole('button', { name: 'Draw3.40' });
+    expect(drawButton.querySelector('svg')).not.toBeInTheDocument();
   });
 
   it('captures the boosted odds and originalOdds when a boosted selection is added to the bet slip', async () => {
