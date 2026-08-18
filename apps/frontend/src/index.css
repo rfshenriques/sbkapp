@@ -93,7 +93,18 @@ body {
   background-image: var(--gradient-background, none);
   color: var(--color-text-primary);
   font-family: var(--font-sans);
-  overflow-x: hidden;
+  /* Deliberately no overflow-x here (unlike html above) - setting one
+     explicitly on body, even to the same "hidden" value html already
+     enforces, makes body itself a CSS scroll container (overflow-x
+     anything but visible promotes overflow-y to auto per spec), which
+     silently breaks position: sticky for every descendant (the sports
+     sidebar, the bet slip panel): sticky resolves against the *nearest*
+     ancestor scroll container, and this one never actually scrolls (body
+     just grows to fit its content, so its own scrollTop stays 0 while the
+     real page scroll happens on <html>) - measured directly, that's a
+     scroll container that can never report the scroll delta sticky needs
+     to react to. html's own overflow-x: hidden already fully covers the
+     "never scroll horizontally" goal at the real, outer scroll level. */
 }
 
 /* Stays scrollable, just never shows a scrollbar track/thumb - so an

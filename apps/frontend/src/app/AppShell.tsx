@@ -220,19 +220,17 @@ export function AppShell() {
   // viewport) while the drawer is open.
   useScrollLock(isNavOpen);
 
-  // <body> - not <html>/window - is the actual scroll container (the
-  // page-wide overflow-x: hidden rule on body promotes its overflow-y to
-  // auto per spec) and it never unmounts between routes, so both its
-  // scroll offsets survive a navigation instead of resetting like a fresh
-  // page load would. Horizontally that shows up as a carousel's snapped
-  // offset leaking into whatever page loads next (see the Featured/Promo
-  // card pair); vertically it shows up as e.g. opening a match from partway
-  // down the homepage landing on the match page already scrolled past its
-  // own sticky header. Nothing in the app ever wants either carried across
-  // a route change, so force both back to 0 on every one.
+  // html - not body (see its overflow-x comment in index.css) - is the
+  // real scroll container, and it never unmounts between routes, so its
+  // scroll position survives a navigation instead of resetting like a
+  // fresh page load would. Horizontally that shows up as a carousel's
+  // snapped offset leaking into whatever page loads next (see the
+  // Featured/Promo card pair); vertically it shows up as e.g. opening a
+  // match from partway down the homepage landing on the match page
+  // already scrolled past its own sticky header. Nothing in the app ever
+  // wants either carried across a route change, so force it back to 0 on
+  // every one.
   useEffect(() => {
-    document.body.scrollLeft = 0;
-    document.body.scrollTop = 0;
     window.scrollTo(0, 0);
   }, [location.pathname]);
 
