@@ -38,7 +38,13 @@ function cssVar(name: string, fallback: string): string {
 
 function hexToRgb(hex: string): [number, number, number] {
   const normalized = hex.replace('#', '');
-  const full = normalized.length === 3 ? normalized.split('').map((c) => c + c).join('') : normalized;
+  const full =
+    normalized.length === 3
+      ? normalized
+          .split('')
+          .map((c) => c + c)
+          .join('')
+      : normalized;
   const int = Number.parseInt(full, 16);
   return [(int >> 16) & 255, (int >> 8) & 255, int & 255];
 }
@@ -61,11 +67,20 @@ function statusColors(category: BetStatusCategory): StatusColors {
     case 'lost':
       return { background: cssVar('--color-price-down', '#ef4444'), text: '#ffffff' };
     case 'void':
-      return { background: rgba(cssVar('--color-highlight', '#f5b301'), 0.2), text: cssVar('--color-highlight', '#f5b301') };
+      return {
+        background: rgba(cssVar('--color-highlight', '#f5b301'), 0.2),
+        text: cssVar('--color-highlight', '#f5b301'),
+      };
     case 'insured':
-      return { background: rgba(cssVar('--color-insured', '#38bdf8'), 0.2), text: cssVar('--color-insured', '#38bdf8') };
+      return {
+        background: rgba(cssVar('--color-insured', '#38bdf8'), 0.2),
+        text: cssVar('--color-insured', '#38bdf8'),
+      };
     default:
-      return { background: cssVar('--color-surface-2', '#181c24'), text: cssVar('--color-text-secondary', '#8b93a3') };
+      return {
+        background: cssVar('--color-surface-2', '#181c24'),
+        text: cssVar('--color-text-secondary', '#8b93a3'),
+      };
   }
 }
 
@@ -235,16 +250,26 @@ export async function renderBetCardImage(bet: PlacedBet): Promise<Blob> {
   // broken-image placeholder when a brand hasn't uploaded one.
   if (logoImage) {
     const logoDrawWidth = (logoDrawHeight / logoImage.height) * logoImage.width;
-    ctx.drawImage(logoImage, contentX + (contentWidth - logoDrawWidth) / 2, y, logoDrawWidth, logoDrawHeight);
+    ctx.drawImage(
+      logoImage,
+      contentX + (contentWidth - logoDrawWidth) / 2,
+      y,
+      logoDrawWidth,
+      logoDrawHeight,
+    );
     y += logoBandHeight;
   }
 
   // Header: bet type + status pill.
-  ctx.font = "800 20px 'Saira Condensed', sans-serif";
+  ctx.font = '800 20px Poppins, sans-serif';
   ctx.fillStyle = colors.textPrimary;
-  ctx.fillText(isAccumulator ? `ACCUMULATOR (${bet.selections.length})` : 'SINGLE', contentX, y + 8);
+  ctx.fillText(
+    isAccumulator ? `ACCUMULATOR (${bet.selections.length})` : 'SINGLE',
+    contentX,
+    y + 8,
+  );
 
-  const statusPillFont = "700 12px Archivo, sans-serif";
+  const statusPillFont = '700 12px Poppins, sans-serif';
   const statusPillWidth = measurePillWidth(ctx, betStatusLabel(bet.status), statusPillFont);
   drawPill(ctx, {
     x: contentX + contentWidth - statusPillWidth,
@@ -256,7 +281,7 @@ export async function renderBetCardImage(bet: PlacedBet): Promise<Blob> {
 
   y += 30;
   if (hasTags) {
-    ctx.font = '600 12px Archivo, sans-serif';
+    ctx.font = '600 12px Poppins, sans-serif';
     let tagX = contentX;
     const tags = [
       isInsured ? 'INSURED' : null,
@@ -267,7 +292,7 @@ export async function renderBetCardImage(bet: PlacedBet): Promise<Blob> {
         x: tagX,
         y,
         text: tag,
-        font: '600 11px Archivo, sans-serif',
+        font: '600 11px Poppins, sans-serif',
         colors: { background: colors.border, text: colors.textSecondary },
         outline: true,
       });
@@ -294,37 +319,52 @@ export async function renderBetCardImage(bet: PlacedBet): Promise<Blob> {
     ctx.arc(contentX + dotRadius, rowTop + 26, dotRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = rowColors.text;
-    ctx.font = '700 11px Archivo, sans-serif';
+    ctx.font = '700 11px Poppins, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    const glyph = selection.status === 'WON' ? '✓' : selection.status === 'LOST' ? '✕' : selection.status === 'VOID' ? '–' : '';
+    const glyph =
+      selection.status === 'WON'
+        ? '✓'
+        : selection.status === 'LOST'
+          ? '✕'
+          : selection.status === 'VOID'
+            ? '–'
+            : '';
     ctx.fillText(glyph, contentX + dotRadius, rowTop + 27);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
 
     const textX = contentX + dotRadius * 2 + 12;
     const oddsText = Number(selection.odds).toFixed(2);
-    ctx.font = '700 11px Archivo, sans-serif';
+    ctx.font = '700 11px Poppins, sans-serif';
     const oddsWidth = ctx.measureText(oddsText).width;
 
-    ctx.font = "700 16px 'Saira Condensed', sans-serif";
+    ctx.font = '700 16px Poppins, sans-serif';
     ctx.fillStyle = colors.textPrimary;
     const nameMaxWidth = contentX + contentWidth - textX - oddsWidth - 16;
-    ctx.fillText(truncateToWidth(ctx, selection.selectionName.toUpperCase(), nameMaxWidth), textX, rowTop + 20);
+    ctx.fillText(
+      truncateToWidth(ctx, selection.selectionName.toUpperCase(), nameMaxWidth),
+      textX,
+      rowTop + 20,
+    );
 
-    ctx.font = '400 13px Archivo, sans-serif';
+    ctx.font = '400 13px Poppins, sans-serif';
     ctx.fillStyle = colors.textSecondary;
     ctx.fillText(truncateToWidth(ctx, selection.marketName, nameMaxWidth), textX, rowTop + 38);
 
-    ctx.font = '600 14px Archivo, sans-serif';
+    ctx.font = '600 14px Poppins, sans-serif';
     ctx.fillStyle = colors.textSecondary;
     ctx.textAlign = 'right';
     ctx.fillText(oddsText, contentX + contentWidth, rowTop + 20);
     ctx.textAlign = 'left';
 
-    ctx.font = '400 12px Archivo, sans-serif';
+    ctx.font = '400 12px Poppins, sans-serif';
     ctx.fillStyle = colors.textMuted;
-    ctx.fillText(truncateToWidth(ctx, selection.matchLabel, contentWidth - dotRadius * 2 - 12), textX, rowTop + 58);
+    ctx.fillText(
+      truncateToWidth(ctx, selection.matchLabel, contentWidth - dotRadius * 2 - 12),
+      textX,
+      rowTop + 58,
+    );
 
     y = rowTop + ROW_HEIGHT;
     ctx.strokeStyle = colors.border;
@@ -337,10 +377,10 @@ export async function renderBetCardImage(bet: PlacedBet): Promise<Blob> {
   y += 20;
 
   function footerRow(label: string, value: string, opts?: { valueColor?: string; bold?: boolean }) {
-    ctx.font = '500 14px Archivo, sans-serif';
+    ctx.font = '500 14px Poppins, sans-serif';
     ctx.fillStyle = colors.textSecondary;
     ctx.fillText(label, contentX, y + 14);
-    ctx.font = opts?.bold ? "700 15px 'Saira Condensed', sans-serif" : '600 14px Archivo, sans-serif';
+    ctx.font = opts?.bold ? '700 15px Poppins, sans-serif' : '600 14px Poppins, sans-serif';
     ctx.fillStyle = opts?.valueColor ?? colors.textPrimary;
     ctx.textAlign = 'right';
     ctx.fillText(value, contentX + contentWidth, y + 14);
@@ -359,13 +399,17 @@ export async function renderBetCardImage(bet: PlacedBet): Promise<Blob> {
   if (isInsuredLoss) {
     footerRow(payoutLabel, `F ${formatMoney(bet.stakeCents)}`, { bold: true });
   } else if (showInsuranceBeforeAfter) {
-    footerRow(payoutLabel, `${formatMoney(uninsuredPayoutCents(bet))} → ${formatMoney(payoutCents)}`, { bold: true });
+    footerRow(
+      payoutLabel,
+      `${formatMoney(uninsuredPayoutCents(bet))} → ${formatMoney(payoutCents)}`,
+      { bold: true },
+    );
   } else {
     footerRow(payoutLabel, formatMoney(payoutCents), { bold: true });
   }
 
   if (bet.accaBoostPercent > 0 && isAccumulator) {
-    ctx.font = '400 11px Archivo, sans-serif';
+    ctx.font = '400 11px Poppins, sans-serif';
     ctx.fillStyle = colors.textMuted;
     ctx.fillText(`(unboosted ${unboostedCombinedOdds(bet).toFixed(2)})`, contentX, y - 20);
   }
@@ -378,12 +422,17 @@ export async function renderBetCardImage(bet: PlacedBet): Promise<Blob> {
   ctx.stroke();
   y += 22;
 
-  ctx.font = '400 11px Archivo, sans-serif';
+  ctx.font = '400 11px Poppins, sans-serif';
   ctx.fillStyle = colors.textMuted;
   ctx.fillText(`Ref ${bet.id.replace(/-/g, '')}`, contentX, y);
   ctx.textAlign = 'right';
   ctx.fillText(
-    new Date(bet.createdAt).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }),
+    new Date(bet.createdAt).toLocaleString(undefined, {
+      day: 'numeric',
+      month: 'short',
+      hour: '2-digit',
+      minute: '2-digit',
+    }),
     contentX + contentWidth,
     y,
   );
@@ -420,7 +469,10 @@ export type ShareBetImageResult = 'shared' | 'downloaded' | 'copied' | 'unsuppor
  * still share it manually from their gallery/downloads when the browser
  * can't share files directly (most desktop browsers).
  */
-export async function shareBetImage(bet: PlacedBet, shareText: string): Promise<ShareBetImageResult> {
+export async function shareBetImage(
+  bet: PlacedBet,
+  shareText: string,
+): Promise<ShareBetImageResult> {
   const blob = await renderBetCardImage(bet);
   const filename = `bet-${bet.id.slice(0, 8)}.png`;
   const file = new File([blob], filename, { type: 'image/png' });

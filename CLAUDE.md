@@ -29,7 +29,7 @@ style. This is a standing instruction, not a one-time task.
 - Shared primitives already exist for the recurring visual patterns: odds
   buttons (`.odd-btn`, `.selected`), primary/ghost CTAs (`.btn-primary`,
   `.btn-ghost`), filter/sort tabs (`.tab`, `.active`), the display font
-  (`.font-display`, Saira Condensed), and the tri-bar section marker
+  (`.font-display`, Poppins), and the tri-bar section marker
   (`.brand-flag`). Extend these rather than inventing parallel ones. Shape
   language is consistently rounded corners throughout, deliberately bigger
   and softer than a typical web app - an iOS-inspired scale rather than the
