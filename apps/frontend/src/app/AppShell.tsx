@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useRef, useState, type TouchEvent } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState, type TouchEvent } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { AppBootScreen } from '../components/ui/AppBootScreen';
 import { BottomSheet } from '../components/ui/BottomSheet';
@@ -108,17 +108,26 @@ export function AppShell() {
   // content would render underneath it. Measured via ResizeObserver rather
   // than a hardcoded height - the header's own content (brand logo vs text,
   // wallet balance pills, auth buttons) can change without warning.
-  const headerRef = useRef<HTMLElement>(null);
+  //
+  // A callback ref (not useRef+a []-effect) is deliberate: this component
+  // returns AppBootScreen instead of the real header on every render before
+  // brandQuery resolves (see the isPending check below), so the header DOM
+  // node doesn't exist yet the first time a plain useEffect(fn, []) would
+  // run - it'd read a null ref forever and never retry once the real header
+  // finally mounts. A callback ref fires exactly when the node is actually
+  // attached, however many renders that takes, so the observer always ends
+  // up watching the real element.
+  const [headerNode, setHeaderNode] = useState<HTMLElement | null>(null);
+  const headerRef = useCallback((node: HTMLElement | null) => setHeaderNode(node), []);
   const [headerHeight, setHeaderHeight] = useState(0);
   useEffect(() => {
-    const header = headerRef.current;
-    if (!header) return;
+    if (!headerNode) return;
     const observer = new ResizeObserver(([entry]) => {
       if (entry) setHeaderHeight(entry.contentRect.height);
     });
-    observer.observe(header);
+    observer.observe(headerNode);
     return () => observer.disconnect();
-  }, []);
+  }, [headerNode]);
 
   // Same measured-not-hardcoded reasoning as headerHeight above, for the
   // fixed bottom nav - the floating bet-slip pill and the mobile drawer
@@ -127,18 +136,20 @@ export function AppShell() {
   // padding or safe-area inset differs from that guess. getBoundingClientRect
   // (not entry.contentRect) is used deliberately - contentRect excludes the
   // nav's own padding, which is exactly where the safe-area-inset-bottom
-  // padding this height needs to account for actually lives.
-  const bottomNavRef = useRef<HTMLElement>(null);
+  // padding this height needs to account for actually lives. Callback ref
+  // for the same late-mount reason as headerNode above - the bottom nav is
+  // behind the same AppBootScreen early return.
+  const [bottomNavNode, setBottomNavNode] = useState<HTMLElement | null>(null);
+  const bottomNavRef = useCallback((node: HTMLElement | null) => setBottomNavNode(node), []);
   const [bottomNavHeight, setBottomNavHeight] = useState(68);
   useEffect(() => {
-    const nav = bottomNavRef.current;
-    if (!nav) return;
+    if (!bottomNavNode) return;
     const observer = new ResizeObserver(([entry]) => {
       if (entry) setBottomNavHeight(entry.target.getBoundingClientRect().height);
     });
-    observer.observe(nav);
+    observer.observe(bottomNavNode);
     return () => observer.disconnect();
-  }, []);
+  }, [bottomNavNode]);
 
   const brandName = brandQuery.data?.name ?? 'Sportsbook';
   const combinedOdds = selections.reduce((total, selection) => total * selection.odds, 1);
