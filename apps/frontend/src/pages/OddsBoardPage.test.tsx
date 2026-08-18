@@ -183,7 +183,7 @@ describe('OddsBoardPage', () => {
     renderPage();
 
     await screen.findAllByRole('link', { name: 'Arsenal vs Chelsea' });
-    expect(screen.queryByRole('group', { name: 'Match of the day' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Featured content' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /vs/ })).not.toBeInTheDocument();
   });
 
@@ -194,37 +194,19 @@ describe('OddsBoardPage', () => {
     stubOddsEngineFetch(mockMatches, {}, ['match-2']);
     renderPage();
 
-    expect(await screen.findAllByRole('heading', { name: 'Liverpool vs Manchester City' })).toHaveLength(2);
+    expect(await screen.findAllByRole('heading', { name: 'Liverpool vs Manchester City' })).toHaveLength(1);
     // Every other match, including the earlier ones, stays in the plain
     // Upcoming/Live lists rather than also being pulled out as "featured".
     expect((await screen.findAllByRole('link', { name: 'Arsenal vs Chelsea' }))[0]).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Arsenal vs Chelsea' })).not.toBeInTheDocument();
   });
 
-  it('cycles through 2 Match of the day picks one at a time when there is no wide-desktop width to show both at once', async () => {
+  it('cycles through multiple Match of the day picks one at a time, in the same shared carousel promo cards also share', async () => {
     stubOddsEngineFetch(mockMatches, {}, ['match-1', 'match-2']);
     renderPage();
 
-    // No matchMedia stub in this test - useMediaQuery falls back to false
-    // (see its own unit test), same as jsdom always reports outside a real
-    // browser, so this exercises the narrower "cycle one at a time" branch.
-    const scroller = await screen.findByRole('group', { name: 'Match of the day' });
+    const scroller = await screen.findByRole('group', { name: 'Featured content' });
     expect(within(scroller).getAllByRole('heading', { name: /vs/ })).toHaveLength(2);
-  });
-
-  it('shows 2 Match of the day picks side by side once there is wide-desktop width to spare', async () => {
-    vi.stubGlobal(
-      'matchMedia',
-      vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
-    );
-    stubOddsEngineFetch(mockMatches, {}, ['match-1', 'match-2']);
-    renderPage();
-
-    // The side-by-side layout isn't a HorizontalScroller (nothing to
-    // scroll between), so both cards' headings are directly on the page.
-    await screen.findAllByRole('heading', { name: 'Arsenal vs Chelsea' });
-    expect(screen.queryByRole('group', { name: 'Match of the day' })).not.toBeInTheDocument();
-    expect(await screen.findAllByRole('heading', { name: 'Liverpool vs Manchester City' })).toHaveLength(2);
   });
 
   it('silently drops a Match of the day pick whose match has no match-result market, without erroring or removing it from Upcoming', async () => {
@@ -240,7 +222,7 @@ describe('OddsBoardPage', () => {
     renderPage();
 
     expect((await screen.findAllByRole('link', { name: 'No Odds Home vs No Odds Away' }))[0]).toBeInTheDocument();
-    expect(screen.queryByRole('group', { name: 'Match of the day' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Featured content' })).not.toBeInTheDocument();
   });
 
   it('silently drops a Match of the day pick whose match has since disappeared from the live feed', async () => {
@@ -248,7 +230,7 @@ describe('OddsBoardPage', () => {
     renderPage();
 
     await screen.findAllByRole('link', { name: 'Arsenal vs Chelsea' });
-    expect(screen.queryByRole('group', { name: 'Match of the day' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Featured content' })).not.toBeInTheDocument();
   });
 
   it('caps the Upcoming list at 10 and grows it in place, without navigating, when Load more is clicked', async () => {
@@ -365,7 +347,7 @@ describe('OddsBoardPage', () => {
     expect(toggles[0]).not.toHaveClass('tab');
   });
 
-  it('renders CMS promo cards in the same Challenges slot next to Match of the day', async () => {
+  it('renders CMS promo cards in the same shared carousel as Match of the day', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === `/backend/public/matches/${TEST_BRAND_ID}`) {
@@ -396,20 +378,23 @@ describe('OddsBoardPage', () => {
 
     renderPage();
 
-    // The "Challenges" aria-label is the desktop right-hand slot next to
-    // Match of the day - it should carry the real card, not a whole new
+    // The "Featured content" carousel is shared by Match of the day and
+    // promo cards alike - it should carry the real card, not a whole new
     // section.
-    const promoSlot = await screen.findByRole('group', { name: 'Challenges' });
-    expect(within(promoSlot).getByText('Champions League Promo')).toBeInTheDocument();
-    expect(within(promoSlot).getByRole('link')).toHaveAttribute('href', '/campaigns/campaign-1');
+    const featuredSlot = await screen.findByRole('group', { name: 'Featured content' });
+    expect(within(featuredSlot).getByText('Champions League Promo')).toBeInTheDocument();
+    expect(within(featuredSlot).getByRole('link', { name: /Champions League Promo/ })).toHaveAttribute(
+      'href',
+      '/campaigns/campaign-1',
+    );
   });
 
-  it('omits the Challenges slot entirely when the brand has no active promo cards, rather than showing fabricated placeholder copy', async () => {
+  it('omits promo cards from the carousel entirely when the brand has none active, rather than showing fabricated placeholder copy', async () => {
     stubOddsEngineFetch(mockMatches, {}, ['match-3']);
     renderPage();
 
-    await screen.findByRole('group', { name: 'Match of the day' });
-    expect(screen.queryByRole('group', { name: 'Challenges' })).not.toBeInTheDocument();
+    const featuredSlot = await screen.findByRole('group', { name: 'Featured content' });
+    expect(within(featuredSlot).getAllByRole('heading', { name: /vs/ })).toHaveLength(1);
     expect(screen.queryByText('Welcome Bonus')).not.toBeInTheDocument();
     expect(screen.queryByText(/bonus bets/i)).not.toBeInTheDocument();
   });
