@@ -194,6 +194,31 @@ describe('PamService', () => {
     expect(wallet.balanceCents).toBe(100_000);
   });
 
+  describe('betSlipSettings', () => {
+    it('defaults to auto-update off and the standard 4 quick stakes', async () => {
+      const userId = await createTestUser();
+      const settings = await pamService.getBetSlipSettings(userId);
+      expect(settings).toEqual({ autoUpdateOdds: false, quickStakeCents: [500, 1000, 2500, 5000] });
+    });
+
+    it('updates and persists auto-update-odds and quick stakes independently', async () => {
+      const userId = await createTestUser();
+
+      const afterFirst = await pamService.updateBetSlipSettings(userId, { autoUpdateOdds: true });
+      expect(afterFirst.autoUpdateOdds).toBe(true);
+      expect(afterFirst.quickStakeCents).toEqual([500, 1000, 2500, 5000]);
+
+      const afterSecond = await pamService.updateBetSlipSettings(userId, {
+        quickStakeCents: [1000, 2000, 5000, 10000],
+      });
+      expect(afterSecond.autoUpdateOdds).toBe(true);
+      expect(afterSecond.quickStakeCents).toEqual([1000, 2000, 5000, 10000]);
+
+      const reread = await pamService.getBetSlipSettings(userId);
+      expect(reread).toEqual({ autoUpdateOdds: true, quickStakeCents: [1000, 2000, 5000, 10000] });
+    });
+  });
+
   it("getFreebets returns the player's own active freebets", async () => {
     const userId = await createTestUser();
     const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });

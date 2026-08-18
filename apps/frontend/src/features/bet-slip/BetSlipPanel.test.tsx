@@ -1173,12 +1173,29 @@ describe('BetSlipPanel', () => {
           if (method === 'GET' && url === '/backend/freebets') {
             return new Response(JSON.stringify([]), { status: 200 });
           }
+          if (method === 'GET' && url === '/backend/bet-slip-settings') {
+            return new Response(JSON.stringify({ autoUpdateOdds: false, quickStakeCents: [500, 1000, 2500, 5000] }), {
+              status: 200,
+            });
+          }
           return new Response(null, { status: 404 });
         }),
       );
     }
 
+    it('shows neither the settings gear nor quick-stake buttons for a logged-out player', () => {
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      expect(screen.queryByRole('button', { name: 'Bet slip settings' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: '5.00 €' })).not.toBeInTheDocument();
+      // The plain stake field itself stays available regardless of login state.
+      expect(screen.getByLabelText('Stake')).toBeInTheDocument();
+    });
+
     it('opens the settings panel from the gear icon and closes it again', async () => {
+      useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+      stubWallet(10000);
       renderPanel();
 
       expect(screen.queryByText('Bet slip settings')).not.toBeInTheDocument();
@@ -1190,7 +1207,9 @@ describe('BetSlipPanel', () => {
       expect(screen.queryByText('Bet slip settings')).not.toBeInTheDocument();
     });
 
-    it('shows the configured quick-stake buttons under the stake field', () => {
+    it('shows the configured quick-stake buttons under the stake field once logged in', () => {
+      useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+      stubWallet(10000);
       useBetSlipStore.setState({ selections: [homeSelection] });
       renderPanel();
 

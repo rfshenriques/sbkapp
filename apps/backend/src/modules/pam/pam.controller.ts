@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { JwtPayload } from '../auth/jwt.strategy';
 import { AcknowledgeCelebrationsDto } from './dto/acknowledge-celebrations.dto';
 import { PlaceBetDto } from './dto/place-bet.dto';
+import { UpdateBetSlipSettingsDto } from './dto/update-bet-slip-settings.dto';
 import { PamService } from './pam.service';
 
 interface AuthenticatedRequest {
@@ -17,6 +18,16 @@ export class PamController {
   @Get('wallet')
   getWallet(@Req() req: AuthenticatedRequest) {
     return this.pamService.getWallet(req.user.sub);
+  }
+
+  @Get('bet-slip-settings')
+  getBetSlipSettings(@Req() req: AuthenticatedRequest) {
+    return this.pamService.getBetSlipSettings(req.user.sub);
+  }
+
+  @Patch('bet-slip-settings')
+  updateBetSlipSettings(@Req() req: AuthenticatedRequest, @Body() dto: UpdateBetSlipSettingsDto) {
+    return this.pamService.updateBetSlipSettings(req.user.sub, dto);
   }
 
   @Post('bets')

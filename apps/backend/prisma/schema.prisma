@@ -42,6 +42,16 @@ model User {
   utmMedium   String?
   utmCampaign String?
 
+  /**
+   * Bet slip preferences (see PamService.getBetSlipSettings/
+   * updateBetSlipSettings) - server-stored per player rather than
+   * localStorage, so they follow the player across devices. Guests never
+   * read or write these (the bet slip falls back to fixed defaults while
+   * logged out). betSlipQuickStakeCents always holds exactly 4 amounts.
+   */
+  betSlipAutoUpdateOdds  Boolean @default(false)
+  betSlipQuickStakeCents Int[]   @default([500, 1000, 2500, 5000])
+
   brandId String
   brand   Brand  @relation(fields: [brandId], references: [id], onDelete: Restrict)
 

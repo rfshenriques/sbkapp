@@ -3,6 +3,7 @@ import { Button } from '../../components/ui/Button';
 import { CloseIcon } from '../../components/ui/CloseIcon';
 import { Switch } from '../../components/ui/Switch';
 import { useBetSlipSettingsStore } from './betSlipSettingsStore';
+import { useBetSlipSettings } from './useBetSlipSettings';
 
 export interface BetSlipSettingsPanelProps {
   onClose: () => void;
@@ -18,9 +19,8 @@ export interface BetSlipSettingsPanelProps {
  */
 export function BetSlipSettingsPanel({ onClose }: BetSlipSettingsPanelProps) {
   const autoUpdateOdds = useBetSlipSettingsStore((state) => state.autoUpdateOdds);
-  const setAutoUpdateOdds = useBetSlipSettingsStore((state) => state.setAutoUpdateOdds);
   const storedQuickStakes = useBetSlipSettingsStore((state) => state.quickStakes);
-  const setQuickStakes = useBetSlipSettingsStore((state) => state.setQuickStakes);
+  const { setAutoUpdateOdds, setQuickStakes } = useBetSlipSettings();
 
   // Raw text, not numbers - a controlled input re-derived from a parsed
   // Number on every keystroke collapses a trailing "." before the next

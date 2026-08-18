@@ -46,6 +46,16 @@ export interface Wallet {
   balanceCents: number;
 }
 
+export interface BetSlipSettings {
+  autoUpdateOdds: boolean;
+  quickStakeCents: number[];
+}
+
+export interface UpdateBetSlipSettingsPayload {
+  autoUpdateOdds?: boolean;
+  quickStakeCents?: number[];
+}
+
 export interface PlaceBetSelection {
   matchId: string;
   marketId: string;
@@ -935,6 +945,21 @@ async function authenticatedFetch(path: string, init: RequestInit = {}): Promise
 export async function getWallet(): Promise<Wallet> {
   const response = await authenticatedFetch('/wallet');
   return parseJsonOrThrow(response, `Failed to load wallet: ${response.status}`);
+}
+
+/** Server-stored bet slip preferences (see useBetSlipSettings) - logged-in players only. */
+export async function getBetSlipSettings(): Promise<BetSlipSettings> {
+  const response = await authenticatedFetch('/bet-slip-settings');
+  return parseJsonOrThrow(response, `Failed to load bet slip settings: ${response.status}`);
+}
+
+export async function updateBetSlipSettings(payload: UpdateBetSlipSettingsPayload): Promise<BetSlipSettings> {
+  const response = await authenticatedFetch('/bet-slip-settings', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to update bet slip settings: ${response.status}`);
 }
 
 export async function placeBet(payload: PlaceBetPayload): Promise<PlacedBet> {

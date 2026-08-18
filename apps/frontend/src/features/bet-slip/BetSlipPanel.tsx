@@ -24,6 +24,7 @@ import { BetHistoryList } from '../bet-history/BetHistoryList';
 import { useBetPlacedModalStore } from './betPlacedModalStore';
 import { BetSlipSettingsPanel } from './BetSlipSettingsPanel';
 import { useBetSlipSettingsStore } from './betSlipSettingsStore';
+import { useBetSlipSettings } from './useBetSlipSettings';
 import { calculateAccaBoost, type AccaBoostConfig } from './accaBoost';
 import { useAccaBoostConfig } from './useAccaBoostConfig';
 import { evaluateAccaRollbackEligibility, type AccaRollbackConfig } from './accaRollback';
@@ -458,7 +459,8 @@ interface SingleBetRowProps {
   insuranceOptIn: boolean;
   /** Mirrors PlaceBetDto.useFreebets - a freebet-funded bet never links to a campaign, so this row's own qualification preview must agree. */
   isFreebetMode: boolean;
-  quickStakes: number[];
+  /** undefined for a logged-out player - quick stakes are a logged-in, server-stored preference (see useBetSlipSettings). */
+  quickStakes?: number[];
   onQuickStake: (amount: number) => void;
 }
 
@@ -578,6 +580,12 @@ export function BetSlipPanel({
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const quickStakes = useBetSlipSettingsStore((state) => state.quickStakes);
   const autoUpdateOdds = useBetSlipSettingsStore((state) => state.autoUpdateOdds);
+  // Syncs the store above with the player's server-stored settings - see
+  // its own doc comment. Custom quick stakes and the settings panel are
+  // logged-in-only (guests never get UI to reach either, below), so this
+  // is purely about keeping the store in sync once logged in, not about
+  // gating access itself.
+  useBetSlipSettings();
   const brandId = useBrandStore((state) => state.brandId);
   const updateSelectionOdds = useBetSlipStore((state) => state.updateSelectionOdds);
   // Set by handlePlaceBet's pre-placement odds re-check (see oddsRecheck.ts)
@@ -1022,7 +1030,7 @@ export function BetSlipPanel({
                 showStake={selections.length > 1}
                 insuranceOptIn={insuranceOptIn}
                 isFreebetMode={isFreebetMode}
-                quickStakes={quickStakes}
+                quickStakes={isAuthenticated ? quickStakes : undefined}
                 onQuickStake={(amount) => handleQuickStake(amount, (value) => setSingleStake(selection, value))}
               />
             ))}
@@ -1105,9 +1113,9 @@ export function BetSlipPanel({
                     : undefined
               }
               invalid={Boolean(accumulatorInvalidReason)}
-              quickStakes={quickStakes}
+              quickStakes={isAuthenticated ? quickStakes : undefined}
               onQuickStake={(amount) => handleQuickStake(amount, setStake)}
-              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenSettings={isAuthenticated ? () => setIsSettingsOpen(true) : undefined}
             />
             <StakeLimitAlert stakeCents={stakeCents} preview={accumulatorStakeLimitPreview} />
             <CampaignQualificationNote preview={accumulatorCampaignPreview} />
@@ -1122,9 +1130,9 @@ export function BetSlipPanel({
               odds={insuranceEffectiveSingleOdds ?? singleSelection.odds}
               hideOdds={!insuranceApplies}
               previousOdds={insuranceApplies ? singleSelection.odds : undefined}
-              quickStakes={quickStakes}
+              quickStakes={isAuthenticated ? quickStakes : undefined}
               onQuickStake={(amount) => handleQuickStake(amount, (value) => setSingleStake(singleSelection, value))}
-              onOpenSettings={() => setIsSettingsOpen(true)}
+              onOpenSettings={isAuthenticated ? () => setIsSettingsOpen(true) : undefined}
             />
             <StakeLimitAlert
               stakeCents={Math.round(Number(getSingleStake(singleSelection)) * 100)}
@@ -1215,8 +1223,11 @@ export function BetSlipPanel({
   // lone single selection. Neither renders when the slip is empty or when
   // 2+ singles each get their own per-row stake field with no single
   // "primary" one to dock onto, so this stays as the fallback entry point
-  // for those cases rather than disappearing.
-  const showTopSettingsButton = !(tab === 'accumulator' && selections.length > 0) && !singleSelection;
+  // for those cases rather than disappearing. Never for a logged-out
+  // player either way - custom quick stakes and auto-update-odds are a
+  // server-stored, logged-in-only preference (see useBetSlipSettings).
+  const showTopSettingsButton =
+    isAuthenticated && !(tab === 'accumulator' && selections.length > 0) && !singleSelection;
 
   return (
     <div className="relative flex h-full min-h-0 flex-col">

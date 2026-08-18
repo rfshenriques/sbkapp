@@ -90,6 +90,30 @@ export class PamService {
     return { balanceCents: user.balanceCents };
   }
 
+  /** Server-stored bet slip preferences (see apps/frontend's useBetSlipSettings) - only ever read/written for a logged-in player, never guests. */
+  async getBetSlipSettings(userId: string): Promise<{ autoUpdateOdds: boolean; quickStakeCents: number[] }> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { betSlipAutoUpdateOdds: true, betSlipQuickStakeCents: true },
+    });
+    return { autoUpdateOdds: user.betSlipAutoUpdateOdds, quickStakeCents: user.betSlipQuickStakeCents };
+  }
+
+  async updateBetSlipSettings(
+    userId: string,
+    fields: { autoUpdateOdds?: boolean; quickStakeCents?: number[] },
+  ): Promise<{ autoUpdateOdds: boolean; quickStakeCents: number[] }> {
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        betSlipAutoUpdateOdds: fields.autoUpdateOdds,
+        betSlipQuickStakeCents: fields.quickStakeCents,
+      },
+      select: { betSlipAutoUpdateOdds: true, betSlipQuickStakeCents: true },
+    });
+    return { autoUpdateOdds: user.betSlipAutoUpdateOdds, quickStakeCents: user.betSlipQuickStakeCents };
+  }
+
   /** The player's own spendable freebets - what the bet slip's Cash/Freebets toggle reads to decide whether to show at all, and what it lets them pick from. */
   async getFreebets(userId: string) {
     const { brandId } = await this.prisma.user.findUniqueOrThrow({
