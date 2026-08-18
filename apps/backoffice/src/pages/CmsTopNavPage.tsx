@@ -21,6 +21,7 @@ const KIND_OPTIONS: { kind: backendApi.TopNavItemKind; label: string }[] = [
   { kind: 'TOMORROW', label: "Tomorrow's matches" },
 ];
 
+/** Empty for TODAY/TOMORROW - the kind label alone ("Today's matches") already says everything, nothing further to target. */
 function targetLabel(item: backendApi.TopNavItem, matches: Match[] | undefined): string {
   if (item.kind === 'SPORT') return item.sport ?? '';
   if (item.kind === 'COMPETITION') return item.competition ?? '';
@@ -28,7 +29,7 @@ function targetLabel(item: backendApi.TopNavItem, matches: Match[] | undefined):
     const match = matches?.find((candidate) => candidate.id === item.matchId);
     return match ? `${match.homeTeam} vs ${match.awayTeam}` : (item.matchId ?? '');
   }
-  return item.kind === 'TODAY' ? "Today's matches" : "Tomorrow's matches";
+  return '';
 }
 
 function TopNavItemRow({
@@ -94,8 +95,13 @@ function TopNavItemRow({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold">{item.label}</span>
           <span className="block truncate text-xs text-text-secondary">
-            {KIND_OPTIONS.find((option) => option.kind === item.kind)?.label} · {targetLabel(item, matches)} ·{' '}
-            {item.enabled ? 'Enabled' : 'Disabled'}
+            {[
+              KIND_OPTIONS.find((option) => option.kind === item.kind)?.label,
+              targetLabel(item, matches),
+              item.enabled ? 'Enabled' : 'Disabled',
+            ]
+              .filter(Boolean)
+              .join(' · ')}
           </span>
         </span>
       </button>
