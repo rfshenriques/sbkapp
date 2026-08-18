@@ -26,6 +26,7 @@ function stubFetch(
   matches: Match[],
   quicklinks: { competition: string; order: number }[] = [],
   rankings: { competition: string; rank: number }[] = [],
+  quicklinkCounts: { boosts?: unknown[]; specials?: Match[]; leaderboardCampaigns?: unknown[]; promoCards?: unknown[] } = {},
 ) {
   const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
     const url = typeof input === 'string' ? input : input.toString();
@@ -37,6 +38,18 @@ function stubFetch(
     }
     if (url.startsWith('/backend/public/competition-rankings/')) {
       return new Response(JSON.stringify(rankings), { status: 200 });
+    }
+    if (url === '/backend/public/boosts/brand-1') {
+      return new Response(JSON.stringify(quicklinkCounts.boosts ?? []), { status: 200 });
+    }
+    if (url === '/backend/public/specials/brand-1') {
+      return new Response(JSON.stringify(quicklinkCounts.specials ?? []), { status: 200 });
+    }
+    if (url === '/backend/public/leaderboard-campaigns/brand-1') {
+      return new Response(JSON.stringify(quicklinkCounts.leaderboardCampaigns ?? []), { status: 200 });
+    }
+    if (url === '/backend/public/promo-cards/brand-1') {
+      return new Response(JSON.stringify(quicklinkCounts.promoCards ?? []), { status: 200 });
     }
     return new Response(null, { status: 404 });
   });
@@ -324,6 +337,39 @@ describe('Sidebar', () => {
 
       expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Select multiple' })).toBeInTheDocument();
+    });
+  });
+
+  describe('quicklink counts', () => {
+    it('shows no count badge on any quicklink when nothing is available', async () => {
+      stubFetch([]);
+      renderSidebar();
+
+      await screen.findByRole('link', { name: /Boosts/ });
+      expect(screen.getByRole('link', { name: 'Boosts' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Specials' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Leaderboards' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Challenges' })).toBeInTheDocument();
+    });
+
+    it('shows a count badge on each quicklink once its endpoint returns items', async () => {
+      stubFetch([], [], [], {
+        boosts: [{ matchId: 'm1' }, { matchId: 'm2' }],
+        specials: [buildMatch({ id: 'special-1' })],
+        leaderboardCampaigns: [{ id: 'lb-1' }, { id: 'lb-2' }, { id: 'lb-3' }],
+        promoCards: [
+          { id: 'card-1', status: 'ACTIVE' },
+          { id: 'card-2', status: 'ACTIVE' },
+          { id: 'card-3', status: 'EARLY_ENDED' },
+        ],
+      });
+      renderSidebar();
+
+      expect(await screen.findByRole('link', { name: /Boosts.*2/ })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Specials.*1/ })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /Leaderboards.*3/ })).toBeInTheDocument();
+      // Only the 2 ACTIVE cards count - the EARLY_ENDED one doesn't.
+      expect(screen.getByRole('link', { name: /Challenges.*2/ })).toBeInTheDocument();
     });
   });
 });

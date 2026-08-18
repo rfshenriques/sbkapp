@@ -1,4 +1,5 @@
 import { Controller, Get, Headers, NotFoundException, Param } from '@nestjs/common';
+import { resolveAudience } from '../audience/audience';
 import { OptionalPlayerAuthService } from '../auth/optional-player-auth.service';
 import { PricedMatchesService } from '../margins/priced-matches.service';
 import { ViewerResolverService } from '../margins/viewer-resolver.service';
@@ -16,9 +17,16 @@ export class LeaderboardPublicController {
     private readonly optionalPlayerAuthService: OptionalPlayerAuthService,
   ) {}
 
+  /** Segment-gated, same as Boosts/Specials/Promo cards - a SEGMENTS-only campaign never appears for a viewer outside it, logged in or not. */
   @Get(':brandId')
-  list(@Param('brandId') brandId: string) {
-    return this.leaderboardCampaignService.listEnabled(brandId);
+  async list(@Param('brandId') brandId: string, @Headers('authorization') authorization?: string) {
+    const [campaigns, viewer] = await Promise.all([
+      this.leaderboardCampaignService.listEnabled(brandId),
+      this.viewerResolverService.resolve(authorization),
+    ]);
+    return campaigns.filter((campaign) =>
+      resolveAudience(campaign.audienceMode, campaign.segments.map((segment) => segment.segmentId), viewer),
+    );
   }
 
   @Get(':brandId/:id')

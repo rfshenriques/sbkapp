@@ -543,7 +543,9 @@ export interface LeaderboardEntry {
 
 /** Every enabled leaderboard campaign for the acting brand. */
 export async function getLeaderboardCampaigns(brandId: string): Promise<LeaderboardCampaign[]> {
-  const response = await fetch(`${BASE_URL}/public/leaderboard-campaigns/${encodeURIComponent(brandId)}`);
+  const response = await fetch(`${BASE_URL}/public/leaderboard-campaigns/${encodeURIComponent(brandId)}`, {
+    headers: optionalAuthHeaders(),
+  });
   if (!response.ok) {
     throw new Error(`Failed to fetch leaderboard campaigns: ${response.status}`);
   }

@@ -9,9 +9,13 @@ import { cn } from '../../lib/cn';
 import { track } from '../../lib/analytics';
 import { useDisplayNames } from '../display-names/useDisplayNames';
 import { useMatches } from '../odds-board/useMatches';
+import { useBoosts } from '../odds-board/useBoosts';
+import { useSpecials } from '../odds-board/useSpecials';
 import { useCompetitionRankings } from '../odds-board/useCompetitionRankings';
 import { useCompetitionQuicklinks } from '../odds-board/useCompetitionQuicklinks';
 import { rankMapFromRankings } from '../odds-board/sortMatches';
+import { useLeaderboardCampaigns } from '../leaderboards/useLeaderboardCampaigns';
+import { usePromoCards } from '../promo-cards/usePromoCards';
 import { buildSportTree, competitionCountryMap, competitionSportMap } from './buildSportTree';
 
 /** Sidebar stays short and scannable - the rest is reachable through the sport/country/competition drill-down below. */
@@ -41,6 +45,18 @@ function MultiSelectIcon(props: { className?: string }) {
   );
 }
 
+/** How many of this quicklink's items are actually available right now - omitted entirely at 0 rather than showing a bare "0" badge on every fresh page load. */
+function QuicklinkCount({ count }: { count: number }) {
+  if (count === 0) {
+    return null;
+  }
+  return (
+    <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-highlight/15 px-1.5 text-[10px] font-bold text-highlight tabular-nums">
+      {count}
+    </span>
+  );
+}
+
 /**
  * Sidebar content only - no drawer chrome or desktop column wrapper, same
  * split as BetSlipPanel. AppShell supplies the persistent desktop aside and
@@ -64,6 +80,21 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
   const { data: matches } = useMatches();
   const { data: rankings } = useCompetitionRankings();
   const { data: quicklinks } = useCompetitionQuicklinks();
+  // Quicklink counts - each endpoint already resolves the viewer from an
+  // optional auth token server-side (see PublicBoostsController/
+  // PublicSpecialsController/PromoCardService.listForViewer/
+  // LeaderboardPublicController.list), so the same query naturally returns
+  // a smaller, player-specific count once logged in (segment-gated, and
+  // for Challenges also redemption-aware) without this component needing
+  // to branch on isAuthenticated itself.
+  const { data: boosts } = useBoosts();
+  const { data: specials } = useSpecials();
+  const { data: leaderboardCampaigns } = useLeaderboardCampaigns();
+  const { data: promoCards } = usePromoCards();
+  const boostsCount = boosts?.length ?? 0;
+  const specialsCount = specials?.length ?? 0;
+  const leaderboardsCount = leaderboardCampaigns?.length ?? 0;
+  const challengesCount = (promoCards ?? []).filter((card) => card.status === 'ACTIVE').length;
   const displayName = useDisplayNames();
   const [query, setQuery] = useState('');
   const trimmedQuery = query.trim().toLowerCase();
@@ -206,6 +237,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
           >
             <BoostIcon width={18} height={18} className="text-highlight" />
             Boosts
+            <QuicklinkCount count={boostsCount} />
           </Link>
           <Link
             to="/specials"
@@ -214,6 +246,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
           >
             <SpecialsIcon width={18} height={18} className="text-highlight" />
             Specials
+            <QuicklinkCount count={specialsCount} />
           </Link>
           <Link
             to="/leaderboards"
@@ -222,6 +255,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
           >
             <TrophyIcon width={18} height={18} className="text-highlight" />
             Leaderboards
+            <QuicklinkCount count={leaderboardsCount} />
           </Link>
           <Link
             to="/challenges"
@@ -230,6 +264,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
           >
             <TrophyIcon width={18} height={18} className="text-highlight" />
             Challenges
+            <QuicklinkCount count={challengesCount} />
           </Link>
         </div>
       )}
