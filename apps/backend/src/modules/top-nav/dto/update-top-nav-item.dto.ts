@@ -32,6 +32,16 @@ export class UpdateTopNavItemDto {
   matchId?: string;
 
   @IsOptional()
+  @IsString()
+  @MinLength(1)
+  betAndGetCampaignId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  leaderboardCampaignId?: string;
+
+  @IsOptional()
   @IsBoolean()
   enabled?: boolean;
 }

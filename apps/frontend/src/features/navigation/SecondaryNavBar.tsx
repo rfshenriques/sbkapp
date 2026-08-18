@@ -20,22 +20,31 @@ import { useTopNavItems } from './useTopNavItems';
  * URLs Sidebar's own competition/sport links produce.
  */
 function hrefForItem(item: TopNavItem, competitionSports: Map<string, string>): string {
-  if (item.kind === 'SPORT') {
-    return `/sports/${encodeURIComponent(item.sport ?? '')}?from=quicklink`;
+  switch (item.kind) {
+    case 'SPORT':
+      return `/sports/${encodeURIComponent(item.sport ?? '')}?from=quicklink`;
+    case 'COMPETITION': {
+      const competition = item.competition ?? '';
+      const sport = competitionSports.get(competition);
+      return sport
+        ? `/sports/${encodeURIComponent(sport)}?competition=${encodeURIComponent(competition)}&from=quicklink`
+        : `/sports/all?competition=${encodeURIComponent(competition)}&from=quicklink`;
+    }
+    case 'MATCH':
+      return `/matches/${encodeURIComponent(item.matchId ?? '')}`;
+    case 'TODAY':
+      return '/sports/all?date=today&from=quicklink';
+    case 'TOMORROW':
+      return '/sports/all?date=tomorrow&from=quicklink';
+    case 'BOOSTS':
+      return '/boosts';
+    case 'SPECIALS':
+      return '/specials';
+    case 'CHALLENGE':
+      return `/campaigns/${encodeURIComponent(item.betAndGetCampaignId ?? '')}`;
+    case 'LEADERBOARD':
+      return `/leaderboards/${encodeURIComponent(item.leaderboardCampaignId ?? '')}`;
   }
-  if (item.kind === 'COMPETITION') {
-    const competition = item.competition ?? '';
-    const sport = competitionSports.get(competition);
-    return sport
-      ? `/sports/${encodeURIComponent(sport)}?competition=${encodeURIComponent(competition)}&from=quicklink`
-      : `/sports/all?competition=${encodeURIComponent(competition)}&from=quicklink`;
-  }
-  if (item.kind === 'MATCH') {
-    return `/matches/${encodeURIComponent(item.matchId ?? '')}`;
-  }
-  return item.kind === 'TODAY'
-    ? '/sports/all?date=today&from=quicklink'
-    : '/sports/all?date=tomorrow&from=quicklink';
 }
 
 /**

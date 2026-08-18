@@ -21,15 +21,30 @@ const KIND_OPTIONS: { kind: backendApi.TopNavItemKind; label: string }[] = [
   { kind: 'MATCH', label: 'Match' },
   { kind: 'TODAY', label: "Today's matches" },
   { kind: 'TOMORROW', label: "Tomorrow's matches" },
+  { kind: 'BOOSTS', label: 'Boosts' },
+  { kind: 'SPECIALS', label: 'Specials' },
+  { kind: 'CHALLENGE', label: 'Challenge' },
+  { kind: 'LEADERBOARD', label: 'Leaderboard' },
 ];
 
-/** Empty for TODAY/TOMORROW - the kind label alone ("Today's matches") already says everything, nothing further to target. */
-function targetLabel(item: backendApi.TopNavItem, matches: Match[] | undefined): string {
+/** Empty for TODAY/TOMORROW/BOOSTS/SPECIALS - the kind label alone already says everything, nothing further to target. */
+function targetLabel(
+  item: backendApi.TopNavItem,
+  matches: Match[] | undefined,
+  campaigns: backendApi.BetAndGetCampaign[],
+  leaderboards: backendApi.LeaderboardCampaign[],
+): string {
   if (item.kind === 'SPORT') return item.sport ?? '';
   if (item.kind === 'COMPETITION') return item.competition ?? '';
   if (item.kind === 'MATCH') {
     const match = matches?.find((candidate) => candidate.id === item.matchId);
     return match ? `${match.homeTeam} vs ${match.awayTeam}` : (item.matchId ?? '');
+  }
+  if (item.kind === 'CHALLENGE') {
+    return campaigns.find((campaign) => campaign.id === item.betAndGetCampaignId)?.name ?? (item.betAndGetCampaignId ?? '');
+  }
+  if (item.kind === 'LEADERBOARD') {
+    return leaderboards.find((leaderboard) => leaderboard.id === item.leaderboardCampaignId)?.name ?? (item.leaderboardCampaignId ?? '');
   }
   return '';
 }
@@ -37,6 +52,8 @@ function targetLabel(item: backendApi.TopNavItem, matches: Match[] | undefined):
 function TopNavItemRow({
   item,
   matches,
+  campaigns,
+  leaderboards,
   isDragged,
   onDragStart,
   onDragOver,
@@ -45,6 +62,8 @@ function TopNavItemRow({
 }: {
   item: backendApi.TopNavItem;
   matches: Match[] | undefined;
+  campaigns: backendApi.BetAndGetCampaign[];
+  leaderboards: backendApi.LeaderboardCampaign[];
   isDragged: boolean;
   onDragStart: () => void;
   onDragOver: (event: DragEvent) => void;
@@ -58,11 +77,10 @@ function TopNavItemRow({
   const [icon, setIcon] = useState<TopNavIconKey>(item.icon);
 
   // A SPORT/COMPETITION/MATCH item always renders its own sport's icon on
-  // the player app (see apps/frontend's SecondaryNavBar) - only
-  // TODAY/TOMORROW (no sport to derive from) actually use this picked
-  // value, so it's hidden below for the other kinds rather than offering a
-  // choice that would silently do nothing.
-  const iconAppliesToKind = item.kind === 'TODAY' || item.kind === 'TOMORROW';
+  // the player app (see apps/frontend's SecondaryNavBar) - every other kind
+  // has no sport to derive from, so this picked value is what actually
+  // renders for those, and only those, kinds.
+  const iconAppliesToKind = item.kind !== 'SPORT' && item.kind !== 'COMPETITION' && item.kind !== 'MATCH';
 
   const saveMutation = useMutation({
     mutationFn: () => backendApi.updateTopNavItem(item.id, { label, enabled, icon }),
@@ -110,7 +128,7 @@ function TopNavItemRow({
           <span className="block truncate text-xs text-text-secondary">
             {[
               KIND_OPTIONS.find((option) => option.kind === item.kind)?.label,
-              targetLabel(item, matches),
+              targetLabel(item, matches, campaigns, leaderboards),
               item.enabled ? 'Enabled' : 'Disabled',
             ]
               .filter(Boolean)
@@ -173,6 +191,8 @@ export default function CmsTopNavPage() {
   const [addKind, setAddKind] = useState<backendApi.TopNavItemKind>('SPORT');
   const [selectedSport, setSelectedSport] = useState('');
   const [selectedCompetition, setSelectedCompetition] = useState('');
+  const [selectedChallenge, setSelectedChallenge] = useState('');
+  const [selectedLeaderboard, setSelectedLeaderboard] = useState('');
   const [addIcon, setAddIcon] = useState<TopNavIconKey>('STAR');
   const [useCustomLabel, setUseCustomLabel] = useState(false);
   const [customLabel, setCustomLabel] = useState('');
@@ -197,6 +217,14 @@ export default function CmsTopNavPage() {
     isPending: matchesPending,
     isError: matchesError,
   } = useQuery({ queryKey: matchesQueryKey, queryFn: oddsEngineApi.fetchMatches });
+  const { data: campaigns } = useQuery({
+    queryKey: ['bet-and-get-campaigns'],
+    queryFn: backendApi.listBetAndGetCampaigns,
+  });
+  const { data: leaderboards } = useQuery({
+    queryKey: ['leaderboard-campaigns'],
+    queryFn: backendApi.listLeaderboardCampaigns,
+  });
 
   const orderedItems = useMemo(
     () => dragOrder ?? [...(items ?? [])].sort((a, b) => a.sortOrder - b.sortOrder),
@@ -214,6 +242,8 @@ export default function CmsTopNavPage() {
   const featuredMatchIds = new Set(orderedItems.filter((item) => item.kind === 'MATCH').map((item) => item.matchId));
   const hasToday = orderedItems.some((item) => item.kind === 'TODAY');
   const hasTomorrow = orderedItems.some((item) => item.kind === 'TOMORROW');
+  const hasBoosts = orderedItems.some((item) => item.kind === 'BOOSTS');
+  const hasSpecials = orderedItems.some((item) => item.kind === 'SPECIALS');
 
   const addMutation = useMutation({
     mutationFn: (payload: backendApi.CreateTopNavItemPayload) => backendApi.addTopNavItem(payload),
@@ -279,6 +309,8 @@ export default function CmsTopNavPage() {
                 key={item.id}
                 item={item}
                 matches={matches}
+                campaigns={campaigns ?? []}
+                leaderboards={leaderboards ?? []}
                 isDragged={draggedId === item.id}
                 onDragStart={() => setDraggedId(item.id)}
                 onDragOver={allowDrop}
@@ -307,7 +339,7 @@ export default function CmsTopNavPage() {
           {/* A SPORT/COMPETITION/MATCH item always shows its own sport's
               icon on the player app - nothing to pick here for those kinds
               (see TopNavItemRow's iconAppliesToKind above). */}
-          {(addKind === 'TODAY' || addKind === 'TOMORROW') && (
+          {addKind !== 'SPORT' && addKind !== 'COMPETITION' && addKind !== 'MATCH' && (
             <div className="mb-3">
               <span className="block text-xs text-text-secondary">Icon</span>
               <div className="mt-1">
@@ -483,6 +515,108 @@ export default function CmsTopNavPage() {
             >
               {hasTomorrow ? 'Already added' : "Add Tomorrow's matches"}
             </Button>
+          )}
+
+          {addKind === 'BOOSTS' && (
+            <Button
+              disabled={hasBoosts || addMutation.isPending}
+              onClick={() => {
+                addMutation.mutate({ kind: 'BOOSTS', label: resolveLabel('Boosts'), icon: addIcon });
+                resetAddForm();
+              }}
+            >
+              {hasBoosts ? 'Already added' : 'Add Boosts'}
+            </Button>
+          )}
+
+          {addKind === 'SPECIALS' && (
+            <Button
+              disabled={hasSpecials || addMutation.isPending}
+              onClick={() => {
+                addMutation.mutate({ kind: 'SPECIALS', label: resolveLabel('Specials'), icon: addIcon });
+                resetAddForm();
+              }}
+            >
+              {hasSpecials ? 'Already added' : 'Add Specials'}
+            </Button>
+          )}
+
+          {addKind === 'CHALLENGE' && (
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <label className="block text-xs text-text-secondary" htmlFor="add-challenge">
+                  Challenge
+                </label>
+                <select
+                  id="add-challenge"
+                  value={selectedChallenge}
+                  onChange={(event) => setSelectedChallenge(event.target.value)}
+                  className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm"
+                >
+                  <option value="">Select a challenge…</option>
+                  {(campaigns ?? []).map((campaign) => (
+                    <option key={campaign.id} value={campaign.id}>
+                      {campaign.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button
+                disabled={!selectedChallenge || addMutation.isPending}
+                onClick={() => {
+                  const campaign = (campaigns ?? []).find((candidate) => candidate.id === selectedChallenge);
+                  addMutation.mutate({
+                    kind: 'CHALLENGE',
+                    label: resolveLabel(campaign?.name ?? 'Challenge'),
+                    betAndGetCampaignId: selectedChallenge,
+                    icon: addIcon,
+                  });
+                  setSelectedChallenge('');
+                  resetAddForm();
+                }}
+              >
+                Add
+              </Button>
+            </div>
+          )}
+
+          {addKind === 'LEADERBOARD' && (
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <label className="block text-xs text-text-secondary" htmlFor="add-leaderboard">
+                  Leaderboard
+                </label>
+                <select
+                  id="add-leaderboard"
+                  value={selectedLeaderboard}
+                  onChange={(event) => setSelectedLeaderboard(event.target.value)}
+                  className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm"
+                >
+                  <option value="">Select a leaderboard…</option>
+                  {(leaderboards ?? []).map((leaderboard) => (
+                    <option key={leaderboard.id} value={leaderboard.id}>
+                      {leaderboard.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button
+                disabled={!selectedLeaderboard || addMutation.isPending}
+                onClick={() => {
+                  const leaderboard = (leaderboards ?? []).find((candidate) => candidate.id === selectedLeaderboard);
+                  addMutation.mutate({
+                    kind: 'LEADERBOARD',
+                    label: resolveLabel(leaderboard?.name ?? 'Leaderboard'),
+                    leaderboardCampaignId: selectedLeaderboard,
+                    icon: addIcon,
+                  });
+                  setSelectedLeaderboard('');
+                  resetAddForm();
+                }}
+              >
+                Add
+              </Button>
+            </div>
           )}
         </Card>
       </div>

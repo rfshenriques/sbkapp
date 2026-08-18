@@ -11,14 +11,22 @@ export interface TopNavItemFields {
   sport?: string | null;
   competition?: string | null;
   matchId?: string | null;
+  betAndGetCampaignId?: string | null;
+  leaderboardCampaignId?: string | null;
   enabled?: boolean;
 }
 
-/** Every kind carries exactly one of sport/competition/matchId - TODAY/TOMORROW carry none. */
-function assertFieldMatchesKind(
-  kind: TopNavItemKind,
-  fields: Pick<TopNavItemFields, 'sport' | 'competition' | 'matchId'>,
-) {
+type KindTargetFields = Pick<
+  TopNavItemFields,
+  'sport' | 'competition' | 'matchId' | 'betAndGetCampaignId' | 'leaderboardCampaignId'
+>;
+
+/**
+ * Every kind carries exactly one target field of its own -
+ * TODAY/TOMORROW/BOOSTS/SPECIALS carry none (fixed destinations, nothing to
+ * pick).
+ */
+function assertFieldMatchesKind(kind: TopNavItemKind, fields: KindTargetFields) {
   if (kind === 'SPORT' && !fields.sport) {
     throw new BadRequestException('sport is required for a SPORT top nav item');
   }
@@ -27,6 +35,12 @@ function assertFieldMatchesKind(
   }
   if (kind === 'MATCH' && !fields.matchId) {
     throw new BadRequestException('matchId is required for a MATCH top nav item');
+  }
+  if (kind === 'CHALLENGE' && !fields.betAndGetCampaignId) {
+    throw new BadRequestException('betAndGetCampaignId is required for a CHALLENGE top nav item');
+  }
+  if (kind === 'LEADERBOARD' && !fields.leaderboardCampaignId) {
+    throw new BadRequestException('leaderboardCampaignId is required for a LEADERBOARD top nav item');
   }
 }
 
@@ -84,6 +98,8 @@ export class TopNavItemService {
         sport: fields.sport ?? null,
         competition: fields.competition ?? null,
         matchId: fields.matchId ?? null,
+        betAndGetCampaignId: fields.betAndGetCampaignId ?? null,
+        leaderboardCampaignId: fields.leaderboardCampaignId ?? null,
         enabled: fields.enabled ?? true,
         sortOrder: (highest?.sortOrder ?? -1) + 1,
       },
@@ -112,6 +128,10 @@ export class TopNavItemService {
       sport: fields.sport !== undefined ? fields.sport : existing.sport,
       competition: fields.competition !== undefined ? fields.competition : existing.competition,
       matchId: fields.matchId !== undefined ? fields.matchId : existing.matchId,
+      betAndGetCampaignId:
+        fields.betAndGetCampaignId !== undefined ? fields.betAndGetCampaignId : existing.betAndGetCampaignId,
+      leaderboardCampaignId:
+        fields.leaderboardCampaignId !== undefined ? fields.leaderboardCampaignId : existing.leaderboardCampaignId,
     });
 
     const entry = await this.prisma.topNavItem.update({

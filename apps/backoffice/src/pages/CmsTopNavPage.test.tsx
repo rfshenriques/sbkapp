@@ -37,6 +37,8 @@ const sportItem: TopNavItem = {
   sport: 'Football',
   competition: null,
   matchId: null,
+  betAndGetCampaignId: null,
+  leaderboardCampaignId: null,
   sortOrder: 0,
   enabled: true,
   createdAt: '2026-08-18T00:00:00Z',
@@ -321,5 +323,166 @@ describe('CmsTopNavPage', () => {
       '/backend/admin/top-nav/item-1',
       expect.objectContaining({ method: 'DELETE' }),
     );
+  });
+
+  it("adds a BOOSTS item with one click, and disables the button once it's already added", async () => {
+    const fetchMock = stubFetch((url, method) => {
+      if (method === 'GET' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'POST' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify({ ...sportItem, kind: 'BOOSTS', label: 'Boosts', sport: null }), {
+          status: 201,
+        });
+      }
+    });
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Boosts' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Add Boosts' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/top-nav',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ kind: 'BOOSTS', label: 'Boosts', icon: 'STAR' }),
+      }),
+    );
+  });
+
+  it("adds a SPECIALS item with one click, and disables the button once it's already added", async () => {
+    const fetchMock = stubFetch((url, method) => {
+      if (method === 'GET' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'POST' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify({ ...sportItem, kind: 'SPECIALS', label: 'Specials', sport: null }), {
+          status: 201,
+        });
+      }
+    });
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Specials' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Add Specials' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/top-nav',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ kind: 'SPECIALS', label: 'Specials', icon: 'STAR' }),
+      }),
+    );
+  });
+
+  it('adds a CHALLENGE item via the challenge dropdown', async () => {
+    const fetchMock = stubFetch((url, method) => {
+      if (method === 'GET' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/bet-and-get-campaigns') {
+        return new Response(JSON.stringify([{ id: 'campaign-1', name: 'Weekend Boost' }]), { status: 200 });
+      }
+      if (method === 'POST' && url === '/backend/admin/top-nav') {
+        return new Response(
+          JSON.stringify({ ...sportItem, kind: 'CHALLENGE', label: 'Weekend Boost', sport: null, betAndGetCampaignId: 'campaign-1' }),
+          { status: 201 },
+        );
+      }
+    });
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Challenge' }));
+    const select = await screen.findByLabelText('Challenge');
+    await userEvent.selectOptions(select, 'Weekend Boost');
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/top-nav',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          kind: 'CHALLENGE',
+          label: 'Weekend Boost',
+          betAndGetCampaignId: 'campaign-1',
+          icon: 'STAR',
+        }),
+      }),
+    );
+  });
+
+  it('adds a LEADERBOARD item via the leaderboard dropdown', async () => {
+    const fetchMock = stubFetch((url, method) => {
+      if (method === 'GET' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/leaderboard-campaigns') {
+        return new Response(JSON.stringify([{ id: 'leaderboard-1', name: 'Top Bettors' }]), { status: 200 });
+      }
+      if (method === 'POST' && url === '/backend/admin/top-nav') {
+        return new Response(
+          JSON.stringify({
+            ...sportItem,
+            kind: 'LEADERBOARD',
+            label: 'Top Bettors',
+            sport: null,
+            leaderboardCampaignId: 'leaderboard-1',
+          }),
+          { status: 201 },
+        );
+      }
+    });
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Leaderboard' }));
+    const select = await screen.findByLabelText('Leaderboard');
+    await userEvent.selectOptions(select, 'Top Bettors');
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/top-nav',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          kind: 'LEADERBOARD',
+          label: 'Top Bettors',
+          leaderboardCampaignId: 'leaderboard-1',
+          icon: 'STAR',
+        }),
+      }),
+    );
+  });
+
+  it('lists an existing CHALLENGE item resolved to its campaign name', async () => {
+    const challengeItem: TopNavItem = {
+      ...sportItem,
+      kind: 'CHALLENGE',
+      label: 'Weekend Boost',
+      sport: null,
+      betAndGetCampaignId: 'campaign-1',
+    };
+    stubFetch((url, method) => {
+      if (method === 'GET' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify([challengeItem]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/bet-and-get-campaigns') {
+        return new Response(JSON.stringify([{ id: 'campaign-1', name: 'Weekend Boost' }]), { status: 200 });
+      }
+    });
+    renderPage();
+
+    expect(await screen.findByText(/Challenge · Weekend Boost · Enabled/)).toBeInTheDocument();
+  });
+
+  it('offers an icon picker while adding a BOOSTS/SPECIALS/CHALLENGE/LEADERBOARD item, unlike SPORT/COMPETITION/MATCH', async () => {
+    stubFetch((url, method) => {
+      if (method === 'GET' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+    });
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Boosts' }));
+    expect(screen.getByText('Icon')).toBeInTheDocument();
   });
 });

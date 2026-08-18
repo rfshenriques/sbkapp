@@ -1295,6 +1295,10 @@ model BetAndGetCampaign {
    */
   promoCards        PromoCard[]
   pushNotifications PushNotification[]
+  /**
+   * CMS-managed top-nav quicklinks (see the backoffice's Top nav page) that link to this campaign - see TopNavItem.betAndGetCampaignId.
+   */
+  topNavItems       TopNavItem[]
 
   @@index([brandId])
   @@map("bet_and_get_campaigns")
@@ -1710,6 +1714,10 @@ model LeaderboardCampaign {
   rewardTiers       LeaderboardRewardTier[]
   promoCards        PromoCard[]
   pushNotifications PushNotification[]
+  /**
+   * CMS-managed top-nav quicklinks (see the backoffice's Top nav page) that link to this leaderboard - see TopNavItem.leaderboardCampaignId.
+   */
+  topNavItems       TopNavItem[]
 
   @@index([brandId])
   @@map("leaderboard_campaigns")
@@ -1864,6 +1872,22 @@ enum TopNavItemKind {
   MATCH
   TODAY
   TOMORROW
+  /**
+   * Links straight to /boosts - a fixed listing page, no target of its own to pick (same shape as TODAY/TOMORROW).
+   */
+  BOOSTS
+  /**
+   * Links straight to /specials - a fixed listing page, no target of its own to pick.
+   */
+  SPECIALS
+  /**
+   * Links to one specific Bet & Get campaign's matches page - see TopNavItem.betAndGetCampaignId.
+   */
+  CHALLENGE
+  /**
+   * Links to one specific leaderboard's detail page - see TopNavItem.leaderboardCampaignId.
+   */
+  LEADERBOARD
 }
 
 /**
@@ -1904,6 +1928,11 @@ enum TopNavIconKey {
  * app's own routing (see apps/frontend's SecondaryNavBar); a stale
  * reference (a competition with no more matches, a kicked-off match)
  * simply stops matching anything and silently renders nothing further.
+ * CHALLENGE/LEADERBOARD are different: unlike sport/competition/matchId
+ * (sourced from the odds-engine, never validated locally), a Bet & Get
+ * campaign and a leaderboard campaign both live in this same database, so
+ * betAndGetCampaignId/leaderboardCampaignId are real FKs, cascade-deleted
+ * along with the campaign they point to rather than left dangling.
  */
 model TopNavItem {
   id          String         @id @default(uuid())
@@ -1927,6 +1956,11 @@ model TopNavItem {
   enabled     Boolean        @default(true)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+
+  betAndGetCampaignId   String?
+  betAndGetCampaign     BetAndGetCampaign?   @relation(fields: [betAndGetCampaignId], references: [id], onDelete: Cascade)
+  leaderboardCampaignId String?
+  leaderboardCampaign   LeaderboardCampaign? @relation(fields: [leaderboardCampaignId], references: [id], onDelete: Cascade)
 
   @@index([brandId, sortOrder])
   @@map("top_nav_items")

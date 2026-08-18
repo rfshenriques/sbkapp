@@ -32,6 +32,18 @@ export class CreateTopNavItemDto {
   @MinLength(1)
   matchId?: string;
 
+  /** Required (and only meaningful) for kind CHALLENGE. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  betAndGetCampaignId?: string;
+
+  /** Required (and only meaningful) for kind LEADERBOARD. */
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  leaderboardCampaignId?: string;
+
   @IsOptional()
   @IsBoolean()
   enabled?: boolean;

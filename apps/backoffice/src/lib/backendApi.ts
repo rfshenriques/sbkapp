@@ -1982,7 +1982,16 @@ export async function reorderMatchOfTheDay(ids: string[]): Promise<MatchOfTheDay
   return parseJsonOrThrow(response, `Failed to reorder Match of the day entries: ${response.status}`);
 }
 
-export type TopNavItemKind = 'SPORT' | 'COMPETITION' | 'MATCH' | 'TODAY' | 'TOMORROW';
+export type TopNavItemKind =
+  | 'SPORT'
+  | 'COMPETITION'
+  | 'MATCH'
+  | 'TODAY'
+  | 'TOMORROW'
+  | 'BOOSTS'
+  | 'SPECIALS'
+  | 'CHALLENGE'
+  | 'LEADERBOARD';
 
 export interface TopNavItem {
   id: string;
@@ -1993,6 +2002,8 @@ export interface TopNavItem {
   sport: string | null;
   competition: string | null;
   matchId: string | null;
+  betAndGetCampaignId: string | null;
+  leaderboardCampaignId: string | null;
   sortOrder: number;
   enabled: boolean;
   createdAt: string;
@@ -2006,6 +2017,8 @@ export interface CreateTopNavItemPayload {
   sport?: string;
   competition?: string;
   matchId?: string;
+  betAndGetCampaignId?: string;
+  leaderboardCampaignId?: string;
   enabled?: boolean;
 }
 
@@ -2016,6 +2029,8 @@ export interface UpdateTopNavItemPayload {
   sport?: string;
   competition?: string;
   matchId?: string;
+  betAndGetCampaignId?: string;
+  leaderboardCampaignId?: string;
   enabled?: boolean;
 }
 

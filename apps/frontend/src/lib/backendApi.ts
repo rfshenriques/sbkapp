@@ -269,9 +269,18 @@ export async function getMatchOfTheDay(brandId: string): Promise<MatchOfTheDayEn
   return (await response.json()) as MatchOfTheDayEntry[];
 }
 
-export type TopNavItemKind = 'SPORT' | 'COMPETITION' | 'MATCH' | 'TODAY' | 'TOMORROW';
+export type TopNavItemKind =
+  | 'SPORT'
+  | 'COMPETITION'
+  | 'MATCH'
+  | 'TODAY'
+  | 'TOMORROW'
+  | 'BOOSTS'
+  | 'SPECIALS'
+  | 'CHALLENGE'
+  | 'LEADERBOARD';
 
-/** A staff-configured entry in the second navbar (see apps/backend's TopNavModule) - exactly one of sport/competition/matchId is set, matching `kind`. Never auto-populated - an empty array means the brand hasn't built one, and apps/frontend shows no second navbar at all. */
+/** A staff-configured entry in the second navbar (see apps/backend's TopNavModule) - exactly one target field is set, matching `kind` (TODAY/TOMORROW/BOOSTS/SPECIALS carry none - fixed destinations). */
 export interface TopNavItem {
   id: string;
   kind: TopNavItemKind;
@@ -280,6 +289,8 @@ export interface TopNavItem {
   sport: string | null;
   competition: string | null;
   matchId: string | null;
+  betAndGetCampaignId: string | null;
+  leaderboardCampaignId: string | null;
   sortOrder: number;
 }
 

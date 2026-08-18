@@ -13,6 +13,8 @@ describe('TopNavItemService', () => {
   let setupPrisma: PrismaService;
   let brandAId: string;
   let brandBId: string;
+  let campaignId: string;
+  let leaderboardId: string;
   let TEST_ACTOR: AuditActor;
   let OTHER_BRAND_ACTOR: AuditActor;
 
@@ -29,9 +31,20 @@ describe('TopNavItemService', () => {
     brandBId = brandB.id;
     TEST_ACTOR = { id: 'staff-test-id', username: 'test_topnav', brandId: brandAId };
     OTHER_BRAND_ACTOR = { id: 'staff-test-id-b', username: 'test_topnav_b', brandId: brandBId };
+
+    const campaign = await setupPrisma.betAndGetCampaign.create({
+      data: { brandId: brandAId, name: `Test Challenge ${unique}` },
+    });
+    campaignId = campaign.id;
+    const leaderboard = await setupPrisma.leaderboardCampaign.create({
+      data: { brandId: brandAId, name: `Test Leaderboard ${unique}`, endAt: new Date(Date.now() + 86400_000) },
+    });
+    leaderboardId = leaderboard.id;
   });
 
   afterAll(async () => {
+    await setupPrisma.leaderboardCampaign.delete({ where: { id: leaderboardId } });
+    await setupPrisma.betAndGetCampaign.delete({ where: { id: campaignId } });
     await setupPrisma.brand.delete({ where: { id: brandAId } });
     await setupPrisma.brand.delete({ where: { id: brandBId } });
     await setupPrisma.$disconnect();
@@ -127,6 +140,46 @@ describe('TopNavItemService', () => {
 
     expect(today.sport).toBeNull();
     expect(tomorrow.sport).toBeNull();
+  });
+
+  it('accepts BOOSTS/SPECIALS entries with no target field', async () => {
+    const boosts = await service.add(brandAId, { kind: 'BOOSTS', label: 'Boosts' }, TEST_ACTOR);
+    const specials = await service.add(brandAId, { kind: 'SPECIALS', label: 'Specials' }, TEST_ACTOR);
+
+    expect(boosts.betAndGetCampaignId).toBeNull();
+    expect(specials.leaderboardCampaignId).toBeNull();
+  });
+
+  it('rejects a CHALLENGE entry with no betAndGetCampaignId', async () => {
+    await expect(service.add(brandAId, { kind: 'CHALLENGE', label: 'Weekend Boost' }, TEST_ACTOR)).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('rejects a LEADERBOARD entry with no leaderboardCampaignId', async () => {
+    await expect(service.add(brandAId, { kind: 'LEADERBOARD', label: 'Top Bettors' }, TEST_ACTOR)).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
+  it('adds a CHALLENGE entry targeting a real campaign', async () => {
+    const entry = await service.add(
+      brandAId,
+      { kind: 'CHALLENGE', label: 'Weekend Boost', betAndGetCampaignId: campaignId },
+      TEST_ACTOR,
+    );
+
+    expect(entry).toMatchObject({ kind: 'CHALLENGE', betAndGetCampaignId: campaignId, leaderboardCampaignId: null });
+  });
+
+  it('adds a LEADERBOARD entry targeting a real leaderboard campaign', async () => {
+    const entry = await service.add(
+      brandAId,
+      { kind: 'LEADERBOARD', label: 'Top Bettors', leaderboardCampaignId: leaderboardId },
+      TEST_ACTOR,
+    );
+
+    expect(entry).toMatchObject({ kind: 'LEADERBOARD', leaderboardCampaignId: leaderboardId, betAndGetCampaignId: null });
   });
 
   it('updates label/enabled/sport fields in place', async () => {
