@@ -56,14 +56,17 @@ ALTER TABLE "brands"
 -- as logoLightUrl/logoDarkUrl above), then enforce NOT NULL.
 ALTER TABLE "brand_logos" ADD COLUMN "slot" "BrandLogoSlot";
 UPDATE "brand_logos" SET "slot" = 'SITE_LIGHT';
+
+-- DropIndex: the old one-row-per-brand constraint must go before the
+-- duplicate-to-SITE_DARK insert below, which deliberately adds a second row
+-- per brandId - otherwise that insert violates the still-active old index.
+DROP INDEX "brand_logos_brandId_key";
+
 INSERT INTO "brand_logos" ("id", "brandId", "slot", "data", "mimeType", "createdAt", "updatedAt")
 SELECT gen_random_uuid(), "brandId", 'SITE_DARK', "data", "mimeType", "createdAt", "updatedAt"
 FROM "brand_logos"
 WHERE "slot" = 'SITE_LIGHT';
 ALTER TABLE "brand_logos" ALTER COLUMN "slot" SET NOT NULL;
-
--- DropIndex
-DROP INDEX "brand_logos_brandId_key";
 
 -- CreateIndex
 CREATE INDEX "brand_logos_brandId_idx" ON "brand_logos"("brandId");
