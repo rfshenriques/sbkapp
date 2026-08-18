@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { CampaignRewardAlert } from '../../components/ui/CampaignRewardAlert';
+import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MoneyBeforeAfter } from '../../components/ui/MoneyBeforeAfter';
 import { GearIcon } from '../../components/ui/NavIcons';
@@ -10,7 +11,7 @@ import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
 import { track } from '../../lib/analytics';
 import { placeBet } from '../../lib/backendApi';
-import { formatMoney } from '../../lib/currency';
+import { activeCurrencySymbol, formatMoney } from '../../lib/currency';
 import { useAuth } from '../auth/useAuth';
 import { useAuthModalStore } from '../auth/authModalStore';
 import { useBrandStore } from '../brand/brandStore';
@@ -135,14 +136,21 @@ function AccaBoostBar({
   const result = calculateAccaBoost(legOdds, config);
 
   if (result.qualifies) {
+    // Stacked (not a single justify-between row) so the boost % and the
+    // next-tier nudge each get the panel's full width - on a narrow bet
+    // slip, forcing them onto one row let the browser wrap the second span
+    // onto its own line anyway, but jagged and right-hugging rather than a
+    // deliberate, readable two-line block. No progress bar here (unlike the
+    // below-threshold state) - it's already full/qualifying, so a static
+    // 100% bar was pure decoration.
     return (
-      <div className="space-y-1.5 rounded-xl border border-highlight/40 bg-highlight/10 p-2.5">
-        <div className="flex items-center justify-between gap-2 text-xs font-semibold">
-          <span className="text-highlight">🚀 Acca Boost +{result.boostPercent}%</span>
-          <span className="text-text-muted">+{config.boostPercentPerLeg}% for 1 more selection</span>
-        </div>
+      <div className="space-y-0.5 rounded-xl border border-highlight/40 bg-highlight/10 p-2">
+        <span className="block text-xs font-bold text-highlight">🚀 Acca Boost +{result.boostPercent}%</span>
+        <span className="block text-[11px] font-medium text-text-muted">
+          +{config.boostPercentPerLeg}% for 1 more selection
+        </span>
         {stakeCents > 0 && (
-          <div className="flex items-center justify-between text-xs">
+          <div className="flex items-center justify-between pt-1 text-xs">
             <span className="text-text-secondary">Potential payout</span>
             <MoneyBeforeAfter
               beforeCents={Math.round(stakeCents * result.baseCombinedOdds)}
@@ -150,9 +158,6 @@ function AccaBoostBar({
             />
           </div>
         )}
-        <div className="h-1.5 overflow-hidden rounded-full bg-surface">
-          <div className="h-full w-full rounded-full bg-highlight" />
-        </div>
       </div>
     );
   }
@@ -160,7 +165,7 @@ function AccaBoostBar({
   const belowMinOdds = legOdds.length > 0 && legOdds.some((odds) => odds < config.minOddsPerLeg);
   if (belowMinOdds) {
     return (
-      <div className="rounded-xl border border-border bg-surface-2 p-2.5 text-xs text-text-muted">
+      <div className="rounded-xl border border-border bg-surface-2 p-2 text-[11px] text-text-muted">
         Every selection needs odds of at least {config.minOddsPerLeg.toFixed(2)} to qualify for Acca
         Boost.
       </div>
@@ -170,8 +175,8 @@ function AccaBoostBar({
   const remaining = Math.max(0, config.minSelections - legOdds.length);
   const progressPercent = Math.min(100, Math.round((legOdds.length / config.minSelections) * 100));
   return (
-    <div className="space-y-1.5 rounded-xl border border-border bg-surface-2 p-2.5">
-      <p className="text-xs font-medium text-text-secondary">
+    <div className="space-y-1.5 rounded-xl border border-border bg-surface-2 p-2">
+      <p className="text-[11px] font-medium text-text-secondary">
         Add {remaining} more selection{remaining === 1 ? '' : 's'} to unlock Acca Boost
       </p>
       <div className="h-1.5 overflow-hidden rounded-full bg-surface">
@@ -189,8 +194,16 @@ function AccaBoostBar({
  * many legs end up losing, which is unknowable until settlement, so this
  * only ever shows whether the bet currently has enough legs to be in the
  * running ("will qualify") or how many more it needs.
+ *
+ * The qualifying state collapses its full explanation behind an expand
+ * toggle, default closed - unlike the not-yet-qualifying nudge (a single
+ * compact line players want to see at a glance), the full reward sentence
+ * is long enough that showing it unconditionally ate a lot of the bet
+ * slip's vertical space on desktop, competing with the actual selections
+ * for room. A player who wants the details taps to reveal them.
  */
 function AccaRollbackBar({ selectionCount, config }: { selectionCount: number; config: AccaRollbackConfig }) {
+  const [expanded, setExpanded] = useState(false);
   if (!config.enabled) {
     return null;
   }
@@ -199,16 +212,29 @@ function AccaRollbackBar({ selectionCount, config }: { selectionCount: number; c
 
   if (qualifies) {
     return (
-      <div className="rounded-xl border border-highlight/40 bg-highlight/10 p-2.5 text-xs font-semibold text-highlight">
-        🛡️ Will qualify for Acca Rollback - get {config.rewardPercent}% back as a freebet if it loses by
-        no more than {config.lossThreshold} selection{config.lossThreshold === 1 ? '' : 's'}
+      <div className="rounded-xl border border-highlight/40 bg-highlight/10 p-2">
+        <button
+          type="button"
+          onClick={() => setExpanded((value) => !value)}
+          aria-expanded={expanded}
+          className="flex w-full items-center justify-between gap-2 text-[11px] font-semibold text-highlight"
+        >
+          <span>🛡️ Acca Rollback qualified</span>
+          <ChevronIcon className={cn('h-3 w-3 shrink-0 transition-transform', expanded && 'rotate-180')} />
+        </button>
+        {expanded && (
+          <p className="pt-1 text-[11px] font-medium text-highlight/90">
+            Will qualify for Acca Rollback - get {config.rewardPercent}% back as a freebet if it loses by
+            no more than {config.lossThreshold} selection{config.lossThreshold === 1 ? '' : 's'}
+          </p>
+        )}
       </div>
     );
   }
 
   const remaining = Math.max(0, config.minSelections - selectionCount);
   return (
-    <div className="rounded-xl border border-border bg-surface-2 p-2.5 text-xs font-medium text-text-secondary">
+    <div className="rounded-xl border border-border bg-surface-2 p-2 text-[11px] font-medium text-text-secondary">
       Add {remaining} more selection{remaining === 1 ? '' : 's'} to qualify for Acca Rollback
     </div>
   );
@@ -286,6 +312,15 @@ interface StakeFieldProps {
   /** Called with a quick-stake button's raw amount (major currency unit) - the caller (BetSlipPanel) owns the cash-balance check and stake-string formatting. */
   onQuickStake?: (amount: number) => void;
   /**
+   * Docks the bet slip settings (gear) button beside this row's quick-stake
+   * buttons - only passed for the one "primary" StakeField in view at a
+   * time (the accumulator's, or a lone single selection's), never per-row
+   * for 2+ singles, so the button never appears more than once. BetSlipPanel
+   * falls back to its own top-of-panel gear button whenever no primary
+   * StakeField is being rendered (empty slip, or 2+ singles).
+   */
+  onOpenSettings?: () => void;
+  /**
    * A single-bet row already shows its own odds up in the header, right
    * next to the remove button - repeating it again next to the stake input
    * read as "the odds, twice" for no reason. The accumulator has no
@@ -319,6 +354,7 @@ function StakeField({
   odds,
   quickStakes,
   onQuickStake,
+  onOpenSettings,
   hideOdds,
   previousOdds,
   invalid,
@@ -330,15 +366,20 @@ function StakeField({
           <label htmlFor={stakeId} className="block text-xs text-text-secondary">
             Stake
           </label>
-          <input
-            id={stakeId}
-            type="number"
-            min="0.01"
-            step="0.01"
-            value={stake}
-            onChange={(event) => onStakeChange(event.target.value)}
-            className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-base sm:text-sm"
-          />
+          <div className="relative mt-1">
+            <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-text-secondary">
+              {activeCurrencySymbol()}
+            </span>
+            <input
+              id={stakeId}
+              type="number"
+              min="0.01"
+              step="0.01"
+              value={stake}
+              onChange={(event) => onStakeChange(event.target.value)}
+              className="w-full rounded-xl border border-border bg-background py-2 pr-3 pl-7 text-base sm:text-sm"
+            />
+          </div>
         </div>
         {!hideOdds && (
           // Always the gold "selected" shape, not just the plain default box -
@@ -366,7 +407,14 @@ function StakeField({
         )}
       </div>
       {quickStakes && onQuickStake && (
-        <div className="mt-1.5 flex flex-wrap gap-1.5">
+        // The settings button is a flex-wrap sibling of the stake buttons
+        // themselves, not a separate row pinned by justify-between - with 4
+        // buttons this row often wraps on a normal bet-slip width, and a
+        // justify-between sibling would float centered against the full
+        // (now 2-row-tall) block instead of sitting next to whichever
+        // button actually ends up last. ml-auto instead pushes it to the
+        // right edge of its own wrapped line, wherever that lands.
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {quickStakes.map((amount, index) => (
             <button
               key={index}
@@ -377,6 +425,16 @@ function StakeField({
               {formatMoney(Math.round(amount * 100))}
             </button>
           ))}
+          {onOpenSettings && (
+            <button
+              type="button"
+              aria-label="Bet slip settings"
+              onClick={onOpenSettings}
+              className="ml-auto shrink-0 rounded-xl p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text-primary"
+            >
+              <GearIcon width={16} height={16} />
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -825,7 +883,7 @@ export function BetSlipPanel({
   // this always passes through unchanged there, same as calculateInsuredPayout would.
   const insurancePricing = calculateInsuredPayout(rawPotentialCents, insuranceOptIn, insuranceBetConfig);
   const potentialPayoutCents = insurancePricing.insuredPayoutCents;
-  const potentialPayout = isStakeValid ? (potentialPayoutCents / 100).toFixed(2) : '—';
+  const potentialPayout = isStakeValid ? formatMoney(Math.round(potentialPayoutCents)) : '—';
   const allSinglesValid =
     selections.length > 0 &&
     selections.every((selection) => {
@@ -837,16 +895,18 @@ export function BetSlipPanel({
   // line under every row as well would just be more noise. Always stake x
   // odds, same as the accumulator's rawPotentialCents.
   const totalSinglesPayout = allSinglesValid
-    ? (
-        selections.reduce((total, selection) => {
-          const stakeCentsForRow = Math.round(Number(getSingleStake(selection)) * 100);
-          const rawCents = stakeCentsForRow * selection.odds;
-          if (isFreebetMode) {
-            return total + rawCents;
-          }
-          return total + calculateInsuredPayout(rawCents, insuranceOptIn, insuranceBetConfig).insuredPayoutCents;
-        }, 0) / 100
-      ).toFixed(2)
+    ? formatMoney(
+        Math.round(
+          selections.reduce((total, selection) => {
+            const stakeCentsForRow = Math.round(Number(getSingleStake(selection)) * 100);
+            const rawCents = stakeCentsForRow * selection.odds;
+            if (isFreebetMode) {
+              return total + rawCents;
+            }
+            return total + calculateInsuredPayout(rawCents, insuranceOptIn, insuranceBetConfig).insuredPayoutCents;
+          }, 0),
+        ),
+      )
     : '—';
   // Uninsured total, for the "previous" side of the before/after display -
   // same shape as totalSinglesPayout's reduce but without the insurance
@@ -1047,6 +1107,7 @@ export function BetSlipPanel({
               invalid={Boolean(accumulatorInvalidReason)}
               quickStakes={quickStakes}
               onQuickStake={(amount) => handleQuickStake(amount, setStake)}
+              onOpenSettings={() => setIsSettingsOpen(true)}
             />
             <StakeLimitAlert stakeCents={stakeCents} preview={accumulatorStakeLimitPreview} />
             <CampaignQualificationNote preview={accumulatorCampaignPreview} />
@@ -1063,6 +1124,7 @@ export function BetSlipPanel({
               previousOdds={insuranceApplies ? singleSelection.odds : undefined}
               quickStakes={quickStakes}
               onQuickStake={(amount) => handleQuickStake(amount, (value) => setSingleStake(singleSelection, value))}
+              onOpenSettings={() => setIsSettingsOpen(true)}
             />
             <StakeLimitAlert
               stakeCents={Math.round(Number(getSingleStake(singleSelection)) * 100)}
@@ -1072,7 +1134,7 @@ export function BetSlipPanel({
           </>
         )}
         {!isFreebetMode && insuranceBetConfig.enabled && selections.length > 0 && !insuranceIneligible && insuranceMinOddsMet && (
-          <div className="rounded-xl border border-border bg-surface-2 p-2.5 text-xs">
+          <div className="rounded-xl border border-border bg-surface-2 p-2 text-[11px]">
             <div className="flex items-center justify-between gap-2">
               <span className="font-display font-bold tracking-wide text-text-secondary uppercase italic">
                 Insure this bet
@@ -1088,7 +1150,7 @@ export function BetSlipPanel({
               )}
             >
               <div className="overflow-hidden">
-                <p className="pt-1.5 text-text-secondary">
+                <p className="pt-1 text-text-secondary">
                   {isCurrentTabValid && currentTabRawPayoutCents > 0 ? (
                     <>
                       If it wins, you'd get {formatMoney(currentTabInsurancePreviewCents)} instead of{' '}
@@ -1148,19 +1210,29 @@ export function BetSlipPanel({
     );
   }
 
+  // The settings button normally docks beside the "primary" StakeField's
+  // quick-stake row instead (see onOpenSettings above) - accumulator, or a
+  // lone single selection. Neither renders when the slip is empty or when
+  // 2+ singles each get their own per-row stake field with no single
+  // "primary" one to dock onto, so this stays as the fallback entry point
+  // for those cases rather than disappearing.
+  const showTopSettingsButton = !(tab === 'accumulator' && selections.length > 0) && !singleSelection;
+
   return (
     <div className="relative flex h-full min-h-0 flex-col">
       {isSettingsOpen && <BetSlipSettingsPanel onClose={() => setIsSettingsOpen(false)} />}
-      <div className="mb-1 flex shrink-0 items-center justify-end">
-        <button
-          type="button"
-          aria-label="Bet slip settings"
-          onClick={() => setIsSettingsOpen(true)}
-          className="rounded-xl p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text-primary"
-        >
-          <GearIcon width={17} height={17} />
-        </button>
-      </div>
+      {showTopSettingsButton && (
+        <div className="mb-1 flex shrink-0 items-center justify-end">
+          <button
+            type="button"
+            aria-label="Bet slip settings"
+            onClick={() => setIsSettingsOpen(true)}
+            className="rounded-xl p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text-primary"
+          >
+            <GearIcon width={17} height={17} />
+          </button>
+        </div>
+      )}
       {isAuthenticated && wallet && (
         <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
           <BalancePills

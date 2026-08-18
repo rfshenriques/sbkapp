@@ -177,9 +177,13 @@ describe('BetSlipPanel', () => {
       // Combined odds shows both the pre-boost and boosted figures, not just the end result.
       expect(screen.getByText('10.50')).toBeInTheDocument();
       expect(screen.getByText('12.08')).toBeInTheDocument();
-      // Default stake 10.00: base potential winnings 105.00, boosted 120.80.
+      // Default stake 10.00: base potential winnings 105.00, boosted 120.80 -
+      // the boosted figure appears twice (the boost bar's own before/after
+      // preview, and the footer's "Potential payout", now both showing the
+      // same currency-formatted value since the footer stopped showing a
+      // bare number).
       expect(screen.getByText('105.00 €')).toBeInTheDocument();
-      expect(screen.getByText('120.80 €')).toBeInTheDocument();
+      expect(screen.getAllByText('120.80 €')).toHaveLength(2);
     });
 
     it('shows a disqualified message when a leg is under the minimum odds, even with enough selections', async () => {
@@ -232,15 +236,24 @@ describe('BetSlipPanel', () => {
       expect(await screen.findByText('Add 1 more selection to qualify for Acca Rollback')).toBeInTheDocument();
     });
 
-    it('shows a qualifying message once the minimum number of selections is reached', async () => {
+    it('shows a compact qualifying summary, expanding to the full reward message on click', async () => {
       useBrandStore.setState({ brandId: 'brand-1' });
       stubAccaRollbackConfig({ minSelections: 3, lossThreshold: 1, rewardPercent: 100, enabled: true });
       useBetSlipStore.setState({ selections: [homeSelection, awaySelection, drawSelection] });
       renderPanel();
 
+      const toggle = await screen.findByRole('button', { name: '🛡️ Acca Rollback qualified' });
       expect(
-        await screen.findByText(
-          '🛡️ Will qualify for Acca Rollback - get 100% back as a freebet if it loses by no more than 1 selection',
+        screen.queryByText(
+          'Will qualify for Acca Rollback - get 100% back as a freebet if it loses by no more than 1 selection',
+        ),
+      ).not.toBeInTheDocument();
+
+      await userEvent.click(toggle);
+
+      expect(
+        screen.getByText(
+          'Will qualify for Acca Rollback - get 100% back as a freebet if it loses by no more than 1 selection',
         ),
       ).toBeInTheDocument();
     });
@@ -282,11 +295,7 @@ describe('BetSlipPanel', () => {
       renderPanel();
 
       expect(await screen.findByText('🚀 Acca Boost +15%')).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          '🛡️ Will qualify for Acca Rollback - get 100% back as a freebet if it loses by no more than 1 selection',
-        ),
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '🛡️ Acca Rollback qualified' })).toBeInTheDocument();
 
       const toggle = await screen.findByRole('switch', { name: /Insure this bet/ });
       await userEvent.click(toggle);
@@ -450,7 +459,7 @@ describe('BetSlipPanel', () => {
       const toggle = await screen.findByRole('switch', { name: /Insure this bet/ });
       expect(toggle).not.toBeChecked();
       // Stake 10.00 * odds 2.1 = 21.00 uninsured.
-      expect(screen.getByText('21.00')).toBeInTheDocument();
+      expect(screen.getByText('21.00 €')).toBeInTheDocument();
 
       await userEvent.click(toggle);
 
@@ -487,7 +496,7 @@ describe('BetSlipPanel', () => {
       useBetSlipStore.setState({ selections: [homeSelection] });
       renderPanel();
 
-      await screen.findByText('21.00');
+      await screen.findByText('21.00 €');
       expect(screen.queryByText(/Insure this bet/)).not.toBeInTheDocument();
     });
 
@@ -742,7 +751,7 @@ describe('BetSlipPanel', () => {
       expect(screen.getByText('Potential payout')).toBeInTheDocument();
       expect(screen.queryByText('Potential winnings')).not.toBeInTheDocument();
       // stake 3 x odds 2.1 = 6.30 - the full payout, not the 3.30 net-winnings figure.
-      expect(screen.getByText('6.30')).toBeInTheDocument();
+      expect(screen.getByText('6.30 €')).toBeInTheDocument();
     });
 
     it('placing a freebet-funded bet sends useFreebets and whatever stake the player typed, not the grant’s own amount', async () => {
