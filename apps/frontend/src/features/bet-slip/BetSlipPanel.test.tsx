@@ -1252,4 +1252,157 @@ describe('BetSlipPanel', () => {
       expect(useInsufficientFundsModalStore.getState().isOpen).toBe(false);
     });
   });
+
+  describe('pre-placement odds re-check', () => {
+    function matchFixture(homeOdds: number, awayOdds: number = 2.5) {
+      return {
+        id: 'match-1',
+        sport: 'Football',
+        country: 'England',
+        competition: 'Premier League',
+        homeTeam: 'Arsenal',
+        awayTeam: 'Chelsea',
+        kickoff: '2026-08-19T18:00:00Z',
+        isLive: false,
+        markets: [
+          {
+            id: 'match-result',
+            name: 'Match Result',
+            selections: [
+              { id: 'home', name: 'Home', odds: homeOdds },
+              { id: 'away', name: 'Away', odds: awayOdds },
+              { id: 'draw', name: 'Draw', odds: 3.0 },
+            ],
+          },
+        ],
+      };
+    }
+
+    function stubPlacement({
+      currentHomeOdds,
+      onBetPlaced,
+    }: {
+      currentHomeOdds: number;
+      onBetPlaced?: (body: { selections: { odds: number }[] }) => void;
+    }) {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          const method = init?.method ?? 'GET';
+          if (method === 'GET' && url === '/backend/freebets') {
+            return new Response(JSON.stringify([]), { status: 200 });
+          }
+          if (method === 'GET' && url === '/backend/public/matches/brand-1/match-1') {
+            return new Response(JSON.stringify(matchFixture(currentHomeOdds)), { status: 200 });
+          }
+          if (method === 'POST' && url === '/backend/bets') {
+            const body = JSON.parse(init!.body as string);
+            onBetPlaced?.(body);
+            return new Response(
+              JSON.stringify({
+                id: 'bet-1',
+                stakeCents: body.stakeCents,
+                combinedOdds: String(body.selections[0].odds),
+                potentialPayoutCents: Math.round(body.stakeCents * body.selections[0].odds),
+                status: 'PENDING',
+                createdAt: '2026-07-17T00:00:00Z',
+              }),
+              { status: 201 },
+            );
+          }
+          return new Response(null, { status: 404 });
+        }),
+      );
+    }
+
+    beforeEach(() => {
+      useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+      useBrandStore.setState({ brandId: 'brand-1' });
+      useBetSlipSettingsStore.setState({ autoUpdateOdds: false, quickStakes: [5, 10, 25, 50] });
+    });
+
+    it('places the bet straight away when the live price matches what is shown', async () => {
+      const onBetPlaced = vi.fn();
+      stubPlacement({ currentHomeOdds: 2.1, onBetPlaced });
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Place Bet' }));
+
+      await waitFor(() => expect(onBetPlaced).toHaveBeenCalled());
+      expect(onBetPlaced.mock.calls[0]![0].selections[0].odds).toBe(2.1);
+      expect(screen.queryByText(/odds have changed/)).not.toBeInTheDocument();
+    });
+
+    it('blocks placement and shows an alert with the updated price when auto-update-odds is off', async () => {
+      const onBetPlaced = vi.fn();
+      stubPlacement({ currentHomeOdds: 1.8, onBetPlaced });
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Place Bet' }));
+
+      expect(await screen.findByText(/odds have changed/)).toBeInTheDocument();
+      expect(onBetPlaced).not.toHaveBeenCalled();
+      // The slip now shows the real current price, not the stale one that was clicked.
+      expect(useBetSlipStore.getState().selections[0]!.odds).toBe(1.8);
+
+      // Trying again now succeeds - the displayed price is the real one.
+      await userEvent.click(screen.getByRole('button', { name: 'Place Bet' }));
+      await waitFor(() => expect(onBetPlaced).toHaveBeenCalled());
+      expect(onBetPlaced.mock.calls[0]![0].selections[0].odds).toBe(1.8);
+    });
+
+    it('auto-places at the new price when auto-update-odds is on, with no alert', async () => {
+      useBetSlipSettingsStore.setState({ autoUpdateOdds: true });
+      const onBetPlaced = vi.fn();
+      stubPlacement({ currentHomeOdds: 2.4, onBetPlaced });
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Place Bet' }));
+
+      await waitFor(() => expect(onBetPlaced).toHaveBeenCalled());
+      expect(onBetPlaced.mock.calls[0]![0].selections[0].odds).toBe(2.4);
+      expect(screen.queryByText(/odds have changed/)).not.toBeInTheDocument();
+    });
+
+    it('re-checks every selection in an accumulator and blocks placement if any one price moved', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          const method = init?.method ?? 'GET';
+          if (method === 'GET' && url === '/backend/freebets') {
+            return new Response(JSON.stringify([]), { status: 200 });
+          }
+          if (method === 'GET' && url === '/backend/public/matches/brand-1/match-1') {
+            return new Response(JSON.stringify(matchFixture(2.1)), { status: 200 });
+          }
+          if (method === 'GET' && url === '/backend/public/matches/brand-1/match-2') {
+            // Away side of match-2 moved from 2.5 to 2.9.
+            return new Response(JSON.stringify(matchFixture(1.5, 2.9)), { status: 200 });
+          }
+          if (method === 'GET' && url === '/backend/public/acca-boost-config/brand-1') {
+            return new Response(
+              JSON.stringify({ boostPercentPerLeg: 0, minSelections: 99, minOddsPerLeg: 1, enabled: false }),
+              { status: 200 },
+            );
+          }
+          if (method === 'POST' && url === '/backend/bets') {
+            return new Response(null, { status: 500 });
+          }
+          return new Response(null, { status: 404 });
+        }),
+      );
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+      renderPanel();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Place Bet' }));
+
+      expect(await screen.findByText(/odds have changed/)).toBeInTheDocument();
+      expect(useBetSlipStore.getState().selections[1]!.odds).toBe(2.9);
+    });
+  });
 });

@@ -39,6 +39,8 @@ interface BetSlipState {
   setStake: (value: string) => void;
   singleStakes: Record<string, string>;
   setSingleStake: (selection: BetSlipSelection, value: string) => void;
+  /** Applies a price the pre-placement odds re-check (see oddsRecheck.ts) found had moved - the slip always shows the price that will actually be bet at, whether that update was auto-accepted or the player is being asked to review it. */
+  updateSelectionOdds: (matchId: string, marketId: string, odds: number) => void;
 }
 
 export const useBetSlipStore = create<BetSlipState>((set, get) => ({
@@ -81,6 +83,13 @@ export const useBetSlipStore = create<BetSlipState>((set, get) => ({
   setStake: (value) => set({ stake: value }),
   setSingleStake: (selection, value) =>
     set((state) => ({ singleStakes: { ...state.singleStakes, [selectionKey(selection)]: value } })),
+
+  updateSelectionOdds: (matchId, marketId, odds) =>
+    set((state) => ({
+      selections: state.selections.map((existing) =>
+        existing.matchId === matchId && existing.marketId === marketId ? { ...existing, odds } : existing,
+      ),
+    })),
 }));
 
 /** Falls back to DEFAULT_STAKE for a selection that hasn't had its own stake typed yet. */

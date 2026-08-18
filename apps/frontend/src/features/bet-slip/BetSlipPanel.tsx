@@ -13,6 +13,7 @@ import { placeBet } from '../../lib/backendApi';
 import { formatMoney } from '../../lib/currency';
 import { useAuth } from '../auth/useAuth';
 import { useAuthModalStore } from '../auth/authModalStore';
+import { useBrandStore } from '../brand/brandStore';
 import { useWallet, walletQueryKey } from '../wallet/useWallet';
 import { freebetsQueryKey, sumFreebetsCents, useFreebets } from '../wallet/useFreebets';
 import { BalancePills } from '../wallet/BalancePills';
@@ -31,6 +32,7 @@ import { useInsuranceBetConfig } from './useInsuranceBetConfig';
 import { useStakeLimitPreview } from './useStakeLimitPreview';
 import { useCampaignPreview } from './useCampaignPreview';
 import { hasInsuranceIneligibleSelection, hasSameEventSelections, invalidAccumulatorReason } from './accumulatorValidity';
+import { findOddsChanges } from './oddsRecheck';
 import {
   getSingleStake as getSingleStakeFromStore,
   selectionKey,
@@ -517,6 +519,14 @@ export function BetSlipPanel({
   const [insuranceOptIn, setInsuranceOptIn] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const quickStakes = useBetSlipSettingsStore((state) => state.quickStakes);
+  const autoUpdateOdds = useBetSlipSettingsStore((state) => state.autoUpdateOdds);
+  const brandId = useBrandStore((state) => state.brandId);
+  const updateSelectionOdds = useBetSlipStore((state) => state.updateSelectionOdds);
+  // Set by handlePlaceBet's pre-placement odds re-check (see oddsRecheck.ts)
+  // when a price moved and auto-update-odds is off - cleared the moment the
+  // player acts on it (removes/edits a selection, or tries to place again).
+  const [oddsChanged, setOddsChanged] = useState(false);
+  const [isRecheckingOdds, setIsRecheckingOdds] = useState(false);
   // Keyed by selectionKey() - each single-bet row's own stake, entered
   // independently of every other row but all placed together by the one
   // bottom button (see placeSinglesMutation below).
@@ -639,9 +649,9 @@ export function BetSlipPanel({
    * freebets act as a second wallet rather than a one-bet-only token.
    */
   const placeSinglesMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (selectionsToPlace: BetSlipSelection[]) => {
       return Promise.all(
-        selections.map((selection) => {
+        selectionsToPlace.map((selection) => {
           const stakeCents = Math.round(Number(getSingleStake(selection)) * 100);
           return placeBet({
             selections: [selection],
@@ -694,6 +704,65 @@ export function BetSlipPanel({
       openInsufficientFundsModal();
     }
   }, [placeAccumulatorMutation.error, placeSinglesMutation.error]);
+
+  // Only a genuine add/remove clears a pending "odds changed" alert - an
+  // odds-only update (handlePlaceBet writing the new price back via
+  // updateSelectionOdds) must NOT silently dismiss the alert it just raised.
+  const selectionCountRef = useRef(selections.length);
+  useEffect(() => {
+    if (selections.length !== selectionCountRef.current) {
+      selectionCountRef.current = selections.length;
+      setOddsChanged(false);
+    }
+  }, [selections.length]);
+
+  /**
+   * Lightning-fast price check against the live feed, run as the very last
+   * step before a bet is actually placed (singles and accumulator alike) -
+   * see oddsRecheck.ts. A moved price is always written back into the slip
+   * immediately, so what the player sees next always matches what would be
+   * bet. With auto-update-odds on (see BetSlipSettingsPanel), placement then
+   * proceeds straight through at the new price; otherwise placement stops
+   * here and the footer alert asks the player to look again and re-confirm.
+   */
+  async function handlePlaceBet() {
+    setOddsChanged(false);
+    let selectionsToPlace = selections;
+    if (brandId) {
+      setIsRecheckingOdds(true);
+      try {
+        const changes = await findOddsChanges(brandId, selections);
+        if (changes.length > 0) {
+          selectionsToPlace = selections.map((selection) => {
+            const change = changes.find((candidate) => candidate.selection === selection);
+            return change ? { ...selection, odds: change.newOdds } : selection;
+          });
+          for (const change of changes) {
+            updateSelectionOdds(change.selection.matchId, change.selection.marketId, change.newOdds);
+          }
+          if (!autoUpdateOdds) {
+            setOddsChanged(true);
+            return;
+          }
+        }
+      } catch {
+        // A network hiccup on the re-check itself shouldn't block placement -
+        // the bet still goes through at the last-known price.
+      } finally {
+        setIsRecheckingOdds(false);
+      }
+    }
+    if (tab === 'accumulator') {
+      placeAccumulatorMutation.mutate({
+        selections: selectionsToPlace,
+        stakeCents,
+        useFreebets: isFreebetMode || undefined,
+        insuranceOptIn: isFreebetMode ? undefined : insuranceOptIn,
+      });
+    } else {
+      placeSinglesMutation.mutate(selectionsToPlace);
+    }
+  }
 
   const showTabs = selections.length >= 2;
   const tab: BetSlipTab = showTabs ? activeTab : 'singles';
@@ -1051,26 +1120,20 @@ export function BetSlipPanel({
             </span>
           )}
         </div>
+        {oddsChanged && (
+          <p className="rounded-xl border border-highlight/40 bg-highlight/10 px-2.5 py-2 text-xs font-medium text-highlight">
+            The odds have changed to reflect the current price - review it above, then place your bet again.
+          </p>
+        )}
         {error && error !== 'Insufficient balance' && <p className="text-xs text-danger">{error}</p>}
         {isAuthenticated ? (
           <Button
             variant="primary"
             className="w-full"
-            disabled={!isValid || isPending}
-            onClick={() => {
-              if (tab === 'accumulator') {
-                placeAccumulatorMutation.mutate({
-                  selections,
-                  stakeCents,
-                  useFreebets: isFreebetMode || undefined,
-                  insuranceOptIn: isFreebetMode ? undefined : insuranceOptIn,
-                });
-              } else {
-                placeSinglesMutation.mutate();
-              }
-            }}
+            disabled={!isValid || isPending || isRecheckingOdds}
+            onClick={() => void handlePlaceBet()}
           >
-            {isPending ? 'Placing…' : 'Place Bet'}
+            {isRecheckingOdds ? 'Checking odds…' : isPending ? 'Placing…' : 'Place Bet'}
           </Button>
         ) : (
           <button
