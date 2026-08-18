@@ -17,24 +17,45 @@ export default function InsuranceBetPage() {
   } = useQuery({ queryKey: insuranceBetQueryKey, queryFn: backendApi.getInsuranceBetConfig });
 
   const [draft, setDraft] = useState<backendApi.InsuranceBetConfig | null>(null);
+  // Tracked as raw text, not derived from draft.minOdds on every render -
+  // this can be a decimal (1.5, 2.5, ...), and re-deriving the displayed
+  // string from Number(minOdds) on each keystroke collapses a trailing "."
+  // before the next digit lands (typing "2.5" would show "25").
+  const [minOddsText, setMinOddsText] = useState('');
 
   useEffect(() => {
     if (data && draft === null) {
       setDraft(data);
+      setMinOddsText(String(data.minOdds));
     }
   }, [data, draft]);
+
+  function handleMinOddsChange(value: string) {
+    setMinOddsText(value);
+    const parsed = Number(value);
+    if (draft && Number.isFinite(parsed)) {
+      setDraft({ ...draft, minOdds: parsed });
+    }
+  }
 
   const saveMutation = useMutation({
     mutationFn: (config: backendApi.InsuranceBetConfig) => backendApi.setInsuranceBetConfig(config),
     onSuccess: (saved) => {
       setDraft(saved);
+      setMinOddsText(String(saved.minOdds));
       void queryClient.invalidateQueries({ queryKey: insuranceBetQueryKey });
       toast.success('Insurance bet settings saved');
     },
     onError: (error) => toast.error(errorMessage(error, 'Failed to save insurance bet settings')),
   });
 
-  const isValid = draft !== null && Number.isFinite(draft.costPercent) && draft.costPercent >= 0 && draft.costPercent <= 100;
+  const isValid =
+    draft !== null &&
+    Number.isFinite(draft.costPercent) &&
+    draft.costPercent >= 0 &&
+    draft.costPercent <= 100 &&
+    Number.isFinite(draft.minOdds) &&
+    draft.minOdds >= 1;
 
   return (
     <div>
@@ -77,6 +98,24 @@ export default function InsuranceBetPage() {
                 onChange={(event) => setDraft({ ...draft, costPercent: Number(event.target.value) })}
                 className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary"
               />
+            </div>
+
+            <div>
+              <label htmlFor="min-odds" className="block text-xs text-text-secondary">
+                Minimum combined odds
+              </label>
+              <input
+                id="min-odds"
+                type="text"
+                inputMode="decimal"
+                value={minOddsText}
+                onChange={(event) => handleMinOddsChange(event.target.value)}
+                className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm text-text-primary"
+              />
+              <p className="mt-1 text-xs text-text-secondary">
+                Insurance is only offered on a bet whose combined odds are at least this - 1 means no real floor
+                (every real bet already clears it).
+              </p>
             </div>
 
             <Button

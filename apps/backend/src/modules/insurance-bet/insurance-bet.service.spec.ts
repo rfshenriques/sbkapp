@@ -50,36 +50,44 @@ describe('InsuranceBetService', () => {
     await moduleRef.close();
   });
 
-  it('returns insurance-off defaults when no config row exists yet', async () => {
+  it('returns insurance-off defaults with no odds floor when no config row exists yet', async () => {
     const config = await service.getConfig(brandAId);
 
-    expect(config).toEqual({ costPercent: 10, enabled: false });
+    expect(config).toEqual({ costPercent: 10, enabled: false, minOdds: 1 });
   });
 
   it('sets a config and reads it back', async () => {
-    await service.setConfig(brandAId, { costPercent: 15, enabled: true }, TEST_ACTOR);
+    await service.setConfig(brandAId, { costPercent: 15, enabled: true, minOdds: 1 }, TEST_ACTOR);
 
-    expect(await service.getConfig(brandAId)).toEqual({ costPercent: 15, enabled: true });
+    expect(await service.getConfig(brandAId)).toEqual({ costPercent: 15, enabled: true, minOdds: 1 });
+  });
+
+  it('sets and reads back a configured odds floor', async () => {
+    await service.setConfig(brandAId, { costPercent: 15, enabled: true, minOdds: 1.5 }, TEST_ACTOR);
+
+    expect(await service.getConfig(brandAId)).toEqual({ costPercent: 15, enabled: true, minOdds: 1.5 });
   });
 
   it('is idempotent - setting a config again updates it in place rather than duplicating', async () => {
-    await service.setConfig(brandAId, { costPercent: 10, enabled: true }, TEST_ACTOR);
-    await service.setConfig(brandAId, { costPercent: 20, enabled: true }, TEST_ACTOR);
+    await service.setConfig(brandAId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
+    await service.setConfig(brandAId, { costPercent: 20, enabled: true, minOdds: 2 }, TEST_ACTOR);
 
     expect(await prisma.insuranceBetConfig.count({ where: { brandId: brandAId } })).toBe(1);
-    expect((await service.getConfig(brandAId)).costPercent).toBe(20);
+    const config = await service.getConfig(brandAId);
+    expect(config.costPercent).toBe(20);
+    expect(config.minOdds).toBe(2);
   });
 
   it('records an audit entry for each set', async () => {
-    await service.setConfig(brandAId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+    await service.setConfig(brandAId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
 
     const entries = await prisma.auditLogEntry.findMany({ where: { actorUsername: TEST_ACTOR.username } });
     expect(entries.map((entry) => entry.action)).toEqual(['INSURANCE_BET_CONFIG_SET']);
   });
 
   it('is isolated per brand', async () => {
-    await service.setConfig(brandAId, { costPercent: 25, enabled: true }, TEST_ACTOR);
+    await service.setConfig(brandAId, { costPercent: 25, enabled: true, minOdds: 3 }, TEST_ACTOR);
 
-    expect(await service.getConfig(brandBId)).toEqual({ costPercent: 10, enabled: false });
+    expect(await service.getConfig(brandBId)).toEqual({ costPercent: 10, enabled: false, minOdds: 1 });
   });
 });

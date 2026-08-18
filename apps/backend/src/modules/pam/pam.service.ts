@@ -14,7 +14,7 @@ import { BoostService } from '../boosts/boost.service';
 import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.service';
 import { FreebetService } from '../freebets/freebet.service';
 import { InsuranceBetService } from '../insurance-bet/insurance-bet.service';
-import { calculateInsuredPayout } from '../insurance-bet/insurance-bet';
+import { calculateInsuredPayout, meetsInsuranceMinOdds, type InsuranceBetConfigValues } from '../insurance-bet/insurance-bet';
 import { calculateLeaderboardPoints, leaderboardBetCounts } from '../leaderboards/leaderboard';
 import { LeaderboardCampaignService } from '../leaderboards/leaderboard-campaign.service';
 import {
@@ -465,7 +465,18 @@ export class PamService {
    * a price that's already subsidized, the same double-bonusing rationale
    * that keeps insurance apart from freebets and acca boost.
    */
-  private async assertInsuranceEligible(brandId: string, dto: PlaceBetDto): Promise<void> {
+  private async assertInsuranceEligible(
+    brandId: string,
+    dto: PlaceBetDto,
+    combinedOdds: number,
+    insuranceBetConfig: InsuranceBetConfigValues,
+  ): Promise<void> {
+    if (!meetsInsuranceMinOdds(combinedOdds, insuranceBetConfig)) {
+      throw new BadRequestException(
+        `Insurance requires combined odds of at least ${insuranceBetConfig.minOdds.toFixed(2)}`,
+      );
+    }
+
     for (const selection of dto.selections) {
       const boost = await this.boostService.findActiveForBet(
         brandId,
@@ -536,7 +547,8 @@ export class PamService {
     const insuranceOptedIn = Boolean(dto.insuranceOptIn) && !useFreebets;
     const insuranceApplies = insuranceOptedIn && insuranceBetConfig.enabled;
     if (insuranceApplies) {
-      await this.assertInsuranceEligible(brandId, dto);
+      const rawCombinedOdds = dto.selections.reduce((product, selection) => product * selection.odds, 1);
+      await this.assertInsuranceEligible(brandId, dto, rawCombinedOdds, insuranceBetConfig);
     }
 
     const accaBoostConfig = await this.accaBoostService.getConfig(brandId);

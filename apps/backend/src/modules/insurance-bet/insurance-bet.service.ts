@@ -6,6 +6,7 @@ import type { InsuranceBetConfigValues } from './insurance-bet';
 const DEFAULT_CONFIG: InsuranceBetConfigValues = {
   costPercent: 10,
   enabled: false,
+  minOdds: 1,
 };
 
 @Injectable()
@@ -22,6 +23,7 @@ export class InsuranceBetService {
       ? {
           costPercent: config.costPercent,
           enabled: config.enabled,
+          minOdds: config.minOdds,
         }
       : DEFAULT_CONFIG;
   }

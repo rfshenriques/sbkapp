@@ -264,7 +264,10 @@ describe('BetSlipPanel', () => {
             );
           }
           if (url === '/backend/public/insurance-bet-config/brand-1') {
-            return new Response(JSON.stringify({ costPercent: config.costPercent, enabled: true }), { status: 200 });
+            return new Response(
+              JSON.stringify({ costPercent: config.costPercent, enabled: true, minOdds: 1 }),
+              { status: 200 },
+            );
           }
           return new Response(null, { status: 404 });
         }),
@@ -415,13 +418,13 @@ describe('BetSlipPanel', () => {
   });
 
   describe('insurance bet toggle', () => {
-    function stubInsuranceBetConfig(config: { costPercent: number; enabled: boolean }) {
+    function stubInsuranceBetConfig(config: { costPercent: number; enabled: boolean; minOdds?: number }) {
       vi.stubGlobal(
         'fetch',
         vi.fn(async (input: RequestInfo | URL) => {
           const url = typeof input === 'string' ? input : input.toString();
           if (url === '/backend/public/insurance-bet-config/brand-1') {
-            return new Response(JSON.stringify(config), { status: 200 });
+            return new Response(JSON.stringify({ minOdds: 1, ...config }), { status: 200 });
           }
           return new Response(null, { status: 404 });
         }),
@@ -474,6 +477,36 @@ describe('BetSlipPanel', () => {
       renderPanel();
 
       await screen.findByText('Novelty Market: Home');
+      expect(screen.queryByText(/Insure this bet/)).not.toBeInTheDocument();
+    });
+
+    it('hides the toggle when the single selection\'s odds fall short of the configured minimum', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubInsuranceBetConfig({ costPercent: 10, enabled: true, minOdds: 3 });
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      await screen.findByText('21.00');
+      expect(screen.queryByText(/Insure this bet/)).not.toBeInTheDocument();
+    });
+
+    it('shows the toggle once the single selection\'s odds meet the configured minimum', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubInsuranceBetConfig({ costPercent: 10, enabled: true, minOdds: 2.1 });
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      expect(await screen.findByRole('switch', { name: /Insure this bet/ })).toBeInTheDocument();
+    });
+
+    it('hides the toggle on the accumulator tab when the combined odds fall short of the configured minimum', async () => {
+      useBrandStore.setState({ brandId: 'brand-1' });
+      stubInsuranceBetConfig({ costPercent: 10, enabled: true, minOdds: 10 });
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+      renderPanel();
+
+      await userEvent.click(await screen.findByRole('tab', { name: /Accumulator/ }));
+
       expect(screen.queryByText(/Insure this bet/)).not.toBeInTheDocument();
     });
   });

@@ -5,6 +5,7 @@ import { useBrandStore } from '../brand/brandStore';
 const DEFAULT_CONFIG = {
   costPercent: 0,
   enabled: false,
+  minOdds: 1,
 };
 
 /** Falls back to "insurance off" defaults until the brand resolves or the fetch is still in flight - never blocks the bet slip from rendering. */

@@ -1,6 +1,13 @@
 export interface InsuranceBetConfigValues {
   costPercent: number;
   enabled: boolean;
+  /** Insurance only ever applies to a bet whose combined odds are at least this - see meetsInsuranceMinOdds. */
+  minOdds: number;
+}
+
+/** Whether a bet's combined odds clear the brand's configured floor for insurance to even be offered. */
+export function meetsInsuranceMinOdds(combinedOdds: number, config: InsuranceBetConfigValues): boolean {
+  return combinedOdds >= config.minOdds;
 }
 
 export interface InsuranceBetPricing {

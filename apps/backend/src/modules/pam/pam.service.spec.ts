@@ -329,7 +329,7 @@ describe('PamService', () => {
         { boostPercentPerLeg: 5, minSelections: 3, minOddsPerLeg: 1.2, enabled: true },
         TEST_ACTOR,
       );
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       const userId = await createTestUser(100_000);
 
       const bet = await pamService.placeBet(userId, {
@@ -1892,7 +1892,7 @@ describe('PamService', () => {
     });
 
     it('previews nothing when insurance is opted into, even for an otherwise-qualifying bet', async () => {
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       const campaign = await createEnabledBetAndGetCampaign();
       const userId = await createTestUser(100_000);
 
@@ -2567,7 +2567,7 @@ describe('PamService', () => {
     });
 
     it('filters bets by fundedByFreebets, insured, boosted, and hasCampaign flags', async () => {
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       await accaBoostService.setConfig(
         testBrandId,
         { boostPercentPerLeg: 5, minSelections: 2, minOddsPerLeg: 1.2, enabled: true },
@@ -2893,7 +2893,7 @@ describe('PamService', () => {
         { minSelections: 3, lossThreshold: 1, rewardPercent: 100, enabled: true },
         TEST_ACTOR,
       );
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       const userId = await createTestUser(100_000);
       const bet = await pamService.placeBet(userId, {
         selections: [
@@ -2951,7 +2951,7 @@ describe('PamService', () => {
 
   describe('insurance bet', () => {
     it('reduces the potential payout by costPercent when opted in and enabled', async () => {
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       const userId = await createTestUser(100_000);
 
       const bet = await pamService.placeBet(userId, {
@@ -2966,7 +2966,7 @@ describe('PamService', () => {
     });
 
     it('does not reduce the payout when not opted in', async () => {
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       const userId = await createTestUser(100_000);
 
       const bet = await pamService.placeBet(userId, {
@@ -2992,7 +2992,7 @@ describe('PamService', () => {
     });
 
     it('never applies insurance to a freebet-funded bet, to avoid double-bonusing', async () => {
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       const userId = await createTestUser(100_000);
       const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
       const grant = await freebetService.grant(testBrandId, { identifier: user.username, amountCents: 1_000 }, TEST_ACTOR);
@@ -3009,7 +3009,7 @@ describe('PamService', () => {
     });
 
     it('rejects insurance opt-in on a boosted selection', async () => {
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       await boostService.setBoost(testBrandId, 'match-1', 'match-result', 'home', 6, undefined, TEST_ACTOR);
       const userId = await createTestUser(100_000);
 
@@ -3023,7 +3023,7 @@ describe('PamService', () => {
     });
 
     it('rejects insurance opt-in on a singles-only manual market', async () => {
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       const market = await manualMarketService.createMarket(testBrandId, 'match-1', 'Novelty', [
         { name: 'Yes', odds: 2.1 },
       ], TEST_ACTOR);
@@ -3040,7 +3040,7 @@ describe('PamService', () => {
     });
 
     it('allows insurance opt-in on an ordinary (non-boosted, non-singles-only) selection', async () => {
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       const userId = await createTestUser(100_000);
 
       const bet = await pamService.placeBet(userId, {
@@ -3053,7 +3053,7 @@ describe('PamService', () => {
     });
 
     it('refunds the stake as a freebet when an insured bet loses', async () => {
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       const userId = await createTestUser(100_000);
       const bet = await pamService.placeBet(userId, {
         selections: [buildSelection({ odds: 2.0 })],
@@ -3077,7 +3077,7 @@ describe('PamService', () => {
     });
 
     it('does not refund when an insured bet wins, and pays out the already-discounted amount', async () => {
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       const userId = await createTestUser(100_000);
       const bet = await pamService.placeBet(userId, {
         selections: [buildSelection({ odds: 2.0 })],
@@ -3101,7 +3101,7 @@ describe('PamService', () => {
     });
 
     it('does not refund when insurance was not opted into, even if the bet loses', async () => {
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       const userId = await createTestUser(100_000);
       const bet = await pamService.placeBet(userId, {
         selections: [buildSelection({ odds: 2.0 })],
@@ -3115,7 +3115,7 @@ describe('PamService', () => {
     });
 
     it('is idempotent - re-settling the same loss never grants the reward twice', async () => {
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       const userId = await createTestUser(100_000);
       const bet = await pamService.placeBet(userId, {
         selections: [buildSelection({ odds: 2.0 })],
@@ -3131,7 +3131,7 @@ describe('PamService', () => {
     });
 
     it('never links an insured bet to a Bet & Get campaign, even one it would otherwise qualify for', async () => {
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       const campaign = await betAndGetCampaignService.create(
         testBrandId,
         { name: 'CL Bet & Get', rewardAmountCents: 500 },
@@ -3157,7 +3157,7 @@ describe('PamService', () => {
     });
 
     it('links a Bet & Get campaign normally once insurance is disabled again, confirming the bet itself would have qualified', async () => {
-      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true }, TEST_ACTOR);
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 1 }, TEST_ACTOR);
       const campaign = await betAndGetCampaignService.create(
         testBrandId,
         { name: 'CL Bet & Get', rewardAmountCents: 500 },
@@ -3178,6 +3178,49 @@ describe('PamService', () => {
       });
 
       expect(bet.betAndGetCampaignId).toBe(campaign.id);
+    });
+
+    it('rejects opting into insurance when the combined odds fall short of the configured floor', async () => {
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 2.5 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [buildSelection({ odds: 2.0 })],
+          stakeCents: 1_000,
+          insuranceOptIn: true,
+        }),
+      ).rejects.toThrow('Insurance requires combined odds of at least 2.50');
+    });
+
+    it('accepts insurance once the combined odds exactly meet the configured floor', async () => {
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 2 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [buildSelection({ odds: 2.0 })],
+        stakeCents: 1_000,
+        insuranceOptIn: true,
+      });
+
+      expect(bet.insuranceCostPercent).toBe(10);
+    });
+
+    it('checks the floor against the whole accumulator\'s combined odds, not any one leg', async () => {
+      await insuranceBetService.setConfig(testBrandId, { costPercent: 10, enabled: true, minOdds: 3 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+
+      // Each leg is only 1.5, but the combined accumulator odds (1.5 * 1.5 = 2.25) still falls short of 3.
+      await expect(
+        pamService.placeBet(userId, {
+          selections: [
+            buildSelection({ matchId: 'match-1', odds: 1.5 }),
+            buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 1.5 }),
+          ],
+          stakeCents: 1_000,
+          insuranceOptIn: true,
+        }),
+      ).rejects.toThrow('Insurance requires combined odds of at least 3.00');
     });
   });
 });

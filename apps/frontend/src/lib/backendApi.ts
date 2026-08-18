@@ -693,6 +693,7 @@ export async function getAccaRollbackConfig(brandId: string): Promise<AccaRollba
 export interface InsuranceBetConfig {
   costPercent: number;
   enabled: boolean;
+  minOdds: number;
 }
 
 /** The acting brand's insurance-bet settings - see apps/backend's InsuranceBetService. */

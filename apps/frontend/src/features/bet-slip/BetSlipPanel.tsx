@@ -656,6 +656,19 @@ export function BetSlipPanel({
       : rawAccaBoost;
   // The un-boosted product passes straight through when the accumulator doesn't qualify (see calculateAccaBoost).
   const combinedOdds = accaBoost.boostedCombinedOdds;
+  // Mirrors PamService.assertInsuranceEligible's odds floor - for the
+  // accumulator tab that's the whole acca's combined odds, for singles
+  // each one is priced (and would be insured) as its own independent bet,
+  // so every single individually has to clear the floor.
+  const insuranceMinOddsMet =
+    tab === 'accumulator'
+      ? combinedOdds >= insuranceBetConfig.minOdds
+      : selections.every((selection) => selection.odds >= insuranceBetConfig.minOdds);
+  useEffect(() => {
+    if (!insuranceMinOddsMet && insuranceOptIn) {
+      setInsuranceOptIn(false);
+    }
+  }, [insuranceMinOddsMet, insuranceOptIn]);
   const stakeCents = Math.round(Number(stake) * 100);
   const isStakeValid = Number.isFinite(stakeCents) && stakeCents > 0;
   const accumulatorCampaignPreview = useCampaignPreview(
@@ -918,7 +931,7 @@ export function BetSlipPanel({
             <CampaignQualificationNote preview={singleSelectionCampaignPreview} />
           </>
         )}
-        {!isFreebetMode && insuranceBetConfig.enabled && selections.length > 0 && !insuranceIneligible && (
+        {!isFreebetMode && insuranceBetConfig.enabled && selections.length > 0 && !insuranceIneligible && insuranceMinOddsMet && (
           <div className="rounded-xl border border-border bg-surface-2 p-2.5 text-xs">
             <div className="flex items-center justify-between gap-2">
               <span className="font-display font-bold tracking-wide text-text-secondary uppercase italic">

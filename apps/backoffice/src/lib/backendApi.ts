@@ -80,6 +80,8 @@ export interface AccaRollbackConfig {
 export interface InsuranceBetConfig {
   costPercent: number;
   enabled: boolean;
+  /** Insurance only offered/accepted on a bet whose combined odds are at least this. */
+  minOdds: number;
 }
 
 export interface OddsOverride {

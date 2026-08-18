@@ -8,4 +8,9 @@ export class SetInsuranceBetConfigDto {
 
   @IsBoolean()
   enabled!: boolean;
+
+  /** Insurance only offered/accepted on a bet whose combined odds are at least this. */
+  @IsNumber()
+  @Min(1)
+  minOdds!: number;
 }

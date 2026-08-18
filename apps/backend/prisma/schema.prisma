@@ -1086,6 +1086,15 @@ model InsuranceBetConfig {
   brand       Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
   costPercent Float    @default(10)
   enabled     Boolean  @default(false)
+  /**
+   * Insurance only ever applies to a bet whose combined odds are at least
+   * this - below it, the bet slip never offers the opt-in, and the backend
+   * rejects a request that tries to opt in anyway (see
+   * PamService.assertInsuranceEligible). Defaults to 1 (i.e. no real
+   * floor, since combined odds are always >= 1.01 in practice), matching
+   * every deployment's actual behavior before this field existed.
+   */
+  minOdds     Float    @default(1)
   updatedAt   DateTime @updatedAt
 
   @@map("insurance_bet_configs")

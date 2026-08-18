@@ -41,10 +41,11 @@ afterEach(() => {
 
 describe('InsuranceBetPage', () => {
   it('loads and shows the current config', async () => {
-    stubFetch({ costPercent: 10, enabled: false });
+    stubFetch({ costPercent: 10, enabled: false, minOdds: 1.5 });
     renderInsuranceBetPage();
 
     expect(await screen.findByDisplayValue('10')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('1.5')).toBeInTheDocument();
     expect(screen.getByRole('checkbox', { name: 'Enabled' })).not.toBeChecked();
   });
 
@@ -54,11 +55,11 @@ describe('InsuranceBetPage', () => {
       const method = init?.method ?? 'GET';
 
       if (method === 'GET' && url === '/backend/admin/insurance-bet-config') {
-        return new Response(JSON.stringify({ costPercent: 10, enabled: false }), { status: 200 });
+        return new Response(JSON.stringify({ costPercent: 10, enabled: false, minOdds: 1 }), { status: 200 });
       }
       if (method === 'PUT' && url === '/backend/admin/insurance-bet-config') {
-        expect(JSON.parse(init!.body as string)).toEqual({ costPercent: 15, enabled: true });
-        return new Response(JSON.stringify({ costPercent: 15, enabled: true }), { status: 200 });
+        expect(JSON.parse(init!.body as string)).toEqual({ costPercent: 15, enabled: true, minOdds: 1 });
+        return new Response(JSON.stringify({ costPercent: 15, enabled: true, minOdds: 1 }), { status: 200 });
       }
       return new Response(null, { status: 404 });
     });
@@ -72,5 +73,30 @@ describe('InsuranceBetPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(await screen.findByRole('checkbox', { name: 'Enabled' })).toBeChecked();
+  });
+
+  it('saves an edited minimum odds floor', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/backend/admin/insurance-bet-config') {
+        return new Response(JSON.stringify({ costPercent: 10, enabled: true, minOdds: 1 }), { status: 200 });
+      }
+      if (method === 'PUT' && url === '/backend/admin/insurance-bet-config') {
+        expect(JSON.parse(init!.body as string)).toEqual({ costPercent: 10, enabled: true, minOdds: 2.5 });
+        return new Response(JSON.stringify({ costPercent: 10, enabled: true, minOdds: 2.5 }), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderInsuranceBetPage();
+    const minOddsInput = await screen.findByLabelText('Minimum combined odds');
+    await userEvent.clear(minOddsInput);
+    await userEvent.type(minOddsInput, '2.5');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(await screen.findByDisplayValue('2.5')).toBeInTheDocument();
   });
 });
