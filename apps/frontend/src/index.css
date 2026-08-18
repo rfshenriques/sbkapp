@@ -560,6 +560,24 @@ body {
   animation: sheet-slide-in-right 0.32s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Mirror of sheet-slide-in-right - the tablet-tier sports nav drawer (see
+   AppShell) slides in from the left edge instead, since it's the sidebar's
+   own side. */
+@keyframes sheet-slide-in-left {
+  0% {
+    transform: translateX(-100%);
+  }
+  85% {
+    transform: translateX(1.5%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+.sheet-slide-in-left {
+  animation: sheet-slide-in-left 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 @keyframes backdrop-fade-in {
   from {
     opacity: 0;

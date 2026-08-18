@@ -54,6 +54,22 @@ const awaySelection = {
   odds: 2.5,
 };
 
+/** A real desktop browser (mouse + hover) - the persistent sidebar/bet-slip columns, no hamburger. Every test in this file assumes this tier unless it explicitly restubs matchMedia itself (see the "tablet tier" describe block below and the mobile bottom-nav drawer tests). */
+function stubDesktopPointer() {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+  );
+}
+
+/** A phone - narrower than the tablet floor, so the persistent aside/bet-slip columns and the tablet drawer are all absent, leaving only the mobile bottom nav's own top-drawer for isNavOpen content. */
+function stubMobileWidth() {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+  );
+}
+
 beforeEach(() => {
   useBetSlipStore.setState({ selections: [], stake: '10.00', singleStakes: {} });
   useBetSlipSheetStore.setState({ isOpen: false });
@@ -68,6 +84,7 @@ beforeEach(() => {
   localStorage.clear();
   // Not logged in by default - the silent-refresh call on mount finds no session.
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
+  stubDesktopPointer();
 });
 
 afterEach(() => {
@@ -169,24 +186,6 @@ describe('AppShell', () => {
     await waitFor(() => expect(screen.queryAllByRole('button', { name: 'Close bet slip' })).toHaveLength(0));
   });
 
-  it('does not show the tablet-width floating trigger when the slip is empty', () => {
-    renderShell();
-
-    expect(screen.queryByRole('button', { name: 'Open bet slip' })).not.toBeInTheDocument();
-  });
-
-  it('shows a tablet-width floating trigger, separate from the mobile bar, that opens the bet slip', async () => {
-    useBetSlipStore.setState({ selections: [homeSelection] });
-    renderShell();
-
-    const tabletTrigger = await screen.findByRole('button', { name: 'Open bet slip' });
-    expect(tabletTrigger).toHaveTextContent('Bet Slip');
-
-    await userEvent.click(tabletTrigger);
-
-    expect(useBetSlipSheetStore.getState().isOpen).toBe(true);
-  });
-
   it('auto-closes the mobile bet slip sheet once a bet is placed, so the confirmation is not stacked on top of it', async () => {
     useBetSlipStore.setState({ selections: [homeSelection] });
     renderShell();
@@ -219,40 +218,45 @@ describe('AppShell', () => {
   });
 
   it('clicking the mobile bottom-nav Search button opens the sports navigation drawer', async () => {
+    stubMobileWidth();
     renderShell();
+
+    // No persistent desktop sidebar exists at phone width, so no search box
+    // renders at all until the drawer opens.
+    expect(screen.queryByPlaceholderText('Search teams, competitions...')).not.toBeInTheDocument();
 
     const nav = await screen.findByRole('navigation', { name: 'App navigation' });
     await userEvent.click(within(nav).getByRole('button', { name: /Search/ }));
 
-    // The persistent desktop Sidebar column always renders one copy of its
-    // own search box - a second one (the mobile drawer's own Sidebar
-    // instance) appearing means the drawer opened. No heading of its own
-    // (removed per design) - the search box is the drawer's own content.
-    expect(screen.getAllByPlaceholderText('Search teams, competitions...')).toHaveLength(2);
+    // No heading of its own (removed per design) - the search box is the
+    // drawer's own content.
+    expect(screen.getByPlaceholderText('Search teams, competitions...')).toBeInTheDocument();
   });
 
   it('clicking the Search button again closes the drawer, with no separate close button', async () => {
+    stubMobileWidth();
     renderShell();
 
     const nav = await screen.findByRole('navigation', { name: 'App navigation' });
     const searchButton = within(nav).getByRole('button', { name: /Search/ });
     await userEvent.click(searchButton);
-    expect(screen.getAllByPlaceholderText('Search teams, competitions...')).toHaveLength(2);
+    expect(screen.getByPlaceholderText('Search teams, competitions...')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /close sports/i })).not.toBeInTheDocument();
 
     await userEvent.click(searchButton);
-    expect(screen.getAllByPlaceholderText('Search teams, competitions...')).toHaveLength(1);
+    expect(screen.queryByPlaceholderText('Search teams, competitions...')).not.toBeInTheDocument();
   });
 
   it('clicking another bottom-nav tab while the drawer is open closes it and navigates', async () => {
+    stubMobileWidth();
     renderShell();
 
     const nav = await screen.findByRole('navigation', { name: 'App navigation' });
     await userEvent.click(within(nav).getByRole('button', { name: /Search/ }));
-    expect(screen.getAllByPlaceholderText('Search teams, competitions...')).toHaveLength(2);
+    expect(screen.getByPlaceholderText('Search teams, competitions...')).toBeInTheDocument();
 
     await userEvent.click(within(nav).getByRole('link', { name: /Live/ }));
-    expect(screen.getAllByPlaceholderText('Search teams, competitions...')).toHaveLength(1);
+    expect(screen.queryByPlaceholderText('Search teams, competitions...')).not.toBeInTheDocument();
   });
 
   it('does not show a hamburger button in the header - only the logo', async () => {
@@ -478,6 +482,88 @@ describe('AppShell', () => {
 
       await screen.findByRole('heading', { name: 'Log in' });
       expect(screen.queryByTitle('A deposit bonus is available')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('tablet tier (touch/coarse-pointer device, e.g. a real tablet - never a desktop browser regardless of its viewport width)', () => {
+    /** Overrides the file-level stubDesktopPointer() from beforeEach - a coarse/no-hover pointer, at least sm:-width. */
+    function stubTabletPointer() {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn().mockImplementation((query: string) => ({
+          matches: query === '(min-width: 640px)',
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        })),
+      );
+    }
+
+    it('does not render the persistent sidebar or bet-slip columns', async () => {
+      stubTabletPointer();
+      renderShell();
+
+      await screen.findByRole('navigation', { name: 'App navigation' });
+      expect(screen.queryByRole('navigation', { name: 'Sports navigation' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('tab', { name: 'Bet Slip' })).not.toBeInTheDocument();
+    });
+
+    it('does not show the floating bet-slip trigger when the slip is empty', () => {
+      stubTabletPointer();
+      renderShell();
+
+      expect(screen.queryByRole('button', { name: 'Open bet slip' })).not.toBeInTheDocument();
+    });
+
+    it('shows a floating bet-slip trigger, separate from the mobile bar, that opens the bet slip', async () => {
+      stubTabletPointer();
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderShell();
+
+      const tabletTrigger = await screen.findByRole('button', { name: 'Open bet slip' });
+      expect(tabletTrigger).toHaveTextContent('Bet Slip');
+
+      await userEvent.click(tabletTrigger);
+
+      expect(useBetSlipSheetStore.getState().isOpen).toBe(true);
+    });
+
+    it('shows a header hamburger button that opens a sliding sports navigation drawer', async () => {
+      stubTabletPointer();
+      renderShell();
+
+      await screen.findByRole('navigation', { name: 'App navigation' });
+      const hamburger = screen.getByRole('button', { name: 'Open sports navigation' });
+      expect(screen.queryByPlaceholderText('Search teams, competitions...')).not.toBeInTheDocument();
+
+      await userEvent.click(hamburger);
+
+      expect(await screen.findByPlaceholderText('Search teams, competitions...')).toBeInTheDocument();
+      expect(hamburger).toHaveAttribute('aria-expanded', 'true');
+    });
+
+    it('closes the sliding sports navigation drawer via its backdrop', async () => {
+      stubTabletPointer();
+      renderShell();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Open sports navigation' }));
+      await screen.findByPlaceholderText('Search teams, competitions...');
+
+      await userEvent.click(screen.getByRole('button', { name: 'Close sports navigation' }));
+
+      await waitFor(() =>
+        expect(screen.queryByPlaceholderText('Search teams, competitions...')).not.toBeInTheDocument(),
+      );
+    });
+
+    it('hides the floating bet-slip trigger while the sports navigation drawer is open', async () => {
+      stubTabletPointer();
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderShell();
+
+      await screen.findByRole('button', { name: 'Open bet slip' });
+      await userEvent.click(screen.getByRole('button', { name: 'Open sports navigation' }));
+
+      expect(screen.queryByRole('button', { name: 'Open bet slip' })).not.toBeInTheDocument();
     });
   });
 });

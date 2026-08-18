@@ -41,7 +41,9 @@ import { useWallet } from '../features/wallet/useWallet';
 import { sumFreebetsCents, useFreebets } from '../features/wallet/useFreebets';
 import { SecondaryNavBar } from '../features/navigation/SecondaryNavBar';
 import { Sidebar } from '../features/navigation/Sidebar';
-import { FireIcon, GiftBadgeIcon, LiveIcon, MyBetsIcon, SearchIcon, TrophyIcon } from '../components/ui/NavIcons';
+import { FireIcon, GiftBadgeIcon, LiveIcon, MenuIcon, MyBetsIcon, SearchIcon, TrophyIcon } from '../components/ui/NavIcons';
+import { cn } from '../lib/cn';
+import { useMediaQuery } from '../lib/useMediaQuery';
 import { useScrollLock } from '../lib/useScrollLock';
 import LoginPage from '../pages/LoginPage';
 import RegisterPage from '../pages/RegisterPage';
@@ -69,6 +71,22 @@ export function AppShell() {
   const openSlip = useBetSlipSheetStore((state) => state.open);
   const closeSlip = useBetSlipSheetStore((state) => state.close);
   const [isNavOpen, setIsNavOpen] = useState(false);
+  // Distinguishes a real desktop browser (mouse + hover support) from a
+  // touch/coarse-pointer device, e.g. a tablet - a pure viewport-width check
+  // can't reliably tell those apart, since a tablet in landscape easily
+  // exceeds 1024px CSS width and gets mistaken for a desktop window. Only
+  // isDesktopPointer devices get the persistent sidebar/bet-slip columns;
+  // every touch device (any width) gets the tablet-tier drawers instead,
+  // narrowed further to phone-vs-tablet by the existing sm: width floor
+  // (see the tablet nav drawer and TabletBetSlipDrawer below).
+  const isDesktopPointer = useMediaQuery('(hover: hover) and (pointer: fine)');
+  // Distinguishes the mobile top-drawer's isNavOpen content from the tablet
+  // side-drawer's below - both are keyed off the same isNavOpen boolean and
+  // only differ by CSS breakpoint classes (sm:hidden vs hidden sm:block),
+  // which jsdom doesn't evaluate at all in tests, so without this JS check
+  // both would mount their own <Sidebar> (and its own search box) at once
+  // whenever isNavOpen is true, in any test.
+  const isAtLeastTabletWidth = useMediaQuery('(min-width: 640px)');
   const betPlacedSummary = useBetPlacedModalStore((state) => state.summary);
   // Placing a bet opens BetPlacedModal on top of everything else - the
   // mobile bet slip bottom sheet needs to close itself first, otherwise the
@@ -322,13 +340,31 @@ export function AppShell() {
           className="mx-auto grid max-w-[1680px] grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3"
           style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}
         >
-          <NavLink to="/" className="col-start-1 flex shrink-0 items-center gap-2">
-            {brandLogoUrl ? (
-              <img src={brandLogoUrl} alt={brandName} className="h-8 max-w-[10rem] object-contain" />
-            ) : (
-              <span className="font-display text-xl">{brandName}</span>
+          <div className="col-start-1 flex shrink-0 items-center gap-2">
+            {/* Tablet only - a touch device gets the sliding drawer below
+                instead of the persistent desktop sidebar, so it needs its
+                own trigger; a real desktop never shows this (isDesktopPointer),
+                and mobile has its own bottom-nav Search tab for the same
+                drawer content instead. */}
+            {!isDesktopPointer && (
+              <button
+                type="button"
+                aria-label="Open sports navigation"
+                aria-expanded={isNavOpen}
+                onClick={() => setIsNavOpen((open) => !open)}
+                className="icon-toggle hidden shrink-0 sm:flex"
+              >
+                <MenuIcon width={18} height={18} />
+              </button>
             )}
-          </NavLink>
+            <NavLink to="/" className="flex shrink-0 items-center gap-2">
+              {brandLogoUrl ? (
+                <img src={brandLogoUrl} alt={brandName} className="h-8 max-w-[10rem] object-contain" />
+              ) : (
+                <span className="font-display text-xl">{brandName}</span>
+              )}
+            </NavLink>
+          </div>
 
           {/* Desktop only - mirrors the mobile bottom nav's destinations
               (minus Search, which desktop already has via the persistent
@@ -420,12 +456,11 @@ export function AppShell() {
             header's full width - offsets mirror the row below's own p-4
             edge padding plus the sidebar's width+gap (1rem + sm:w-96 +
             gap-4) on the left and the bet slip column's (1rem + lg:w-80 +
-            gap-4) on the right, at the same breakpoints those columns
-            themselves appear at, so this bar lines up with <main> exactly
-            rather than sitting flush against the header's own edges. Below
-            sm: (no sidebar/bet-slip columns at all) it stays full width via
-            the base px-4. */}
-        <div className="mx-auto max-w-[1680px] px-4 sm:pl-[26rem] lg:pr-[22rem]">
+            gap-4) on the right, matching where those columns themselves
+            appear (isDesktopPointer, same gate the columns below use -
+            neither renders at all on a touch/tablet device regardless of
+            width, so this stays full width there too via the base px-4). */}
+        <div className={cn('mx-auto max-w-[1680px] px-4', isDesktopPointer && 'sm:pl-[26rem] lg:pr-[22rem]')}>
           <SecondaryNavBar />
         </div>
       </header>
@@ -439,29 +474,34 @@ export function AppShell() {
           shrink content below its own height, so Footer just lands at the
           true end of content as before. */}
       <div className="mx-auto flex w-full max-w-[1680px] flex-1 gap-4 p-4">
-        {/* Desktop: sports navigation is a persistent left column, same
-            convention as the bet slip's persistent right column - the
-            mobile drawer below is sm:hidden so the two never coexist.
-            Deliberately wider than the bet slip column (sm:w-80 below):
-            the sport/country/competition tree and Top Competitions list
-            need more room to stay readable than the compact bet slip does. */}
-        <aside className="hidden sm:block sm:w-96 sm:shrink-0">
-          {/* h-full (not just max-h) so this stretches to match the row's
-              tallest column (usually main) instead of collapsing to its own
-              content height - without it, a short main content area (or a
-              short sports tree) left this looking like a stubby box with
-              dead page background beneath it rather than a full column.
-              min-h-0 stops the flex item's default content-based min-height
-              from fighting the max-h cap, which would otherwise force the
-              whole row (and page) taller than the viewport again - the
-              exact bug the max-h switch above already fixed once. */}
-          <div
-            className="scrollbar-hide sticky h-full min-h-0 overflow-y-auto rounded-2xl border border-border bg-surface p-4"
-            style={{ top: headerHeight, maxHeight: `calc(100vh - ${headerHeight}px)` }}
-          >
-            <Sidebar />
-          </div>
-        </aside>
+        {/* Real desktop only (isDesktopPointer - see above): sports
+            navigation is a persistent left column, same convention as the
+            bet slip's persistent right column below. A touch device gets
+            the sliding drawer instead (see isNavOpen below), regardless of
+            its viewport width - a tablet in landscape can easily be wide
+            enough to otherwise pass a plain sm: check. Deliberately wider
+            than the bet slip column (sm:w-80 below): the sport/country/
+            competition tree and Top Competitions list need more room to
+            stay readable than the compact bet slip does. */}
+        {isDesktopPointer && (
+          <aside className="hidden sm:block sm:w-96 sm:shrink-0">
+            {/* h-full (not just max-h) so this stretches to match the row's
+                tallest column (usually main) instead of collapsing to its own
+                content height - without it, a short main content area (or a
+                short sports tree) left this looking like a stubby box with
+                dead page background beneath it rather than a full column.
+                min-h-0 stops the flex item's default content-based min-height
+                from fighting the max-h cap, which would otherwise force the
+                whole row (and page) taller than the viewport again - the
+                exact bug the max-h switch above already fixed once. */}
+            <div
+              className="scrollbar-hide sticky h-full min-h-0 overflow-y-auto rounded-2xl border border-border bg-surface p-4"
+              style={{ top: headerHeight, maxHeight: `calc(100vh - ${headerHeight}px)` }}
+            >
+              <Sidebar />
+            </div>
+          </aside>
+        )}
 
         <main className="min-w-0 flex-1">
           <LiveMatchesStrip />
@@ -472,14 +512,15 @@ export function AppShell() {
           </Suspense>
         </main>
 
-        {/* Full desktop only (lg:+) - the bet slip is always visible on the
-            right, not a click-to-open drawer. At sm:-to-lg: (tablet) widths
-            there isn't room for nav + content + this column all at once, so
-            it's hidden here and opened on demand as a floating right-edge
-            panel instead (see TabletBetSlipDrawer below); below sm: it's
-            the mobile bottom sheet. Exactly one of the three ever renders
-            for a given viewport width. h-full + max-h (not a fixed h-) so
-            BetSlipPanel's "promotional" empty state - which is built as a
+        {/* Real desktop only (isDesktopPointer AND lg:+ width - see above) -
+            the bet slip is always visible on the right, not a click-to-open
+            drawer. A touch device never gets this column regardless of
+            width (a landscape tablet can easily exceed 1024px and would
+            otherwise pass the lg: check alone) - it's opened on demand as a
+            floating right-edge panel instead (see TabletBetSlipDrawer
+            below); below sm: it's the mobile bottom sheet. Exactly one of
+            the three ever renders at once. h-full + max-h (not a fixed h-)
+            so BetSlipPanel's "promotional" empty state - which is built as a
             full-height, CTA-driven layout (see its own h-full min-h-0 root,
             BetSlipPanel.tsx) - actually gets a parent with a definite height
             to fill and center within, capped at the viewport so a very tall
@@ -488,14 +529,16 @@ export function AppShell() {
             scroll region and keeps the stake/payout calculator fixed at the
             bottom - this wrapper just gives it a bounded height to work
             within, no overflow of its own. */}
-        <aside className="hidden lg:block lg:w-80 lg:shrink-0">
-          <div
-            className="sticky flex h-full min-h-0 flex-col rounded-2xl border border-border bg-surface p-4"
-            style={{ top: headerHeight, maxHeight: `calc(100vh - ${headerHeight}px)` }}
-          >
-            <BetSlipPanel showHistoryTab emptyStateVariant="promotional" />
-          </div>
-        </aside>
+        {isDesktopPointer && (
+          <aside className="hidden lg:block lg:w-80 lg:shrink-0">
+            <div
+              className="sticky flex h-full min-h-0 flex-col rounded-2xl border border-border bg-surface p-4"
+              style={{ top: headerHeight, maxHeight: `calc(100vh - ${headerHeight}px)` }}
+            >
+              <BetSlipPanel showHistoryTab emptyStateVariant="promotional" />
+            </div>
+          </aside>
+        )}
       </div>
 
       <Footer />
@@ -541,16 +584,20 @@ export function AppShell() {
         </button>
       )}
 
-      {/* Tablet only (sm:-to-lg:, see the persistent bet-slip aside above) -
-          there's no bottom nav at these widths to anchor above (that's
-          mobile-only, sm:hidden below), so this floats free in the corner
-          instead of spanning the width like the mobile pill above. */}
-      {selections.length > 0 && (
+      {/* Tablet-tier only (touch device, sm:+ width - see the persistent
+          bet-slip aside above and isDesktopPointer) - there's no bottom nav
+          at this tier to anchor above (that's mobile-only, sm:hidden below),
+          so this floats free in the corner instead of spanning the width
+          like the mobile pill above. No lg:hidden cap - a wide landscape
+          tablet still gets this floating trigger, never the persistent
+          desktop column. Hidden while the sports nav drawer is open, same
+          reasoning as the mobile pill above. */}
+      {selections.length > 0 && !isDesktopPointer && !isNavOpen && (
         <button
           type="button"
           onClick={openSlip}
           aria-label="Open bet slip"
-          className="btn-primary cta-spring-in fixed right-4 bottom-4 z-30 hidden items-center gap-2 rounded-full px-4 py-3 text-left shadow-lg sm:flex lg:hidden"
+          className="btn-primary cta-spring-in fixed right-4 bottom-4 z-30 hidden items-center gap-2 rounded-full px-4 py-3 text-left shadow-lg sm:flex"
         >
           {hasQualifyingCampaign && (
             <span
@@ -698,12 +745,33 @@ export function AppShell() {
           own height changes (a two-line brand name, wallet-balance pills
           once authenticated, ...), leaving this drawer's content starting
           under the header instead of below it. */}
-      {isNavOpen && (
+      {isNavOpen && !isAtLeastTabletWidth && (
         <div
           className="slide-in-down scrollbar-hide fixed inset-x-0 top-0 z-20 flex flex-col overflow-y-auto bg-background p-4 pb-6 sm:hidden"
           style={{ paddingTop: headerHeight + 16, bottom: bottomNavHeight }}
         >
           <Sidebar onNavigate={() => setIsNavOpen(false)} stickyBgClassName="bg-background" />
+        </div>
+      )}
+
+      {/* Tablet-tier only (touch device, sm:+ width - see isDesktopPointer
+          and the header's hamburger trigger above) - a partial drawer
+          sliding in from the left over a dimmed backdrop, same footprint as
+          the persistent desktop sidebar it stands in for, rather than
+          mobile's full-page takeover above (there's enough room here for
+          the rest of the app to stay visible behind it, and no bottom nav
+          to reserve space above). z-40 so it sits above the header (z-30). */}
+      {isNavOpen && !isDesktopPointer && isAtLeastTabletWidth && (
+        <div className="fixed inset-0 z-40 hidden sm:block">
+          <button
+            type="button"
+            aria-label="Close sports navigation"
+            className="backdrop-fade-in absolute inset-0 bg-gradient-to-b from-black/75 via-black/65 to-black/80 backdrop-blur-sm"
+            onClick={() => setIsNavOpen(false)}
+          />
+          <div className="sheet-slide-in-left scrollbar-hide absolute inset-y-0 left-0 w-96 max-w-[85vw] overflow-y-auto border-r border-border bg-background p-4 shadow-2xl">
+            <Sidebar onNavigate={() => setIsNavOpen(false)} stickyBgClassName="bg-background" />
+          </div>
         </div>
       )}
     </div>

@@ -5,10 +5,30 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TabletBetSlipDrawer } from './TabletBetSlipDrawer';
 
-function stubMatchMedia(matches: boolean) {
+/** Real tablet tier: at least 640px wide, but a coarse/no-hover (touch) pointer, never a real mouse. */
+function stubTabletTier() {
   vi.stubGlobal(
     'matchMedia',
-    vi.fn().mockReturnValue({ matches, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+    vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(min-width: 640px)',
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })),
+  );
+}
+
+function stubMobileWidth() {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn().mockReturnValue({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+  );
+}
+
+/** A real desktop browser, regardless of window width - mouse + hover support. */
+function stubDesktopPointer() {
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
   );
 }
 
@@ -32,15 +52,22 @@ afterEach(() => {
 });
 
 describe('TabletBetSlipDrawer', () => {
-  it('renders nothing when the viewport is outside the tablet width range', () => {
-    stubMatchMedia(false);
+  it('renders nothing on a narrow (phone-width) viewport', () => {
+    stubMobileWidth();
     const { container } = renderDrawer();
 
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders the floating right-edge panel when the viewport is within the tablet width range', async () => {
-    stubMatchMedia(true);
+  it('renders nothing on a real desktop browser, even a wide/landscape one - hover+fine-pointer wins over width', () => {
+    stubDesktopPointer();
+    const { container } = renderDrawer();
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders the floating right-edge panel on a touch tablet, regardless of exact width', async () => {
+    stubTabletTier();
     renderDrawer();
 
     expect(await screen.findByRole('heading', { name: 'Bet Slip' })).toBeInTheDocument();
@@ -48,7 +75,7 @@ describe('TabletBetSlipDrawer', () => {
   });
 
   it('calls onClose when the backdrop is clicked', async () => {
-    stubMatchMedia(true);
+    stubTabletTier();
     const onClose = vi.fn();
     renderDrawer(onClose);
 

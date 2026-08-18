@@ -9,28 +9,30 @@ export interface TabletBetSlipDrawerProps {
 }
 
 /**
- * Tablet-width (sm to lg - see AppShell) presentation of the bet slip: at
- * these widths there isn't room for the sports nav, content, and a
- * persistent bet-slip column all at once (the persistent column only
- * renders from `lg:` up), but there's more room than a phone, so instead of
- * mobile's full-height bottom sheet this floats over the content anchored
- * to the right edge, opened/closed via the same betSlipSheetStore the
- * mobile sheet uses.
+ * Tablet (see AppShell) presentation of the bet slip: a touch/coarse-pointer
+ * device - regardless of exact width or orientation, a landscape tablet can
+ * easily exceed 1024px CSS width and get mistaken for a desktop browser
+ * window by a pure width check - never gets the persistent desktop column
+ * (that's real-mouse-and-hover devices only, see AppShell's isDesktopPointer),
+ * but there's more room than a phone, so instead of mobile's full-height
+ * bottom sheet this floats over the content anchored to the right edge,
+ * opened/closed via the same betSlipSheetStore the mobile sheet uses.
  *
- * Renders nothing outside that width range - not just CSS-hidden - rather
- * than a bare Tailwind `hidden sm:block lg:hidden` on the root: the mobile
- * BottomSheet is mounted (merely CSS-hidden) at every width whenever the
- * sheet is open, and both it and this drawer call useScrollLock, which
- * isn't reentrant across two simultaneously-mounted lockers touching the
- * same body element - actually mounting only one of them at a time avoids
- * that entirely, on top of not keeping a redundant off-screen BetSlipPanel
- * instance around.
+ * Renders nothing outside that tier - not just CSS-hidden - rather than a
+ * bare Tailwind class on the root: the mobile BottomSheet is mounted
+ * (merely CSS-hidden) at every width whenever the sheet is open, and both
+ * it and this drawer call useScrollLock, which isn't reentrant across two
+ * simultaneously-mounted lockers touching the same body element - actually
+ * mounting only one of them at a time avoids that entirely, on top of not
+ * keeping a redundant off-screen BetSlipPanel instance around.
  */
 export function TabletBetSlipDrawer({ onClose, closeLabel }: TabletBetSlipDrawerProps) {
-  const isTabletWidth = useMediaQuery('(min-width: 640px) and (max-width: 1023.98px)');
-  useScrollLock(isTabletWidth);
+  const isAtLeastTabletWidth = useMediaQuery('(min-width: 640px)');
+  const isDesktopPointer = useMediaQuery('(hover: hover) and (pointer: fine)');
+  const isTabletTier = isAtLeastTabletWidth && !isDesktopPointer;
+  useScrollLock(isTabletTier);
 
-  if (!isTabletWidth) {
+  if (!isTabletTier) {
     return null;
   }
 

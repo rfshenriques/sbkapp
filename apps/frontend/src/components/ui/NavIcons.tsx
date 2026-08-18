@@ -26,6 +26,17 @@ export function SearchIcon(props: IconProps) {
   );
 }
 
+/** Tablet-only hamburger trigger for the sliding sports nav drawer (see AppShell) - three bars, standard menu glyph. */
+export function MenuIcon(props: IconProps) {
+  return (
+    <svg {...baseProps} {...props}>
+      <line x1="3" y1="6" x2="17" y2="6" />
+      <line x1="3" y1="10" x2="17" y2="10" />
+      <line x1="3" y1="14" x2="17" y2="14" />
+    </svg>
+  );
+}
+
 /** Highlights tab - the homepage of standout/live matches, a flame rather than a house. */
 export function FireIcon(props: IconProps) {
   return (
