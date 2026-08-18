@@ -293,14 +293,20 @@ export function AppShell() {
       {/* Fully opaque, same --color-background as the rest of the page - a
           translucent/blurred header (the old bg-background/90 +
           backdrop-blur) reads as a different color once real page content
-          scrolls underneath it, however subtly. transform-gpu +
+          scrolls underneath it, however subtly. No border-b either - a
+          dividing line would be its own second color breaking up header
+          and page background, which is exactly what this is meant to
+          avoid; a brand that wants separation can still get it by giving
+          the header a distinct background color from master backoffice
+          (see CLAUDE.md's design-system doc) once that's built, without
+          this app hardcoding a line here. transform-gpu +
           will-change-transform stay as a plain fixed-position perf hint
           (iOS Safari can otherwise visually drift fixed elements with
           scrolled content), even though the backdrop-filter-specific
           interaction that originally motivated them no longer applies. */}
       <header
         ref={headerRef}
-        className="app-header fixed inset-x-0 top-0 z-30 transform-gpu border-b border-border bg-background will-change-transform"
+        className="app-header fixed inset-x-0 top-0 z-30 transform-gpu bg-background will-change-transform"
       >
         <div
           className="mx-auto grid max-w-[1680px] grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3"
@@ -419,7 +425,10 @@ export function AppShell() {
               from fighting the max-h cap, which would otherwise force the
               whole row (and page) taller than the viewport again - the
               exact bug the max-h switch above already fixed once. */}
-          <div className="scrollbar-hide sticky top-16 h-full max-h-[calc(100vh-4.5rem)] min-h-0 overflow-y-auto rounded-2xl border border-border bg-surface p-4">
+          <div
+            className="scrollbar-hide sticky h-full min-h-0 overflow-y-auto rounded-2xl border border-border bg-surface p-4"
+            style={{ top: headerHeight, maxHeight: `calc(100vh - ${headerHeight}px)` }}
+          >
             <Sidebar />
           </div>
         </aside>
@@ -450,7 +459,10 @@ export function AppShell() {
             bottom - this wrapper just gives it a bounded height to work
             within, no overflow of its own. */}
         <aside className="hidden lg:block lg:w-80 lg:shrink-0">
-          <div className="sticky top-16 flex h-full max-h-[calc(100vh-4.5rem)] min-h-0 flex-col rounded-2xl border border-border bg-surface p-4">
+          <div
+            className="sticky flex h-full min-h-0 flex-col rounded-2xl border border-border bg-surface p-4"
+            style={{ top: headerHeight, maxHeight: `calc(100vh - ${headerHeight}px)` }}
+          >
             <BetSlipPanel showHistoryTab emptyStateVariant="promotional" />
           </div>
         </aside>
