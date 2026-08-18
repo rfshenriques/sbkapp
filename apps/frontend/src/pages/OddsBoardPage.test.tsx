@@ -251,21 +251,29 @@ describe('OddsBoardPage', () => {
     expect(screen.queryByRole('group', { name: 'Match of the day' })).not.toBeInTheDocument();
   });
 
-  it('caps the Upcoming list at 10 and shows a Load more link to the sport page', async () => {
+  it('caps the Upcoming list at 10 and grows it in place, without navigating, when Load more is clicked', async () => {
     stubOddsEngineFetch(buildManySportsMatches());
     renderPage();
 
     await screen.findAllByRole('link', { name: 'Football Home 1 vs Football Away 1' });
-    // 13 football matches, minus 1 taken as "Featured", leaves 12 - capped to
-    // 10 visible here, doubled to 20 across the mobile+desktop copies.
+    // 13 football matches - capped to 10 visible here, doubled to 20 across
+    // the mobile+desktop copies.
     expect(screen.getAllByRole('link', { name: /Football Home \d+ vs Football Away \d+/ })).toHaveLength(
       20,
     );
 
-    const loadMoreLinks = screen.getAllByRole('link', { name: 'Load more' });
-    for (const link of loadMoreLinks) {
-      expect(link).toHaveAttribute('href', '/sports/Football');
+    const loadMoreButtons = screen.getAllByRole('button', { name: 'Load more' });
+    expect(screen.queryByRole('link', { name: 'Load more' })).not.toBeInTheDocument();
+    for (const button of loadMoreButtons) {
+      await userEvent.click(button);
     }
+
+    // All 13 football matches are now visible, still on the homepage (same
+    // MemoryRouter location, no navigation to /sports/*).
+    expect(screen.getAllByRole('link', { name: /Football Home \d+ vs Football Away \d+/ })).toHaveLength(
+      26,
+    );
+    expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
   });
 
   it('always leads chips with Football, Tennis, Basketball in that order when present', async () => {

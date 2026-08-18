@@ -1,4 +1,4 @@
-import { useState, type CSSProperties } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { LiveMatchChip } from '../features/odds-board/LiveMatchesStrip';
 import { MatchCard } from '../features/odds-board/MatchCard';
@@ -27,7 +27,7 @@ import { staggerDelay } from '../lib/staggerDelay';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import type { Market, Match } from '@sportsbook/shared';
 
-/** Homepage sections stay short; "Load more" hands off to the full sport page. */
+/** Homepage sections start capped at this many items; Upcoming's own "Load more" reveals more in place, this many at a time (see visibleUpcomingCount). */
 const MAX_HOMEPAGE_ITEMS = 10;
 
 /** "Real Madrid" -> "RM", "Chelsea" -> "CH" - a badge initial when there's no team crest in the data model. */
@@ -99,17 +99,10 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
       onTouchStart={() => prefetchMatchDetail(match.id)}
     >
       <section
-        className="relative flex flex-1 flex-col overflow-hidden rounded-[22px] bg-surface pl-3.5 text-text-primary"
+        className="relative flex flex-1 flex-col overflow-hidden rounded-[22px] bg-surface text-text-primary"
         style={{ '--home-glow': homeColor, '--away-glow': awayColor } as CSSProperties}
       >
         <div className="match-card-glow" aria-hidden="true" />
-        {/* The thicker accent along the left edge, distinct from the thin
-            gradient border the outer wrapper's padding creates. */}
-        <span
-          aria-hidden="true"
-          className="absolute inset-y-0 left-0 w-1.5 rounded-l-[inherit]"
-          style={{ background: `linear-gradient(180deg, ${homeColor}, ${awayColor})` }}
-        />
 
         <div className="relative z-10 flex flex-1 flex-col p-3 sm:p-4">
           <div className="flex items-center justify-between gap-2">
@@ -125,11 +118,9 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
             </span>
           </div>
 
-          <div className="my-2 border-t border-border" />
-
           <h1
             aria-label={`${homeTeamLabel} vs ${awayTeamLabel}`}
-            className="flex items-center justify-between gap-3"
+            className="mt-3 flex items-center justify-between gap-3"
           >
             <span className="flex flex-col gap-1.5">
               <span className="flex items-center gap-2">
@@ -165,12 +156,10 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
             </span>
           </h1>
 
-          <div className="my-2 border-t border-border" />
-
           {/* Pinned to the card's bottom edge so it lands at a consistent
               height regardless of how much extra room the card has above
               it. */}
-          <div className="mt-auto">
+          <div className="mt-auto pt-2">
             <p className="mb-1.5 text-[11px] font-bold tracking-wide text-text-muted uppercase">
               {displayName('MARKET', matchResult.name)}
             </p>
@@ -179,6 +168,7 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
               matchLabel={`${homeTeamLabel} vs ${awayTeamLabel}`}
               competition={match.competition}
               market={matchResult}
+              reserveBoostSpace
             />
           </div>
         </div>
@@ -246,6 +236,10 @@ export default function OddsBoardPage() {
   // always taking up a row of its own.
   const [hoursWindow, setHoursWindow] = useState<HoursWindow>('all');
   const [hoursMenuOpen, setHoursMenuOpen] = useState(false);
+  // How many Upcoming matches to show - starts capped, grows in place (no
+  // navigation) each time "Load more" is clicked, rather than handing off
+  // to the full sport page.
+  const [visibleUpcomingCount, setVisibleUpcomingCount] = useState(MAX_HOMEPAGE_ITEMS);
 
   const sorted = matches ? sortMatches(matches, 'time') : undefined;
   // Never auto-picked - only the staff-configured entries that are both
@@ -292,8 +286,15 @@ export default function OddsBoardPage() {
     isWithinHoursWindow(hoursWindow, new Date(match.kickoff)),
   );
 
+  // Switching sport or kickoff-time window starts the list capped again,
+  // rather than carrying over however far a previous "Load more" click
+  // expanded it.
+  useEffect(() => {
+    setVisibleUpcomingCount(MAX_HOMEPAGE_ITEMS);
+  }, [effectiveSport, hoursWindow]);
+
   const liveCapped = liveMatches.slice(0, MAX_HOMEPAGE_ITEMS);
-  const upcomingCapped = upcomingFiltered.slice(0, MAX_HOMEPAGE_ITEMS);
+  const upcomingCapped = upcomingFiltered.slice(0, visibleUpcomingCount);
 
   // The "Challenges" slot next to Match of the day: staff-managed CMS promo
   // cards (see the backoffice's Promo Cards page) when the brand has any,
@@ -496,13 +497,14 @@ export default function OddsBoardPage() {
               ))}
             </div>
           )}
-          {upcomingFiltered.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
-            <Link
-              to={`/sports/${encodeURIComponent(effectiveSport)}`}
+          {upcomingFiltered.length > visibleUpcomingCount && (
+            <button
+              type="button"
+              onClick={() => setVisibleUpcomingCount((count) => count + MAX_HOMEPAGE_ITEMS)}
               className="btn-ghost mt-3 inline-flex w-auto items-center justify-center"
             >
               Load more
-            </Link>
+            </button>
           )}
         </section>
       </div>
@@ -586,13 +588,14 @@ export default function OddsBoardPage() {
             ))}
           </div>
         )}
-        {upcomingFiltered.length > MAX_HOMEPAGE_ITEMS && effectiveSport && (
-          <Link
-            to={`/sports/${encodeURIComponent(effectiveSport)}`}
+        {upcomingFiltered.length > visibleUpcomingCount && (
+          <button
+            type="button"
+            onClick={() => setVisibleUpcomingCount((count) => count + MAX_HOMEPAGE_ITEMS)}
             className="btn-ghost mt-3 flex w-full items-center justify-center"
           >
             Load more
-          </Link>
+          </button>
         )}
       </div>
     </div>

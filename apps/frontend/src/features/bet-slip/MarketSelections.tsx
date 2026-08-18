@@ -20,6 +20,14 @@ interface MarketSelectionsProps {
    * label-beside-value compact style MatchCard's Lucky.fun-style match
    * list rows use. */
   variant?: 'stacked' | 'inline';
+  /** Reserves the taller boosted-price layout (struck-through previous
+   * price above the current one) even for a selection that isn't actually
+   * boosted, via an invisible placeholder line - so every card in a set
+   * ends up the same height regardless of which ones happen to carry a
+   * boost right now. Only Match of the day's featured cards need this
+   * (see OddsBoardPage's FeaturedMatchCard) - elsewhere a plain one-line
+   * price is correct. */
+  reserveBoostSpace?: boolean;
 }
 
 interface SelectionButtonProps {
@@ -28,10 +36,11 @@ interface SelectionButtonProps {
   isSelected: boolean;
   isSuspended: boolean;
   variant: 'stacked' | 'inline';
+  reserveBoostSpace: boolean;
   onSelect: () => void;
 }
 
-function SelectionButton({ selection, label, isSelected, isSuspended, variant, onSelect }: SelectionButtonProps) {
+function SelectionButton({ selection, label, isSelected, isSuspended, variant, reserveBoostSpace, onSelect }: SelectionButtonProps) {
   const flash = useOddsFlash(selection.odds);
   // originalOdds is only ever set by the backend when a boost actually changed the price (see BoostService.applyBoosts).
   const isBoosted = selection.originalOdds !== undefined;
@@ -86,6 +95,13 @@ function SelectionButton({ selection, label, isSelected, isSuspended, variant, o
           </span>
           <span className="odd-value text-highlight">{selection.odds.toFixed(2)}</span>
         </span>
+      ) : reserveBoostSpace ? (
+        <span className="flex flex-col items-center leading-none">
+          <span className="prev-odds invisible text-xs font-semibold" aria-hidden="true">
+            {selection.odds.toFixed(2)}
+          </span>
+          <span className="odd-value">{selection.odds.toFixed(2)}</span>
+        </span>
       ) : (
         <span className="odd-value">{selection.odds.toFixed(2)}</span>
       )}
@@ -99,6 +115,7 @@ export function MarketSelections({
   competition,
   market,
   variant = 'stacked',
+  reserveBoostSpace = false,
 }: MarketSelectionsProps) {
   const toggleSelection = useBetSlipStore((state) => state.toggleSelection);
   const selectedSelectionId = useBetSlipStore(
@@ -128,6 +145,7 @@ export function MarketSelections({
             isSelected={selectedSelectionId === selection.id}
             isSuspended={competitionSuspended || isSuspended(matchId, market.id, selection.id)}
             variant={variant}
+            reserveBoostSpace={reserveBoostSpace}
             onSelect={() => {
               track('CLICK', {
                 metadata: {

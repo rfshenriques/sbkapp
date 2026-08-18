@@ -68,6 +68,24 @@
   --font-sans: 'Poppins', system-ui, sans-serif;
 }
 
+/* The fallback background for .btn-primary/.tab.active/.icon-toggle.active/
+   .tab-pill-btn.active/.odd-btn.selected when a brand hasn't configured its
+   own genuine gradient for that zone (see --gradient-{zone} below and
+   useBrandTheme.ts) - dark theme's fallback is a baked diagonal
+   solid-to-color-mix'd-darker gradient (a deliberate "premium" sheen this
+   app always used), light theme's is the plain solid color instead - the
+   same darkening-toward-black gradient read as a muddy smudge rather than a
+   sheen against light surfaces, and looked like an unintended auto-applied
+   effect rather than the deliberate one it is in dark theme. Only the
+   *fallback* changes - a brand's own explicitly configured --gradient-{zone}
+   still renders in either theme, since that's a genuine choice, not an
+   auto-generated one. */
+:root {
+  --fallback-gradient-brand: linear-gradient(135deg, var(--color-brand), color-mix(in srgb, var(--color-brand) 78%, black));
+  --fallback-gradient-filter: linear-gradient(135deg, var(--color-filter), color-mix(in srgb, var(--color-filter) 78%, black));
+  --fallback-gradient-highlight: linear-gradient(135deg, var(--color-highlight), color-mix(in srgb, var(--color-highlight) 78%, black));
+}
+
 :root[data-theme='light'] {
   --color-background: #f5f6f8;
   --color-surface: #ffffff;
@@ -78,6 +96,10 @@
   --color-text-primary: #14171c;
   --color-text-secondary: #55606e;
   --color-text-muted: #8890a0;
+
+  --fallback-gradient-brand: var(--color-brand);
+  --fallback-gradient-filter: var(--color-filter);
+  --fallback-gradient-highlight: var(--color-highlight);
 }
 
 /* Prevents the page itself from ever scrolling horizontally on mobile
@@ -242,7 +264,7 @@ body {
   /* Same --gradient-{zone}-with-baked-fallback pattern as .btn-primary - see there. */
   background: var(
     --gradient-highlight,
-    linear-gradient(135deg, var(--color-highlight), color-mix(in srgb, var(--color-highlight) 78%, black))
+    var(--fallback-gradient-highlight)
   );
   border-color: var(--color-highlight);
 }
@@ -337,11 +359,12 @@ body {
   white-space: nowrap;
   /* --gradient-brand is only set when the brand configured a genuine custom
      gradient for the Button/CTA zone (see useBrandTheme.ts) - otherwise it's
-     unset and this falls back to the same baked shade-of-the-solid-color
-     formula this always used, now driven by --color-brand either way. */
+     unset and this falls back to --fallback-gradient-brand (see near the
+     top of this file), a baked diagonal shade-of-the-solid-color gradient
+     in dark theme, the plain solid color in light theme. */
   background: var(
     --gradient-brand,
-    linear-gradient(135deg, var(--color-brand), color-mix(in srgb, var(--color-brand) 78%, black))
+    var(--fallback-gradient-brand)
   );
   color: #fff;
   transition:
@@ -403,7 +426,7 @@ body {
   /* Same --gradient-{zone}-with-baked-fallback pattern as .btn-primary - see there. */
   background: var(
     --gradient-filter,
-    linear-gradient(135deg, var(--color-filter), color-mix(in srgb, var(--color-filter) 78%, black))
+    var(--fallback-gradient-filter)
   );
   color: #000;
 }
@@ -437,7 +460,7 @@ body {
 .icon-toggle.active {
   background: var(
     --gradient-filter,
-    linear-gradient(135deg, var(--color-filter), color-mix(in srgb, var(--color-filter) 78%, black))
+    var(--fallback-gradient-filter)
   );
   color: #000;
 }
@@ -476,7 +499,7 @@ body {
   /* Same --gradient-{zone}-with-baked-fallback pattern as .btn-primary - see there. */
   background: var(
     --gradient-filter,
-    linear-gradient(135deg, var(--color-filter), color-mix(in srgb, var(--color-filter) 78%, black))
+    var(--fallback-gradient-filter)
   );
   color: #000;
 }
