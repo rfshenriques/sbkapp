@@ -13,23 +13,29 @@ import { useTopNavItems } from './useTopNavItems';
  * resolved from the live matches feed the same way Sidebar's "Top
  * Competitions" quicklinks do, falling back to the /sports/all umbrella when
  * a competition's sport can't be determined (no live match for it right
- * now).
+ * now). Every destination but MATCH (which lands on the match detail page,
+ * not a browsable list) carries `from=quicklink` - SportPage reads it once
+ * on mount to hide its own sport/date filters for a quicklink-driven
+ * landing (see SportPage's fromQuicklink) without affecting the identical
+ * URLs Sidebar's own competition/sport links produce.
  */
 function hrefForItem(item: TopNavItem, competitionSports: Map<string, string>): string {
   if (item.kind === 'SPORT') {
-    return `/sports/${encodeURIComponent(item.sport ?? '')}`;
+    return `/sports/${encodeURIComponent(item.sport ?? '')}?from=quicklink`;
   }
   if (item.kind === 'COMPETITION') {
     const competition = item.competition ?? '';
     const sport = competitionSports.get(competition);
     return sport
-      ? `/sports/${encodeURIComponent(sport)}?competition=${encodeURIComponent(competition)}`
-      : `/sports/all?competition=${encodeURIComponent(competition)}`;
+      ? `/sports/${encodeURIComponent(sport)}?competition=${encodeURIComponent(competition)}&from=quicklink`
+      : `/sports/all?competition=${encodeURIComponent(competition)}&from=quicklink`;
   }
   if (item.kind === 'MATCH') {
     return `/matches/${encodeURIComponent(item.matchId ?? '')}`;
   }
-  return item.kind === 'TODAY' ? '/sports/all?date=today' : '/sports/all?date=tomorrow';
+  return item.kind === 'TODAY'
+    ? '/sports/all?date=today&from=quicklink'
+    : '/sports/all?date=tomorrow&from=quicklink';
 }
 
 /**

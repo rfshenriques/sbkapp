@@ -71,7 +71,10 @@ describe('SecondaryNavBar', () => {
     ]);
     renderNav();
 
-    expect(await screen.findByRole('link', { name: 'Football' })).toHaveAttribute('href', '/sports/Football');
+    expect(await screen.findByRole('link', { name: 'Football' })).toHaveAttribute(
+      'href',
+      '/sports/Football?from=quicklink',
+    );
   });
 
   it('links a COMPETITION item to its resolved sport page when a live match reveals the sport', async () => {
@@ -93,7 +96,7 @@ describe('SecondaryNavBar', () => {
 
     expect(await screen.findByRole('link', { name: 'Premier League' })).toHaveAttribute(
       'href',
-      '/sports/Football?competition=Premier%20League',
+      '/sports/Football?competition=Premier%20League&from=quicklink',
     );
   });
 
@@ -113,7 +116,7 @@ describe('SecondaryNavBar', () => {
 
     expect(await screen.findByRole('link', { name: 'Off-season League' })).toHaveAttribute(
       'href',
-      '/sports/all?competition=Off-season%20League',
+      '/sports/all?competition=Off-season%20League&from=quicklink',
     );
   });
 
@@ -144,11 +147,11 @@ describe('SecondaryNavBar', () => {
 
     expect(await screen.findByRole('link', { name: "Today's matches" })).toHaveAttribute(
       'href',
-      '/sports/all?date=today',
+      '/sports/all?date=today&from=quicklink',
     );
     expect(screen.getByRole('link', { name: "Tomorrow's matches" })).toHaveAttribute(
       'href',
-      '/sports/all?date=tomorrow',
+      '/sports/all?date=tomorrow&from=quicklink',
     );
   });
 

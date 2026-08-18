@@ -411,6 +411,51 @@ describe('SportPage', () => {
     expect(screen.queryByRole('link', { name: 'Arsenal vs Chelsea' })).not.toBeInTheDocument();
   });
 
+  it('hides the sport and date/live filters on a quicklink-driven landing, showing every date bucket unfiltered', async () => {
+    stubOddsEngineFetch([
+      buildMatch({ id: 'm1', sport: 'Football', homeTeam: 'Arsenal', awayTeam: 'Chelsea', kickoff: daysFromNow(0).toISOString() }),
+      buildMatch({ id: 'm2', sport: 'Tennis', homeTeam: 'Nadal', awayTeam: 'Federer', kickoff: daysFromNow(1).toISOString() }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/sports/all?from=quicklink');
+
+    expect(await screen.findByRole('link', { name: 'Arsenal vs Chelsea' })).toBeInTheDocument();
+    // Tennis kicks off tomorrow, not today (dateFilter would otherwise
+    // default to 'today') - still shown, since a quicklink landing with no
+    // explicit date= shows every date bucket rather than silently applying one.
+    expect(screen.getByRole('link', { name: 'Nadal vs Federer' })).toBeInTheDocument();
+    expect(screen.queryByRole('group', { name: 'Filter by sport' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tablist', { name: 'Filter matches by date' })).not.toBeInTheDocument();
+  });
+
+  it('keeps the sport and date/live filters on a plain (non-quicklink) visit to the same URL shape', async () => {
+    stubOddsEngineFetch([
+      buildMatch({ id: 'm1', sport: 'Football', homeTeam: 'Arsenal', awayTeam: 'Chelsea' }),
+      buildMatch({ id: 'm2', sport: 'Tennis', homeTeam: 'Nadal', awayTeam: 'Federer' }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/sports/all');
+
+    expect(await screen.findByRole('group', { name: 'Filter by sport' })).toBeInTheDocument();
+    expect(screen.getByRole('tablist', { name: 'Filter matches by date' })).toBeInTheDocument();
+  });
+
+  it('a TODAY/TOMORROW quicklink still locks to its requested date bucket even with the tabs hidden', async () => {
+    stubOddsEngineFetch([
+      buildMatch({ id: 'm1', sport: 'Football', homeTeam: 'Arsenal', awayTeam: 'Chelsea', kickoff: daysFromNow(0).toISOString() }),
+      buildMatch({ id: 'm2', sport: 'Tennis', homeTeam: 'Nadal', awayTeam: 'Federer', kickoff: daysFromNow(1).toISOString() }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/sports/all?date=today&from=quicklink');
+
+    expect(await screen.findByRole('link', { name: 'Arsenal vs Chelsea' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Nadal vs Federer' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tablist', { name: 'Filter matches by date' })).not.toBeInTheDocument();
+  });
+
   it('breadcrumb lets you switch country, then a league within that country', async () => {
     stubOddsEngineFetch([
       buildMatch({

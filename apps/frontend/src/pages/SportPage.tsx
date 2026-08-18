@@ -57,6 +57,19 @@ export default function SportPage() {
       ? requested
       : 'today';
   });
+  // Set only when this exact page load came from a SecondaryNavBar
+  // quicklink (see hrefForItem's from=quicklink) - while it's undecided
+  // whether these filters make sense on a quicklink-curated landing, they're
+  // hidden there rather than shown; a plain Sidebar-driven visit to the same
+  // URL shape keeps them. Read once on mount, same as dateFilter above.
+  const [fromQuicklink] = useState(() => searchParams.get('from') === 'quicklink');
+  // A SPORT/COMPETITION quicklink carries no date= of its own - hiding the
+  // date/live tabs there without also lifting the filter they'd otherwise
+  // leave in place (dateFilter defaults to 'today' above) would silently
+  // strand the player on just today's matches with no way to see the rest.
+  // A TODAY/TOMORROW quicklink is the opposite case: it explicitly requests
+  // one bucket, and locking to it with the tabs hidden is exactly the point.
+  const showAllDates = fromQuicklink && !searchParams.get('date');
 
   const { data: matches, isPending, isError } = useMatches();
   const { data: rankings } = useCompetitionRankings();
@@ -72,7 +85,7 @@ export default function SportPage() {
       (!countryFilter || match.country === countryFilter) &&
       (!competitionFilter || match.competition === competitionFilter) &&
       (!liveOnly || match.isLive) &&
-      (dateFilter === 'live' ? match.isLive : matchDateBucket(match) === dateFilter),
+      (showAllDates || (dateFilter === 'live' ? match.isLive : matchDateBucket(match) === dateFilter)),
   );
   const sportsPresent =
     decodedSport === ALL_SPORTS
@@ -232,7 +245,12 @@ export default function SportPage() {
         <h1 className="font-display text-lg">{heading}</h1>
       </div>
 
-      {decodedSport === ALL_SPORTS && sportsPresent.length > 1 && (
+      {/* Hidden on a quicklink-driven landing (see fromQuicklink) - staff
+          curated this exact view via the top nav, so re-filtering it by
+          sport or date/live isn't offered here (yet - undecided whether it
+          ever should be); a plain Sidebar-driven visit to the same URL
+          shape keeps both. */}
+      {!fromQuicklink && decodedSport === ALL_SPORTS && sportsPresent.length > 1 && (
         <div
           className="scrollbar-hide -mx-1 mb-3 flex gap-2 overflow-x-auto px-1 pb-1"
           role="group"
@@ -263,42 +281,44 @@ export default function SportPage() {
       )}
 
       <div className="mb-3 flex items-center justify-between gap-2">
-        <div
-          className="scrollbar-hide flex min-w-0 gap-2 overflow-x-auto"
-          role="tablist"
-          aria-label="Filter matches by date"
-          data-horizontal-scroll="true"
-        >
-          {showLiveFilter && (
-            <button
-              type="button"
-              role="tab"
-              aria-selected={dateFilter === 'live'}
-              className={`tab inline-flex shrink-0 items-center gap-1.5${dateFilter === 'live' ? ' active' : ''}`}
-              onClick={() => setDateFilter('live')}
-            >
-              <span className="live-dot" aria-hidden="true" />
-              Live
-            </button>
-          )}
-          {visibleDateFilters.map(({ value, label }) => (
-            <button
-              key={value}
-              type="button"
-              role="tab"
-              aria-selected={dateFilter === value}
-              className={`tab shrink-0${dateFilter === value ? ' active' : ''}`}
-              onClick={() => setDateFilter(value)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {!fromQuicklink && (
+          <div
+            className="scrollbar-hide flex min-w-0 gap-2 overflow-x-auto"
+            role="tablist"
+            aria-label="Filter matches by date"
+            data-horizontal-scroll="true"
+          >
+            {showLiveFilter && (
+              <button
+                type="button"
+                role="tab"
+                aria-selected={dateFilter === 'live'}
+                className={`tab inline-flex shrink-0 items-center gap-1.5${dateFilter === 'live' ? ' active' : ''}`}
+                onClick={() => setDateFilter('live')}
+              >
+                <span className="live-dot" aria-hidden="true" />
+                Live
+              </button>
+            )}
+            {visibleDateFilters.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                role="tab"
+                aria-selected={dateFilter === value}
+                className={`tab shrink-0${dateFilter === value ? ' active' : ''}`}
+                onClick={() => setDateFilter(value)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
         {showOrderToggle && (
           <button
             type="button"
             aria-pressed={sortMode === 'importance'}
-            className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-highlight"
+            className="ml-auto inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-highlight"
             onClick={() => setSortMode((mode) => (mode === 'time' ? 'importance' : 'time'))}
           >
             {sortMode === 'importance' ? 'Relevance' : 'Time'}
