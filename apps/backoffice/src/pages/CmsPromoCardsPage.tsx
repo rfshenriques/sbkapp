@@ -114,6 +114,16 @@ const EMPTY_SELECTION: CampaignSelection = {
 
 const NONE_VALUE = '';
 
+/** Why a linked card isn't showing to players right now - null for a card with nothing to explain (ACTIVE, or no campaign link at all). */
+function statusWarning(card: backendApi.PromoCard): string | null {
+  const hasCampaignLink = Boolean(
+    card.betAndGetCampaignId || card.depositCampaignId || card.registerCampaignId || card.leaderboardCampaignId,
+  );
+  if (!hasCampaignLink || card.status === 'ACTIVE') return null;
+  if (card.status === 'DISABLED') return 'Not showing - the linked campaign is disabled or not started yet';
+  return 'Not showing on the homepage - the linked campaign has already ended (still visible, grayed out, on the Promotions page)';
+}
+
 function encodeCampaignValue(selection: CampaignSelection): string {
   if (selection.betAndGetCampaignId) return `bet-and-get:${selection.betAndGetCampaignId}`;
   if (selection.depositCampaignId) return `deposit:${selection.depositCampaignId}`;
@@ -422,6 +432,7 @@ function PromoCardRow({
     depositCampaigns.find((campaign) => campaign.id === card.depositCampaignId) ??
     registerCampaigns.find((campaign) => campaign.id === card.registerCampaignId) ??
     leaderboardCampaigns.find((campaign) => campaign.id === card.leaderboardCampaignId);
+  const warning = statusWarning(card);
   const isDirty =
     title.trim() !== (card.title ?? '') ||
     subtitle.trim() !== (card.subtitle ?? '') ||
@@ -464,6 +475,7 @@ function PromoCardRow({
           <span className="block truncate text-xs text-text-secondary">
             {linkedCampaign ? `Links to: ${linkedCampaign.name}` : 'Decorative - no campaign link'}
           </span>
+          {warning && <span className="block truncate text-xs font-medium text-danger">{warning}</span>}
         </span>
       </button>
 

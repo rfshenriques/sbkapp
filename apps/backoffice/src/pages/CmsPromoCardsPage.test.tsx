@@ -81,6 +81,8 @@ const decorativeCard: PromoCard = {
   leaderboardCampaignId: null,
   createdAt: '2026-07-24T00:00:00Z',
   updatedAt: '2026-07-24T00:00:00Z',
+  hasImage: true,
+  status: 'ACTIVE',
 };
 
 function renderPage() {

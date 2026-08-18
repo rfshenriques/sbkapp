@@ -101,6 +101,16 @@ export default function BrandDetailPage() {
     },
   });
 
+  const colorFields = {
+    backgroundColor: backgroundColor ?? undefined,
+    surfaceColor: surfaceColor ?? undefined,
+    buttonColor: buttonColor ?? undefined,
+    highlightColor: highlightColor ?? undefined,
+    filterColor: filterColor ?? undefined,
+    textColor: textColor ?? undefined,
+    freebetBadgeColor: freebetBadgeColor ?? undefined,
+  };
+
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     updateMutation.mutate({
@@ -109,15 +119,18 @@ export default function BrandDetailPage() {
       themeMode,
       currencyCode,
       timeFormat,
-      backgroundColor: backgroundColor ?? undefined,
-      surfaceColor: surfaceColor ?? undefined,
-      buttonColor: buttonColor ?? undefined,
-      highlightColor: highlightColor ?? undefined,
-      filterColor: filterColor ?? undefined,
-      textColor: textColor ?? undefined,
-      freebetBadgeColor: freebetBadgeColor ?? undefined,
       freebetStakeReturnedOnWin,
+      ...colorFields,
     });
+  }
+
+  // A dedicated save for the Colors card, so a color edit made up here
+  // doesn't depend on scrolling down to the unrelated "Brand configuration"
+  // card's own "Save changes" button to actually persist (see PATCH
+  // /brands/:id - every field is independently optional, so this partial
+  // payload is a normal update, not a special case).
+  function handleSaveColors() {
+    updateMutation.mutate(colorFields);
   }
 
   function isProductEnabled(product: string): boolean {
@@ -213,6 +226,20 @@ export default function BrandDetailPage() {
                 value={freebetBadgeColor}
                 onChange={setFreebetBadgeColor}
               />
+            </div>
+            <div className="mt-4 flex items-center gap-3">
+              <Button
+                type="button"
+                disabled={updateMutation.isPending}
+                onClick={handleSaveColors}
+              >
+                {updateMutation.isPending ? 'Saving…' : 'Save colors'}
+              </Button>
+              {updateMutation.isError && (
+                <p className="text-sm text-danger">
+                  {updateMutation.error instanceof Error ? updateMutation.error.message : 'Failed to save colors.'}
+                </p>
+              )}
             </div>
           </Card>
 

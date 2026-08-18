@@ -1838,6 +1838,10 @@ export interface PromoCard {
   leaderboardCampaignId: string | null;
   createdAt: string;
   updatedAt: string;
+  /** True once staff has uploaded artwork - false only for an auto-created card, see PromoCardAutoSyncService. */
+  hasImage: boolean;
+  /** Live-computed from the linked campaign's own enabled/startAt/endAt - see apps/backend's campaignPromoStatus. ACTIVE for a card with no campaign link. */
+  status: 'ACTIVE' | 'EARLY_ENDED' | 'DISABLED';
 }
 
 export interface AddPromoCardPayload {

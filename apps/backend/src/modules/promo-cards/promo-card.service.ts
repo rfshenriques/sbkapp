@@ -25,7 +25,7 @@ const METADATA_SELECT = {
   updatedAt: true,
 } as const;
 
-export interface PromoCardForViewer {
+export interface PromoCardMetadata {
   id: string;
   brandId: string;
   mimeType: string | null;
@@ -39,6 +39,9 @@ export interface PromoCardForViewer {
   leaderboardCampaignId: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface PromoCardForViewer extends PromoCardMetadata {
   hasImage: boolean;
   status: PromoCardStatus;
 }
@@ -119,12 +122,32 @@ export class PromoCardService {
     return null;
   }
 
-  async list(brandId: string) {
-    return this.prisma.promoCard.findMany({
+  /**
+   * Admin listing - every card regardless of live visibility, each
+   * annotated with the same live-computed `status` listForViewer uses to
+   * decide whether to show it, so staff can immediately see *why* a
+   * correctly-configured card isn't appearing on the site (its campaign
+   * isn't enabled yet, hasn't started, or already ended) rather than
+   * guessing from the raw campaign-link id alone. Unlike listForViewer,
+   * never drops a card for audience/exhaustion - those are viewer-specific
+   * and meaningless for an admin's own view of "what did I configure."
+   */
+  async list(brandId: string): Promise<(PromoCardMetadata & { hasImage: boolean; status: PromoCardStatus })[]> {
+    const cards = await this.prisma.promoCard.findMany({
       where: { brandId },
       select: METADATA_SELECT,
       orderBy: { sortOrder: 'asc' },
     });
+    return Promise.all(
+      cards.map(async (card) => {
+        const link = await this.resolveCampaignLink(brandId, card, null);
+        return {
+          ...card,
+          hasImage: card.mimeType !== null,
+          status: link ? campaignPromoStatus(link.campaign) : 'ACTIVE',
+        };
+      }),
+    );
   }
 
   /**

@@ -55,14 +55,19 @@ export function MatchCard({ match, style, animate = true }: MatchCardProps) {
 
       <div className="mb-2 flex items-center justify-between gap-2">
         {match.isLive ? (
-          <span className="text-[11px] font-bold text-highlight">
-            {liveState ? `${matchPeriodLabel(liveState.period)} · ${liveState.minute}'` : 'Live'}
-          </span>
+          // The red LIVE pill below already says "live" - this slot only
+          // adds something when there's a genuine period/minute to show,
+          // rather than repeating "Live" as plain text next to it.
+          liveState && (
+            <span className="text-[11px] font-bold text-highlight">
+              {matchPeriodLabel(liveState.period)} · {liveState.minute}'
+            </span>
+          )
         ) : (
           <span className="text-[11px] font-semibold text-text-secondary">{formatKickoff(kickoff)}</span>
         )}
         {match.isLive && (
-          <span className="shrink-0 rounded-full bg-price-down px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest text-white">
+          <span className="ml-auto shrink-0 rounded-full bg-price-down px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest text-white">
             LIVE
           </span>
         )}
