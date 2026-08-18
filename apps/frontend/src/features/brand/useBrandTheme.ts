@@ -51,6 +51,31 @@ function applyColorZone(name: string, zone: ColorZone | null | undefined, active
 }
 
 /**
+ * Points the desktop browser tab icon and iOS's "Add to Home Screen" mark
+ * at the acting brand's own logo, same as document.title below - without
+ * this, both fall back to index.html's static generic icon regardless of
+ * which brand is actually being served. iOS reads whatever this link's
+ * current href is at the moment a player taps "Add to Home Screen" (not a
+ * separately-cached asset), so updating it here is enough for that flow;
+ * Android/desktop's "Install app" prompt reads the static Web App
+ * Manifest's own icons instead, which stay generic since manifest.json is
+ * one static file for every brand this backend serves - a real per-brand
+ * fix there needs a brand-aware manifest endpoint, out of scope here.
+ */
+function updateFavicon(url: string | null | undefined): void {
+  if (!url) return;
+  for (const rel of ['icon', 'apple-touch-icon']) {
+    let link = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = rel;
+      document.head.appendChild(link);
+    }
+    link.href = url;
+  }
+}
+
+/**
  * Fetches this deployment's brand - resolved from the current hostname, see
  * getPublicBrand - and applies its theme (light/dark logo + background/
  * surface/button/highlight/filter/text/freebet-badge colors, each
@@ -101,6 +126,7 @@ export function useBrandTheme() {
     useBrandStore.getState().setLogoUrls(logoUrl, shareLogoUrl);
     useBrandStore.getState().setCurrencyCode(brand.currencyCode);
     useBrandStore.getState().setTimeFormat(brand.timeFormat);
+    updateFavicon(logoUrl);
 
     if (brand.name) {
       document.title = brand.name;
