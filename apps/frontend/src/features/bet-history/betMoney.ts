@@ -12,7 +12,9 @@ export function unboostedCombinedOdds(bet: PlacedBet): number {
 }
 
 export function displayedPayoutCents(bet: PlacedBet): number {
-  return bet.status === 'PENDING' ? bet.potentialPayoutCents : (bet.settledPayoutCents ?? 0);
+  if (bet.status === 'PENDING') return bet.potentialPayoutCents;
+  if (bet.status === 'CASHED_OUT') return bet.cashedOutValueCents ?? 0;
+  return bet.settledPayoutCents ?? 0;
 }
 
 export function uninsuredPayoutCents(bet: PlacedBet): number {

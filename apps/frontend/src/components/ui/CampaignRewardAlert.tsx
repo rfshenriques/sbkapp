@@ -4,6 +4,8 @@ import { FreebetBadgeIcon } from './NavIcons';
 interface CampaignRewardAlertProps {
   name: string;
   rewardCents: number | null;
+  /** Past tense once the bet is no longer PENDING - qualification is already decided by then, not still in progress. Defaults to still-pending phrasing. */
+  qualified?: boolean;
 }
 
 /**
@@ -20,10 +22,10 @@ interface CampaignRewardAlertProps {
  * ugly spot. Splitting the campaign name from the reward amount gives every
  * context the same clean two-line shape instead of an unpredictable wrap.
  */
-export function CampaignRewardAlert({ name, rewardCents }: CampaignRewardAlertProps) {
+export function CampaignRewardAlert({ name, rewardCents, qualified = false }: CampaignRewardAlertProps) {
   return (
     <div className="rounded-xl border border-highlight/40 bg-highlight/10 p-2.5 text-highlight">
-      <p className="text-xs font-semibold">🎁 Qualifies for {name}</p>
+      <p className="text-xs font-semibold">🎁 {qualified ? 'Qualified' : 'Qualifies'} for {name}</p>
       {rewardCents !== null && (
         <p className="mt-0.5 flex items-center gap-1 text-sm font-bold">
           <FreebetBadgeIcon width={16} height={16} className="shrink-0" />

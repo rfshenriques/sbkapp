@@ -195,10 +195,11 @@ export function BetCampaignNotes({ bet }: { bet: PlacedBet }) {
   if (campaignNotes.length === 0 && bet.accaRollbackRewardCents === null) {
     return null;
   }
+  const qualified = bet.status !== 'PENDING';
   return (
     <>
       {campaignNotes.map((note) => (
-        <CampaignRewardAlert key={note.name} name={note.name} rewardCents={note.rewardCents} />
+        <CampaignRewardAlert key={note.name} name={note.name} rewardCents={note.rewardCents} qualified={qualified} />
       ))}
       {bet.accaRollbackRewardCents !== null && (
         <p className="text-xs text-highlight">
@@ -248,7 +249,9 @@ export function BetFooterSummary({ bet }: { bet: PlacedBet }) {
         </span>
       </div>
       <div className="flex items-center justify-between">
-        <span className="text-text-secondary">{bet.status === 'PENDING' ? 'Potential payout' : 'Payout'}</span>
+        <span className="text-text-secondary">
+          {bet.status === 'PENDING' ? 'Potential payout' : bet.status === 'CASHED_OUT' ? 'Cashed out for' : 'Payout'}
+        </span>
         <span className="font-semibold">
           {isInsuredLoss ? (
             <span className="flex items-center gap-1.5">
