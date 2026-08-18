@@ -11,37 +11,41 @@ import type { BetStatus, SelectionStatus } from './backendApi';
  * a bit of color since it's an unusual outcome, but light rather than the
  * solid fill a real win/loss gets.
  */
-const STATUS_KEY: Record<BetStatus | SelectionStatus, 'pending' | 'won' | 'lost' | 'void'> = {
+const STATUS_KEY: Record<BetStatus | SelectionStatus, 'pending' | 'won' | 'lost' | 'void' | 'cashed_out'> = {
   PENDING: 'pending',
   OPEN: 'pending',
   WON: 'won',
   LOST: 'lost',
   VOID: 'void',
+  CASHED_OUT: 'cashed_out',
 };
 
-const BADGE_CLASSES: Record<'pending' | 'won' | 'lost' | 'void', string> = {
+const BADGE_CLASSES: Record<'pending' | 'won' | 'lost' | 'void' | 'cashed_out', string> = {
   pending: 'bg-surface-2 text-text-secondary',
   won: 'bg-price-up text-black',
   lost: 'bg-price-down text-white',
   void: 'bg-highlight/20 text-highlight',
+  cashed_out: 'bg-cashed-out/20 text-cashed-out',
 };
 
-const TEXT_CLASSES: Record<'pending' | 'won' | 'lost' | 'void', string> = {
+const TEXT_CLASSES: Record<'pending' | 'won' | 'lost' | 'void' | 'cashed_out', string> = {
   pending: 'text-text-secondary',
   won: 'text-price-up',
   lost: 'text-price-down',
   void: 'text-highlight',
+  cashed_out: 'text-cashed-out',
 };
 
 /** Display label - PENDING reads as "OPEN" to the player, everything else is shown as-is. */
-const DISPLAY_LABEL: Record<'pending' | 'won' | 'lost' | 'void', string> = {
+const DISPLAY_LABEL: Record<'pending' | 'won' | 'lost' | 'void' | 'cashed_out', string> = {
   pending: 'OPEN',
   won: 'WON',
   lost: 'LOST',
   void: 'VOID',
+  cashed_out: 'CASHED OUT',
 };
 
-export type BetStatusCategory = 'pending' | 'won' | 'lost' | 'void' | 'insured';
+export type BetStatusCategory = 'pending' | 'won' | 'lost' | 'void' | 'insured' | 'cashed_out';
 
 /**
  * A LOST bet that was insured (bet.insuranceCostPercent > 0 - see

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import type { JwtPayload } from '../auth/jwt.strategy';
 import { AcknowledgeCelebrationsDto } from './dto/acknowledge-celebrations.dto';
@@ -38,6 +38,16 @@ export class PamController {
   @Get('bets')
   getBets(@Req() req: AuthenticatedRequest) {
     return this.pamService.getBets(req.user.sub);
+  }
+
+  @Get('bets/:betId/cashout-quote')
+  getCashoutQuote(@Req() req: AuthenticatedRequest, @Param('betId') betId: string) {
+    return this.pamService.getCashoutQuote(req.user.sub, betId);
+  }
+
+  @Post('bets/:betId/cashout')
+  cashOut(@Req() req: AuthenticatedRequest, @Param('betId') betId: string) {
+    return this.pamService.cashOut(req.user.sub, betId);
   }
 
   @Get('freebets')

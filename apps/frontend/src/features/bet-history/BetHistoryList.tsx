@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Card } from '../../components/ui/Card';
+import { CashoutButton } from './CashoutButton';
 import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -69,7 +70,14 @@ function BetCard({ bet }: { bet: PlacedBet }) {
 
       <BetCampaignNotes bet={bet} />
       <BetFooterSummary bet={bet} />
-      {bet.status === 'PENDING' ? <SharePendingBetActions bet={bet} /> : <ShareBetButton bet={bet} />}
+      {bet.status === 'PENDING' ? (
+        <>
+          <CashoutButton bet={bet} />
+          <SharePendingBetActions bet={bet} />
+        </>
+      ) : (
+        <ShareBetButton bet={bet} />
+      )}
       <BetReferenceFooter bet={bet} />
     </Card>
   );

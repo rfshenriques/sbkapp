@@ -60,6 +60,7 @@ const NAV_SECTIONS: NavSection[] = [
           { to: '/acca-boost', label: 'Acca boost', roles: ['ADMIN', 'TRADING'] },
           { to: '/acca-rollback', label: 'Acca rollback', roles: ['ADMIN', 'TRADING'] },
           { to: '/insurance-bet', label: 'Insurance bet', roles: ['ADMIN', 'TRADING'] },
+          { to: '/cashout', label: 'Cashout', roles: ['ADMIN', 'TRADING'] },
           { to: '/freebets', label: 'Freebets', roles: ['ADMIN', 'CRM'] },
         ],
       },

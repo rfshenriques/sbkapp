@@ -1,12 +1,15 @@
-import type { BetStatus, SelectionStatus } from '@prisma/client';
+import type { SelectionStatus } from '@prisma/client';
 
 export interface SettlementSelectionInput {
   status: SelectionStatus;
   odds: number;
 }
 
+/** Never CASHED_OUT - that status is only ever set directly by PamService.cashOut, never derived from leg outcomes. */
+export type SettlementBetStatus = 'WON' | 'LOST' | 'VOID' | 'PENDING';
+
 export interface SettlementOutcome {
-  overallStatus: BetStatus;
+  overallStatus: SettlementBetStatus;
   /** 0 when LOST or still PENDING; the amount to credit otherwise. */
   payoutCents: number;
 }

@@ -290,9 +290,8 @@ function shareTextForBet(bet: PlacedBet): string {
  * Share/clipboard flow if image generation itself fails for any reason
  * (defensive - canvas support is effectively universal, but never worth a
  * broken Share button over). Omitted for a still-PENDING bet, matching the
- * reference (which shows Cashout, not Share, for an open bet - we have
- * neither a real cashout feature to build, so that slot is simply empty for
- * an open bet).
+ * reference (which shows Cashout, not Share, for an open bet - see
+ * CashoutButton, rendered instead by BetHistoryList for a PENDING bet).
  */
 export function ShareBetButton({ bet }: { bet: PlacedBet }) {
   const [feedback, setFeedback] = useState<string | null>(null);

@@ -4,6 +4,7 @@ import AccaRollbackPage from '../pages/AccaRollbackPage';
 import AuditLogPage from '../pages/AuditLogPage';
 import BetHistoryReportPage from '../pages/BetHistoryReportPage';
 import CampaignsPage from '../pages/CampaignsPage';
+import CashoutConfigPage from '../pages/CashoutConfigPage';
 import InsuranceBetPage from '../pages/InsuranceBetPage';
 import CmsImagesPage from '../pages/CmsImagesPage';
 import CmsMatchOfTheDayPage from '../pages/CmsMatchOfTheDayPage';
@@ -119,6 +120,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'TRADING']}>
               <InsuranceBetPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'cashout',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'TRADING']}>
+              <CashoutConfigPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),

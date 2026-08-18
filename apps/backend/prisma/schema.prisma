@@ -236,6 +236,7 @@ enum AuditAction {
   FREEBET_VOIDED
   ACCA_ROLLBACK_CONFIG_SET
   INSURANCE_BET_CONFIG_SET
+  CASHOUT_CONFIG_SET
   BET_AND_GET_CAMPAIGN_CREATED
   BET_AND_GET_CAMPAIGN_UPDATED
   BET_AND_GET_CAMPAIGN_REMOVED
@@ -687,6 +688,7 @@ enum AnalyticsEventType {
   LOGIN
   BET_PLACED
   BET_NOT_FINISHED
+  BET_CASHED_OUT
 }
 
 /**
@@ -719,6 +721,10 @@ enum BetStatus {
   WON
   LOST
   VOID
+  /**
+   * Cashed out early by the player - see PamService.cashOut. Never transitions to WON/LOST/VOID afterward; its selections stay OPEN forever rather than being individually settled.
+   */
+  CASHED_OUT
 }
 
 enum SelectionStatus {
@@ -769,6 +775,16 @@ model Bet {
    * real gap in being logged in.
    */
   winNotifiedAt      DateTime?
+
+  /**
+   * Set only when status is CASHED_OUT (see PamService.cashOut) - the
+   * amount actually credited to the player's balance at cashout time,
+   * computed from the live odds of every selection at that moment
+   * (Stake x (originalCombinedOdds / currentCombinedOdds) x
+   * (1 - CashoutConfig.marginPercent)), not recomputed later.
+   */
+  cashedOutValueCents Int?
+  cashedOutAt         DateTime?
 
   /**
    * True when this bet was funded from the player's pooled freebets balance
@@ -1115,6 +1131,26 @@ model InsuranceBetConfig {
 }
 
 /**
+ * A brand's cashout settings - same "no row = feature off" default pattern
+ * as the other per-brand config models above. When enabled, an open
+ * (PENDING) bet can be cashed out early for
+ * Stake x (originalCombinedOdds / currentCombinedOdds) x
+ * (1 - marginPercent / 100) - see cashout.ts and PamService.cashOut.
+ * marginPercent is the operator's own cut, applied even when the odds
+ * haven't moved at all.
+ */
+model CashoutConfig {
+  id            String   @id @default(uuid())
+  brandId       String   @unique
+  brand         Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  enabled       Boolean  @default(false)
+  marginPercent Float    @default(5)
+  updatedAt     DateTime @updatedAt
+
+  @@map("cashout_configs")
+}
+
+/**
  * When the reward fires - immediately when a qualifying bet is placed, or once it settles (see the three triggerOnX flags on BetAndGetCampaign for which settlement outcomes count).
  */
 enum BetAndGetTrigger {
@@ -1359,6 +1395,13 @@ enum DepositCampaignRedemptionStatus {
    * The freebet has been granted (immediately for a no-bet-required campaign or a PLACEMENT trigger, or once the linked bet's settlement outcome matched).
    */
   GRANTED
+  /**
+   * The linked bet (see Bet.depositCampaignRedemptionId/registerCampaignRedemptionId)
+   * was cashed out instead of settling normally - see PamService.cashOut. A
+   * cancelled redemption never grants; a later qualifying bet would need to
+   * redeem a fresh one.
+   */
+  CANCELLED
 }
 
 /**
@@ -2083,6 +2126,7 @@ model Brand {
   accaBoostConfig             AccaBoostConfig?
   accaRollbackConfig          AccaRollbackConfig?
   insuranceBetConfig          InsuranceBetConfig?
+  cashoutConfig               CashoutConfig?
   stakeLimits                 StakeLimit[]
   competitionQuicklinks       CompetitionQuicklink[]
   playerSegments              PlayerSegment[]

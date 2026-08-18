@@ -90,7 +90,7 @@ export interface Freebet {
   campaignName: string | null;
 }
 
-export type BetStatus = 'PENDING' | 'WON' | 'LOST' | 'VOID';
+export type BetStatus = 'PENDING' | 'WON' | 'LOST' | 'VOID' | 'CASHED_OUT';
 export type SelectionStatus = 'OPEN' | 'WON' | 'LOST' | 'VOID';
 
 export interface PlacedBetSelection {
@@ -135,6 +135,9 @@ export interface PlacedBet {
   registerCampaignRewardCents: number | null;
   /** How much was refunded as a freebet via the acca rollback promotion, if this bet triggered one - derived, not a property of the bet itself (see PamService.enrichBetsWithRollbackReward). */
   accaRollbackRewardCents: number | null;
+  /** Set only when status is CASHED_OUT - what was actually credited to the balance at cashout time. */
+  cashedOutValueCents: number | null;
+  cashedOutAt: string | null;
 }
 
 function extractErrorMessage(body: unknown, fallback: string): string {
@@ -740,6 +743,20 @@ export async function getInsuranceBetConfig(brandId: string): Promise<InsuranceB
   return (await response.json()) as InsuranceBetConfig;
 }
 
+export interface CashoutConfig {
+  enabled: boolean;
+  marginPercent: number;
+}
+
+/** The acting brand's cashout settings - see apps/backend's CashoutService. */
+export async function getCashoutConfig(brandId: string): Promise<CashoutConfig> {
+  const response = await fetch(`${BASE_URL}/public/cashout-config/${encodeURIComponent(brandId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch cashout config: ${response.status}`);
+  }
+  return (await response.json()) as CashoutConfig;
+}
+
 export interface StakeLimitPreview {
   maxStakeCents: number | null;
   maxLiabilityCents: number | null;
@@ -974,6 +991,22 @@ export async function placeBet(payload: PlaceBetPayload): Promise<PlacedBet> {
 export async function getBets(): Promise<PlacedBet[]> {
   const response = await authenticatedFetch('/bets');
   return parseJsonOrThrow(response, `Failed to load bets: ${response.status}`);
+}
+
+export type CashoutQuote =
+  | { available: false; reason: string }
+  | { available: true; stakeCents: number; cashoutValueCents: number };
+
+/** A live re-quote of what cashing out this exact bet would credit right now - see apps/backend's PamService.getCashoutQuote. */
+export async function getCashoutQuote(betId: string): Promise<CashoutQuote> {
+  const response = await authenticatedFetch(`/bets/${encodeURIComponent(betId)}/cashout-quote`);
+  return parseJsonOrThrow(response, `Failed to load cashout quote: ${response.status}`);
+}
+
+/** Cashes out an open bet early - credits the live quote to the balance and marks the bet CASHED_OUT. */
+export async function cashOut(betId: string): Promise<PlacedBet> {
+  const response = await authenticatedFetch(`/bets/${encodeURIComponent(betId)}/cashout`, { method: 'POST' });
+  return parseJsonOrThrow(response, `Failed to cash out: ${response.status}`);
 }
 
 export async function getFreebets(): Promise<Freebet[]> {

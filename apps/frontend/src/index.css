@@ -57,6 +57,10 @@
      grant), so it gets its own fixed color rather than reading as a plain
      loss alongside every other price-down LOST bet. */
   --color-insured: #38bdf8;
+  /* A player-initiated early cashout isn't a market-graded outcome like
+     WON/LOST/VOID - its own fixed color keeps it visually distinct rather
+     than borrowing --color-highlight (VOID) or a brand color. */
+  --color-cashed-out: #a78bfa;
 
   /* One font for the whole app, display and body alike - see index.html's
      Google Fonts link for the loaded weights/styles. */

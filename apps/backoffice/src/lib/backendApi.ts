@@ -85,6 +85,12 @@ export interface InsuranceBetConfig {
   minOdds: number;
 }
 
+export interface CashoutConfig {
+  enabled: boolean;
+  /** The operator's own cut, applied even when the combined odds haven't moved at all. */
+  marginPercent: number;
+}
+
 export interface OddsOverride {
   id: string;
   matchId: string;
@@ -758,6 +764,20 @@ export async function setInsuranceBetConfig(config: InsuranceBetConfig): Promise
     body: JSON.stringify(config),
   });
   return parseJsonOrThrow(response, `Failed to save insurance bet config: ${response.status}`);
+}
+
+export async function getCashoutConfig(): Promise<CashoutConfig> {
+  const response = await authenticatedFetch('/admin/cashout-config');
+  return parseJsonOrThrow(response, `Failed to load cashout config: ${response.status}`);
+}
+
+export async function setCashoutConfig(config: CashoutConfig): Promise<CashoutConfig> {
+  const response = await authenticatedFetch('/admin/cashout-config', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(config),
+  });
+  return parseJsonOrThrow(response, `Failed to save cashout config: ${response.status}`);
 }
 
 function rangeQuery(range: ReportRange): string {

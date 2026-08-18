@@ -186,6 +186,8 @@ describe('BetPlacedModal', () => {
       registerCampaignName: null,
       registerCampaignRewardCents: null,
       accaRollbackRewardCents: null,
+      cashedOutValueCents: null,
+      cashedOutAt: null,
     };
 
     it('shows a collapsed Bet details section that expands to the selection', async () => {

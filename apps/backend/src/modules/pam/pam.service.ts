@@ -11,6 +11,8 @@ import { ANONYMOUS_VIEWER, type AudienceViewer } from '../audience/audience';
 import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
 import { betQualifiesForCampaign, calculateBetAndGetRewardCents } from '../bet-and-get/bet-and-get';
 import { BoostService } from '../boosts/boost.service';
+import { CashoutService } from '../cashout/cashout.service';
+import { allLegsPriceable, calculateCashoutQuote, type CashoutLeg } from '../cashout/cashout';
 import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.service';
 import { FreebetService } from '../freebets/freebet.service';
 import { InsuranceBetService } from '../insurance-bet/insurance-bet.service';
@@ -68,6 +70,7 @@ export class PamService {
     private readonly boostService: BoostService,
     private readonly freebetService: FreebetService,
     private readonly insuranceBetService: InsuranceBetService,
+    private readonly cashoutService: CashoutService,
     private readonly betAndGetCampaignService: BetAndGetCampaignService,
     private readonly depositCampaignService: DepositCampaignService,
     private readonly registerCampaignService: RegisterCampaignService,
@@ -131,7 +134,7 @@ export class PamService {
    * resolution below, so a bet with N selections costs at most N distinct
    * odds-engine calls, not 2N.
    */
-  private async fetchMatchesByMatchId(selections: BetSelectionDto[]): Promise<Map<string, Match>> {
+  private async fetchMatchesByMatchId(selections: { matchId: string }[]): Promise<Map<string, Match>> {
     const uniqueMatchIds = [...new Set(selections.map((selection) => selection.matchId))];
     const matches = await Promise.all(
       uniqueMatchIds.map((matchId) => this.oddsEngineClient.fetchMatchById(matchId)),
@@ -840,6 +843,155 @@ export class PamService {
     });
   }
 
+  /**
+   * One CashoutLeg per selection, priced off the live odds-engine data
+   * already fetched for the whole bet - null currentOdds means this exact
+   * selection can no longer be reliably priced (dropped from the feed, or
+   * currently suspended), which callers treat as "cashout unavailable"
+   * rather than silently falling back to the original price.
+   */
+  private async buildCashoutLegs(
+    brandId: string,
+    selections: { matchId: string; marketId: string; selectionId: string; odds: number }[],
+    matchesById: Map<string, Match>,
+  ): Promise<CashoutLeg[]> {
+    return Promise.all(
+      selections.map(async (selection) => {
+        const suspended = await this.marketSuspensionService.isSuspended(
+          brandId,
+          selection.matchId,
+          selection.marketId,
+          selection.selectionId,
+        );
+        const liveSelection = matchesById
+          .get(selection.matchId)
+          ?.markets.find((market) => market.id === selection.marketId)
+          ?.selections.find((sel) => sel.id === selection.selectionId);
+        return {
+          originalOdds: selection.odds,
+          currentOdds: suspended || !liveSelection ? null : liveSelection.odds,
+        };
+      }),
+    );
+  }
+
+  /**
+   * A live re-quote of what cashing out this exact bet would credit right
+   * now - see cashout.ts for the formula. Never mutates anything; cashOut
+   * below re-derives the same quote fresh at execution time rather than
+   * trusting one a player may have been sitting on for a while.
+   */
+  async getCashoutQuote(
+    userId: string,
+    betId: string,
+  ): Promise<{ available: false; reason: string } | { available: true; stakeCents: number; cashoutValueCents: number }> {
+    const bet = await this.prisma.bet.findUniqueOrThrow({ where: { id: betId }, include: { selections: true } });
+    if (bet.userId !== userId) {
+      throw new NotFoundException('Bet not found');
+    }
+    if (bet.status !== 'PENDING') {
+      return { available: false, reason: 'This bet is no longer open' };
+    }
+
+    const config = await this.cashoutService.getConfig(bet.brandId);
+    if (!config.enabled) {
+      return { available: false, reason: 'Cashout is not available' };
+    }
+
+    const matchesById = await this.fetchMatchesByMatchId(bet.selections);
+    const legs = await this.buildCashoutLegs(
+      bet.brandId,
+      bet.selections.map((selection) => ({ ...selection, odds: Number(selection.odds) })),
+      matchesById,
+    );
+    if (!allLegsPriceable(legs)) {
+      return { available: false, reason: 'A live price is unavailable for one of the selections' };
+    }
+
+    const quote = calculateCashoutQuote(bet.stakeCents, legs, config);
+    return { available: true, stakeCents: bet.stakeCents, cashoutValueCents: quote.cashoutValueCents };
+  }
+
+  /**
+   * Cashes out an open bet early: credits cashoutValueCents to the
+   * player's balance and marks the bet CASHED_OUT (its selections are left
+   * OPEN forever - see the BetStatus.CASHED_OUT doc comment and the guard
+   * at the top of settleSelection). Any campaign redemption this bet was
+   * still waiting on is cancelled rather than left dangling - no prize is
+   * ever triggered for a cashed-out bet; a fresh qualifying bet would be
+   * needed. A Bet & Get campaign needs no such cancellation: it only ever
+   * grants at settlement (see settleSelection), which a cashed-out bet
+   * simply never reaches. The quote is recomputed fresh inside the
+   * transaction (after the same live-price fetch done just before it
+   * opens) rather than trusting whatever getCashoutQuote last returned, and
+   * the bet's PENDING status is re-checked atomically via updateMany to
+   * guard against a concurrent settlement or double cashout.
+   */
+  async cashOut(userId: string, betId: string) {
+    const bet = await this.prisma.bet.findUniqueOrThrow({ where: { id: betId }, include: { selections: true } });
+    if (bet.userId !== userId) {
+      throw new NotFoundException('Bet not found');
+    }
+    if (bet.status !== 'PENDING') {
+      throw new BadRequestException('This bet is no longer open for cashout');
+    }
+
+    const config = await this.cashoutService.getConfig(bet.brandId);
+    if (!config.enabled) {
+      throw new BadRequestException('Cashout is not available');
+    }
+
+    const matchesById = await this.fetchMatchesByMatchId(bet.selections);
+    const legs = await this.buildCashoutLegs(
+      bet.brandId,
+      bet.selections.map((selection) => ({ ...selection, odds: Number(selection.odds) })),
+      matchesById,
+    );
+    if (!allLegsPriceable(legs)) {
+      throw new BadRequestException('A live price is unavailable for one of the selections');
+    }
+    const quote = calculateCashoutQuote(bet.stakeCents, legs, config);
+
+    return this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.bet.updateMany({
+        where: { id: betId, status: 'PENDING' },
+        data: { status: 'CASHED_OUT', cashedOutValueCents: quote.cashoutValueCents, cashedOutAt: new Date() },
+      });
+      if (count === 0) {
+        throw new BadRequestException('This bet is no longer open for cashout');
+      }
+
+      await tx.user.update({
+        where: { id: userId },
+        data: { balanceCents: { increment: quote.cashoutValueCents } },
+      });
+
+      // PENDING_BET/PENDING_SETTLEMENT is the only state a still-open bet's
+      // redemption could be in (GRANTED already happened at placement for a
+      // PLACEMENT-triggered campaign, and isn't clawed back here - see the
+      // doc comment above). Cancelling stops it from ever being picked up
+      // by a settlement that will now never happen.
+      if (bet.depositCampaignRedemptionId) {
+        await tx.depositCampaignRedemption.updateMany({
+          where: { id: bet.depositCampaignRedemptionId, status: { in: ['PENDING_BET', 'PENDING_SETTLEMENT'] } },
+          data: { status: 'CANCELLED' },
+        });
+      }
+      if (bet.registerCampaignRedemptionId) {
+        await tx.registerCampaignRedemption.updateMany({
+          where: { id: bet.registerCampaignRedemptionId, status: { in: ['PENDING_BET', 'PENDING_SETTLEMENT'] } },
+          data: { status: 'CANCELLED' },
+        });
+      }
+
+      // Never settling means never earning leaderboard points - drop the
+      // link entirely rather than leaving a permanently-zero entry behind.
+      await tx.leaderboardEntryBet.deleteMany({ where: { betId } });
+
+      return tx.bet.findUniqueOrThrow({ where: { id: betId }, include: { selections: true } });
+    });
+  }
+
   async getBets(userId: string) {
     const bets = await this.prisma.bet.findMany({
       where: { userId },
@@ -1046,6 +1198,13 @@ export class PamService {
       });
       if (bet.brandId !== brandId) {
         throw new NotFoundException('Selection not found on this bet');
+      }
+      // A cashed-out bet already had its selections' fate decided by the
+      // player, not the market - see PamService.cashOut. Its selections
+      // stay OPEN forever by design; settling one here would both
+      // contradict that and double-credit a balance already paid out.
+      if (bet.status === 'CASHED_OUT') {
+        throw new BadRequestException('This bet was cashed out and can no longer be settled');
       }
       const previousStatus = selection.status;
 

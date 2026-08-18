@@ -10,6 +10,7 @@ import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 import { BetAndGetCampaignService } from '../bet-and-get/bet-and-get-campaign.service';
 import { BoostService } from '../boosts/boost.service';
 import { OddsLadderService } from '../boosts/odds-ladder.service';
+import { CashoutService } from '../cashout/cashout.service';
 import { DepositCampaignService } from '../deposit-campaigns/deposit-campaign.service';
 import { FreebetService } from '../freebets/freebet.service';
 import { InsuranceBetService } from '../insurance-bet/insurance-bet.service';
@@ -63,6 +64,7 @@ describe('PamService', () => {
   let accaBoostService: AccaBoostService;
   let accaRollbackService: AccaRollbackService;
   let insuranceBetService: InsuranceBetService;
+  let cashoutService: CashoutService;
   let manualMarketService: ManualMarketService;
   let boostService: BoostService;
   let freebetService: FreebetService;
@@ -109,6 +111,7 @@ describe('PamService', () => {
         AccaBoostService,
         AccaRollbackService,
         InsuranceBetService,
+        CashoutService,
         ManualMarketService,
         BoostService,
         OddsLadderService,
@@ -135,6 +138,7 @@ describe('PamService', () => {
     accaBoostService = moduleRef.get(AccaBoostService);
     accaRollbackService = moduleRef.get(AccaRollbackService);
     insuranceBetService = moduleRef.get(InsuranceBetService);
+    cashoutService = moduleRef.get(CashoutService);
     manualMarketService = moduleRef.get(ManualMarketService);
     boostService = moduleRef.get(BoostService);
     freebetService = moduleRef.get(FreebetService);
@@ -151,6 +155,7 @@ describe('PamService', () => {
     await prisma.accaBoostConfig.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.accaRollbackConfig.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.insuranceBetConfig.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
+    await prisma.cashoutConfig.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.stakeLimit.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.manualMarket.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
     await prisma.boost.deleteMany({ where: { brandId: { in: [testBrandId, otherBrandId] } } });
@@ -3246,6 +3251,175 @@ describe('PamService', () => {
           insuranceOptIn: true,
         }),
       ).rejects.toThrow('Insurance requires combined odds of at least 3.00');
+    });
+  });
+
+  describe('cashout', () => {
+    function matchWithOdds(matchId: string, currentOdds: number, selectionId = 'home'): Match {
+      return {
+        ...fakeMatch(matchId),
+        markets: [{ id: 'match-result', name: 'Match Result', selections: [{ id: selectionId, name: selectionId, odds: currentOdds }] }],
+      };
+    }
+
+    it('is unavailable when the brand has not enabled cashout', async () => {
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, { selections: [buildSelection({ odds: 2.0 })], stakeCents: 1_000 });
+
+      await expect(pamService.getCashoutQuote(userId, bet.id)).resolves.toEqual({
+        available: false,
+        reason: 'Cashout is not available',
+      });
+      await expect(pamService.cashOut(userId, bet.id)).rejects.toThrow(BadRequestException);
+    });
+
+    it('quotes stake x (1 - margin%) when the live odds have not moved', async () => {
+      await cashoutService.setConfig(testBrandId, { enabled: true, marginPercent: 10 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, { selections: [buildSelection({ odds: 2.0 })], stakeCents: 1_000 });
+      vi.mocked(oddsEngineClient.fetchMatchById).mockImplementation(async (matchId) => matchWithOdds(matchId, 2.0));
+
+      await expect(pamService.getCashoutQuote(userId, bet.id)).resolves.toEqual({
+        available: true,
+        stakeCents: 1_000,
+        cashoutValueCents: 900,
+      });
+    });
+
+    it('pays out more than the stake when the current odds have shortened', async () => {
+      await cashoutService.setConfig(testBrandId, { enabled: true, marginPercent: 0 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, { selections: [buildSelection({ odds: 2.0 })], stakeCents: 1_000 });
+      vi.mocked(oddsEngineClient.fetchMatchById).mockImplementation(async (matchId) => matchWithOdds(matchId, 1.5));
+
+      // stake x (2.0 / 1.5) x 1 = 1333.33... -> 1333
+      const quote = await pamService.getCashoutQuote(userId, bet.id);
+      expect(quote).toEqual({ available: true, stakeCents: 1_000, cashoutValueCents: 1_333 });
+    });
+
+    it('pays out less than the stake when the current odds have drifted out', async () => {
+      await cashoutService.setConfig(testBrandId, { enabled: true, marginPercent: 0 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, { selections: [buildSelection({ odds: 2.0 })], stakeCents: 1_000 });
+      vi.mocked(oddsEngineClient.fetchMatchById).mockImplementation(async (matchId) => matchWithOdds(matchId, 3.0));
+
+      // stake x (2.0 / 3.0) = 666.67 -> 667
+      const quote = await pamService.getCashoutQuote(userId, bet.id);
+      expect(quote).toEqual({ available: true, stakeCents: 1_000, cashoutValueCents: 667 });
+    });
+
+    it("combines every leg's live odds for an accumulator, not just one", async () => {
+      await cashoutService.setConfig(testBrandId, { enabled: true, marginPercent: 0 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'match-1', selectionId: 'home', odds: 2.0 }),
+          buildSelection({ matchId: 'match-2', selectionId: 'away', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+      });
+      vi.mocked(oddsEngineClient.fetchMatchById).mockImplementation(async (matchId) =>
+        matchWithOdds(matchId, 1.0, matchId === 'match-1' ? 'home' : 'away'),
+      );
+
+      // original combined 2.0 x 2.0 = 4.0, current combined 1.0 x 1.0 = 1.0 -> stake x 4 = 4000
+      const quote = await pamService.getCashoutQuote(userId, bet.id);
+      expect(quote).toEqual({ available: true, stakeCents: 1_000, cashoutValueCents: 4_000 });
+    });
+
+    it('is unavailable when any leg is currently suspended', async () => {
+      await cashoutService.setConfig(testBrandId, { enabled: true, marginPercent: 5 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, { selections: [buildSelection({ odds: 2.0 })], stakeCents: 1_000 });
+      vi.mocked(oddsEngineClient.fetchMatchById).mockImplementation(async (matchId) => matchWithOdds(matchId, 2.0));
+      await marketSuspensionService.suspend(testBrandId, 'match-1', 'match-result', 'home', 'testing', TEST_ACTOR);
+
+      await expect(pamService.getCashoutQuote(userId, bet.id)).resolves.toEqual({
+        available: false,
+        reason: 'A live price is unavailable for one of the selections',
+      });
+    });
+
+    it('credits the cashout value to the balance and marks the bet CASHED_OUT', async () => {
+      await cashoutService.setConfig(testBrandId, { enabled: true, marginPercent: 10 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, { selections: [buildSelection({ odds: 2.0 })], stakeCents: 1_000 });
+      vi.mocked(oddsEngineClient.fetchMatchById).mockImplementation(async (matchId) => matchWithOdds(matchId, 2.0));
+
+      const result = await pamService.cashOut(userId, bet.id);
+      expect(result.status).toBe('CASHED_OUT');
+      expect(result.cashedOutValueCents).toBe(900);
+      expect(result.cashedOutAt).not.toBeNull();
+
+      const wallet = await pamService.getWallet(userId);
+      expect(wallet.balanceCents).toBe(99_900); // 100_000 - 1_000 stake + 900 cashout
+    });
+
+    it('rejects cashing out the same bet twice', async () => {
+      await cashoutService.setConfig(testBrandId, { enabled: true, marginPercent: 0 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, { selections: [buildSelection({ odds: 2.0 })], stakeCents: 1_000 });
+      vi.mocked(oddsEngineClient.fetchMatchById).mockImplementation(async (matchId) => matchWithOdds(matchId, 2.0));
+
+      await pamService.cashOut(userId, bet.id);
+      await expect(pamService.cashOut(userId, bet.id)).rejects.toThrow(BadRequestException);
+    });
+
+    it('blocks settleSelection on an already cashed-out bet', async () => {
+      await cashoutService.setConfig(testBrandId, { enabled: true, marginPercent: 0 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+      const bet = await pamService.placeBet(userId, { selections: [buildSelection({ odds: 2.0 })], stakeCents: 1_000 });
+      vi.mocked(oddsEngineClient.fetchMatchById).mockImplementation(async (matchId) => matchWithOdds(matchId, 2.0));
+      await pamService.cashOut(userId, bet.id);
+
+      await expect(
+        pamService.settleSelection(testBrandId, bet.id, bet.selections[0]!.id, 'WON', TEST_ACTOR),
+      ).rejects.toThrow('This bet was cashed out and can no longer be settled');
+    });
+
+    it('cancels a still-pending deposit campaign redemption instead of letting it settle - no prize is ever triggered', async () => {
+      await cashoutService.setConfig(testBrandId, { enabled: true, marginPercent: 0 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+      const campaign = await depositCampaignService.create(
+        testBrandId,
+        {
+          name: 'Deposit + Bet',
+          minDepositAmountCents: 1_000,
+          rewardType: 'FIXED',
+          fixedRewardAmountCents: 500,
+          requiresBet: true,
+          trigger: 'SETTLEMENT',
+          triggerOnWon: true,
+        },
+        TEST_ACTOR,
+      );
+      await depositCampaignService.update(testBrandId, campaign.id, { enabled: true }, TEST_ACTOR);
+      const deposit = await prisma.deposit.create({ data: { userId, brandId: testBrandId, amountCents: 1_000 } });
+      const redemption = await prisma.depositCampaignRedemption.create({
+        data: {
+          depositCampaignId: campaign.id,
+          userId,
+          brandId: testBrandId,
+          depositId: deposit.id,
+          rewardAmountCents: 500,
+          status: 'PENDING_BET',
+        },
+      });
+
+      const bet = await pamService.placeBet(userId, { selections: [buildSelection({ odds: 2.0 })], stakeCents: 1_000 });
+      expect(bet.depositCampaignRedemptionId).toBe(redemption.id);
+      expect(
+        (await prisma.depositCampaignRedemption.findUniqueOrThrow({ where: { id: redemption.id } })).status,
+      ).toBe('PENDING_SETTLEMENT');
+
+      vi.mocked(oddsEngineClient.fetchMatchById).mockImplementation(async (matchId) => matchWithOdds(matchId, 2.0));
+      await pamService.cashOut(userId, bet.id);
+
+      expect(
+        (await prisma.depositCampaignRedemption.findUniqueOrThrow({ where: { id: redemption.id } })).status,
+      ).toBe('CANCELLED');
+      const grant = await prisma.freebetGrant.findFirst({ where: { sourceBetId: bet.id, source: 'DEPOSIT_CAMPAIGN' } });
+      expect(grant).toBeNull();
     });
   });
 });

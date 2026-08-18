@@ -28,6 +28,8 @@ function buildBet(overrides: Partial<PlacedBet> = {}): PlacedBet {
     registerCampaignName: null,
     registerCampaignRewardCents: null,
     accaRollbackRewardCents: null,
+    cashedOutValueCents: null,
+    cashedOutAt: null,
     selections: [
       {
         id: 'sel-1',

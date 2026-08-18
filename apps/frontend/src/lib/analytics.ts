@@ -13,7 +13,8 @@ export type AnalyticsEventType =
   | 'CLICK'
   | 'LOGIN'
   | 'BET_PLACED'
-  | 'BET_NOT_FINISHED';
+  | 'BET_NOT_FINISHED'
+  | 'BET_CASHED_OUT';
 
 interface QueuedEvent {
   type: AnalyticsEventType;
