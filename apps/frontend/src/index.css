@@ -382,14 +382,19 @@ body {
 /* Circular counterpart to .tab, for an icon-only filter toggle whose icon
    is itself round (e.g. the kickoff-time clock filter) - a rounded-rect
    pill reads as visually mismatched next to a circular glyph. Same
-   explicit --tab-height as .tab, with aspect-ratio: 1 turning that into a
-   diameter, so the two always match regardless of flex context. */
+   explicit --tab-height as .tab, applied to width AND height directly
+   (not aspect-ratio: 1, which derives one dimension from the other and can
+   round them to different pixel values on some browsers/zoom levels,
+   rendering as a barely-off ellipse) so the two are always byte-identical
+   regardless of flex context. flex: none backs that up against any
+   flex-basis: auto sizing that could stretch the width independently. */
 .icon-toggle {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex: none;
+  width: var(--tab-height, 34px);
   height: var(--tab-height, 34px);
-  aspect-ratio: 1;
   border-radius: 9999px;
   background-color: var(--color-surface-2);
   color: var(--color-text-secondary);
