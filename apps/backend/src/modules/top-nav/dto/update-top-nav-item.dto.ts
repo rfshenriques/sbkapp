@@ -1,5 +1,5 @@
 import { IsBoolean, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { TopNavItemKind } from '@prisma/client';
+import { TopNavIconKey, TopNavItemKind } from '@prisma/client';
 
 /** Every field optional - staff sends only what's changing. */
 export class UpdateTopNavItemDto {
@@ -11,6 +11,10 @@ export class UpdateTopNavItemDto {
   @IsString()
   @MinLength(1)
   label?: string;
+
+  @IsOptional()
+  @IsEnum(TopNavIconKey)
+  icon?: TopNavIconKey;
 
   @IsOptional()
   @IsString()

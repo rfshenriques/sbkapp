@@ -38,6 +38,14 @@ export default defineConfig({
   // see infra/nginx/betsome.me.conf - superseded; each app now runs as its
   // own standalone Railway service.)
   base: process.env.VITE_BASE_PATH || '/',
+  // @sportsbook/shared is a symlinked workspace package compiled to
+  // CommonJS - without forcing it through esbuild's dep pre-bundling, the
+  // dev server serves its dist/ output as-is and browsers choke on the bare
+  // require() calls the moment anything imports a real (non-type) export
+  // from it, not just types.
+  optimizeDeps: {
+    include: ['@sportsbook/shared'],
+  },
   plugins: [react(), tailwindcss()],
   server: {
     // Distinct from apps/frontend's 5173 so both can run side by side on a bare host.

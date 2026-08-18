@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { TopNavIcon } from '../../components/ui/TopNavIcon';
 import type { TopNavItem } from '../../lib/backendApi';
 import { useMatches } from '../odds-board/useMatches';
 import { competitionSportMap } from './buildSportTree';
@@ -37,6 +38,12 @@ function hrefForItem(item: TopNavItem, competitionSports: Map<string, string>): 
  * "only build what's backed by real data") - AppShell only mounts this
  * inside the header, which already handles a variable-height second row via
  * its own ResizeObserver.
+ *
+ * Icon-only, not a text label - each entry's icon is staff-picked in the
+ * CMS from a fixed, consistently-designed set (see TopNavIcon), independent
+ * of `kind` (a COMPETITION entry isn't forced into a trophy). Reuses
+ * .icon-toggle, the same circular pill the kickoff-time filter uses, rather
+ * than a new one-off shape.
  */
 export function SecondaryNavBar() {
   const { data: items } = useTopNavItems();
@@ -52,8 +59,14 @@ export function SecondaryNavBar() {
       data-horizontal-scroll="true"
     >
       {items.map((item) => (
-        <Link key={item.id} to={hrefForItem(item, competitionSports)} className="tab shrink-0">
-          {item.label}
+        <Link
+          key={item.id}
+          to={hrefForItem(item, competitionSports)}
+          className="icon-toggle shrink-0"
+          aria-label={item.label}
+          title={item.label}
+        >
+          <TopNavIcon icon={item.icon} width={16} height={16} />
         </Link>
       ))}
     </nav>

@@ -65,6 +65,7 @@ describe('TopNavItemService', () => {
       brandId: brandAId,
       kind: 'SPORT',
       label: 'Football',
+      icon: 'STAR',
       sport: 'Football',
       competition: null,
       matchId: null,
@@ -72,6 +73,18 @@ describe('TopNavItemService', () => {
       sortOrder: 0,
     });
     expect(await service.listEnabled(brandAId)).toHaveLength(1);
+  });
+
+  it('accepts a freely-chosen icon independent of kind, and lets it be changed later', async () => {
+    const entry = await service.add(
+      brandAId,
+      { kind: 'COMPETITION', label: 'Premier League', competition: 'Premier League', icon: 'TROPHY' },
+      TEST_ACTOR,
+    );
+    expect(entry.icon).toBe('TROPHY');
+
+    const updated = await service.update(brandAId, entry.id, { icon: 'FIRE' }, TEST_ACTOR);
+    expect(updated.icon).toBe('FIRE');
   });
 
   it('appends further adds in sortOrder, oldest first', async () => {

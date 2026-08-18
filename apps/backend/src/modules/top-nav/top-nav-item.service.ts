@@ -1,11 +1,13 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { TopNavItemKind } from '@prisma/client';
+import { TopNavIconKey, TopNavItemKind } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditLogService, type AuditActor } from '../admin/audit-log.service';
 
 export interface TopNavItemFields {
   kind?: TopNavItemKind;
   label?: string;
+  /** Freely staff-chosen, independent of kind - see TopNavItem.icon. */
+  icon?: TopNavIconKey;
   sport?: string | null;
   competition?: string | null;
   matchId?: string | null;
@@ -78,6 +80,7 @@ export class TopNavItemService {
         brandId,
         kind: fields.kind,
         label: fields.label,
+        icon: fields.icon ?? 'STAR',
         sport: fields.sport ?? null,
         competition: fields.competition ?? null,
         matchId: fields.matchId ?? null,

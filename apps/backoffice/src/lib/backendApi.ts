@@ -1,3 +1,4 @@
+import type { TopNavIconKey } from '@sportsbook/shared';
 import { useStaffAuthStore } from '../features/auth/staffAuthStore';
 
 const BASE_URL = '/backend';
@@ -1964,6 +1965,7 @@ export interface TopNavItem {
   brandId: string;
   kind: TopNavItemKind;
   label: string;
+  icon: TopNavIconKey;
   sport: string | null;
   competition: string | null;
   matchId: string | null;
@@ -1976,6 +1978,7 @@ export interface TopNavItem {
 export interface CreateTopNavItemPayload {
   kind: TopNavItemKind;
   label: string;
+  icon: TopNavIconKey;
   sport?: string;
   competition?: string;
   matchId?: string;
@@ -1985,6 +1988,7 @@ export interface CreateTopNavItemPayload {
 export interface UpdateTopNavItemPayload {
   kind?: TopNavItemKind;
   label?: string;
+  icon?: TopNavIconKey;
   sport?: string;
   competition?: string;
   matchId?: string;

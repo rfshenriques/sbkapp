@@ -26,6 +26,14 @@ const proxy = {
 };
 
 export default defineConfig({
+  // @sportsbook/shared is a symlinked workspace package compiled to
+  // CommonJS - without forcing it through esbuild's dep pre-bundling, the
+  // dev server serves its dist/ output as-is and browsers choke on the bare
+  // require() calls the moment anything imports a real (non-type) export
+  // from it, not just types.
+  optimizeDeps: {
+    include: ['@sportsbook/shared'],
+  },
   plugins: [
     react(),
     tailwindcss(),

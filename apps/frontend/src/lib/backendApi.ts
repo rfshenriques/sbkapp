@@ -1,4 +1,4 @@
-import type { BoostedSelectionSummary, Match } from '@sportsbook/shared';
+import type { BoostedSelectionSummary, Match, TopNavIconKey } from '@sportsbook/shared';
 import type {
   AuthenticationResponseJSON,
   PublicKeyCredentialCreationOptionsJSON,
@@ -262,6 +262,7 @@ export interface TopNavItem {
   id: string;
   kind: TopNavItemKind;
   label: string;
+  icon: TopNavIconKey;
   sport: string | null;
   competition: string | null;
   matchId: string | null;

@@ -1,6 +1,6 @@
 import type { Match } from '@sportsbook/shared';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useStaffAuthStore } from '../features/auth/staffAuthStore';
@@ -33,6 +33,7 @@ const sportItem: TopNavItem = {
   brandId: 'brand-1',
   kind: 'SPORT',
   label: 'Football',
+  icon: 'STAR',
   sport: 'Football',
   competition: null,
   matchId: null,
@@ -100,7 +101,33 @@ describe('CmsTopNavPage', () => {
       '/backend/admin/top-nav',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ kind: 'SPORT', label: 'Football', sport: 'Football' }),
+        body: JSON.stringify({ kind: 'SPORT', label: 'Football', sport: 'Football', icon: 'STAR' }),
+      }),
+    );
+  });
+
+  it('lets staff pick a different icon before adding an item', async () => {
+    const fetchMock = stubFetch((url, method) => {
+      if (method === 'GET' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'POST' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify({ ...sportItem, icon: 'TROPHY' }), { status: 201 });
+      }
+    });
+    renderPage();
+
+    await screen.findByRole('option', { name: 'Football' });
+    const sportSelect = screen.getByLabelText('Sport');
+    await userEvent.selectOptions(sportSelect, 'Football');
+    await userEvent.click(screen.getByRole('button', { name: 'Trophy' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Add' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/top-nav',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ kind: 'SPORT', label: 'Football', sport: 'Football', icon: 'TROPHY' }),
       }),
     );
   });
@@ -138,7 +165,7 @@ describe('CmsTopNavPage', () => {
       '/backend/admin/top-nav',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ kind: 'MATCH', label: 'Arsenal vs Chelsea', matchId: 'match-1' }),
+        body: JSON.stringify({ kind: 'MATCH', label: 'Arsenal vs Chelsea', matchId: 'match-1', icon: 'STAR' }),
       }),
     );
   });
@@ -162,7 +189,10 @@ describe('CmsTopNavPage', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/backend/admin/top-nav',
-      expect.objectContaining({ method: 'POST', body: JSON.stringify({ kind: 'TODAY', label: "Today's matches" }) }),
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ kind: 'TODAY', label: "Today's matches", icon: 'STAR' }),
+      }),
     );
   });
 
@@ -186,7 +216,34 @@ describe('CmsTopNavPage', () => {
       '/backend/admin/top-nav/item-1',
       expect.objectContaining({
         method: 'PATCH',
-        body: JSON.stringify({ label: 'Football', enabled: false }),
+        body: JSON.stringify({ label: 'Football', enabled: false, icon: 'STAR' }),
+      }),
+    );
+  });
+
+  it('lets staff change an existing item\'s icon and save it', async () => {
+    const fetchMock = stubFetch((url, method) => {
+      if (method === 'GET' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify([sportItem]), { status: 200 });
+      }
+      if (method === 'PATCH' && url === '/backend/admin/top-nav/item-1') {
+        return new Response(JSON.stringify({ ...sportItem, icon: 'FIRE' }), { status: 200 });
+      }
+    });
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: /Football/ }));
+    const enabledCheckbox = screen.getByRole('checkbox', { name: 'Enabled' });
+    const rowPanel = enabledCheckbox.closest('.space-y-3');
+    if (!rowPanel) throw new Error('expanded row panel not found');
+    await userEvent.click(within(rowPanel as HTMLElement).getByRole('button', { name: 'Fire' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/top-nav/item-1',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ label: 'Football', enabled: true, icon: 'FIRE' }),
       }),
     );
   });

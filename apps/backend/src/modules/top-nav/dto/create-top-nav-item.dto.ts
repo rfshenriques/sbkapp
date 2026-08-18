@@ -1,5 +1,5 @@
 import { IsBoolean, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
-import { TopNavItemKind } from '@prisma/client';
+import { TopNavIconKey, TopNavItemKind } from '@prisma/client';
 
 export class CreateTopNavItemDto {
   @IsEnum(TopNavItemKind)
@@ -8,6 +8,11 @@ export class CreateTopNavItemDto {
   @IsString()
   @MinLength(1)
   label!: string;
+
+  /** Freely staff-chosen, independent of kind - defaults to the schema's own default (STAR) when omitted. */
+  @IsOptional()
+  @IsEnum(TopNavIconKey)
+  icon?: TopNavIconKey;
 
   /** Required (and only meaningful) for kind SPORT - validated against `kind` in TopNavItemService, not here. */
   @IsOptional()

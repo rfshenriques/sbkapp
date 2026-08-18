@@ -1814,6 +1814,31 @@ enum TopNavItemKind {
 }
 
 /**
+ * Must stay in sync by hand with TopNavIconKey/TOP_NAV_ICON_KEYS in
+ * packages/shared/src/domain/topNavIcons.ts, which owns the actual icon
+ * geometry both frontend apps render from - Prisma enums can't import from
+ * a TS module, so this list is the DB-side mirror of that one.
+ */
+enum TopNavIconKey {
+  STAR
+  FIRE
+  TROPHY
+  FLAG
+  CALENDAR
+  CLOCK
+  BALL
+  BELL
+  BOLT
+  TARGET
+  GLOBE
+  MEDAL
+  CHART
+  HEART
+  GRID
+  COMPASS
+}
+
+/**
  * A second, CMS-managed navbar row (see the backoffice's Top nav page) -
  * staff build it entry by entry from whatever mix of sports, competitions,
  * specific matches, and the two auto-updating "Today"/"Tomorrow" timeframe
@@ -1833,9 +1858,15 @@ model TopNavItem {
   brand       Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
   kind        TopNavItemKind
   /**
-   * Staff-authored display text - shown as-is, never derived from sport/competition/matchId.
+   * Staff-authored display text - the navbar itself renders icon-only (see
+   * SecondaryNavBar), so this is now purely the accessible name (aria-label)
+   * and the CMS row's own display title, not shown on the player-facing bar.
    */
   label       String
+  /**
+   * Freely staff-chosen, independent of `kind` - a COMPETITION entry isn't forced into a trophy, a SPORT entry isn't forced into a ball.
+   */
+  icon        TopNavIconKey  @default(STAR)
   sport       String?
   competition String?
   matchId     String?

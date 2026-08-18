@@ -1,10 +1,12 @@
 import { useMemo, useState, type DragEvent } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import type { Match } from '@sportsbook/shared';
+import type { Match, TopNavIconKey } from '@sportsbook/shared';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Skeleton } from '../components/ui/Skeleton';
 import { MatchDrilldown } from '../components/MatchDrilldown';
+import { TopNavIconPicker } from '../components/TopNavIconPicker';
+import { TopNavIcon } from '../components/ui/TopNavIcon';
 import { toast, errorMessage } from '../features/toast/toastStore';
 import type { CompetitionNode } from '../lib/matchTree';
 import * as backendApi from '../lib/backendApi';
@@ -53,9 +55,10 @@ function TopNavItemRow({
   const [isExpanded, setIsExpanded] = useState(false);
   const [label, setLabel] = useState(item.label);
   const [enabled, setEnabled] = useState(item.enabled);
+  const [icon, setIcon] = useState<TopNavIconKey>(item.icon);
 
   const saveMutation = useMutation({
-    mutationFn: () => backendApi.updateTopNavItem(item.id, { label, enabled }),
+    mutationFn: () => backendApi.updateTopNavItem(item.id, { label, enabled, icon }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: topNavQueryKey });
       toast.success('Top nav item updated');
@@ -72,7 +75,7 @@ function TopNavItemRow({
     onError: (error) => toast.error(errorMessage(error, 'Failed to remove top nav item')),
   });
 
-  const isDirty = label !== item.label || enabled !== item.enabled;
+  const isDirty = label !== item.label || enabled !== item.enabled || icon !== item.icon;
 
   return (
     <div
@@ -91,6 +94,9 @@ function TopNavItemRow({
       >
         <span className="cursor-grab select-none text-text-muted" aria-hidden="true" title="Drag to reorder">
           ⠿
+        </span>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border bg-surface text-text-primary">
+          <TopNavIcon icon={item.icon} width={16} height={16} />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold">{item.label}</span>
@@ -126,6 +132,13 @@ function TopNavItemRow({
             Enabled
           </label>
 
+          <div>
+            <span className="block text-xs text-text-secondary">Icon</span>
+            <div className="mt-1">
+              <TopNavIconPicker value={icon} onChange={setIcon} />
+            </div>
+          </div>
+
           <div className="flex items-center gap-2">
             <Button
               variant="secondary"
@@ -151,6 +164,7 @@ export default function CmsTopNavPage() {
   const [addKind, setAddKind] = useState<backendApi.TopNavItemKind>('SPORT');
   const [selectedSport, setSelectedSport] = useState('');
   const [selectedCompetition, setSelectedCompetition] = useState('');
+  const [addIcon, setAddIcon] = useState<TopNavIconKey>('STAR');
 
   const {
     data: items,
@@ -269,6 +283,13 @@ export default function CmsTopNavPage() {
             ))}
           </div>
 
+          <div className="mb-3">
+            <span className="block text-xs text-text-secondary">Icon</span>
+            <div className="mt-1">
+              <TopNavIconPicker value={addIcon} onChange={setAddIcon} />
+            </div>
+          </div>
+
           {addKind === 'SPORT' && (
             <div className="flex items-end gap-2">
               <div className="flex-1">
@@ -292,7 +313,7 @@ export default function CmsTopNavPage() {
               <Button
                 disabled={!selectedSport || addMutation.isPending}
                 onClick={() => {
-                  addMutation.mutate({ kind: 'SPORT', label: selectedSport, sport: selectedSport });
+                  addMutation.mutate({ kind: 'SPORT', label: selectedSport, sport: selectedSport, icon: addIcon });
                   setSelectedSport('');
                 }}
               >
@@ -328,6 +349,7 @@ export default function CmsTopNavPage() {
                     kind: 'COMPETITION',
                     label: selectedCompetition,
                     competition: selectedCompetition,
+                    icon: addIcon,
                   });
                   setSelectedCompetition('');
                 }}
@@ -359,6 +381,7 @@ export default function CmsTopNavPage() {
                               kind: 'MATCH',
                               label: `${match.homeTeam} vs ${match.awayTeam}`,
                               matchId: match.id,
+                              icon: addIcon,
                             })
                           }
                         >
@@ -375,7 +398,7 @@ export default function CmsTopNavPage() {
           {addKind === 'TODAY' && (
             <Button
               disabled={hasToday || addMutation.isPending}
-              onClick={() => addMutation.mutate({ kind: 'TODAY', label: "Today's matches" })}
+              onClick={() => addMutation.mutate({ kind: 'TODAY', label: "Today's matches", icon: addIcon })}
             >
               {hasToday ? 'Already added' : "Add Today's matches"}
             </Button>
@@ -384,7 +407,7 @@ export default function CmsTopNavPage() {
           {addKind === 'TOMORROW' && (
             <Button
               disabled={hasTomorrow || addMutation.isPending}
-              onClick={() => addMutation.mutate({ kind: 'TOMORROW', label: "Tomorrow's matches" })}
+              onClick={() => addMutation.mutate({ kind: 'TOMORROW', label: "Tomorrow's matches", icon: addIcon })}
             >
               {hasTomorrow ? 'Already added' : "Add Tomorrow's matches"}
             </Button>

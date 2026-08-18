@@ -67,7 +67,7 @@ describe('SecondaryNavBar', () => {
 
   it('links a SPORT item straight to its sport page', async () => {
     stubFetch([
-      { id: '1', kind: 'SPORT', label: 'Football', sport: 'Football', competition: null, matchId: null, sortOrder: 0 },
+      { id: '1', kind: 'SPORT', label: 'Football', icon: 'STAR', sport: 'Football', competition: null, matchId: null, sortOrder: 0 },
     ]);
     renderNav();
 
@@ -80,7 +80,7 @@ describe('SecondaryNavBar', () => {
         {
           id: '1',
           kind: 'COMPETITION',
-          label: 'Premier League',
+          label: 'Premier League', icon: 'STAR',
           sport: null,
           competition: 'Premier League',
           matchId: null,
@@ -102,7 +102,7 @@ describe('SecondaryNavBar', () => {
       {
         id: '1',
         kind: 'COMPETITION',
-        label: 'Off-season League',
+        label: 'Off-season League', icon: 'STAR',
         sport: null,
         competition: 'Off-season League',
         matchId: null,
@@ -119,7 +119,7 @@ describe('SecondaryNavBar', () => {
 
   it('links a MATCH item straight to the match detail page', async () => {
     stubFetch([
-      { id: '1', kind: 'MATCH', label: 'Arsenal vs Chelsea', sport: null, competition: null, matchId: 'm1', sortOrder: 0 },
+      { id: '1', kind: 'MATCH', label: 'Arsenal vs Chelsea', icon: 'STAR', sport: null, competition: null, matchId: 'm1', sortOrder: 0 },
     ]);
     renderNav();
 
@@ -128,11 +128,12 @@ describe('SecondaryNavBar', () => {
 
   it('links TODAY and TOMORROW items to the all-sports view with the matching date filter', async () => {
     stubFetch([
-      { id: '1', kind: 'TODAY', label: "Today's matches", sport: null, competition: null, matchId: null, sortOrder: 0 },
+      { id: '1', kind: 'TODAY', label: "Today's matches", icon: 'STAR', sport: null, competition: null, matchId: null, sortOrder: 0 },
       {
         id: '2',
         kind: 'TOMORROW',
         label: "Tomorrow's matches",
+        icon: 'STAR',
         sport: null,
         competition: null,
         matchId: null,
@@ -153,12 +154,23 @@ describe('SecondaryNavBar', () => {
 
   it('renders items in the server-provided order', async () => {
     stubFetch([
-      { id: '1', kind: 'TODAY', label: "Today's matches", sport: null, competition: null, matchId: null, sortOrder: 0 },
-      { id: '2', kind: 'SPORT', label: 'Tennis', sport: 'Tennis', competition: null, matchId: null, sortOrder: 1 },
+      { id: '1', kind: 'TODAY', label: "Today's matches", icon: 'STAR', sport: null, competition: null, matchId: null, sortOrder: 0 },
+      { id: '2', kind: 'SPORT', label: 'Tennis', icon: 'CALENDAR', sport: 'Tennis', competition: null, matchId: null, sortOrder: 1 },
     ]);
     renderNav();
 
     const links = await screen.findAllByRole('link');
-    expect(links.map((link) => link.textContent)).toEqual(["Today's matches", 'Tennis']);
+    expect(links.map((link) => link.getAttribute('aria-label'))).toEqual(["Today's matches", 'Tennis']);
+  });
+
+  it('renders the staff-chosen icon, not the label, as visible content', async () => {
+    stubFetch([
+      { id: '1', kind: 'SPORT', label: 'Football', icon: 'TROPHY', sport: 'Football', competition: null, matchId: null, sortOrder: 0 },
+    ]);
+    renderNav();
+
+    const link = await screen.findByRole('link', { name: 'Football' });
+    expect(link).not.toHaveTextContent('Football');
+    expect(link.querySelector('svg')).toBeInTheDocument();
   });
 });
