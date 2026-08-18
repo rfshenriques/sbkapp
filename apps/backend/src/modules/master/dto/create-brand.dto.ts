@@ -47,6 +47,10 @@ export class CreateBrandDto {
 
   @IsOptional()
   @IsColorZone()
+  surfaceColor?: ColorZone;
+
+  @IsOptional()
+  @IsColorZone()
   buttonColor?: ColorZone;
 
   @IsOptional()
@@ -60,6 +64,10 @@ export class CreateBrandDto {
   @IsOptional()
   @IsColorZone()
   textColor?: ColorZone;
+
+  @IsOptional()
+  @IsColorZone()
+  freebetBadgeColor?: ColorZone;
 }
 
 export class UpdateBrandDto {
@@ -105,6 +113,10 @@ export class UpdateBrandDto {
 
   @IsOptional()
   @IsColorZone()
+  surfaceColor?: ColorZone;
+
+  @IsOptional()
+  @IsColorZone()
   buttonColor?: ColorZone;
 
   @IsOptional()
@@ -118,6 +130,10 @@ export class UpdateBrandDto {
   @IsOptional()
   @IsColorZone()
   textColor?: ColorZone;
+
+  @IsOptional()
+  @IsColorZone()
+  freebetBadgeColor?: ColorZone;
 }
 
 export class SetProductFlagDto {

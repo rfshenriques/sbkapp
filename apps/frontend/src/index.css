@@ -38,6 +38,14 @@
   --color-brand-hover: color-mix(in srgb, var(--color-brand) 85%, black);
   --color-highlight: #f5b301;
   --color-filter: #22d3ee;
+  /* Defaults to tracking --color-brand (matches the freebet "F" badge's
+     original hardcoded fill) until a brand sets its own freebetBadgeColor -
+     a live var() reference, not a copied hex, so it keeps tracking
+     --color-brand automatically if that ever changes without its own
+     override set. The badge's ring/glyph color is never stored - always
+     computed from this fill via useContrastColor so it's legible against
+     whatever gets picked. */
+  --color-freebet-badge: var(--color-brand);
 
   /* Fixed regardless of brand - odds movement and error states shouldn't
      shift with a brand's chosen palette. */

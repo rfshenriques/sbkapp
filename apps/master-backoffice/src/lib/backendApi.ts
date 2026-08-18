@@ -65,10 +65,12 @@ export interface Brand {
   themeMode: ThemeMode;
   currencyCode: string;
   backgroundColor: ColorZone | null;
+  surfaceColor: ColorZone | null;
   buttonColor: ColorZone | null;
   highlightColor: ColorZone | null;
   filterColor: ColorZone | null;
   textColor: ColorZone | null;
+  freebetBadgeColor: ColorZone | null;
   /** Whether a winning freebet-funded bet credits its stake back alongside net winnings - always to the player's cash balance, never back into freebets. */
   freebetStakeReturnedOnWin: boolean;
   createdAt: string;
@@ -87,10 +89,12 @@ export interface CreateBrandPayload {
   themeMode?: ThemeMode;
   currencyCode?: string;
   backgroundColor?: ColorZone;
+  surfaceColor?: ColorZone;
   buttonColor?: ColorZone;
   highlightColor?: ColorZone;
   filterColor?: ColorZone;
   textColor?: ColorZone;
+  freebetBadgeColor?: ColorZone;
 }
 
 export interface UpdateBrandPayload {
@@ -103,10 +107,12 @@ export interface UpdateBrandPayload {
   themeMode?: ThemeMode;
   currencyCode?: string;
   backgroundColor?: ColorZone;
+  surfaceColor?: ColorZone;
   buttonColor?: ColorZone;
   highlightColor?: ColorZone;
   filterColor?: ColorZone;
   textColor?: ColorZone;
+  freebetBadgeColor?: ColorZone;
   freebetStakeReturnedOnWin?: boolean;
 }
 

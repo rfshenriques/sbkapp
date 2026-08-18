@@ -42,10 +42,12 @@ export default function BrandDetailPage() {
   const [themeMode, setThemeMode] = useState<backendApi.ThemeMode>('DARK');
   const [currencyCode, setCurrencyCode] = useState('EUR');
   const [backgroundColor, setBackgroundColor] = useState<ColorZone | null>(null);
+  const [surfaceColor, setSurfaceColor] = useState<ColorZone | null>(null);
   const [buttonColor, setButtonColor] = useState<ColorZone | null>(null);
   const [highlightColor, setHighlightColor] = useState<ColorZone | null>(null);
   const [filterColor, setFilterColor] = useState<ColorZone | null>(null);
   const [textColor, setTextColor] = useState<ColorZone | null>(null);
+  const [freebetBadgeColor, setFreebetBadgeColor] = useState<ColorZone | null>(null);
   const [freebetStakeReturnedOnWin, setFreebetStakeReturnedOnWin] = useState(true);
 
   useEffect(() => {
@@ -55,10 +57,12 @@ export default function BrandDetailPage() {
     setThemeMode(brand.themeMode);
     setCurrencyCode(brand.currencyCode);
     setBackgroundColor(brand.backgroundColor);
+    setSurfaceColor(brand.surfaceColor);
     setButtonColor(brand.buttonColor);
     setHighlightColor(brand.highlightColor);
     setFilterColor(brand.filterColor);
     setTextColor(brand.textColor);
+    setFreebetBadgeColor(brand.freebetBadgeColor);
     setFreebetStakeReturnedOnWin(brand.freebetStakeReturnedOnWin);
   }, [brand]);
 
@@ -103,10 +107,12 @@ export default function BrandDetailPage() {
       themeMode,
       currencyCode,
       backgroundColor: backgroundColor ?? undefined,
+      surfaceColor: surfaceColor ?? undefined,
       buttonColor: buttonColor ?? undefined,
       highlightColor: highlightColor ?? undefined,
       filterColor: filterColor ?? undefined,
       textColor: textColor ?? undefined,
+      freebetBadgeColor: freebetBadgeColor ?? undefined,
       freebetStakeReturnedOnWin,
     });
   }
@@ -174,6 +180,12 @@ export default function BrandDetailPage() {
                 onChange={setBackgroundColor}
               />
               <ColorZoneEditor
+                label="Surface"
+                description="Elements sitting above the background - cards, panels, dropdowns."
+                value={surfaceColor}
+                onChange={setSurfaceColor}
+              />
+              <ColorZoneEditor
                 label="Button / CTA"
                 description="Register, Place Bet, Browse matches, and other primary actions."
                 value={buttonColor}
@@ -192,6 +204,12 @@ export default function BrandDetailPage() {
                 onChange={setFilterColor}
               />
               <ColorZoneEditor label="Text" description="Primary text color." value={textColor} onChange={setTextColor} />
+              <ColorZoneEditor
+                label="Freebet badge"
+                description="The circular 'F' freebet-balance badge's fill - its ring/letter color always auto-picks black or white for legibility against whatever this is set to."
+                value={freebetBadgeColor}
+                onChange={setFreebetBadgeColor}
+              />
             </div>
           </Card>
 

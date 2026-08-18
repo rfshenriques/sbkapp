@@ -15,10 +15,12 @@ const PUBLIC_BRAND_SELECT = {
   themeMode: true,
   currencyCode: true,
   backgroundColor: true,
+  surfaceColor: true,
   buttonColor: true,
   highlightColor: true,
   filterColor: true,
   textColor: true,
+  freebetBadgeColor: true,
   supportHelplineText: true,
 } as const;
 

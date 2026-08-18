@@ -185,10 +185,12 @@ export interface PublicBrand {
   themeMode: 'LIGHT' | 'DARK';
   currencyCode: string;
   backgroundColor: ColorZone | null;
+  surfaceColor: ColorZone | null;
   buttonColor: ColorZone | null;
   highlightColor: ColorZone | null;
   filterColor: ColorZone | null;
   textColor: ColorZone | null;
+  freebetBadgeColor: ColorZone | null;
   supportHelplineText: string | null;
 }
 

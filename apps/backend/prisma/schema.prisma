@@ -1905,8 +1905,8 @@ model Brand {
    */
   currencyCode              String    @default("EUR")
   /**
-   * Every brand-configurable color zone (background, button/CTA, highlight,
-   * filter, text) is one of these JSON columns, each shaped as
+   * Every brand-configurable color zone (background, surface, button/CTA,
+   * highlight, filter, text) is one of these JSON columns, each shaped as
    * { light: ColorValue, dark: ColorValue } where ColorValue is either
    * { type: 'solid', hex } or { type: 'gradient', direction, fromHex, toHex }
    * - see BrandColorZoneDto in modules/master/dto/brand-color.dto.ts for the
@@ -1914,13 +1914,27 @@ model Brand {
    * apps/frontend/src/index.css), same fallback behavior the old single-hex
    * fields had. Keeping button/highlight/filter as three distinct zones is
    * deliberate (see docs/PROJECT_BRIEF.md) - a filter or a badge should
-   * never visually read as a button.
+   * never visually read as a button. surfaceColor is the base color for
+   * elements sitting above the page background (cards, panels, dropdowns -
+   * --color-surface) - distinct from background itself, same as every
+   * other zone; the derived --color-surface-2/--color-surface-hover shades
+   * stay fixed regardless (not independently brand-configurable), same as
+   * background's own hover/derived states.
    */
   backgroundColor           Json?
+  surfaceColor              Json?
   buttonColor               Json?
   highlightColor            Json?
   filterColor               Json?
   textColor                 Json?
+  /**
+   * The freebet "F" badge's fill color (see apps/frontend's
+   * FreebetBadgeIcon) - the badge's ring/glyph color is always whichever of
+   * black/white reads legibly against this fill (see useContrastColor),
+   * not independently stored. Null falls back to reusing buttonColor, same
+   * as the badge's original hardcoded var(--color-brand) fill.
+   */
+  freebetBadgeColor         Json?
   /**
    * Shown on the player-facing Responsible Gambling page when set - never a fabricated phone number if left unset.
    */

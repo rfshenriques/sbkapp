@@ -1,4 +1,5 @@
 import type { SVGProps } from 'react';
+import { useContrastColor } from '../../lib/useContrastColor';
 
 /**
  * Bottom-nav icons as small inline SVGs (not emoji) so they can be
@@ -110,18 +111,21 @@ export function WalletIcon(props: IconProps) {
 /**
  * Freebets balance - a solid circular badge with a bold italic "F", distinct
  * from the plain-stroke wallet icon used for cash. Unlike the other icons
- * here it's filled, not stroke-only, and fills with --color-brand directly
- * (an explicit, deliberate exception to the brand-color-is-CTA-only
- * convention elsewhere in this codebase - chosen after comparing options
- * directly) rather than taking a color via `currentColor`. Ring/letter are
- * fixed white rather than auto-picked per-brand contrast, same reasoning.
+ * here it's filled, not stroke-only, and fills with --color-freebet-badge
+ * (its own brand-configurable zone - see BrandDetailPage's Colors card and
+ * useBrandTheme.ts - defaulting to --color-brand until a brand sets one)
+ * rather than taking a color via `currentColor`. Ring/letter color is never
+ * separately stored - always whichever of black/white actually reads
+ * legibly against the fill (see useContrastColor), so an arbitrary staff
+ * pick can never wash the F out.
  */
 export function FreebetBadgeIcon(props: IconProps) {
+  const contrast = useContrastColor('--color-freebet-badge');
   return (
     <svg viewBox="0 0 20 20" {...props}>
-      <circle cx="10" cy="10" r="9" fill="var(--color-brand)" />
-      <circle cx="10" cy="10" r="9" fill="none" stroke="white" strokeWidth="1.3" />
-      <text x="10" y="14" textAnchor="middle" fontSize="10.5" fontWeight="800" fontStyle="italic" fill="white">
+      <circle cx="10" cy="10" r="9" fill="var(--color-freebet-badge)" />
+      <circle cx="10" cy="10" r="9" fill="none" stroke={contrast} strokeWidth="1.3" />
+      <text x="10" y="14" textAnchor="middle" fontSize="10.5" fontWeight="800" fontStyle="italic" fill={contrast}>
         F
       </text>
     </svg>

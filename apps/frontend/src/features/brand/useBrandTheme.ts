@@ -53,9 +53,10 @@ function applyColorZone(name: string, zone: ColorZone | null | undefined, active
 /**
  * Fetches this deployment's brand - resolved from the current hostname, see
  * getPublicBrand - and applies its theme (light/dark logo + background/
- * button/highlight/filter/text colors, each independently solid or
- * gradient - see brand-color.ts on the backend) as CSS custom properties on
- * the document root. Falls back to the built-in dark theme and default
+ * surface/button/highlight/filter/text/freebet-badge colors, each
+ * independently solid or gradient - see brand-color.ts on the backend) as
+ * CSS custom properties on the document root. Falls back to the built-in
+ * dark theme and default
  * colors (see index.css) when there's no brand configured or the fetch
  * fails, rather than blocking rendering on it.
  *
@@ -82,10 +83,12 @@ export function useBrandTheme() {
     document.documentElement.dataset.theme = activeTheme;
 
     applyColorZone('background', brand.backgroundColor, activeTheme);
+    applyColorZone('surface', brand.surfaceColor, activeTheme);
     applyColorZone('brand', brand.buttonColor, activeTheme);
     applyColorZone('highlight', brand.highlightColor, activeTheme);
     applyColorZone('filter', brand.filterColor, activeTheme);
     applyColorZone('text-primary', brand.textColor, activeTheme);
+    applyColorZone('freebet-badge', brand.freebetBadgeColor, activeTheme);
 
     const logoUrl =
       activeTheme === 'light'

@@ -65,10 +65,12 @@ describe('PublicBrandController', () => {
       themeMode: 'LIGHT',
       currencyCode: 'EUR',
       backgroundColor: null,
+      surfaceColor: null,
       buttonColor,
       highlightColor: null,
       filterColor: null,
       textColor: null,
+      freebetBadgeColor: null,
       supportHelplineText: null,
     });
     expect(result).not.toHaveProperty('domain');

@@ -12,10 +12,12 @@ const publicBrand: PublicBrand = {
   themeMode: 'DARK',
   currencyCode: 'EUR',
   backgroundColor: null,
+  surfaceColor: null,
   buttonColor: { light: { type: 'solid', hex: '#E02127' }, dark: { type: 'solid', hex: '#E02127' } },
   highlightColor: { light: { type: 'solid', hex: '#2ED573' }, dark: { type: 'solid', hex: '#2ED573' } },
   filterColor: { light: { type: 'solid', hex: '#3B82F6' }, dark: { type: 'solid', hex: '#3B82F6' } },
   textColor: null,
+  freebetBadgeColor: null,
   supportHelplineText: null,
 };
 
