@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { getPublicBrand, type BrandImageListItem } from '../../lib/backendApi';
 import { useBrandStore } from '../brand/brandStore';
 import { useBrandImageList } from './useBrandImageList';
+import { SessionAndClock } from './SessionAndClock';
 
 function ImageListRow({
   brandId,
@@ -91,6 +92,8 @@ export function Footer() {
         <p className="text-xs text-text-muted">
           © {new Date().getFullYear()} {brand?.name ?? 'Sportsbook'}. All rights reserved.
         </p>
+
+        <SessionAndClock />
       </div>
     </footer>
   );

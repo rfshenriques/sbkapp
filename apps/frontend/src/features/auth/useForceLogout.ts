@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { logoutBeacon } from '../../lib/backendApi';
 import { useAuthStore } from './authStore';
 import { useAuth } from './useAuth';
+import { useForceLogoutModalStore } from './forceLogoutModalStore';
 
 const IDLE_TIMEOUT_MS = 5 * 60_000;
 /** Anything that counts as "the player is still using the app" - resets the idle timer. */
@@ -26,16 +27,24 @@ export function useForceLogout() {
   useEffect(() => {
     if (!isAuthenticated) return;
 
+    // Distinguishes this from a player-initiated "Log out" click (which
+    // calls the same logout() directly, never this) - see
+    // ForceLogoutModal/forceLogoutModalStore. Opened before the logout
+    // itself resolves so it's already showing (or queued to show once the
+    // tab is foregrounded again) the instant auth actually clears.
+    function forceLogout() {
+      useForceLogoutModalStore.getState().open();
+      void logout();
+    }
+
     function resetIdleTimer() {
       if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = setTimeout(() => {
-        void logout();
-      }, IDLE_TIMEOUT_MS);
+      idleTimerRef.current = setTimeout(forceLogout, IDLE_TIMEOUT_MS);
     }
 
     function handleVisibilityChange() {
       if (document.hidden) {
-        void logout();
+        forceLogout();
       }
     }
 

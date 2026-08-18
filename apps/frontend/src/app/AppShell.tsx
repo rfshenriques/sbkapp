@@ -19,6 +19,7 @@ import { useBrandStore } from '../features/brand/brandStore';
 import { useAnalyticsPageViews } from '../features/analytics/useAnalyticsPageViews';
 import { Footer } from '../features/footer/Footer';
 import { AccountMenu } from '../features/auth/AccountMenu';
+import { ForceLogoutModal } from '../features/auth/ForceLogoutModal';
 import { PasskeyEnrollmentModal } from '../features/auth/PasskeyEnrollmentModal';
 import { useAuth } from '../features/auth/useAuth';
 import { useAuthModalStore } from '../features/auth/authModalStore';
@@ -672,6 +673,7 @@ export function AppShell() {
       <FreebetCreditedModal />
       <FreebetFlyOverlay />
       <BetPlacedModal />
+      <ForceLogoutModal />
 
       {/* Mobile-only: sports navigation takes over the space between the
           header and bottom nav like its own page, rather than a partial

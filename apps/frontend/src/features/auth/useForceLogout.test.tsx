@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from './authStore';
+import { useForceLogoutModalStore } from './forceLogoutModalStore';
 import { useForceLogout } from './useForceLogout';
 
 function setHidden(hidden: boolean) {
@@ -10,6 +11,7 @@ function setHidden(hidden: boolean) {
 beforeEach(() => {
   useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
   setHidden(false);
+  useForceLogoutModalStore.setState({ isOpen: false });
 });
 
 afterEach(() => {
@@ -43,6 +45,36 @@ describe('useForceLogout', () => {
     window.dispatchEvent(new Event('pagehide'));
 
     expect(beaconMock).toHaveBeenCalledWith(expect.stringContaining('/auth/logout'));
+    expect(useAuthStore.getState().accessToken).toBeNull();
+    // Nothing to show for a tab that's closing/gone - the modal is only
+    // for a logout the player might still be around to see.
+    expect(useForceLogoutModalStore.getState().isOpen).toBe(false);
+  });
+
+  it('opens the force-logout modal when the document is backgrounded', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderHook(() => useForceLogout());
+
+    setHidden(true);
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    expect(useForceLogoutModalStore.getState().isOpen).toBe(true);
+    await vi.waitFor(() => expect(useAuthStore.getState().accessToken).toBeNull());
+  });
+
+  it('opens the force-logout modal after the idle timeout, not on manual logout', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderHook(() => useForceLogout());
+    expect(useForceLogoutModalStore.getState().isOpen).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(5 * 60_000);
+
+    expect(useForceLogoutModalStore.getState().isOpen).toBe(true);
     expect(useAuthStore.getState().accessToken).toBeNull();
   });
 
