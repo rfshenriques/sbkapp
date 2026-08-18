@@ -5,6 +5,7 @@ import { Card } from '../../components/ui/Card';
 import { CampaignRewardAlert } from '../../components/ui/CampaignRewardAlert';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { MoneyBeforeAfter } from '../../components/ui/MoneyBeforeAfter';
+import { GearIcon } from '../../components/ui/NavIcons';
 import { Switch } from '../../components/ui/Switch';
 import { cn } from '../../lib/cn';
 import { track } from '../../lib/analytics';
@@ -19,6 +20,8 @@ import { useInsufficientFundsModalStore } from '../wallet/insufficientFundsModal
 import { betsQueryKey } from '../bet-history/useBets';
 import { BetHistoryList } from '../bet-history/BetHistoryList';
 import { useBetPlacedModalStore } from './betPlacedModalStore';
+import { BetSlipSettingsPanel } from './BetSlipSettingsPanel';
+import { useBetSlipSettingsStore } from './betSlipSettingsStore';
 import { calculateAccaBoost, type AccaBoostConfig } from './accaBoost';
 import { useAccaBoostConfig } from './useAccaBoostConfig';
 import { evaluateAccaRollbackEligibility, type AccaRollbackConfig } from './accaRollback';
@@ -276,6 +279,10 @@ interface StakeFieldProps {
   stake: string;
   onStakeChange: (value: string) => void;
   odds: number;
+  /** Player-configured quick-fill amounts (see BetSlipSettingsPanel) - omitted when there's no onQuickStake handler to pair them with. */
+  quickStakes?: number[];
+  /** Called with a quick-stake button's raw amount (major currency unit) - the caller (BetSlipPanel) owns the cash-balance check and stake-string formatting. */
+  onQuickStake?: (amount: number) => void;
   /**
    * A single-bet row already shows its own odds up in the header, right
    * next to the remove button - repeating it again next to the stake input
@@ -303,46 +310,72 @@ interface StakeFieldProps {
  * singles share a single payout total in the footer instead of repeating a
  * payout line under every row - see the two `footer` branches below.
  */
-function StakeField({ stakeId, stake, onStakeChange, odds, hideOdds, previousOdds, invalid }: StakeFieldProps) {
+function StakeField({
+  stakeId,
+  stake,
+  onStakeChange,
+  odds,
+  quickStakes,
+  onQuickStake,
+  hideOdds,
+  previousOdds,
+  invalid,
+}: StakeFieldProps) {
   return (
-    <div className="flex items-end gap-2">
-      <div className="min-w-0 flex-1">
-        <label htmlFor={stakeId} className="block text-xs text-text-secondary">
-          Stake
-        </label>
-        <input
-          id={stakeId}
-          type="number"
-          min="0.01"
-          step="0.01"
-          value={stake}
-          onChange={(event) => onStakeChange(event.target.value)}
-          className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-base sm:text-sm"
-        />
-      </div>
-      {!hideOdds && (
-        // Always the gold "selected" shape, not just the plain default box -
-        // this is the one live combined-price figure for the bet being
-        // built, so it should always read as the same "this is the real
-        // price" gold pill an odd reads as once picked (see .odd-btn.selected
-        // in index.css), never the neutral/unselected look.
-        <span className="odd-btn selected shrink-0">
-          <span className="odd-label">Odds</span>
-          {invalid ? (
-            <span className="odd-value" aria-label="Odds not combinable">
-              /
-            </span>
-          ) : previousOdds !== undefined ? (
-            <span className="flex items-center gap-1.5">
-              <span className="prev-odds text-xs line-through decoration-1">
-                {previousOdds.toFixed(2)}
+    <div>
+      <div className="flex items-end gap-2">
+        <div className="min-w-0 flex-1">
+          <label htmlFor={stakeId} className="block text-xs text-text-secondary">
+            Stake
+          </label>
+          <input
+            id={stakeId}
+            type="number"
+            min="0.01"
+            step="0.01"
+            value={stake}
+            onChange={(event) => onStakeChange(event.target.value)}
+            className="mt-1 w-full rounded-xl border border-border bg-background px-3 py-2 text-base sm:text-sm"
+          />
+        </div>
+        {!hideOdds && (
+          // Always the gold "selected" shape, not just the plain default box -
+          // this is the one live combined-price figure for the bet being
+          // built, so it should always read as the same "this is the real
+          // price" gold pill an odd reads as once picked (see .odd-btn.selected
+          // in index.css), never the neutral/unselected look.
+          <span className="odd-btn selected shrink-0">
+            <span className="odd-label">Odds</span>
+            {invalid ? (
+              <span className="odd-value" aria-label="Odds not combinable">
+                /
               </span>
-              <span className="odd-value text-highlight">{odds.toFixed(2)}</span>
-            </span>
-          ) : (
-            <span className="odd-value">{odds.toFixed(2)}</span>
-          )}
-        </span>
+            ) : previousOdds !== undefined ? (
+              <span className="flex items-center gap-1.5">
+                <span className="prev-odds text-xs line-through decoration-1">
+                  {previousOdds.toFixed(2)}
+                </span>
+                <span className="odd-value text-highlight">{odds.toFixed(2)}</span>
+              </span>
+            ) : (
+              <span className="odd-value">{odds.toFixed(2)}</span>
+            )}
+          </span>
+        )}
+      </div>
+      {quickStakes && onQuickStake && (
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {quickStakes.map((amount, index) => (
+            <button
+              key={index}
+              type="button"
+              onClick={() => onQuickStake(amount)}
+              className="rounded-lg bg-surface-2 px-2 py-1 text-xs font-semibold text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
+            >
+              {formatMoney(Math.round(amount * 100))}
+            </button>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -365,6 +398,8 @@ interface SingleBetRowProps {
   insuranceOptIn: boolean;
   /** Mirrors PlaceBetDto.useFreebets - a freebet-funded bet never links to a campaign, so this row's own qualification preview must agree. */
   isFreebetMode: boolean;
+  quickStakes: number[];
+  onQuickStake: (amount: number) => void;
 }
 
 /**
@@ -374,7 +409,16 @@ interface SingleBetRowProps {
  * exactly one, fixed at the bottom of the panel, regardless of how many
  * rows there are.
  */
-function SingleBetRow({ selection, stake, onStakeChange, showStake, insuranceOptIn, isFreebetMode }: SingleBetRowProps) {
+function SingleBetRow({
+  selection,
+  stake,
+  onStakeChange,
+  showStake,
+  insuranceOptIn,
+  isFreebetMode,
+  quickStakes,
+  onQuickStake,
+}: SingleBetRowProps) {
   const removeSelection = useBetSlipStore((state) => state.removeSelection);
   const stakeId = useId();
   const stakeLimitPreview = useStakeLimitPreview([selection]);
@@ -417,6 +461,8 @@ function SingleBetRow({ selection, stake, onStakeChange, showStake, insuranceOpt
             onStakeChange={onStakeChange}
             odds={selection.odds}
             hideOdds
+            quickStakes={quickStakes}
+            onQuickStake={onQuickStake}
           />
           <StakeLimitAlert stakeCents={Math.round(Number(stake) * 100)} preview={stakeLimitPreview} />
           <CampaignQualificationNote preview={campaignPreview} />
@@ -469,6 +515,8 @@ export function BetSlipPanel({
   const setStake = useBetSlipStore((state) => state.setStake);
   const [payMethod, setPayMethod] = useState<PayMethod>('cash');
   const [insuranceOptIn, setInsuranceOptIn] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const quickStakes = useBetSlipSettingsStore((state) => state.quickStakes);
   // Keyed by selectionKey() - each single-bet row's own stake, entered
   // independently of every other row but all placed together by the one
   // bottom button (see placeSinglesMutation below).
@@ -534,6 +582,23 @@ export function BetSlipPanel({
 
   const isFreebetMode = payMethod === 'freebet';
   const insuranceApplies = insuranceOptIn && insuranceBetConfig.enabled;
+
+  /**
+   * A quick-stake button (see BetSlipSettingsPanel) always checks the
+   * player's cash balance first - freebet mode has its own separate
+   * balance and isn't gated here. Clicking one above what's actually
+   * available in cash opens the same "add funds" prompt a failed cash
+   * placement already shows (see InsufficientFundsModal), instead of
+   * filling in a stake the player can't actually afford.
+   */
+  function handleQuickStake(amount: number, setStakeValue: (value: string) => void) {
+    const amountCents = Math.round(amount * 100);
+    if (!isFreebetMode && amountCents > (wallet?.balanceCents ?? 0)) {
+      openInsufficientFundsModal();
+      return;
+    }
+    setStakeValue(amount.toFixed(2));
+  }
 
   function resetPayMethod() {
     setPayMethod('cash');
@@ -828,6 +893,8 @@ export function BetSlipPanel({
                 showStake={selections.length > 1}
                 insuranceOptIn={insuranceOptIn}
                 isFreebetMode={isFreebetMode}
+                quickStakes={quickStakes}
+                onQuickStake={(amount) => handleQuickStake(amount, (value) => setSingleStake(selection, value))}
               />
             ))}
           </div>
@@ -909,6 +976,8 @@ export function BetSlipPanel({
                     : undefined
               }
               invalid={Boolean(accumulatorInvalidReason)}
+              quickStakes={quickStakes}
+              onQuickStake={(amount) => handleQuickStake(amount, setStake)}
             />
             <StakeLimitAlert stakeCents={stakeCents} preview={accumulatorStakeLimitPreview} />
             <CampaignQualificationNote preview={accumulatorCampaignPreview} />
@@ -923,6 +992,8 @@ export function BetSlipPanel({
               odds={insuranceEffectiveSingleOdds ?? singleSelection.odds}
               hideOdds={!insuranceApplies}
               previousOdds={insuranceApplies ? singleSelection.odds : undefined}
+              quickStakes={quickStakes}
+              onQuickStake={(amount) => handleQuickStake(amount, (value) => setSingleStake(singleSelection, value))}
             />
             <StakeLimitAlert
               stakeCents={Math.round(Number(getSingleStake(singleSelection)) * 100)}
@@ -1015,7 +1086,18 @@ export function BetSlipPanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="relative flex h-full min-h-0 flex-col">
+      {isSettingsOpen && <BetSlipSettingsPanel onClose={() => setIsSettingsOpen(false)} />}
+      <div className="mb-1 flex shrink-0 items-center justify-end">
+        <button
+          type="button"
+          aria-label="Bet slip settings"
+          onClick={() => setIsSettingsOpen(true)}
+          className="rounded-xl p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text-primary"
+        >
+          <GearIcon width={17} height={17} />
+        </button>
+      </div>
       {isAuthenticated && wallet && (
         <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
           <BalancePills

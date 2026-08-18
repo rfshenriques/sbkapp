@@ -9,6 +9,7 @@ import { useBrandStore } from '../brand/brandStore';
 import { useInsufficientFundsModalStore } from '../wallet/insufficientFundsModalStore';
 import { BetSlipPanel, type BetSlipPanelProps } from './BetSlipPanel';
 import { useBetPlacedModalStore } from './betPlacedModalStore';
+import { useBetSlipSettingsStore } from './betSlipSettingsStore';
 import { useBetSlipStore } from './betSlipStore';
 
 function renderPanel(props: BetSlipPanelProps = {}) {
@@ -1144,5 +1145,111 @@ describe('BetSlipPanel', () => {
     renderPanel({ emptyStateVariant: 'promotional' });
     expect(screen.getByText('Add selections to your bet slip')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Browse matches' })).toHaveAttribute('href', '/');
+  });
+
+  describe('bet slip settings and quick stakes', () => {
+    beforeEach(() => {
+      useBetSlipSettingsStore.setState({ autoUpdateOdds: false, quickStakes: [5, 10, 25, 50] });
+    });
+
+    function stubWallet(balanceCents: number) {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          const method = init?.method ?? 'GET';
+          if (method === 'GET' && url === '/backend/wallet') {
+            return new Response(JSON.stringify({ balanceCents }), { status: 200 });
+          }
+          if (method === 'GET' && url === '/backend/freebets') {
+            return new Response(JSON.stringify([]), { status: 200 });
+          }
+          return new Response(null, { status: 404 });
+        }),
+      );
+    }
+
+    it('opens the settings panel from the gear icon and closes it again', async () => {
+      renderPanel();
+
+      expect(screen.queryByText('Bet slip settings')).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Bet slip settings' }));
+      expect(screen.getByText('Bet slip settings')).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: 'Close bet slip settings' }));
+      expect(screen.queryByText('Bet slip settings')).not.toBeInTheDocument();
+    });
+
+    it('shows the configured quick-stake buttons under the stake field', () => {
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      expect(screen.getByRole('button', { name: '5.00 €' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '10.00 €' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '25.00 €' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: '50.00 €' })).toBeInTheDocument();
+    });
+
+    it('fills the stake field when a quick-stake button is clicked and the balance covers it', async () => {
+      useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+      stubWallet(10000);
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      await userEvent.click(await screen.findByRole('button', { name: '25.00 €' }));
+
+      expect(screen.getByLabelText('Stake')).toHaveValue(25);
+      expect(useInsufficientFundsModalStore.getState().isOpen).toBe(false);
+    });
+
+    it('opens the insufficient-funds modal instead of filling the field when a quick stake exceeds the cash balance', async () => {
+      useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+      stubWallet(1000);
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel();
+
+      await userEvent.click(await screen.findByRole('button', { name: '25.00 €' }));
+
+      await waitFor(() => expect(useInsufficientFundsModalStore.getState().isOpen).toBe(true));
+      // Unchanged from the default single-selection stake - the quick-stake click was rejected, not applied.
+      expect(screen.getByLabelText('Stake')).toHaveValue(10);
+    });
+
+    it('does not gate quick-stake buttons on cash balance in freebet mode', async () => {
+      useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+      useBrandStore.setState({ brandId: 'brand-1' });
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          const method = init?.method ?? 'GET';
+          if (method === 'GET' && url === '/backend/wallet') {
+            return new Response(JSON.stringify({ balanceCents: 0 }), { status: 200 });
+          }
+          if (method === 'GET' && url === '/backend/freebets') {
+            return new Response(
+              JSON.stringify([{ id: 'grant-1', amountCents: 10000, remainingCents: 10000, expiresAt: null }]),
+              { status: 200 },
+            );
+          }
+          if (method === 'GET' && url === '/backend/public/acca-boost-config/brand-1') {
+            return new Response(
+              JSON.stringify({ boostPercentPerLeg: 0, minSelections: 99, minOddsPerLeg: 1, enabled: false }),
+              { status: 200 },
+            );
+          }
+          return new Response(null, { status: 404 });
+        }),
+      );
+      useBetSlipStore.setState({ selections: [homeSelection], stake: '1.00' });
+      renderPanel();
+
+      await userEvent.click(await screen.findByRole('switch', { name: 'Pay with freebets' }));
+      await userEvent.click(screen.getByRole('button', { name: '25.00 €' }));
+
+      expect(screen.getByLabelText('Stake')).toHaveValue(25);
+      expect(useInsufficientFundsModalStore.getState().isOpen).toBe(false);
+    });
   });
 });
