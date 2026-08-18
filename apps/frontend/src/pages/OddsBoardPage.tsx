@@ -20,6 +20,7 @@ import { PromoCardTile } from '../features/promo-cards/PromoCardTile';
 import { usePromoCards } from '../features/promo-cards/usePromoCards';
 import { useHomepageCarouselConfig } from '../features/promo-cards/useHomepageCarouselConfig';
 import { useTeamColors } from '../features/odds-board/useTeamColors';
+import { useTeamAcronyms } from '../features/odds-board/useTeamAcronyms';
 import { fallbackTeamColor } from '../lib/fallbackTeamColor';
 import { formatKickoff } from '../lib/formatKickoff';
 import { sortSportsByPriority } from '../lib/sportPriority';
@@ -29,22 +30,32 @@ import type { Market, Match } from '@sportsbook/shared';
 /** Homepage sections start capped at this many items; Upcoming's own "Load more" reveals more in place, this many at a time (see visibleUpcomingCount). */
 const MAX_HOMEPAGE_ITEMS = 10;
 
-/** "Real Madrid" -> "RM", "Chelsea" -> "CH" - a badge initial when there's no team crest in the data model. */
-function initials(name: string): string {
+/** "Real Madrid" -> "REA", "Chelsea" -> "CHE" - a 3-letter badge fallback for a team with no admin-assigned acronym yet (see Team Colors backoffice). */
+function fallbackAcronym(name: string): string {
   const words = name.trim().split(/\s+/);
-  if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();
-  return (words[0]![0]! + words[1]![0]!).toUpperCase();
+  if (words.length === 1) return words[0]!.slice(0, 3).toUpperCase();
+  if (words.length === 2) return (words[0]![0]! + words[1]!.slice(0, 2)).toUpperCase();
+  return (words[0]![0]! + words[1]![0]! + words[2]![0]!).toUpperCase();
 }
 
-/** Circular initials badge - fills with the team's admin-assigned color (see Team Colors backoffice) when there is one, a deterministic per-team fallback color otherwise. */
-function TeamBadge({ name, colorHex }: { name: string; colorHex: string }) {
+/**
+ * Circular team badge - fills with the team's admin-assigned color (see
+ * Team Colors backoffice) when there is one, a deterministic per-team
+ * fallback color otherwise. The 3-letter acronym itself (same backoffice
+ * page, falling back to fallbackAcronym above when unset) renders larger
+ * than the circle and slightly overflows its edge rather than being
+ * clipped to fit inside it - a layered text-shadow fakes the letters
+ * standing up off the badge instead of sitting flat on it (see
+ * .team-acronym in index.css).
+ */
+function TeamBadge({ name, colorHex, acronym }: { name: string; colorHex: string; acronym?: string }) {
   return (
     <span
       aria-hidden="true"
-      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold text-white sm:h-7 sm:w-7 sm:text-[11px]"
+      className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full sm:h-7 sm:w-7"
       style={{ backgroundColor: colorHex }}
     >
-      {initials(name)}
+      <span className="team-acronym">{acronym ?? fallbackAcronym(name)}</span>
     </span>
   );
 }
@@ -82,6 +93,7 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
   const navigate = useNavigate();
   const prefetchMatchDetail = usePrefetchMatchDetail();
   const teamColors = useTeamColors();
+  const teamAcronyms = useTeamAcronyms();
   const displayName = useDisplayNames();
   const href = `/matches/${match.id}`;
   const homeTeamLabel = displayName('TEAM', match.homeTeam);
@@ -123,7 +135,11 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
           >
             <span className="flex flex-col gap-1.5">
               <span className="flex items-center gap-2">
-                <TeamBadge name={homeTeamLabel} colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)} />
+                <TeamBadge
+                  name={homeTeamLabel}
+                  colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)}
+                  acronym={teamAcronyms.get(match.homeTeam)}
+                />
                 <Link
                   to={href}
                   className="font-display text-sm leading-tight font-bold hover:underline sm:text-base"
@@ -133,7 +149,11 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
                 </Link>
               </span>
               <span className="flex items-center gap-2">
-                <TeamBadge name={awayTeamLabel} colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)} />
+                <TeamBadge
+                  name={awayTeamLabel}
+                  colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)}
+                  acronym={teamAcronyms.get(match.awayTeam)}
+                />
                 <Link
                   to={href}
                   className="font-display text-sm leading-tight font-bold hover:underline sm:text-base"

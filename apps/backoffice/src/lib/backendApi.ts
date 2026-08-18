@@ -171,6 +171,7 @@ export interface TeamColor {
   id: string;
   name: string;
   colorHex: string | null;
+  acronym: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -864,12 +865,15 @@ export async function syncTeamNames(names: string[]): Promise<TeamColor[]> {
   return parseJsonOrThrow(response, `Failed to sync team names: ${response.status}`);
 }
 
-/** Pass null to clear a previously-set color. */
-export async function setTeamColor(id: string, colorHex: string | null): Promise<TeamColor> {
+/** Pass null for either field to clear it; omit a field entirely to leave it as-is. */
+export async function setTeamColor(
+  id: string,
+  fields: { colorHex?: string | null; acronym?: string | null },
+): Promise<TeamColor> {
   const response = await authenticatedFetch(`/admin/team-colors/${id}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ colorHex }),
+    body: JSON.stringify(fields),
   });
   return parseJsonOrThrow(response, `Failed to set team color: ${response.status}`);
 }

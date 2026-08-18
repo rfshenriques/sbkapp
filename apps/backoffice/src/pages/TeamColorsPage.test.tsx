@@ -23,6 +23,7 @@ const arsenal: TeamColor = {
   id: 'team-1',
   name: 'Arsenal',
   colorHex: '#EF0107',
+  acronym: null,
   createdAt: '2026-07-18T00:00:00Z',
   updatedAt: '2026-07-18T00:00:00Z',
 };
@@ -31,6 +32,7 @@ const chelsea: TeamColor = {
   id: 'team-2',
   name: 'Chelsea',
   colorHex: null,
+  acronym: null,
   createdAt: '2026-07-18T00:00:00Z',
   updatedAt: '2026-07-18T00:00:00Z',
 };
@@ -39,6 +41,7 @@ const hoffenheim: TeamColor = {
   id: 'team-3',
   name: '1899 Hoffenheim',
   colorHex: null,
+  acronym: null,
   createdAt: '2026-07-18T00:00:00Z',
   updatedAt: '2026-07-18T00:00:00Z',
 };
@@ -47,6 +50,7 @@ const nineElms: TeamColor = {
   id: 'team-4',
   name: '96 Athletic',
   colorHex: null,
+  acronym: null,
   createdAt: '2026-07-18T00:00:00Z',
   updatedAt: '2026-07-18T00:00:00Z',
 };
@@ -210,5 +214,63 @@ describe('TeamColorsPage', () => {
       '/backend/admin/team-colors/team-2',
       expect.objectContaining({ method: 'PATCH' }),
     );
+  });
+
+  it('setting only the acronym sends just that field, uppercased, leaving colorHex out of the request', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/api/events') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/team-colors') {
+        return new Response(JSON.stringify([chelsea]), { status: 200 });
+      }
+      if (method === 'PATCH' && url === '/backend/admin/team-colors/team-2') {
+        expect(JSON.parse(init!.body as string)).toEqual({ acronym: 'CHE' });
+        return new Response(JSON.stringify({ ...chelsea, acronym: 'CHE' }), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderTeamColorsPage();
+    await userEvent.click(await screen.findByRole('button', { name: /^C \(1\)/ }));
+    await screen.findByText('Chelsea');
+
+    const input = screen.getByLabelText('Chelsea acronym');
+    await userEvent.type(input, 'che');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/team-colors/team-2',
+      expect.objectContaining({ method: 'PATCH' }),
+    );
+  });
+
+  it('rejects a 2-letter acronym, keeping Save disabled', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'GET' && url === '/api/events') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/admin/team-colors') {
+        return new Response(JSON.stringify([chelsea]), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderTeamColorsPage();
+    await userEvent.click(await screen.findByRole('button', { name: /^C \(1\)/ }));
+    await screen.findByText('Chelsea');
+
+    await userEvent.type(screen.getByLabelText('Chelsea acronym'), 'ch');
+
+    expect(screen.getByText('3 letters/digits')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
   });
 });

@@ -332,7 +332,8 @@ export async function getCompetitionQuicklinks(brandId: string): Promise<Competi
 
 export interface PublicTeamColor {
   name: string;
-  colorHex: string;
+  colorHex: string | null;
+  acronym: string | null;
 }
 
 /** Backoffice-assigned real team colors - see apps/backend's TeamColorsModule. Only teams an admin has actually assigned a color to are returned. */

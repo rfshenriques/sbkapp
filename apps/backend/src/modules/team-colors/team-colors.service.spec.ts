@@ -89,7 +89,7 @@ describe('TeamColorsService', () => {
     const name = uniqueName('Color FC');
     const created = await prisma.teamColor.create({ data: { name } });
 
-    const updated = await service.setColor(created.id, '#ABCDEF', TEST_ACTOR);
+    const updated = await service.setColor(created.id, { colorHex: '#ABCDEF' }, TEST_ACTOR);
     expect(updated.colorHex).toBe('#ABCDEF');
 
     const entries = await prisma.auditLogEntry.findMany({ where: { actorUsername: TEST_ACTOR.username } });
@@ -102,25 +102,45 @@ describe('TeamColorsService', () => {
     const name = uniqueName('Clear FC');
     const created = await prisma.teamColor.create({ data: { name, colorHex: '#111111' } });
 
-    const updated = await service.setColor(created.id, null, TEST_ACTOR);
+    const updated = await service.setColor(created.id, { colorHex: null }, TEST_ACTOR);
     expect(updated.colorHex).toBeNull();
   });
 
   it('setColor throws NotFoundException for a nonexistent id', async () => {
-    await expect(service.setColor('does-not-exist', '#ABCDEF', TEST_ACTOR)).rejects.toBeInstanceOf(
+    await expect(service.setColor('does-not-exist', { colorHex: '#ABCDEF' }, TEST_ACTOR)).rejects.toBeInstanceOf(
       NotFoundException,
     );
   });
 
-  it('listAssigned only returns rows with a colorHex set', async () => {
+  it('setColor updates the acronym independently of colorHex', async () => {
+    const name = uniqueName('Acronym FC');
+    const created = await prisma.teamColor.create({ data: { name, colorHex: '#111111' } });
+
+    const updated = await service.setColor(created.id, { acronym: 'AFC' }, TEST_ACTOR);
+    expect(updated.acronym).toBe('AFC');
+    expect(updated.colorHex).toBe('#111111');
+  });
+
+  it('setColor with acronym null clears a previously-set acronym', async () => {
+    const name = uniqueName('Clear Acronym FC');
+    const created = await prisma.teamColor.create({ data: { name, acronym: 'CAF' } });
+
+    const updated = await service.setColor(created.id, { acronym: null }, TEST_ACTOR);
+    expect(updated.acronym).toBeNull();
+  });
+
+  it('listAssigned returns rows with a colorHex or an acronym set', async () => {
     const withColor = uniqueName('Assigned FC');
-    const withoutColor = uniqueName('Unassigned FC');
+    const withAcronym = uniqueName('Acronym Only FC');
+    const withNeither = uniqueName('Unassigned FC');
     await prisma.teamColor.create({ data: { name: withColor, colorHex: '#654321' } });
-    await prisma.teamColor.create({ data: { name: withoutColor } });
+    await prisma.teamColor.create({ data: { name: withAcronym, acronym: 'AOF' } });
+    await prisma.teamColor.create({ data: { name: withNeither } });
 
     const assigned = await service.listAssigned();
     const names = assigned.map((row) => row.name);
     expect(names).toContain(withColor);
-    expect(names).not.toContain(withoutColor);
+    expect(names).toContain(withAcronym);
+    expect(names).not.toContain(withNeither);
   });
 });

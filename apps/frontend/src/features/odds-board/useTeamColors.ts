@@ -9,7 +9,7 @@ export function useTeamColors(): Map<string, string> {
   return useMemo(() => {
     const colorByTeam = new Map<string, string>();
     for (const entry of data ?? []) {
-      colorByTeam.set(entry.name, entry.colorHex);
+      if (entry.colorHex) colorByTeam.set(entry.name, entry.colorHex);
     }
     return colorByTeam;
   }, [data]);

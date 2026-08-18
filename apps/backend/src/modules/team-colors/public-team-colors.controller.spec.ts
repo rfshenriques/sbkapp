@@ -37,18 +37,21 @@ describe('PublicTeamColorsController', () => {
     return name;
   }
 
-  it('returns only name + colorHex for teams with an assigned color, excluding unassigned rows', async () => {
+  it('returns only name + colorHex + acronym for teams with either assigned, excluding fully-unassigned rows', async () => {
     const assigned = uniqueName('Public Assigned FC');
+    const acronymOnly = uniqueName('Public Acronym Only FC');
     const unassigned = uniqueName('Public Unassigned FC');
     await prisma.teamColor.create({ data: { name: assigned, colorHex: '#ABCDEF' } });
+    await prisma.teamColor.create({ data: { name: acronymOnly, acronym: 'PAO' } });
     await prisma.teamColor.create({ data: { name: unassigned } });
 
     const result = await controller.listAssigned();
 
-    expect(result).toContainEqual({ name: assigned, colorHex: '#ABCDEF' });
+    expect(result).toContainEqual({ name: assigned, colorHex: '#ABCDEF', acronym: null });
+    expect(result).toContainEqual({ name: acronymOnly, colorHex: null, acronym: 'PAO' });
     expect(result.find((row) => row.name === unassigned)).toBeUndefined();
     for (const row of result) {
-      expect(Object.keys(row).sort()).toEqual(['colorHex', 'name']);
+      expect(Object.keys(row).sort()).toEqual(['acronym', 'colorHex', 'name']);
     }
   });
 });

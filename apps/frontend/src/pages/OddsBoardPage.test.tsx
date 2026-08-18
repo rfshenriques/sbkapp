@@ -178,6 +178,41 @@ describe('OddsBoardPage', () => {
     }
   });
 
+  it('shows the backoffice-assigned acronym on a team badge, falling back to derived initials for a team with none set', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === `/backend/public/matches/${TEST_BRAND_ID}`) {
+        return new Response(JSON.stringify(mockMatches), { status: 200 });
+      }
+      if (url === `/backend/public/match-of-the-day/${TEST_BRAND_ID}`) {
+        return new Response(JSON.stringify([{ id: 'motd-1', matchId: 'match-3', sortOrder: 0 }]), { status: 200 });
+      }
+      if (url === '/backend/public/team-colors') {
+        return new Response(
+          JSON.stringify([{ name: 'Real Madrid', colorHex: null, acronym: 'RMA' }]),
+          { status: 200 },
+        );
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderPage();
+
+    const headings = await screen.findAllByRole('heading', { name: 'Real Madrid vs Barcelona' });
+    await waitFor(() => {
+      for (const heading of headings) {
+        expect(within(heading).getAllByText('RMA').length).toBeGreaterThan(0);
+      }
+    });
+    // Barcelona has no assigned acronym - falls back to a 3-letter derived
+    // initial ("Barcelona" is one word -> its first 3 letters) rather than
+    // showing nothing.
+    for (const heading of headings) {
+      expect(within(heading).getAllByText('BAR').length).toBeGreaterThan(0);
+    }
+  });
+
   it('shows no Match of the day section at all when the brand has none configured, rather than auto-picking one', async () => {
     stubOddsEngineFetch(mockMatches, {}, []);
     renderPage();

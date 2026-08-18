@@ -787,6 +787,38 @@ body {
   mix-blend-mode: var(--card-glow-blend);
 }
 
+/* Match of the day's team badge lettering (see TeamBadge in
+   OddsBoardPage.tsx) - deliberately bigger than the circle it sits on and
+   left unclipped (the circle itself has no overflow:hidden), so the
+   acronym's edges spill a little past the badge's own boundary instead of
+   being contained inside it. The layered text-shadow (a soft dark
+   drop-shadow behind a tighter, denser one) is what fakes the letters
+   standing up off the badge surface rather than being flat/printed on it -
+   two blur radii read as an actual cast shadow, one flat shadow alone just
+   looks like a thin outline. */
+.team-acronym {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-style: italic;
+  font-size: 15px;
+  letter-spacing: -0.3px;
+  color: #fff;
+  text-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.5),
+    0 3px 4px rgba(0, 0, 0, 0.35);
+  white-space: nowrap;
+}
+@media (min-width: 640px) {
+  .team-acronym {
+    font-size: 17px;
+  }
+}
+
 .momentum-bar {
   display: flex;
   height: 8px;

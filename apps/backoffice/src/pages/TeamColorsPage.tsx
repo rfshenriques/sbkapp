@@ -14,6 +14,7 @@ const teamColorsQueryKey = ['team-colors'] as const;
 const matchesQueryKey = ['live-matches'] as const;
 
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+const ACRONYM_PATTERN = /^[A-Z0-9]{3}$/;
 
 /** Teams with no country evidence in the currently-loaded match feed. */
 const UNKNOWN_COUNTRY = 'Unknown';
@@ -22,43 +23,65 @@ type GroupMode = 'letter' | 'country';
 
 function TeamColorRow({ teamColor }: { teamColor: backendApi.TeamColor }) {
   const queryClient = useQueryClient();
-  const [draft, setDraft] = useState(teamColor.colorHex ?? '');
+  const [colorDraft, setColorDraft] = useState(teamColor.colorHex ?? '');
+  const [acronymDraft, setAcronymDraft] = useState(teamColor.acronym ?? '');
 
   const setColorMutation = useMutation({
-    mutationFn: (colorHex: string | null) => backendApi.setTeamColor(teamColor.id, colorHex),
+    mutationFn: (fields: { colorHex?: string | null; acronym?: string | null }) =>
+      backendApi.setTeamColor(teamColor.id, fields),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: teamColorsQueryKey });
-      toast.success(`${teamColor.name} color saved`);
+      toast.success(`${teamColor.name} saved`);
     },
     onError: (error) => toast.error(errorMessage(error, 'Failed to save team color')),
   });
 
-  const isValid = draft === '' || HEX_COLOR_PATTERN.test(draft);
-  const isDirty = draft !== (teamColor.colorHex ?? '');
+  const isColorValid = colorDraft === '' || HEX_COLOR_PATTERN.test(colorDraft);
+  const isColorDirty = colorDraft !== (teamColor.colorHex ?? '');
+  // Uppercased on the way in so a staff member typing lowercase still ends
+  // up with a valid ACRONYM_PATTERN match, rather than a confusing "invalid"
+  // error for a value that's fine once cased correctly.
+  const isAcronymValid = acronymDraft === '' || ACRONYM_PATTERN.test(acronymDraft.toUpperCase());
+  const isAcronymDirty = acronymDraft !== (teamColor.acronym ?? '');
+  const isValid = isColorValid && isAcronymValid;
+  const isDirty = isColorDirty || isAcronymDirty;
+
+  function handleSave() {
+    const fields: { colorHex?: string | null; acronym?: string | null } = {};
+    if (isColorDirty) fields.colorHex = colorDraft === '' ? null : colorDraft;
+    if (isAcronymDirty) fields.acronym = acronymDraft === '' ? null : acronymDraft.toUpperCase();
+    setColorMutation.mutate(fields);
+  }
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-background px-3 py-2">
       <span className="text-sm">{teamColor.name}</span>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <span
           className="h-5 w-5 shrink-0 rounded-full border border-border"
-          style={{ backgroundColor: HEX_COLOR_PATTERN.test(draft) ? draft : 'transparent' }}
+          style={{ backgroundColor: HEX_COLOR_PATTERN.test(colorDraft) ? colorDraft : 'transparent' }}
           aria-hidden="true"
         />
         <input
           type="text"
           aria-label={`${teamColor.name} color hex`}
           placeholder="#EF0107"
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
+          value={colorDraft}
+          onChange={(event) => setColorDraft(event.target.value)}
           className="w-28 rounded-md border border-border bg-surface px-2 py-1 text-sm text-text-primary"
         />
-        {!isValid && <span className="text-xs text-danger">Invalid hex</span>}
-        <Button
-          variant="secondary"
-          disabled={!isValid || !isDirty || setColorMutation.isPending}
-          onClick={() => setColorMutation.mutate(draft === '' ? null : draft)}
-        >
+        {!isColorValid && <span className="text-xs text-danger">Invalid hex</span>}
+        <input
+          type="text"
+          aria-label={`${teamColor.name} acronym`}
+          placeholder="ARS"
+          maxLength={3}
+          value={acronymDraft}
+          onChange={(event) => setAcronymDraft(event.target.value.toUpperCase())}
+          className="w-16 rounded-md border border-border bg-surface px-2 py-1 text-center text-sm text-text-primary uppercase"
+        />
+        {!isAcronymValid && <span className="text-xs text-danger">3 letters/digits</span>}
+        <Button variant="secondary" disabled={!isValid || !isDirty || setColorMutation.isPending} onClick={handleSave}>
           Save
         </Button>
       </div>
@@ -134,8 +157,9 @@ export default function TeamColorsPage() {
     <div>
       <h1 className="text-2xl font-semibold">Team colors</h1>
       <p className="mt-1 text-sm text-text-secondary">
-        Teams seen in the live odds feed are listed here automatically. Set each team's real color so
-        the player app can show it.
+        Teams seen in the live odds feed are listed here automatically. Set each team's real color and
+        3-letter acronym so the player app can show them (the acronym appears on Match of the day's team
+        badges).
       </p>
 
       {teamColors && teamColors.length > 0 && (

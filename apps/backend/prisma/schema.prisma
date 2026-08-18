@@ -618,6 +618,10 @@ model TeamColor {
   id        String   @id @default(uuid())
   name      String   @unique
   colorHex  String?
+  /// 3-letter acronym shown on Match of the day's team badges (see
+  /// TeamBadge in apps/frontend) - independent of colorHex, an admin can set
+  /// either first. Falls back to an auto-derived initials badge when unset.
+  acronym   String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

@@ -50,7 +50,7 @@ export class TeamColorsService implements OnModuleInit {
 
   async listAssigned() {
     return this.prisma.teamColor.findMany({
-      where: { colorHex: { not: null } },
+      where: { OR: [{ colorHex: { not: null } }, { acronym: { not: null } }] },
       orderBy: { name: 'asc' },
     });
   }
@@ -75,20 +75,26 @@ export class TeamColorsService implements OnModuleInit {
     return this.list();
   }
 
-  async setColor(id: string, colorHex: string | null, actor: AuditActor) {
+  async setColor(id: string, fields: { colorHex?: string | null; acronym?: string | null }, actor: AuditActor) {
     const existing = await this.prisma.teamColor.findUnique({ where: { id } });
     if (!existing) {
       throw new NotFoundException('Team color not found');
     }
 
-    const teamColor = await this.prisma.teamColor.update({ where: { id }, data: { colorHex } });
+    const teamColor = await this.prisma.teamColor.update({
+      where: { id },
+      data: {
+        ...(fields.colorHex !== undefined && { colorHex: fields.colorHex }),
+        ...(fields.acronym !== undefined && { acronym: fields.acronym }),
+      },
+    });
 
     await this.auditLogService.record({
       actor,
       action: 'TEAM_COLOR_SET',
       targetType: 'TeamColor',
       targetId: teamColor.id,
-      metadata: { name: teamColor.name, colorHex },
+      metadata: { name: teamColor.name, colorHex: teamColor.colorHex, acronym: teamColor.acronym },
     });
 
     return teamColor;

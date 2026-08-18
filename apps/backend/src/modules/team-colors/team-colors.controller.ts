@@ -34,14 +34,18 @@ export class TeamColorsController {
 
   @Patch(':id')
   setColor(@Param('id') id: string, @Body() dto: SetTeamColorDto, @Req() req: AuthenticatedStaffRequest) {
-    if (dto.colorHex === undefined) {
-      throw new BadRequestException('colorHex is required');
+    if (dto.colorHex === undefined && dto.acronym === undefined) {
+      throw new BadRequestException('colorHex or acronym is required');
     }
 
-    return this.teamColorsService.setColor(id, dto.colorHex, {
-      id: req.user.sub,
-      username: req.user.username,
-      brandId: req.user.brandId,
-    });
+    return this.teamColorsService.setColor(
+      id,
+      { colorHex: dto.colorHex, acronym: dto.acronym },
+      {
+        id: req.user.sub,
+        username: req.user.username,
+        brandId: req.user.brandId,
+      },
+    );
   }
 }
