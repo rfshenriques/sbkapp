@@ -331,6 +331,32 @@ describe('OddsBoardPage', () => {
     expect(within(menus[0]!).getByRole('button', { name: /All/ })).toHaveClass('active');
   });
 
+  it('only offers kickoff-time windows that actually have a match in them', async () => {
+    // 30h out clears the 3h and 24h windows but still lands inside 48h/All -
+    // real Date.now(), not a fixture date, so this holds regardless of when the suite runs.
+    const kickoff = new Date(Date.now() + 30 * 60 * 60 * 1000).toISOString();
+    stubOddsEngineFetch([buildMatch({ kickoff })]);
+    renderPage();
+
+    const toggles = await screen.findAllByRole('button', { name: 'Filter by kickoff time' });
+    await userEvent.click(toggles[0]!);
+
+    const menu = screen.getAllByRole('group', { name: 'Filter by kickoff time' })[0]!;
+    expect(within(menu).queryByRole('button', { name: /3h/ })).not.toBeInTheDocument();
+    expect(within(menu).queryByRole('button', { name: /24h/ })).not.toBeInTheDocument();
+    expect(within(menu).getByRole('button', { name: /48h/ })).toBeInTheDocument();
+    expect(within(menu).getByRole('button', { name: /All/ })).toBeInTheDocument();
+  });
+
+  it('renders the kickoff-time toggle as a circular icon button, not a text tab', async () => {
+    stubOddsEngineFetch(buildManySportsMatches());
+    renderPage();
+
+    const toggles = await screen.findAllByRole('button', { name: 'Filter by kickoff time' });
+    expect(toggles[0]).toHaveClass('icon-toggle');
+    expect(toggles[0]).not.toHaveClass('tab');
+  });
+
   it('renders CMS promo cards in the same Challenges slot next to Match of the day', async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const url = typeof input === 'string' ? input : input.toString();

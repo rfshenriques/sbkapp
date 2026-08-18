@@ -290,6 +290,10 @@ export default function OddsBoardPage() {
       upcomingForSport.filter((match) => isWithinHoursWindow(window, new Date(match.kickoff))).length,
     ]),
   ) as Record<HoursWindow, number>;
+  // An empty window (e.g. nothing kicking off in the next 3h) is a dead
+  // option rather than a useful filter - same reasoning as SportPage's own
+  // date-bucket tabs.
+  const visibleHoursWindows = HOURS_WINDOWS.filter((window) => upcomingWindowCounts[window] > 0);
   const upcomingFiltered = upcomingForSport.filter((match) =>
     isWithinHoursWindow(hoursWindow, new Date(match.kickoff)),
   );
@@ -462,7 +466,7 @@ export default function OddsBoardPage() {
             )}
             <button
               type="button"
-              className={`tab shrink-0${hoursMenuOpen ? ' active' : ''}`}
+              className={`icon-toggle shrink-0${hoursMenuOpen ? ' active' : ''}`}
               aria-expanded={hoursMenuOpen}
               aria-label="Filter by kickoff time"
               onClick={() => setHoursMenuOpen((open) => !open)}
@@ -478,7 +482,7 @@ export default function OddsBoardPage() {
               aria-label="Filter by kickoff time"
               data-horizontal-scroll="true"
             >
-              {HOURS_WINDOWS.map((window) => (
+              {visibleHoursWindows.map((window) => (
                 <button
                   key={window}
                   type="button"
@@ -552,7 +556,7 @@ export default function OddsBoardPage() {
             {mobileTab === 'upcoming' && (
               <button
                 type="button"
-                className={`tab shrink-0${hoursMenuOpen ? ' active' : ''}`}
+                className={`icon-toggle shrink-0${hoursMenuOpen ? ' active' : ''}`}
                 aria-expanded={hoursMenuOpen}
                 aria-label="Filter by kickoff time"
                 onClick={() => setHoursMenuOpen((open) => !open)}
@@ -593,7 +597,7 @@ export default function OddsBoardPage() {
                 aria-label="Filter by kickoff time"
                 data-horizontal-scroll="true"
               >
-                {HOURS_WINDOWS.map((window) => (
+                {visibleHoursWindows.map((window) => (
                   <button
                     key={window}
                     type="button"

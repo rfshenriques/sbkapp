@@ -351,8 +351,9 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
+  height: var(--tab-height);
   white-space: nowrap;
-  padding: 7px 14px;
+  padding: 0 14px;
   border-radius: 14px;
   background-color: var(--color-surface-2);
   color: var(--color-text-secondary);
@@ -371,6 +372,35 @@ body {
 }
 .tab.active {
   /* Same --gradient-{zone}-with-baked-fallback pattern as .btn-primary - see there. */
+  background: var(
+    --gradient-filter,
+    linear-gradient(135deg, var(--color-filter), color-mix(in srgb, var(--color-filter) 78%, black))
+  );
+  color: #000;
+}
+
+/* Circular counterpart to .tab, for an icon-only filter toggle whose icon
+   is itself round (e.g. the kickoff-time clock filter) - a rounded-rect
+   pill reads as visually mismatched next to a circular glyph. Same
+   explicit --tab-height as .tab, with aspect-ratio: 1 turning that into a
+   diameter, so the two always match regardless of flex context. */
+.icon-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--tab-height, 34px);
+  aspect-ratio: 1;
+  border-radius: 9999px;
+  background-color: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+.icon-toggle:hover {
+  color: var(--color-text-primary);
+}
+.icon-toggle.active {
   background: var(
     --gradient-filter,
     linear-gradient(135deg, var(--color-filter), color-mix(in srgb, var(--color-filter) 78%, black))
@@ -650,6 +680,10 @@ body {
      keeping, but at full strength it read as too dominant against the
      card's own content. Same reach, lighter touch. */
   --card-glow-opacity: 0.4;
+  /* Shared by .tab and .icon-toggle (see those rules) so an icon-only
+     circular filter toggle always matches the height of a text-and-icon
+     .tab pill next to it. */
+  --tab-height: 34px;
 }
 :root[data-theme='light'] {
   --card-glow-blend: multiply;
