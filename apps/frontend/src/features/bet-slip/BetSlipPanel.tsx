@@ -421,7 +421,7 @@ function StakeField({
               key={index}
               type="button"
               onClick={() => onQuickStake(amount)}
-              className="rounded-lg bg-surface-2 px-2 py-1 text-xs font-semibold text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
+              className="rounded-lg bg-surface-2 px-2 py-1 text-xs font-semibold text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary"
             >
               {formatMoney(Math.round(amount * 100))}
             </button>

@@ -40,7 +40,7 @@ function GroupedMatchRow({ match }: GroupedMatchRowProps) {
 
   return (
     <Card
-      className="fade-in-up cursor-pointer bg-surface-2 transition-colors hover:border-text-muted"
+      className="match-card fade-in-up cursor-pointer transition-colors"
       onClick={() => navigate(matchHref)}
       onMouseEnter={() => prefetchMatchDetail(match.id)}
       onTouchStart={() => prefetchMatchDetail(match.id)}

@@ -40,7 +40,7 @@ export function MatchCard({ match, style, animate = true }: MatchCardProps) {
 
   return (
     <Card
-      className={`${animate ? 'fade-in-up ' : ''}relative cursor-pointer bg-surface-2 transition-colors hover:border-text-muted`}
+      className={`${animate ? 'fade-in-up ' : ''}match-card relative cursor-pointer transition-colors`}
       style={style}
       onClick={() => navigate(matchHref)}
       onMouseEnter={() => prefetchMatchDetail(match.id)}

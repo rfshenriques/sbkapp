@@ -141,7 +141,7 @@ export function BottomSheet({
                   type="button"
                   aria-label={backLabel}
                   onClick={onBack}
-                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
+                  className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary"
                 >
                   <svg
                     viewBox="0 0 20 20"
@@ -163,7 +163,7 @@ export function BottomSheet({
             <button
               type="button"
               aria-label={closeLabel}
-              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-text-secondary transition-colors hover:bg-white/10 hover:text-text-primary"
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-2 text-text-secondary transition-colors hover:bg-surface-hover hover:text-text-primary"
               onClick={onClose}
             >
               <CloseIcon width={16} height={16} />

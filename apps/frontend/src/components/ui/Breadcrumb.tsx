@@ -116,7 +116,7 @@ function BreadcrumbDropdown({
                 aria-selected={option.label === label}
                 onClick={() => setPanel(null)}
                 className={cn(
-                  'flex items-center justify-between gap-2 px-3 py-2 text-sm transition-colors hover:bg-white/5',
+                  'flex items-center justify-between gap-2 px-3 py-2 text-sm transition-colors hover:bg-surface-hover',
                   option.label === label ? 'text-highlight' : 'text-text-secondary hover:text-text-primary',
                 )}
               >
