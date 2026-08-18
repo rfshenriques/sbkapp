@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type FocusEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { CountryFlag } from '../../components/ui/CountryFlag';
@@ -7,6 +7,7 @@ import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
 import { SportIcon } from '../../components/ui/SportIcon';
 import { cn } from '../../lib/cn';
 import { track } from '../../lib/analytics';
+import { sortSportsByPriority } from '../../lib/sportPriority';
 import { useDisplayNames } from '../display-names/useDisplayNames';
 import { useMatches } from '../odds-board/useMatches';
 import { useBoosts } from '../odds-board/useBoosts';
@@ -20,6 +21,9 @@ import { buildSportTree, competitionCountryMap, competitionSportMap } from './bu
 
 /** Sidebar stays short and scannable - the rest is reachable through the sport/country/competition drill-down below. */
 const MAX_QUICKLINKS = 6;
+
+/** Focus suggestions stay to a single row/short list - a fast jumping-off point, not a second copy of the full drill-down tree already below. */
+const MAX_SUGGESTED_SPORTS = 8;
 
 /** A checklist glyph for the "Select multiple" toggle - two checked boxes stacked, echoing the multi-select checkboxes the tree switches into once tapped. */
 function MultiSelectIcon(props: { className?: string }) {
@@ -100,8 +104,30 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
   const trimmedQuery = query.trim().toLowerCase();
   const isSearching = trimmedQuery.length > 0;
 
+  // Clicking into the (still-empty) search box surfaces a quick "top
+  // sports / popular competitions" overlay above whatever's already below
+  // it - a faster jumping-off point than scrolling past it to the same
+  // content, for a player who wants to browse broadly rather than type a
+  // specific team. Closes on blur, Escape, or picking a suggestion; typing
+  // a query supersedes it with the real search results below instead.
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const showSuggestions = isSearchFocused && !isSearching;
+
+  function handleSearchAreaBlur(event: FocusEvent<HTMLDivElement>) {
+    const nextFocusTarget = event.relatedTarget as Node | null;
+    if (nextFocusTarget && searchContainerRef.current?.contains(nextFocusTarget)) {
+      return;
+    }
+    setIsSearchFocused(false);
+  }
+
   const competitionCountries = useMemo(() => competitionCountryMap(matches ?? []), [matches]);
   const competitionSports = useMemo(() => competitionSportMap(matches ?? []), [matches]);
+  const suggestedSports = useMemo(
+    () => sortSportsByPriority(Array.from(new Set((matches ?? []).map((match) => match.sport)))).slice(0, MAX_SUGGESTED_SPORTS),
+    [matches],
+  );
 
   // Most searches (a team, a country) are looking for matches to bet on -
   // show those directly rather than making the player drill into a league
@@ -210,7 +236,11 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
       {/* Pinned to the top of whichever scroll container this sits in
           (desktop column or mobile full-screen drawer) so it stays reachable
           however far the sport/country/competition tree below is scrolled. */}
-      <div className={cn('sticky -top-4 z-10 -mx-4 -mt-4 rounded-t-2xl px-4 pt-4 pb-3', stickyBgClassName)}>
+      <div
+        ref={searchContainerRef}
+        onBlur={handleSearchAreaBlur}
+        className={cn('sticky -top-4 z-10 -mx-4 -mt-4 rounded-t-2xl px-4 pt-4 pb-3', stickyBgClassName)}
+      >
         <div className="relative">
           <SearchIcon
             width={15}
@@ -221,11 +251,81 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            onFocus={() => setIsSearchFocused(true)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') event.currentTarget.blur();
+            }}
             placeholder="Search teams, competitions..."
             aria-label="Search sports and competitions"
             className="w-full rounded-xl border border-border bg-surface-2 py-2 pr-3 pl-8 text-base text-text-primary placeholder:text-text-muted focus:ring-1 focus:ring-brand focus:outline-none sm:text-sm"
           />
         </div>
+
+        {showSuggestions && (
+          <div className="fade-in-down absolute inset-x-4 top-full z-10 mt-2 space-y-3 rounded-2xl border border-border bg-surface p-3 shadow-lg">
+            {suggestedSports.length > 0 && (
+              <div>
+                <h2 className="mb-1.5 text-xs font-bold uppercase tracking-widest text-text-muted">
+                  Top sports
+                </h2>
+                <div className="scrollbar-hide flex gap-1.5 overflow-x-auto" data-horizontal-scroll="true">
+                  {suggestedSports.map((sport) => (
+                    <Link
+                      key={sport}
+                      to={`/sports/${encodeURIComponent(sport)}`}
+                      onClick={() => {
+                        setIsSearchFocused(false);
+                        onNavigate?.();
+                      }}
+                      className="tab shrink-0"
+                    >
+                      <SportIcon sport={sport} size={16} />
+                      {displayName('SPORT', sport)}
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+            {topCompetitions.length > 0 && (
+              <div>
+                <h2 className="mb-1.5 text-xs font-bold uppercase tracking-widest text-text-muted">
+                  Popular competitions
+                </h2>
+                <ul className="overflow-hidden rounded-xl bg-surface-2">
+                  {topCompetitions.map((quicklink) => {
+                    const country = competitionCountries.get(quicklink.competition);
+                    const sport = competitionSports.get(quicklink.competition);
+                    return (
+                      <li key={quicklink.competition} className="border-b border-border/60 last:border-b-0">
+                        <Link
+                          to={
+                            sport
+                              ? `/sports/${encodeURIComponent(sport)}?competition=${encodeURIComponent(quicklink.competition)}`
+                              : `/sports/all?competition=${encodeURIComponent(quicklink.competition)}`
+                          }
+                          onClick={() => {
+                            setIsSearchFocused(false);
+                            onNavigate?.();
+                          }}
+                          className="flex items-center gap-3 px-3 py-2 text-sm text-text-secondary transition-colors hover:bg-white/5 hover:text-text-primary"
+                        >
+                          {sport && country ? (
+                            <SportCountryBadge sport={sport} country={country} size={20} />
+                          ) : country ? (
+                            <CountryFlag country={country} size={20} />
+                          ) : (
+                            <span className="inline-block h-5 w-5 shrink-0" />
+                          )}
+                          <span>{displayName('COMPETITION', quicklink.competition)}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {!isSearching && (
@@ -302,7 +402,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
         </div>
       )}
 
-      {showLeagues && topCompetitions.length > 0 && (
+      {!showSuggestions && showLeagues && topCompetitions.length > 0 && (
         <div>
           <h2 className="mb-2 text-xs font-bold uppercase tracking-widest text-text-muted">
             Top Competitions
@@ -345,7 +445,7 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
         </div>
       )}
 
-      {showLeagues && tree.length > 0 && (
+      {!showSuggestions && showLeagues && tree.length > 0 && (
         <div>
           <div className="mb-2 flex items-center justify-between">
             <h2 className="text-xs font-bold uppercase tracking-widest text-text-muted">Sports</h2>

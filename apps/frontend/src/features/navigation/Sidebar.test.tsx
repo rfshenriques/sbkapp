@@ -372,4 +372,98 @@ describe('Sidebar', () => {
       expect(screen.getByRole('link', { name: /Challenges.*2/ })).toBeInTheDocument();
     });
   });
+
+  describe('search suggestions', () => {
+    function matches() {
+      return [
+        buildMatch({ id: 'm1', sport: 'Football', country: 'England', competition: 'Premier League' }),
+        buildMatch({ id: 'm2', sport: 'Tennis', country: 'International', competition: 'ATP Masters' }),
+      ];
+    }
+
+    it('shows nothing extra until the search box is focused', () => {
+      stubFetch(matches(), [{ competition: 'Premier League', order: 0 }]);
+      renderSidebar();
+
+      expect(screen.queryByText('Top sports')).not.toBeInTheDocument();
+      expect(screen.queryByText('Popular competitions')).not.toBeInTheDocument();
+    });
+
+    it('shows top sports and popular competitions once the search box is focused, above the existing content', async () => {
+      stubFetch(matches(), [{ competition: 'Premier League', order: 0 }]);
+      renderSidebar();
+      await screen.findByRole('button', { name: /Football/ });
+
+      await userEvent.click(screen.getByRole('searchbox', { name: 'Search sports and competitions' }));
+
+      const suggestions = (await screen.findByText('Top sports')).closest('div')!.parentElement as HTMLElement;
+      const suggestionHrefs = within(suggestions)
+        .getAllByRole('link')
+        .map((link) => link.getAttribute('href'));
+      expect(suggestionHrefs).toContain('/sports/Football');
+      expect(suggestionHrefs).toContain('/sports/Tennis');
+      expect(within(suggestions).getByText('Popular competitions')).toBeInTheDocument();
+      expect(suggestionHrefs).toContain('/sports/Football?competition=Premier%20League');
+      // The always-on Top Competitions/Sports sections underneath step aside
+      // while focused, rather than showing the same competitions/sports twice.
+      expect(screen.queryByRole('heading', { name: 'Top Competitions' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Sports' })).not.toBeInTheDocument();
+    });
+
+    it('closes the suggestions and shows real results once the player starts typing', async () => {
+      stubFetch(matches(), [{ competition: 'Premier League', order: 0 }]);
+      renderSidebar();
+      const searchBox = await screen.findByRole('searchbox', { name: 'Search sports and competitions' });
+      await userEvent.click(searchBox);
+      await screen.findByText('Top sports');
+
+      await userEvent.type(searchBox, 'Football');
+
+      expect(screen.queryByText('Top sports')).not.toBeInTheDocument();
+      expect(await screen.findByRole('heading', { name: 'Matches' })).toBeInTheDocument();
+    });
+
+    it('closes the suggestions on Escape without navigating anywhere', async () => {
+      stubFetch(matches(), [{ competition: 'Premier League', order: 0 }]);
+      renderSidebar();
+      const searchBox = await screen.findByRole('searchbox', { name: 'Search sports and competitions' });
+      await userEvent.click(searchBox);
+      await screen.findByText('Top sports');
+
+      await userEvent.keyboard('{Escape}');
+
+      expect(screen.queryByText('Top sports')).not.toBeInTheDocument();
+    });
+
+    it('closes the suggestions when focus moves outside the search area entirely', async () => {
+      stubFetch(matches(), [{ competition: 'Premier League', order: 0 }]);
+      renderSidebar();
+      const searchBox = await screen.findByRole('searchbox', { name: 'Search sports and competitions' });
+      await userEvent.click(searchBox);
+      await screen.findByText('Top sports');
+
+      // Tabbing forward through every focusable suggestion (2 sport chips +
+      // 1 competition link) and one step past simulates focus genuinely
+      // leaving the whole search area, as opposed to just moving between
+      // two links inside it (which should keep it open).
+      await userEvent.tab();
+      await userEvent.tab();
+      await userEvent.tab();
+      await userEvent.tab();
+
+      expect(screen.queryByText('Top sports')).not.toBeInTheDocument();
+    });
+
+    it('clicking a suggested sport navigates there and closes the overlay', async () => {
+      stubFetch(matches(), [{ competition: 'Premier League', order: 0 }]);
+      renderSidebar();
+      const searchBox = await screen.findByRole('searchbox', { name: 'Search sports and competitions' });
+      await userEvent.click(searchBox);
+      await screen.findByText('Top sports');
+
+      await userEvent.click(screen.getByRole('link', { name: /Tennis/ }));
+
+      expect(screen.queryByText('Top sports')).not.toBeInTheDocument();
+    });
+  });
 });
