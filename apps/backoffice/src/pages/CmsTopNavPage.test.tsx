@@ -106,13 +106,13 @@ describe('CmsTopNavPage', () => {
     );
   });
 
-  it('lets staff pick a different icon before adding an item', async () => {
+  it('uses a custom name instead of the sport name when opted in', async () => {
     const fetchMock = stubFetch((url, method) => {
       if (method === 'GET' && url === '/backend/admin/top-nav') {
         return new Response(JSON.stringify([]), { status: 200 });
       }
       if (method === 'POST' && url === '/backend/admin/top-nav') {
-        return new Response(JSON.stringify({ ...sportItem, icon: 'TROPHY' }), { status: 201 });
+        return new Response(JSON.stringify({ ...sportItem, label: 'Big Match Energy' }), { status: 201 });
       }
     });
     renderPage();
@@ -120,14 +120,51 @@ describe('CmsTopNavPage', () => {
     await screen.findByRole('option', { name: 'Football' });
     const sportSelect = screen.getByLabelText('Sport');
     await userEvent.selectOptions(sportSelect, 'Football');
-    await userEvent.click(screen.getByRole('button', { name: 'Trophy' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Custom name' }));
+    await userEvent.type(screen.getByLabelText('Display label'), 'Big Match Energy');
     await userEvent.click(screen.getByRole('button', { name: 'Add' }));
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/backend/admin/top-nav',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ kind: 'SPORT', label: 'Football', sport: 'Football', icon: 'TROPHY' }),
+        body: JSON.stringify({ kind: 'SPORT', label: 'Big Match Energy', sport: 'Football', icon: 'STAR' }),
+      }),
+    );
+  });
+
+  it('never offers an icon picker while adding a SPORT item - its icon is always auto-derived on the player app', async () => {
+    stubFetch((url, method) => {
+      if (method === 'GET' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+    });
+    renderPage();
+
+    await screen.findByRole('option', { name: 'Football' });
+    expect(screen.queryByRole('group', { name: 'Icon' })).not.toBeInTheDocument();
+  });
+
+  it('lets staff pick a different icon before adding a TODAY item', async () => {
+    const fetchMock = stubFetch((url, method) => {
+      if (method === 'GET' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'POST' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify({ ...sportItem, kind: 'TODAY', icon: 'TROPHY' }), { status: 201 });
+      }
+    });
+    renderPage();
+
+    await userEvent.click(await screen.findByRole('button', { name: "Today's matches" }));
+    await userEvent.click(screen.getByRole('button', { name: 'Trophy' }));
+    await userEvent.click(screen.getByRole('button', { name: /Add Today's matches/ }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/top-nav',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ kind: 'TODAY', label: "Today's matches", icon: 'TROPHY' }),
       }),
     );
   });
@@ -221,18 +258,36 @@ describe('CmsTopNavPage', () => {
     );
   });
 
-  it('lets staff change an existing item\'s icon and save it', async () => {
-    const fetchMock = stubFetch((url, method) => {
+  it('never offers an icon picker for a SPORT/COMPETITION/MATCH item - its icon is always auto-derived on the player app', async () => {
+    stubFetch((url, method) => {
       if (method === 'GET' && url === '/backend/admin/top-nav') {
         return new Response(JSON.stringify([sportItem]), { status: 200 });
-      }
-      if (method === 'PATCH' && url === '/backend/admin/top-nav/item-1') {
-        return new Response(JSON.stringify({ ...sportItem, icon: 'FIRE' }), { status: 200 });
       }
     });
     renderPage();
 
     await userEvent.click(await screen.findByRole('button', { name: /Football/ }));
+    expect(screen.queryByText('Icon')).not.toBeInTheDocument();
+  });
+
+  it('lets staff change an existing TODAY/TOMORROW item\'s icon and save it', async () => {
+    const todayItem: TopNavItem = { ...sportItem, kind: 'TODAY', label: "Today's matches", sport: null };
+    const fetchMock = stubFetch((url, method) => {
+      if (method === 'GET' && url === '/backend/admin/top-nav') {
+        return new Response(JSON.stringify([todayItem]), { status: 200 });
+      }
+      if (method === 'PATCH' && url === '/backend/admin/top-nav/item-1') {
+        return new Response(JSON.stringify({ ...todayItem, icon: 'FIRE' }), { status: 200 });
+      }
+    });
+    renderPage();
+
+    // "Today's matches" is also one of the "Add an item" kind buttons' own
+    // label - find the row toggle unambiguously via its subtitle text.
+    const subtitle = await screen.findByText("Today's matches · Enabled");
+    const rowToggle = subtitle.closest('button');
+    if (!rowToggle) throw new Error('row toggle button not found');
+    await userEvent.click(rowToggle);
     const enabledCheckbox = screen.getByRole('checkbox', { name: 'Enabled' });
     const rowPanel = enabledCheckbox.closest('.space-y-3');
     if (!rowPanel) throw new Error('expanded row panel not found');
@@ -243,7 +298,7 @@ describe('CmsTopNavPage', () => {
       '/backend/admin/top-nav/item-1',
       expect.objectContaining({
         method: 'PATCH',
-        body: JSON.stringify({ label: 'Football', enabled: true, icon: 'FIRE' }),
+        body: JSON.stringify({ label: "Today's matches", enabled: true, icon: 'FIRE' }),
       }),
     );
   });

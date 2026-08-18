@@ -163,7 +163,7 @@ describe('SecondaryNavBar', () => {
     expect(links.map((link) => link.getAttribute('aria-label'))).toEqual(["Today's matches", 'Tennis']);
   });
 
-  it('renders the staff-chosen icon, not the label, as visible content', async () => {
+  it('renders an icon, not the label, as visible content', async () => {
     stubFetch([
       { id: '1', kind: 'SPORT', label: 'Football', icon: 'TROPHY', sport: 'Football', competition: null, matchId: null, sortOrder: 0 },
     ]);
@@ -171,6 +171,18 @@ describe('SecondaryNavBar', () => {
 
     const link = await screen.findByRole('link', { name: 'Football' });
     expect(link).not.toHaveTextContent('Football');
-    expect(link.querySelector('svg')).toBeInTheDocument();
+    expect(link.querySelector('svg, img')).toBeInTheDocument();
+  });
+
+  it("renders a SPORT item's own sport icon instead of its staff-picked generic icon", async () => {
+    stubFetch([
+      { id: '1', kind: 'SPORT', label: 'Football', icon: 'TROPHY', sport: 'Football', competition: null, matchId: null, sortOrder: 0 },
+    ]);
+    renderNav();
+
+    const link = await screen.findByRole('link', { name: 'Football' });
+    // Football has a real sport-icon image asset (see sportIconImages.ts) -
+    // an <img>, not the generic TopNavIcon's inline <svg>.
+    expect(link.querySelector('img')).toBeInTheDocument();
   });
 });

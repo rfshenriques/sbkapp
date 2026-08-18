@@ -41,7 +41,7 @@ function TeamBadge({ name, colorHex }: { name: string; colorHex: string }) {
   return (
     <span
       aria-hidden="true"
-      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-extrabold text-white sm:h-9 sm:w-9 sm:text-xs"
+      className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-extrabold text-white sm:h-7 sm:w-7 sm:text-[11px]"
       style={{ backgroundColor: colorHex }}
     >
       {initials(name)}
@@ -110,67 +110,67 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
           style={{ background: `linear-gradient(180deg, ${homeColor}, ${awayColor})` }}
         />
 
-        <div className="relative z-10 flex flex-1 flex-col p-5">
+        <div className="relative z-10 flex flex-1 flex-col p-3 sm:p-4">
           <div className="flex items-center justify-between gap-2">
             <span
-              className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-extrabold tracking-wide text-white uppercase"
+              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-white uppercase"
               style={{ backgroundColor: 'var(--color-brand)' }}
             >
-              <StarIcon className="h-3 w-3" />
+              <StarIcon className="h-2.5 w-2.5" />
               Match of the day
             </span>
-            <span className="text-xs font-bold tracking-wide text-text-muted uppercase">
+            <span className="text-[11px] font-bold tracking-wide text-text-muted uppercase">
               {displayName('COMPETITION', match.competition)}
             </span>
           </div>
 
-          <div className="my-4 border-t border-border" />
+          <div className="my-2 border-t border-border" />
 
           <h1
             aria-label={`${homeTeamLabel} vs ${awayTeamLabel}`}
             className="flex items-center justify-between gap-3"
           >
-            <span className="flex flex-col gap-3">
-              <span className="flex items-center gap-3">
+            <span className="flex flex-col gap-1.5">
+              <span className="flex items-center gap-2">
                 <TeamBadge name={homeTeamLabel} colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)} />
                 <Link
                   to={href}
-                  className="font-display text-base leading-tight font-bold hover:underline sm:text-lg"
+                  className="font-display text-sm leading-tight font-bold hover:underline sm:text-base"
                   onClick={(event) => event.stopPropagation()}
                 >
                   {homeTeamLabel}
                 </Link>
               </span>
-              <span className="flex items-center gap-3">
+              <span className="flex items-center gap-2">
                 <TeamBadge name={awayTeamLabel} colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)} />
                 <Link
                   to={href}
-                  className="font-display text-base leading-tight font-bold hover:underline sm:text-lg"
+                  className="font-display text-sm leading-tight font-bold hover:underline sm:text-base"
                   onClick={(event) => event.stopPropagation()}
                 >
                   {awayTeamLabel}
                 </Link>
               </span>
             </span>
-            <span className="flex shrink-0 flex-col items-end gap-1.5 text-right">
-              <span className="text-xs font-bold tracking-wide text-text-muted uppercase">vs</span>
+            <span className="flex shrink-0 flex-col items-end gap-1 text-right">
+              <span className="text-[11px] font-bold tracking-wide text-text-muted uppercase">vs</span>
               {match.isLive ? (
                 <span className="rounded-full bg-price-down px-2 py-0.5 text-[10px] font-extrabold text-white">
                   LIVE
                 </span>
               ) : (
-                <span className="text-sm font-bold text-highlight">{formatKickoff(new Date(match.kickoff))}</span>
+                <span className="text-xs font-bold text-highlight">{formatKickoff(new Date(match.kickoff))}</span>
               )}
             </span>
           </h1>
 
-          <div className="my-4 border-t border-border" />
+          <div className="my-2 border-t border-border" />
 
           {/* Pinned to the card's bottom edge so it lands at a consistent
               height regardless of how much extra room the card has above
               it. */}
           <div className="mt-auto">
-            <p className="mb-2 text-xs font-bold tracking-wide text-text-muted uppercase">
+            <p className="mb-1.5 text-[11px] font-bold tracking-wide text-text-muted uppercase">
               {displayName('MARKET', matchResult.name)}
             </p>
             <MarketSelections

@@ -1,5 +1,7 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import type { Match } from '@sportsbook/shared';
+import { SportIcon } from '../../components/ui/SportIcon';
 import { TopNavIcon } from '../../components/ui/TopNavIcon';
 import type { TopNavItem } from '../../lib/backendApi';
 import { useMatches } from '../odds-board/useMatches';
@@ -31,6 +33,23 @@ function hrefForItem(item: TopNavItem, competitionSports: Map<string, string>): 
 }
 
 /**
+ * A SPORT/COMPETITION/MATCH item always renders its actual sport's icon
+ * (see SportIcon) rather than the staff-picked generic TopNavIconKey - a
+ * football quicklink should look like football, not whichever star/flag/
+ * trophy glyph happened to get chosen. TODAY/TOMORROW have no sport to
+ * derive from, so those still use the manual icon (see TopNavIcon below).
+ * Undefined when a COMPETITION/MATCH item's sport can't be resolved from
+ * the live feed right now (no live match for it) - caller falls back to
+ * the manual icon rather than rendering nothing.
+ */
+function resolvedSport(item: TopNavItem, matches: Match[] | undefined, competitionSports: Map<string, string>): string | undefined {
+  if (item.kind === 'SPORT') return item.sport ?? undefined;
+  if (item.kind === 'COMPETITION') return competitionSports.get(item.competition ?? '');
+  if (item.kind === 'MATCH') return matches?.find((match) => match.id === item.matchId)?.sport;
+  return undefined;
+}
+
+/**
  * CMS-configured second navbar (see the backoffice's Top nav page) - a
  * staff-built, freely-ordered mix of sport/competition/match shortcuts and
  * the two auto-updating Today/Tomorrow timeframe views. Renders nothing at
@@ -39,9 +58,11 @@ function hrefForItem(item: TopNavItem, competitionSports: Map<string, string>): 
  * inside the header, which already handles a variable-height second row via
  * its own ResizeObserver.
  *
- * Icon-only, not a text label - each entry's icon is staff-picked in the
- * CMS from a fixed, consistently-designed set (see TopNavIcon), independent
- * of `kind` (a COMPETITION entry isn't forced into a trophy). Reuses
+ * Icon-only, not a text label. A SPORT/COMPETITION/MATCH entry always shows
+ * its actual sport's icon (see resolvedSport/SportIcon) - a football
+ * quicklink looks like football, not a staff-picked glyph. TODAY/TOMORROW
+ * have no sport to derive from, so those use a staff-picked icon from a
+ * fixed, consistently-designed generic set instead (see TopNavIcon). Reuses
  * .icon-toggle, the same circular pill the kickoff-time filter uses, rather
  * than a new one-off shape.
  */
@@ -58,17 +79,20 @@ export function SecondaryNavBar() {
       className="scrollbar-hide -mx-4 flex gap-2 overflow-x-auto px-4 pb-2.5 sm:mx-0 sm:px-0"
       data-horizontal-scroll="true"
     >
-      {items.map((item) => (
-        <Link
-          key={item.id}
-          to={hrefForItem(item, competitionSports)}
-          className="icon-toggle shrink-0"
-          aria-label={item.label}
-          title={item.label}
-        >
-          <TopNavIcon icon={item.icon} width={16} height={16} />
-        </Link>
-      ))}
+      {items.map((item) => {
+        const sport = resolvedSport(item, matches, competitionSports);
+        return (
+          <Link
+            key={item.id}
+            to={hrefForItem(item, competitionSports)}
+            className="icon-toggle shrink-0"
+            aria-label={item.label}
+            title={item.label}
+          >
+            {sport ? <SportIcon sport={sport} size={16} /> : <TopNavIcon icon={item.icon} width={16} height={16} />}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

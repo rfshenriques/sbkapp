@@ -57,6 +57,13 @@ function TopNavItemRow({
   const [enabled, setEnabled] = useState(item.enabled);
   const [icon, setIcon] = useState<TopNavIconKey>(item.icon);
 
+  // A SPORT/COMPETITION/MATCH item always renders its own sport's icon on
+  // the player app (see apps/frontend's SecondaryNavBar) - only
+  // TODAY/TOMORROW (no sport to derive from) actually use this picked
+  // value, so it's hidden below for the other kinds rather than offering a
+  // choice that would silently do nothing.
+  const iconAppliesToKind = item.kind === 'TODAY' || item.kind === 'TOMORROW';
+
   const saveMutation = useMutation({
     mutationFn: () => backendApi.updateTopNavItem(item.id, { label, enabled, icon }),
     onSuccess: () => {
@@ -132,12 +139,14 @@ function TopNavItemRow({
             Enabled
           </label>
 
-          <div>
-            <span className="block text-xs text-text-secondary">Icon</span>
-            <div className="mt-1">
-              <TopNavIconPicker value={icon} onChange={setIcon} />
+          {iconAppliesToKind && (
+            <div>
+              <span className="block text-xs text-text-secondary">Icon</span>
+              <div className="mt-1">
+                <TopNavIconPicker value={icon} onChange={setIcon} />
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="flex items-center gap-2">
             <Button
@@ -165,6 +174,18 @@ export default function CmsTopNavPage() {
   const [selectedSport, setSelectedSport] = useState('');
   const [selectedCompetition, setSelectedCompetition] = useState('');
   const [addIcon, setAddIcon] = useState<TopNavIconKey>('STAR');
+  const [useCustomLabel, setUseCustomLabel] = useState(false);
+  const [customLabel, setCustomLabel] = useState('');
+
+  /** The custom label when opted in and non-empty, otherwise the kind's own default (sport name, competition name, "Home vs Away", ...). */
+  function resolveLabel(defaultLabel: string): string {
+    return useCustomLabel && customLabel.trim() ? customLabel.trim() : defaultLabel;
+  }
+
+  function resetAddForm() {
+    setUseCustomLabel(false);
+    setCustomLabel('');
+  }
 
   const {
     data: items,
@@ -283,12 +304,41 @@ export default function CmsTopNavPage() {
             ))}
           </div>
 
-          <div className="mb-3">
-            <span className="block text-xs text-text-secondary">Icon</span>
-            <div className="mt-1">
-              <TopNavIconPicker value={addIcon} onChange={setAddIcon} />
+          {/* A SPORT/COMPETITION/MATCH item always shows its own sport's
+              icon on the player app - nothing to pick here for those kinds
+              (see TopNavItemRow's iconAppliesToKind above). */}
+          {(addKind === 'TODAY' || addKind === 'TOMORROW') && (
+            <div className="mb-3">
+              <span className="block text-xs text-text-secondary">Icon</span>
+              <div className="mt-1">
+                <TopNavIconPicker value={addIcon} onChange={setAddIcon} />
+              </div>
             </div>
-          </div>
+          )}
+
+          <label className="mb-3 flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={useCustomLabel}
+              onChange={(event) => setUseCustomLabel(event.target.checked)}
+            />
+            Custom name
+          </label>
+          {useCustomLabel && (
+            <div className="mb-3">
+              <label className="block text-xs text-text-secondary" htmlFor="add-custom-label">
+                Display label
+              </label>
+              <input
+                id="add-custom-label"
+                type="text"
+                value={customLabel}
+                onChange={(event) => setCustomLabel(event.target.value)}
+                placeholder="Shown instead of the default name"
+                className="mt-1 w-full max-w-sm rounded-md border border-border bg-surface px-2 py-1.5 text-sm"
+              />
+            </div>
+          )}
 
           {addKind === 'SPORT' && (
             <div className="flex items-end gap-2">
@@ -313,8 +363,14 @@ export default function CmsTopNavPage() {
               <Button
                 disabled={!selectedSport || addMutation.isPending}
                 onClick={() => {
-                  addMutation.mutate({ kind: 'SPORT', label: selectedSport, sport: selectedSport, icon: addIcon });
+                  addMutation.mutate({
+                    kind: 'SPORT',
+                    label: resolveLabel(selectedSport),
+                    sport: selectedSport,
+                    icon: addIcon,
+                  });
                   setSelectedSport('');
+                  resetAddForm();
                 }}
               >
                 Add
@@ -347,11 +403,12 @@ export default function CmsTopNavPage() {
                 onClick={() => {
                   addMutation.mutate({
                     kind: 'COMPETITION',
-                    label: selectedCompetition,
+                    label: resolveLabel(selectedCompetition),
                     competition: selectedCompetition,
                     icon: addIcon,
                   });
                   setSelectedCompetition('');
+                  resetAddForm();
                 }}
               >
                 Add
@@ -370,20 +427,29 @@ export default function CmsTopNavPage() {
                     const isFeatured = featuredMatchIds.has(match.id);
                     return (
                       <div key={match.id} className="flex items-center justify-between gap-2 py-1 text-sm">
-                        <span className="truncate">
+                        <span className="min-w-0 truncate">
                           {match.homeTeam} vs {match.awayTeam}
+                          <span className="ml-2 text-xs text-text-secondary">
+                            {new Date(match.kickoff).toLocaleString(undefined, {
+                              day: 'numeric',
+                              month: 'short',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </span>
                         </span>
                         <Button
                           variant="secondary"
                           disabled={isFeatured || addMutation.isPending}
-                          onClick={() =>
+                          onClick={() => {
                             addMutation.mutate({
                               kind: 'MATCH',
-                              label: `${match.homeTeam} vs ${match.awayTeam}`,
+                              label: resolveLabel(`${match.homeTeam} vs ${match.awayTeam}`),
                               matchId: match.id,
                               icon: addIcon,
-                            })
-                          }
+                            });
+                            resetAddForm();
+                          }}
                         >
                           {isFeatured ? 'Already added' : 'Add to top nav'}
                         </Button>
@@ -398,7 +464,10 @@ export default function CmsTopNavPage() {
           {addKind === 'TODAY' && (
             <Button
               disabled={hasToday || addMutation.isPending}
-              onClick={() => addMutation.mutate({ kind: 'TODAY', label: "Today's matches", icon: addIcon })}
+              onClick={() => {
+                addMutation.mutate({ kind: 'TODAY', label: resolveLabel("Today's matches"), icon: addIcon });
+                resetAddForm();
+              }}
             >
               {hasToday ? 'Already added' : "Add Today's matches"}
             </Button>
@@ -407,7 +476,10 @@ export default function CmsTopNavPage() {
           {addKind === 'TOMORROW' && (
             <Button
               disabled={hasTomorrow || addMutation.isPending}
-              onClick={() => addMutation.mutate({ kind: 'TOMORROW', label: "Tomorrow's matches", icon: addIcon })}
+              onClick={() => {
+                addMutation.mutate({ kind: 'TOMORROW', label: resolveLabel("Tomorrow's matches"), icon: addIcon });
+                resetAddForm();
+              }}
             >
               {hasTomorrow ? 'Already added' : "Add Tomorrow's matches"}
             </Button>
