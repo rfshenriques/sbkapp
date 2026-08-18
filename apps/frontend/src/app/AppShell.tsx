@@ -321,7 +321,7 @@ export function AppShell() {
           className="mx-auto grid max-w-[1680px] grid-cols-[auto_1fr_auto] items-center gap-4 px-4 py-3"
           style={{ paddingTop: 'calc(0.75rem + env(safe-area-inset-top))' }}
         >
-          <NavLink to="/" className="flex shrink-0 items-center gap-2">
+          <NavLink to="/" className="col-start-1 flex shrink-0 items-center gap-2">
             {brandLogoUrl ? (
               <img src={brandLogoUrl} alt={brandName} className="h-8 max-w-[10rem] object-contain" />
             ) : (
@@ -335,8 +335,14 @@ export function AppShell() {
               without needing the bottom nav's icon strip. Centered in the
               header's remaining space between the logo and the auth
               buttons via the grid's middle 1fr column, not just packed
-              next to the logo. */}
-          <nav aria-label="Desktop app navigation" className="hidden items-center justify-center gap-5 sm:flex">
+              next to the logo. Explicit col-start (not just DOM order) -
+              this element is display:none below sm, and CSS Grid
+              auto-placement drops a display:none item from the grid
+              entirely rather than leaving its track empty, which would
+              shift the right-hand group below into this middle track
+              instead of its own - see the right-hand group's own
+              col-start-3 for the other half of this fix. */}
+          <nav aria-label="Desktop app navigation" className="col-start-2 hidden items-center justify-center gap-5 sm:flex">
             <NavLink
               to="/"
               end
@@ -376,7 +382,12 @@ export function AppShell() {
             </NavLink>
           </nav>
 
-          <div className="ml-auto flex items-center gap-2">
+          {/* col-start-3, not just ml-auto - pinned to the grid's own last
+              track so this group stays flush right at every viewport
+              regardless of whether the middle nav column has any content
+              (see its own comment above); ml-auto is still kept as a
+              defensive fallback within that track. */}
+          <div className="col-start-3 ml-auto flex items-center gap-2">
             {isInitialized && isAuthenticated ? (
               <>
                 {wallet && (
@@ -404,7 +415,16 @@ export function AppShell() {
             )}
           </div>
         </div>
-        <div className="mx-auto max-w-[1680px] px-4">
+        {/* Constrained to the center content column on desktop, not the
+            header's full width - offsets mirror the row below's own p-4
+            edge padding plus the sidebar's width+gap (1rem + sm:w-96 +
+            gap-4) on the left and the bet slip column's (1rem + lg:w-80 +
+            gap-4) on the right, at the same breakpoints those columns
+            themselves appear at, so this bar lines up with <main> exactly
+            rather than sitting flush against the header's own edges. Below
+            sm: (no sidebar/bet-slip columns at all) it stays full width via
+            the base px-4. */}
+        <div className="mx-auto max-w-[1680px] px-4 sm:pl-[26rem] lg:pr-[22rem]">
           <SecondaryNavBar />
         </div>
       </header>
