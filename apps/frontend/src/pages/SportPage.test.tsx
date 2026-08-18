@@ -210,6 +210,30 @@ describe('SportPage', () => {
     expect(screen.queryByRole('link', { name: 'Tomorrow Home vs Tomorrow Away' })).not.toBeInTheDocument();
   });
 
+  it('seeds the date filter from ?date= (e.g. a CMS-configured "Tomorrow\'s matches" nav link)', async () => {
+    stubOddsEngineFetch([
+      buildMatch({
+        id: 'today-match',
+        kickoff: daysFromNow(0).toISOString(),
+        homeTeam: 'Today Home',
+        awayTeam: 'Today Away',
+      }),
+      buildMatch({
+        id: 'tomorrow-match',
+        kickoff: daysFromNow(1).toISOString(),
+        homeTeam: 'Tomorrow Home',
+        awayTeam: 'Tomorrow Away',
+      }),
+    ]);
+    stubRankingsFetch();
+
+    renderAt('/sports/Football?date=tomorrow');
+
+    expect(await screen.findByRole('tab', { name: 'Tomorrow' })).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByRole('link', { name: 'Tomorrow Home vs Tomorrow Away' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Today Home vs Today Away' })).not.toBeInTheDocument();
+  });
+
   it('always buckets a live match as "today" regardless of its original kickoff', async () => {
     stubOddsEngineFetch([
       buildMatch({

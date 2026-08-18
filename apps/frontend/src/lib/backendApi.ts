@@ -255,6 +255,27 @@ export async function getMatchOfTheDay(brandId: string): Promise<MatchOfTheDayEn
   return (await response.json()) as MatchOfTheDayEntry[];
 }
 
+export type TopNavItemKind = 'SPORT' | 'COMPETITION' | 'MATCH' | 'TODAY' | 'TOMORROW';
+
+/** A staff-configured entry in the second navbar (see apps/backend's TopNavModule) - exactly one of sport/competition/matchId is set, matching `kind`. Never auto-populated - an empty array means the brand hasn't built one, and apps/frontend shows no second navbar at all. */
+export interface TopNavItem {
+  id: string;
+  kind: TopNavItemKind;
+  label: string;
+  sport: string | null;
+  competition: string | null;
+  matchId: string | null;
+  sortOrder: number;
+}
+
+export async function getTopNavItems(brandId: string): Promise<TopNavItem[]> {
+  const response = await fetch(`${BASE_URL}/public/top-nav/${encodeURIComponent(brandId)}`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch top nav items: ${response.status}`);
+  }
+  return (await response.json()) as TopNavItem[];
+}
+
 export interface CompetitionRanking {
   competition: string;
   rank: number;

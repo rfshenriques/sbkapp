@@ -38,6 +38,7 @@ import { FreebetFlyOverlay } from '../features/wallet/FreebetFlyOverlay';
 import { useFreebetGrantDetector } from '../features/wallet/useFreebetGrantDetector';
 import { useWallet } from '../features/wallet/useWallet';
 import { sumFreebetsCents, useFreebets } from '../features/wallet/useFreebets';
+import { SecondaryNavBar } from '../features/navigation/SecondaryNavBar';
 import { Sidebar } from '../features/navigation/Sidebar';
 import { FireIcon, GiftBadgeIcon, LiveIcon, MyBetsIcon, SearchIcon, TrophyIcon } from '../components/ui/NavIcons';
 import { useScrollLock } from '../lib/useScrollLock';
@@ -387,6 +388,9 @@ export function AppShell() {
               )
             )}
           </div>
+        </div>
+        <div className="mx-auto max-w-[1680px] px-4">
+          <SecondaryNavBar />
         </div>
       </header>
       <div style={{ height: headerHeight }} aria-hidden="true" />

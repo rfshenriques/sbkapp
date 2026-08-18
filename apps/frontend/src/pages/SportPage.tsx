@@ -47,7 +47,16 @@ export default function SportPage() {
   // - a single-sport page (/sports/Football) already has exactly one sport,
   // narrowed further by its own country/competition breadcrumb instead.
   const [selectedSport, setSelectedSport] = useState<string | undefined>(undefined);
-  const [dateFilter, setDateFilter] = useState<MatchFilter>('today');
+  // Seeded from ?date= for a link into a specific timeframe (e.g. the
+  // CMS-configured second navbar's "Tomorrow's matches" shortcut - see
+  // SecondaryNavBar) - only read once on mount, same as every other filter
+  // here, which the player can then freely change via the tabs below.
+  const [dateFilter, setDateFilter] = useState<MatchFilter>(() => {
+    const requested = searchParams.get('date');
+    return requested === 'today' || requested === 'tomorrow' || requested === 'soon' || requested === 'live'
+      ? requested
+      : 'today';
+  });
 
   const { data: matches, isPending, isError } = useMatches();
   const { data: rankings } = useCompetitionRankings();
