@@ -11,6 +11,7 @@ import CmsPaymentsPage from '../pages/CmsPaymentsPage';
 import CmsPromoCardsPage from '../pages/CmsPromoCardsPage';
 import CmsQuicklinksPage from '../pages/CmsQuicklinksPage';
 import CmsSponsorsPage from '../pages/CmsSponsorsPage';
+import CmsTopNavPage from '../pages/CmsTopNavPage';
 import CompetitionRankingPage from '../pages/CompetitionRankingPage';
 import CompetitionTiersPage from '../pages/CompetitionTiersPage';
 import DisplayNamesPage from '../pages/DisplayNamesPage';
@@ -378,6 +379,16 @@ export const routes: RouteObject[] = [
           <RequireStaffAuth>
             <RequireRoles roles={['ADMIN', 'CMS']}>
               <CmsMatchOfTheDayPage />
+            </RequireRoles>
+          </RequireStaffAuth>
+        ),
+      },
+      {
+        path: 'cms-top-nav',
+        element: (
+          <RequireStaffAuth>
+            <RequireRoles roles={['ADMIN', 'CMS']}>
+              <CmsTopNavPage />
             </RequireRoles>
           </RequireStaffAuth>
         ),
