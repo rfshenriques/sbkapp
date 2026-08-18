@@ -1957,6 +1957,80 @@ export async function reorderMatchOfTheDay(ids: string[]): Promise<MatchOfTheDay
   return parseJsonOrThrow(response, `Failed to reorder Match of the day entries: ${response.status}`);
 }
 
+export type TopNavItemKind = 'SPORT' | 'COMPETITION' | 'MATCH' | 'TODAY' | 'TOMORROW';
+
+export interface TopNavItem {
+  id: string;
+  brandId: string;
+  kind: TopNavItemKind;
+  label: string;
+  sport: string | null;
+  competition: string | null;
+  matchId: string | null;
+  sortOrder: number;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateTopNavItemPayload {
+  kind: TopNavItemKind;
+  label: string;
+  sport?: string;
+  competition?: string;
+  matchId?: string;
+  enabled?: boolean;
+}
+
+export interface UpdateTopNavItemPayload {
+  kind?: TopNavItemKind;
+  label?: string;
+  sport?: string;
+  competition?: string;
+  matchId?: string;
+  enabled?: boolean;
+}
+
+export async function listTopNavItems(): Promise<TopNavItem[]> {
+  const response = await authenticatedFetch('/admin/top-nav');
+  return parseJsonOrThrow(response, `Failed to load top nav items: ${response.status}`);
+}
+
+export async function addTopNavItem(payload: CreateTopNavItemPayload): Promise<TopNavItem> {
+  const response = await authenticatedFetch('/admin/top-nav', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to add top nav item: ${response.status}`);
+}
+
+export async function updateTopNavItem(id: string, payload: UpdateTopNavItemPayload): Promise<TopNavItem> {
+  const response = await authenticatedFetch(`/admin/top-nav/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return parseJsonOrThrow(response, `Failed to update top nav item: ${response.status}`);
+}
+
+export async function removeTopNavItem(id: string): Promise<void> {
+  const response = await authenticatedFetch(`/admin/top-nav/${id}`, { method: 'DELETE' });
+  if (!response.ok) {
+    throw new Error(`Failed to remove top nav item: ${response.status}`);
+  }
+}
+
+/** `ids` must be exactly the current set of top nav items, in the desired order. */
+export async function reorderTopNavItems(ids: string[]): Promise<TopNavItem[]> {
+  const response = await authenticatedFetch('/admin/top-nav/reorder', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids }),
+  });
+  return parseJsonOrThrow(response, `Failed to reorder top nav items: ${response.status}`);
+}
+
 export type PushNotificationKind = 'CUSTOM' | 'BET_WON' | 'BET_AND_GET_CAMPAIGN' | 'DEPOSIT_CAMPAIGN';
 export type PushDeliveryStatus = 'SENT' | 'FAILED';
 

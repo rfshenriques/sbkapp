@@ -252,6 +252,10 @@ enum AuditAction {
   MATCH_OF_THE_DAY_UPDATED
   MATCH_OF_THE_DAY_REMOVED
   MATCH_OF_THE_DAY_REORDERED
+  TOP_NAV_ITEM_ADDED
+  TOP_NAV_ITEM_UPDATED
+  TOP_NAV_ITEM_REMOVED
+  TOP_NAV_ITEM_REORDERED
 }
 
 enum FreebetStatus {
@@ -1801,6 +1805,49 @@ model MatchOfTheDay {
   @@map("match_of_the_day_entries")
 }
 
+enum TopNavItemKind {
+  SPORT
+  COMPETITION
+  MATCH
+  TODAY
+  TOMORROW
+}
+
+/**
+ * A second, CMS-managed navbar row (see the backoffice's Top nav page) -
+ * staff build it entry by entry from whatever mix of sports, competitions,
+ * specific matches, and the two auto-updating "Today"/"Tomorrow" timeframe
+ * shortcuts they want, in whatever order they want. Exactly one of
+ * sport/competition/matchId is set, matching `kind` - enforced in
+ * TopNavItemService, not here, since Prisma has no cross-column check
+ * constraint. Same "no local match/competition table" reasoning as
+ * MatchOfTheDay - `matchId`/`competition`/`sport` are never validated
+ * against a local table, they're just what gets plugged into the player
+ * app's own routing (see apps/frontend's SecondaryNavBar); a stale
+ * reference (a competition with no more matches, a kicked-off match)
+ * simply stops matching anything and silently renders nothing further.
+ */
+model TopNavItem {
+  id          String         @id @default(uuid())
+  brandId     String
+  brand       Brand          @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  kind        TopNavItemKind
+  /**
+   * Staff-authored display text - shown as-is, never derived from sport/competition/matchId.
+   */
+  label       String
+  sport       String?
+  competition String?
+  matchId     String?
+  sortOrder   Int
+  enabled     Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@index([brandId, sortOrder])
+  @@map("top_nav_items")
+}
+
 /**
  * A snapshot of what was picked at bet time - not a live reference to the
  * odds feed, which has no persistence of its own and can reshuffle/expire.
@@ -1998,6 +2045,7 @@ model Brand {
   leaderboardEntries          LeaderboardEntry[]
   pushNotifications           PushNotification[]
   matchOfTheDayEntries        MatchOfTheDay[]
+  topNavItems                 TopNavItem[]
 
   @@map("brands")
 }
