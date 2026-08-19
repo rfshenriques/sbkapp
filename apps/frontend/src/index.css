@@ -823,17 +823,21 @@ body {
   font-family: var(--font-display);
   font-weight: 800;
   font-style: italic;
-  font-size: 15px;
-  letter-spacing: -0.3px;
+  font-size: 12px;
+  letter-spacing: -0.2px;
   color: #fff;
   text-shadow:
     0 1px 1px rgba(0, 0, 0, 0.5),
     0 3px 4px rgba(0, 0, 0, 0.35);
   white-space: nowrap;
+  /* The diagonal tilt, on top of font-style's own italic slant - what
+     actually reads as "stamped on at an angle" rather than just slanted
+     text. */
+  transform: rotate(-8deg);
 }
 @media (min-width: 640px) {
   .team-acronym {
-    font-size: 17px;
+    font-size: 14px;
   }
 }
 

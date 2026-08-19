@@ -134,7 +134,7 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
             className="mt-3 flex items-center justify-between gap-3"
           >
             <span className="flex flex-col gap-1.5">
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-3">
                 <TeamBadge
                   name={homeTeamLabel}
                   colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)}
@@ -148,7 +148,7 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
                   {homeTeamLabel}
                 </Link>
               </span>
-              <span className="flex items-center gap-2">
+              <span className="flex items-center gap-3">
                 <TeamBadge
                   name={awayTeamLabel}
                   colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)}
@@ -321,14 +321,13 @@ export default function OddsBoardPage() {
       {(featuredMatches.length > 0 || hasCmsPromoCards) && (
         <div className="mb-8">
           {/* One shared swipeable/scrollable block mixing every featured
-              match and promo card, all the same size - dots show there's
-              more than one card, no arrows on mobile (touch swipe covers
-              it), overlay arrows on desktop (see HorizontalScroller). Mobile
-              cards are edge-to-edge full width; desktop cards leave a sliver
-              of the next card peeking in from the right so the row reads as
-              a carousel rather than a single fixed card, same "cards added
-              behind, scroll to position" behavior as mobile - just sized for
-              a mouse/trackpad instead of a swipe gesture. */}
+              match and promo card, all the same fixed width - dots show
+              there's more than one card, no arrows on mobile (touch swipe
+              covers it), overlay arrows on desktop (see HorizontalScroller).
+              A fixed width (not full-bleed on mobile, not a percentage on
+              desktop) is what makes the next card's edge consistently peek
+              in on both, so the row reads as a carousel rather than a
+              single card filling whatever space it's given. */}
           <HorizontalScroller
             itemCount={featuredMatches.length + promoSlotCount}
             ariaLabel="Featured content"
@@ -339,10 +338,10 @@ export default function OddsBoardPage() {
                 key={match.id}
                 match={match}
                 matchResult={featuredMatchResultFor(match)}
-                className="w-full shrink-0 snap-center sm:w-[88%]"
+                className="w-[350px] shrink-0 snap-center"
               />
             ))}
-            {promoSlotItems('w-full shrink-0 snap-center sm:w-[88%]')}
+            {promoSlotItems('w-[350px] shrink-0 snap-center')}
           </HorizontalScroller>
         </div>
       )}
