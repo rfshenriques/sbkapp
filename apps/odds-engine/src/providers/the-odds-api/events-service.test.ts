@@ -76,6 +76,42 @@ describe('createEventsService', () => {
     expect(matches[0]?.id).toBe('e1');
   });
 
+  it('retries a partially-failed sport key after a short TTL instead of hiding it for the full 24h', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const getOdds = vi.fn().mockImplementation(({ sportKey }: { sportKey: string }) => {
+      if (sportKey === 'soccer_spain_la_liga') {
+        return Promise.reject(new Error('the-odds-api GET /sports/soccer_spain_la_liga/odds failed: 502'));
+      }
+      return Promise.resolve([buildEventOdds({ id: 'e1', sport_key: sportKey })]);
+    });
+    const client = buildClient({ getOdds });
+    let currentTime = 0;
+    const service = createEventsService({
+      client,
+      sportKeys: ['soccer_epl', 'soccer_spain_la_liga'],
+      now: () => currentTime,
+    });
+
+    const first = await service.listMatches();
+    expect(first.map((match) => match.id)).toEqual(['e1']);
+    expect(getOdds).toHaveBeenCalledTimes(2);
+
+    // Still well inside the full 24h TTL, but past the much shorter
+    // partial-failure retry window - must hit the API again, not keep
+    // serving the same La-Liga-less list.
+    currentTime = 5 * 60_000 + 1;
+    getOdds.mockImplementation(({ sportKey }: { sportKey: string }) =>
+      Promise.resolve([buildEventOdds({ id: `${sportKey}-recovered`, sport_key: sportKey })]),
+    );
+    const second = await service.listMatches();
+    expect(getOdds).toHaveBeenCalledTimes(4);
+    expect(second.map((match) => match.id).sort()).toEqual([
+      'soccer_epl-recovered',
+      'soccer_spain_la_liga-recovered',
+    ]);
+    errorSpy.mockRestore();
+  });
+
   it('caches the merged events list and only refetches after the TTL', async () => {
     const getOdds = vi.fn().mockResolvedValue([buildEventOdds()]);
     const client = buildClient({ getOdds });

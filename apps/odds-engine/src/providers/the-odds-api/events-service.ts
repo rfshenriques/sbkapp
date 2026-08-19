@@ -14,6 +14,16 @@ import { isLikelyLive, normalizeTheOddsApiEventOdds } from './normalize';
 const EVENTS_CACHE_TTL_MS = 24 * 60 * 60_000;
 
 /**
+ * A partial failure (some sport keys succeeded, at least one didn't - a
+ * transient network blip, a momentary rate limit, ...) gets cached too
+ * (unlike a total failure - see the comment below), but for far less time
+ * than a clean full success: caching a competition's absence for the full
+ * 24h over what's usually a one-off hiccup would silently hide it from the
+ * board for up to a day even after the provider's already fine again.
+ */
+const PARTIAL_FAILURE_CACHE_TTL_MS = 5 * 60_000;
+
+/**
  * Curated list of sport keys to query - the-odds-api.com has no single
  * "all football" endpoint the way odds-api.io did, so this replaces the old
  * post-hoc league-name filter: we only ever request the competitions we
@@ -168,7 +178,8 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
       return withFreshLiveFlags(matches, currentTime);
     }
 
-    eventsCache = { value: matches, expiresAt: currentTime + EVENTS_CACHE_TTL_MS };
+    const ttl = failedSportKeys > 0 ? PARTIAL_FAILURE_CACHE_TTL_MS : EVENTS_CACHE_TTL_MS;
+    eventsCache = { value: matches, expiresAt: currentTime + ttl };
     return withFreshLiveFlags(matches, currentTime);
   }
 
