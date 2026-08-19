@@ -27,6 +27,27 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe('HorizontalScroller initial scroll position', () => {
+  it('resets scrollLeft back to 0 whenever the item set changes, so a stale/carried-over position (or a browser resolving a center-aligned snap point to something other than the first item) never leaves the first item hidden', () => {
+    const { rerender } = render(
+      <HorizontalScroller itemCount={3} ariaLabel="Test">
+        {items(3)}
+      </HorizontalScroller>,
+    );
+    const group = screen.getByRole('group', { name: 'Test' });
+    Object.defineProperty(group, 'scrollLeft', { value: 300, writable: true, configurable: true });
+    expect(group.scrollLeft).toBe(300);
+
+    rerender(
+      <HorizontalScroller itemCount={2} ariaLabel="Test">
+        {items(2)}
+      </HorizontalScroller>,
+    );
+
+    expect(group.scrollLeft).toBe(0);
+  });
+});
+
 describe('HorizontalScroller auto-scroll', () => {
   it('advances exactly to the next child\'s own offset, not an approximate viewport-percentage nudge', () => {
     render(

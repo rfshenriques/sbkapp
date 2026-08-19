@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 import { ChevronIcon } from './ChevronIcon';
 
@@ -34,6 +34,23 @@ export function HorizontalScroller({
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
+
+  // Forces the first item to be what a player actually sees on load/
+  // whenever the item set changes (e.g. switching which sport's featured
+  // content this shows) - with center-aligned snap points (see the
+  // snap-center items this wraps), a mandatory-snap container that never
+  // received an explicit scroll position can end up resting on whichever
+  // child's center is closest to the container's own center, which for a
+  // "peek" carousel (partial neighbors visible) is often the *second*
+  // item, not the first - browsers can silently resolve to that snap point
+  // once every child has its final layout, with no explicit scroll ever
+  // requested. A synchronous layout effect (not a plain effect) runs
+  // before the browser paints, so this correction lands before a player
+  // ever sees the wrong resting position.
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    if (el) el.scrollLeft = 0;
+  }, [itemCount]);
 
   useEffect(() => {
     function updateScrollState() {
