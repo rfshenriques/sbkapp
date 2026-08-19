@@ -1,4 +1,4 @@
-import type { Market, Selection } from '@sportsbook/shared';
+import { MIN_BETTABLE_ODDS, type Market, type Selection } from '@sportsbook/shared';
 import { BoostIcon } from '../../components/ui/BoostIcon';
 import { LockIcon } from '../../components/ui/LockIcon';
 import { track } from '../../lib/analytics';
@@ -163,7 +163,11 @@ export function MarketSelections({
             label={selectionLabel}
             caption={caption}
             isSelected={selectedSelectionId === selection.id}
-            isSuspended={competitionSuspended || isSuspended(matchId, market.id, selection.id)}
+            isSuspended={
+              competitionSuspended ||
+              isSuspended(matchId, market.id, selection.id) ||
+              selection.odds < MIN_BETTABLE_ODDS
+            }
             onSelect={() => {
               track('CLICK', {
                 metadata: {

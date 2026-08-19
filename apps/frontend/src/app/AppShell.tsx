@@ -584,7 +584,7 @@ export function AppShell() {
               className="sticky flex h-full min-h-0 flex-col rounded-2xl border border-border bg-surface p-4"
               style={{ top: headerHeight, maxHeight: `calc(100vh - ${headerHeight}px)` }}
             >
-              <BetSlipPanel showHistoryTab emptyStateVariant="promotional" />
+              <BetSlipPanel showHistoryTab emptyStateVariant="promotional" hideBalances />
             </div>
           </aside>
         )}

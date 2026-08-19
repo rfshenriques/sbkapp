@@ -554,11 +554,21 @@ export interface BetSlipPanelProps {
   showHistoryTab?: boolean;
   /** 'promotional' is the fuller, full-height, CTA-driven empty state used by the desktop persistent panel. */
   emptyStateVariant?: 'compact' | 'promotional';
+  /**
+   * Desktop's persistent panel only - the header's own balance pill is
+   * always on screen there too (unlike the mobile bottom sheet/tablet
+   * drawer, which can cover or sit apart from the header), so repeating it
+   * here was redundant and, at the desktop column's narrow width, what was
+   * pushing the Cash/Freebets toggle into an overlap. The toggle itself
+   * still renders - only the balance pills are skipped.
+   */
+  hideBalances?: boolean;
 }
 
 export function BetSlipPanel({
   showHistoryTab = false,
   emptyStateVariant = 'compact',
+  hideBalances = false,
 }: BetSlipPanelProps = {}) {
   const selections = useBetSlipStore((state) => state.selections);
   const removeSelection = useBetSlipStore((state) => state.removeSelection);
@@ -1243,13 +1253,15 @@ export function BetSlipPanel({
           </button>
         </div>
       )}
-      {isAuthenticated && wallet && (
+      {isAuthenticated && wallet && (!hideBalances || (hasFreebets && selections.length > 0)) && (
         <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
-          <BalancePills
-            cashCents={wallet.balanceCents}
-            freebetsCents={sumFreebetsCents(freebets)}
-            activeKind={hasFreebets && selections.length > 0 ? (isFreebetMode ? 'freebets' : 'cash') : undefined}
-          />
+          {!hideBalances && (
+            <BalancePills
+              cashCents={wallet.balanceCents}
+              freebetsCents={sumFreebetsCents(freebets)}
+              activeKind={hasFreebets && selections.length > 0 ? (isFreebetMode ? 'freebets' : 'cash') : undefined}
+            />
+          )}
           {hasFreebets && selections.length > 0 && (
             <div className="flex shrink-0 items-center gap-2">
               <span className={cn('text-xs font-semibold', !isFreebetMode ? 'text-text-primary' : 'text-text-muted')}>

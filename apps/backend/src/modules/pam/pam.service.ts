@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import type { BetStatus, SelectionStatus } from '@prisma/client';
-import type { Match } from '@sportsbook/shared';
+import { MIN_BETTABLE_ODDS, type Match } from '@sportsbook/shared';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AccaBoostService } from '../acca-boost/acca-boost.service';
 import { calculateAccaBoost } from '../acca-boost/acca-boost';
@@ -677,6 +677,15 @@ export class PamService {
         if (suspended) {
           throw new BadRequestException(
             `Market is suspended: ${selection.matchLabel} - ${selection.marketName}`,
+          );
+        }
+        // A price this low is auto-locked the same as a trader-suspended
+        // one (see MIN_BETTABLE_ODDS) - almost always a feed/pricing
+        // glitch rather than a genuine market, so this is enforced here
+        // too rather than trusting the frontend to have kept it disabled.
+        if (selection.odds < MIN_BETTABLE_ODDS) {
+          throw new BadRequestException(
+            `Selection is locked: ${selection.matchLabel} - ${selection.marketName}`,
           );
         }
       }

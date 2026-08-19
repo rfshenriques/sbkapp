@@ -1,3 +1,4 @@
+import { MIN_BETTABLE_ODDS } from '@sportsbook/shared';
 import { LockIcon } from '../../components/ui/LockIcon';
 import { formatMoney } from '../../lib/currency';
 import { useDisplayNames } from '../display-names/useDisplayNames';
@@ -43,7 +44,8 @@ export function BoostedOddsRow({
         ?.selectionId,
   );
   const { isSuspended, isCompetitionSuspended } = useMarketSuspensions();
-  const suspended = isCompetitionSuspended(competition) || isSuspended(matchId, marketId, selectionId);
+  const suspended =
+    isCompetitionSuspended(competition) || isSuspended(matchId, marketId, selectionId) || odds < MIN_BETTABLE_ODDS;
   const isSelected = selectedSelectionId === selectionId;
 
   return (

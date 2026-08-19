@@ -727,6 +727,16 @@ describe('BetSlipPanel', () => {
       expect(screen.queryByRole('switch', { name: 'Pay with freebets' })).not.toBeInTheDocument();
     });
 
+    it('hideBalances omits the balance pills but keeps the Cash/Freebets toggle', async () => {
+      stubFreebetsAndAccaBoost([{ id: 'grant-1', amountCents: 1000, remainingCents: 1000, expiresAt: null }]);
+      useBetSlipStore.setState({ selections: [homeSelection] });
+      renderPanel({ hideBalances: true });
+
+      expect(await screen.findByRole('switch', { name: 'Pay with freebets' })).toBeInTheDocument();
+      expect(screen.queryByTitle('Cash balance (paper)')).not.toBeInTheDocument();
+      expect(screen.queryByTitle('Freebets balance')).not.toBeInTheDocument();
+    });
+
     it('switching to Freebets keeps the same typed stake input - freebets act like a second wallet, not a fixed-value token', async () => {
       stubFreebetsAndAccaBoost([{ id: 'grant-1', amountCents: 1000, remainingCents: 1000, expiresAt: null }]);
       useBetSlipStore.setState({ selections: [homeSelection] });

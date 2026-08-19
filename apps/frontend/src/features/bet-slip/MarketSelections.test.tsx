@@ -267,6 +267,33 @@ describe('MarketSelections', () => {
     expect(screen.getByRole('button', { name: 'Away3.20' })).not.toBeDisabled();
   });
 
+  it('auto-locks a selection whose price is below the minimum bettable odds, without needing a trader to suspend it', async () => {
+    const lowOddsMarket: Market = {
+      id: 'match-result',
+      name: 'Match Result',
+      selections: [
+        { id: 'home', name: 'Home', odds: 1.01 },
+        { id: 'draw', name: 'Draw', odds: 15 },
+        { id: 'away', name: 'Away', odds: 25 },
+      ],
+    };
+    renderWithQueryClient(
+      <MarketSelections
+        matchId="match-1"
+        matchLabel="Arsenal vs Chelsea"
+        competition={COMPETITION}
+        market={lowOddsMarket}
+      />,
+    );
+
+    const homeButton = await screen.findByRole('button', { name: 'Home suspended' });
+    expect(homeButton).toBeDisabled();
+    expect(homeButton.querySelector('.odd-value')).toBeNull();
+    // Draw/Away are priced normally and stay bettable.
+    expect(screen.getByRole('button', { name: 'Draw15.00' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Away25.00' })).not.toBeDisabled();
+  });
+
   it('mutes every selection in every market when the competition is suspended', async () => {
     useBrandStore.setState({ brandId: 'brand-1' });
     vi.stubGlobal(

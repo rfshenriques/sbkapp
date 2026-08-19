@@ -1,3 +1,12 @@
+/**
+ * A price this low pays out almost nothing over stake and is usually a
+ * feed/pricing glitch rather than a genuine market - selections at or below
+ * this are locked out (see MarketSelections.tsx's isSuspended, PamService's
+ * placeBet) the same way a trader-suspended selection is, without needing a
+ * trader to suspend it by hand.
+ */
+export const MIN_BETTABLE_ODDS = 1.02;
+
 export interface Selection {
   id: string;
   name: string;
