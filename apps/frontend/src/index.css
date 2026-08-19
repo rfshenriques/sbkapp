@@ -2,15 +2,22 @@
 
 @theme {
   /* Dark is the default base palette - see the :root[data-theme='light']
-     override below for the light alternative. --color-surface, --color-border,
-     and --color-text-secondary/--color-text-muted are never brand-configurable;
-     --color-background and --color-text-primary are (see the brand-driven
-     block below) - these values are only what an unbranded/misconfigured
-     deployment, or a brand that left a zone unset, falls back to. */
+     override below for the light alternative. --color-border and
+     --color-text-secondary/--color-text-muted are never brand-configurable;
+     --color-background, --color-surface, and --color-text-primary are (see
+     the brand-driven block below) - these values are only what an
+     unbranded/misconfigured deployment, or a brand that left a zone unset,
+     falls back to. --color-surface-2/--color-surface-hover are never set
+     directly by a brand - they're always derived from --color-surface via
+     color-mix() (lightened here, darkened in the light override below), so
+     every "secondary panel" grey (quicklinks, search bar, sports menu, the
+     live-matches strip, boost/specials/leaderboard/challenges tiles, ...)
+     automatically tracks a brand's configured surface color too, instead of
+     sitting at a fixed grey no brand color ever reached. */
   --color-background: #0b0d11;
   --color-surface: #12151b;
-  --color-surface-2: #181c24;
-  --color-surface-hover: #1e2330;
+  --color-surface-2: color-mix(in srgb, var(--color-surface), white 5%);
+  --color-surface-hover: color-mix(in srgb, var(--color-surface), white 10%);
   --color-border: #242a35;
 
   --color-text-primary: #f2f4f8;
@@ -89,8 +96,11 @@
 :root[data-theme='light'] {
   --color-background: #f5f6f8;
   --color-surface: #ffffff;
-  --color-surface-2: #eef0f4;
-  --color-surface-hover: #e6e9ee;
+  /* Same color-mix derivation as the dark palette above, mixed toward black
+     instead of white - a light surface needs to darken to read as a
+     secondary panel, not lighten past white. */
+  --color-surface-2: color-mix(in srgb, var(--color-surface), black 6%);
+  --color-surface-hover: color-mix(in srgb, var(--color-surface), black 10%);
   --color-border: #e2e5ea;
 
   --color-text-primary: #14171c;
