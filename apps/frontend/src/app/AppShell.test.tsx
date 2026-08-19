@@ -493,6 +493,83 @@ describe('AppShell', () => {
     });
   });
 
+  describe('mobile bottom nav badge counts', () => {
+    function stubLoggedInWithCounts(pendingBetCount: number, activeChallengeCount: number) {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          if (url.includes('/auth/refresh')) {
+            return new Response(JSON.stringify({ accessToken: 'header.payload.signature' }), { status: 200 });
+          }
+          if (url.includes('/public/brands/by-domain/')) {
+            return new Response(
+              JSON.stringify({
+                id: 'brand-1',
+                name: 'Sportsbook',
+                logoLightUrl: null,
+                logoDarkUrl: null,
+                shareLogoLightUrl: null,
+                shareLogoDarkUrl: null,
+                themeMode: 'DARK',
+                backgroundColor: null,
+                buttonColor: null,
+                highlightColor: null,
+                filterColor: null,
+                textColor: null,
+                supportHelplineText: null,
+              }),
+              { status: 200 },
+            );
+          }
+          if (url === '/backend/bets') {
+            const bets = Array.from({ length: pendingBetCount }, (_, index) => ({ id: `bet-${index}`, status: 'PENDING' }));
+            return new Response(JSON.stringify(bets), { status: 200 });
+          }
+          if (url === '/backend/public/promo-cards/brand-1') {
+            const cards = Array.from({ length: activeChallengeCount }, (_, index) => ({
+              id: `card-${index}`,
+              status: 'ACTIVE',
+            }));
+            return new Response(JSON.stringify(cards), { status: 200 });
+          }
+          return new Response(null, { status: 404 });
+        }),
+      );
+    }
+
+    it('shows open-bet and active-challenge counts on the mobile bottom nav when logged in', async () => {
+      stubMobileWidth();
+      stubLoggedInWithCounts(2, 3);
+
+      renderShell();
+
+      const bottomNav = await screen.findByRole('navigation', { name: 'App navigation' });
+      expect(await within(bottomNav).findByText('2')).toBeInTheDocument();
+      expect(within(bottomNav).getByText('3')).toBeInTheDocument();
+    });
+
+    it('omits a badge entirely when its count is zero, rather than showing a bare 0', async () => {
+      stubMobileWidth();
+      stubLoggedInWithCounts(0, 2);
+
+      renderShell();
+
+      const bottomNav = await screen.findByRole('navigation', { name: 'App navigation' });
+      expect(await within(bottomNav).findByText('2')).toBeInTheDocument();
+      expect(within(bottomNav).queryByText('0')).not.toBeInTheDocument();
+    });
+
+    it('shows no badges on the mobile bottom nav when logged out', async () => {
+      stubMobileWidth();
+
+      renderShell();
+
+      const bottomNav = await screen.findByRole('navigation', { name: 'App navigation' });
+      expect(within(bottomNav).queryByText(/^\d+$/)).not.toBeInTheDocument();
+    });
+  });
+
   describe('tablet tier (touch/coarse-pointer device, e.g. a real tablet - never a desktop browser regardless of its viewport width)', () => {
     /** Overrides the file-level stubDesktopPointer() from beforeEach - a coarse/no-hover pointer, at least tablet-sized in both dimensions. */
     function stubTabletPointer() {

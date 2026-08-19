@@ -12,8 +12,10 @@ import { TabletBetSlipDrawer } from '../features/bet-slip/TabletBetSlipDrawer';
 import { useCampaignPreview } from '../features/bet-slip/useCampaignPreview';
 import { LiveMatchesStrip } from '../features/odds-board/LiveMatchesStrip';
 import { invalidAccumulatorReason } from '../features/bet-slip/accumulatorValidity';
+import { useBets } from '../features/bet-history/useBets';
 import { useWinCelebrationDetector } from '../features/bet-history/useWinCelebrationDetector';
 import { WinCelebrationModal } from '../features/bet-history/WinCelebrationModal';
+import { usePromoCards } from '../features/promo-cards/usePromoCards';
 import { useBrandTheme } from '../features/brand/useBrandTheme';
 import { useBrandStore } from '../features/brand/brandStore';
 import { useAnalyticsPageViews } from '../features/analytics/useAnalyticsPageViews';
@@ -59,6 +61,18 @@ const NAV_STOPS: Array<{ kind: 'search' } | { kind: 'route'; path: string }> = [
 ];
 
 const SWIPE_THRESHOLD_PX = 60;
+
+/** Small count badge pinned to a bottom-nav icon's top-right corner - omitted entirely at 0, same convention as Sidebar's QuicklinkCount. */
+function BottomNavBadge({ count }: { count: number }) {
+  if (count === 0) {
+    return null;
+  }
+  return (
+    <span className="absolute -top-1.5 -right-2 flex h-4 min-w-4 items-center justify-center rounded-full bg-highlight px-1 text-[9px] font-bold text-white tabular-nums">
+      {count > 99 ? '99+' : count}
+    </span>
+  );
+}
 
 export function AppShell() {
   useBootstrapAuth();
@@ -122,6 +136,15 @@ export function AppShell() {
   const freebetsCents = sumFreebetsCents(freebets);
   const openDepositModal = useDepositModalStore((state) => state.open);
   const { data: eligibleDepositCampaign } = useEligibleDepositCampaign();
+  // Bottom nav badge counts - both queries are already fetched for other
+  // reasons when logged in (My Bets page, Challenges page/Sidebar
+  // quicklinks), so this is just reading their cache, not a new request.
+  const { data: bets } = useBets();
+  const { data: promoCards } = usePromoCards();
+  const openBetsCount = isAuthenticated ? (bets ?? []).filter((bet) => bet.status === 'PENDING').length : 0;
+  const challengesCount = isAuthenticated
+    ? (promoCards ?? []).filter((card) => card.status === 'ACTIVE').length
+    : 0;
   const navigate = useNavigate();
   const location = useLocation();
   const touchStartRef = useRef<{ x: number; y: number; skip: boolean } | null>(null);
@@ -684,7 +707,10 @@ export function AppShell() {
             `flex flex-col items-center gap-0.5 py-1 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
           }
         >
-          <MyBetsIcon width={19} height={19} />
+          <span className="relative">
+            <MyBetsIcon width={19} height={19} />
+            <BottomNavBadge count={openBetsCount} />
+          </span>
           My Bets
         </NavLink>
         <NavLink
@@ -694,7 +720,10 @@ export function AppShell() {
             `flex flex-col items-center gap-0.5 py-1 text-[10px] font-bold ${isActive && !isNavOpen ? 'text-highlight' : 'text-text-secondary'}`
           }
         >
-          <TrophyIcon width={19} height={19} />
+          <span className="relative">
+            <TrophyIcon width={19} height={19} />
+            <BottomNavBadge count={challengesCount} />
+          </span>
           Challenges
         </NavLink>
       </nav>
