@@ -15,6 +15,7 @@ const existingBrand: Brand = {
   logoDarkUrl: null,
   shareLogoLightUrl: null,
   shareLogoDarkUrl: null,
+  appIconUrl: null,
   themeMode: 'DARK',
   timeFormat: 'H24',
   currencyCode: 'EUR',

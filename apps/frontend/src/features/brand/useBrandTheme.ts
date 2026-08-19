@@ -52,15 +52,14 @@ function applyColorZone(name: string, zone: ColorZone | null | undefined, active
 
 /**
  * Points the desktop browser tab icon and iOS's "Add to Home Screen" mark
- * at the acting brand's own logo, same as document.title below - without
+ * at the acting brand's own icon, same as document.title below - without
  * this, both fall back to index.html's static generic icon regardless of
- * which brand is actually being served. iOS reads whatever this link's
- * current href is at the moment a player taps "Add to Home Screen" (not a
- * separately-cached asset), so updating it here is enough for that flow;
- * Android/desktop's "Install app" prompt reads the static Web App
- * Manifest's own icons instead, which stay generic since manifest.json is
- * one static file for every brand this backend serves - a real per-brand
- * fix there needs a brand-aware manifest endpoint, out of scope here.
+ * which brand is actually being served. Prefers the brand's dedicated
+ * appIconUrl (a square icon meant for exactly this) over the header logo -
+ * a wide rectangular header logo usually reads badly once forced into a
+ * small square favicon. iOS reads whatever this link's current href is at
+ * the moment a player taps "Add to Home Screen" (not a separately-cached
+ * asset), so updating it here is enough for that flow.
  */
 function updateFavicon(url: string | null | undefined): void {
   if (!url) return;
@@ -73,6 +72,45 @@ function updateFavicon(url: string | null | undefined): void {
     }
     link.href = url;
   }
+}
+
+/**
+ * A blob URL, swapped in each time this runs so the previous render's isn't
+ * leaked - Android/desktop's "Install app" prompt reads the Web App
+ * Manifest's own icons, which stay generic since manifest.webmanifest is
+ * one static file for every brand this backend serves. Swapping the
+ * <link rel="manifest"> href to a blob built from the brand's appIconUrl at
+ * runtime is what actually makes that install icon per-brand too, the same
+ * technique other multi-tenant PWAs use since there's no way to serve a
+ * dynamic manifest.webmanifest from a static file. Left alone entirely
+ * (falls back to the static file's generic icon) when the brand has no
+ * dedicated app icon configured.
+ */
+let manifestBlobUrl: string | null = null;
+
+function updateManifestIcon(iconUrl: string | null | undefined, brandName: string): void {
+  if (!iconUrl) return;
+  const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
+  if (!link) return;
+
+  const manifest = {
+    name: brandName || 'Sportsbook',
+    short_name: brandName || 'Sportsbook',
+    start_url: '/',
+    display: 'standalone',
+    orientation: 'portrait',
+    background_color: '#0b0f1a',
+    theme_color: '#0b0f1a',
+    // No fixed "sizes" - staff can upload whatever square image they have,
+    // and declaring an exact size that doesn't match the actual image can
+    // make some browsers skip the icon entirely.
+    icons: [{ src: iconUrl, sizes: 'any' }],
+  };
+  const blob = new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' });
+  const url = URL.createObjectURL(blob);
+  if (manifestBlobUrl) URL.revokeObjectURL(manifestBlobUrl);
+  manifestBlobUrl = url;
+  link.href = url;
 }
 
 /**
@@ -126,7 +164,8 @@ export function useBrandTheme() {
     useBrandStore.getState().setLogoUrls(logoUrl, shareLogoUrl);
     useBrandStore.getState().setCurrencyCode(brand.currencyCode);
     useBrandStore.getState().setTimeFormat(brand.timeFormat);
-    updateFavicon(logoUrl);
+    updateFavicon(brand.appIconUrl ?? logoUrl);
+    updateManifestIcon(brand.appIconUrl, brand.name);
 
     if (brand.name) {
       document.title = brand.name;

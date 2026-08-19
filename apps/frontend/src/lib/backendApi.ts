@@ -195,6 +195,7 @@ export interface PublicBrand {
   logoDarkUrl: string | null;
   shareLogoLightUrl: string | null;
   shareLogoDarkUrl: string | null;
+  appIconUrl: string | null;
   themeMode: 'LIGHT' | 'DARK';
   currencyCode: string;
   timeFormat: 'H12' | 'H24';

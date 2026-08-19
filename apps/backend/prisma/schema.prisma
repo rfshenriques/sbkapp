@@ -2079,6 +2079,16 @@ model Brand {
   shareLogoLightUrl         String?
   shareLogoDarkUrl          String?
   /**
+   * A dedicated square icon for the browser tab favicon, iOS "Add to Home
+   * Screen", and the Android/desktop PWA install icon (see BrandLogoSlot's
+   * APP_ICON slot and apps/frontend's useBrandTheme) - independent of the
+   * header logo pair above, since a wide rectangular header logo usually
+   * reads badly once forced into a small square icon. Null falls back to
+   * reusing the header logo for favicon/apple-touch-icon, and to the
+   * built-in generic icon for the PWA manifest.
+   */
+  appIconUrl                String?
+  /**
    * The deployment's default appearance until a player picks their own (see the account Settings page) - independent of the light/dark color and logo pairs below, which are always both configured regardless of which one is currently active.
    */
   themeMode                 ThemeMode  @default(DARK)
@@ -2218,11 +2228,12 @@ model BrandImage {
 
 /**
  * The brand's own logos, staff-uploaded from the master backoffice - stored
- * as raw bytes the same way as BrandImage, one row per brand+slot. 4 slots:
- * the main site logo and the bet-share image's logo, each with an
+ * as raw bytes the same way as BrandImage, one row per brand+slot. 5 slots:
+ * the main site logo and the bet-share image's logo (each with an
  * independent light/dark variant since a single logo often reads badly
- * against one of the two backgrounds. Each upload sets the matching
- * Brand.*LogoUrl field to this row's public serving path (see
+ * against one of the two backgrounds), plus a single APP_ICON slot for the
+ * dedicated favicon/homescreen/PWA-install icon. Each upload sets the
+ * matching Brand.*Url field to this row's public serving path (see
  * BrandsService.setLogo) so every consumer keeps reading a plain image URL
  * either way - a manually pasted external URL still works exactly the same
  * for a slot that isn't uploaded to.
@@ -2232,6 +2243,7 @@ enum BrandLogoSlot {
   SITE_DARK
   SHARE_LIGHT
   SHARE_DARK
+  APP_ICON
 }
 
 model BrandLogo {

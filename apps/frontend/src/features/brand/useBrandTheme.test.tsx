@@ -11,6 +11,7 @@ const publicBrand: PublicBrand = {
   logoDarkUrl: 'https://cdn.example.com/betpor-dark.png',
   shareLogoLightUrl: null,
   shareLogoDarkUrl: null,
+  appIconUrl: null,
   themeMode: 'DARK',
   currencyCode: 'EUR',
   timeFormat: 'H24',
@@ -33,10 +34,13 @@ function renderWithClient() {
 
 beforeEach(() => {
   vi.stubGlobal('location', { ...window.location, hostname: 'betsome.pt' });
-  document.head.querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"]').forEach((el) => el.remove());
+  document.head
+    .querySelectorAll('link[rel="icon"], link[rel="apple-touch-icon"], link[rel="manifest"]')
+    .forEach((el) => el.remove());
 });
 
 afterEach(() => {
+  document.head.querySelectorAll('link[rel="manifest"]').forEach((el) => el.remove());
   vi.unstubAllGlobals();
 });
 
@@ -77,5 +81,76 @@ describe('useBrandTheme', () => {
     expect(document.querySelector<HTMLLinkElement>('link[rel="icon"]')?.href).toBe(
       'https://original.example.com/icon-192.png',
     );
+  });
+
+  it("prefers the brand's dedicated app icon over the header logo for the favicon/apple-touch-icon", async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ ...publicBrand, appIconUrl: 'https://cdn.example.com/betpor-app-icon.png' }),
+            { status: 200 },
+          ),
+      ),
+    );
+
+    renderWithClient();
+
+    await waitFor(() => {
+      const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+      expect(favicon?.href).toBe('https://cdn.example.com/betpor-app-icon.png');
+    });
+    expect(document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]')?.href).toBe(
+      'https://cdn.example.com/betpor-app-icon.png',
+    );
+  });
+
+  it("swaps the PWA manifest link to a per-brand blob built from the brand's app icon, so the Android/desktop install prompt isn't stuck with the generic static one", async () => {
+    const manifestLink = document.createElement('link');
+    manifestLink.rel = 'manifest';
+    manifestLink.href = '/manifest.webmanifest';
+    document.head.appendChild(manifestLink);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake-manifest');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ ...publicBrand, appIconUrl: 'https://cdn.example.com/betpor-app-icon.png' }),
+            { status: 200 },
+          ),
+      ),
+    );
+
+    renderWithClient();
+
+    await waitFor(() => expect(manifestLink.href).toBe('blob:fake-manifest'));
+    const [blobArg] = vi.mocked(URL.createObjectURL).mock.calls[0]!;
+    const manifestJson = await (blobArg as Blob).text();
+    expect(JSON.parse(manifestJson)).toMatchObject({
+      name: 'BETPOR',
+      icons: [{ src: 'https://cdn.example.com/betpor-app-icon.png', sizes: 'any' }],
+    });
+  });
+
+  it('leaves the static manifest link alone when the brand has no dedicated app icon configured', async () => {
+    const manifestLink = document.createElement('link');
+    manifestLink.rel = 'manifest';
+    manifestLink.href = '/manifest.webmanifest';
+    document.head.appendChild(manifestLink);
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify(publicBrand), { status: 200 })),
+    );
+
+    const { result } = renderWithClient();
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    expect(manifestLink.href).not.toMatch(/^blob:/);
+    expect(manifestLink.getAttribute('href')).toBe('/manifest.webmanifest');
   });
 });

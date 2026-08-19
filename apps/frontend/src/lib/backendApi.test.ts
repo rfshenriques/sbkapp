@@ -9,6 +9,7 @@ const publicBrand: PublicBrand = {
   logoDarkUrl: null,
   shareLogoLightUrl: null,
   shareLogoDarkUrl: null,
+  appIconUrl: null,
   themeMode: 'DARK',
   currencyCode: 'EUR',
   timeFormat: 'H24',

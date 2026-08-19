@@ -34,6 +34,10 @@ export class CreateBrandDto {
   shareLogoDarkUrl?: string;
 
   @IsOptional()
+  @IsUrlOrOwnLogoPath()
+  appIconUrl?: string;
+
+  @IsOptional()
   @IsEnum(ThemeMode)
   themeMode?: ThemeMode;
 
@@ -102,6 +106,10 @@ export class UpdateBrandDto {
   @IsOptional()
   @IsUrlOrOwnLogoPath()
   shareLogoDarkUrl?: string;
+
+  @IsOptional()
+  @IsUrlOrOwnLogoPath()
+  appIconUrl?: string;
 
   @IsOptional()
   @IsEnum(ThemeMode)

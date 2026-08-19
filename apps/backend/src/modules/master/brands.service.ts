@@ -5,13 +5,16 @@ import type { CreateBrandDto, UpdateBrandDto } from './dto/create-brand.dto';
 import { normalizeDomain } from './normalize-domain';
 
 /** Which Brand column a given logo slot's resolved serving URL is stored on. */
-const LOGO_URL_FIELD: Record<BrandLogoSlot, 'logoLightUrl' | 'logoDarkUrl' | 'shareLogoLightUrl' | 'shareLogoDarkUrl'> =
-  {
-    SITE_LIGHT: 'logoLightUrl',
-    SITE_DARK: 'logoDarkUrl',
-    SHARE_LIGHT: 'shareLogoLightUrl',
-    SHARE_DARK: 'shareLogoDarkUrl',
-  };
+const LOGO_URL_FIELD: Record<
+  BrandLogoSlot,
+  'logoLightUrl' | 'logoDarkUrl' | 'shareLogoLightUrl' | 'shareLogoDarkUrl' | 'appIconUrl'
+> = {
+  SITE_LIGHT: 'logoLightUrl',
+  SITE_DARK: 'logoDarkUrl',
+  SHARE_LIGHT: 'shareLogoLightUrl',
+  SHARE_DARK: 'shareLogoDarkUrl',
+  APP_ICON: 'appIconUrl',
+};
 
 @Injectable()
 export class BrandsService {
@@ -38,6 +41,7 @@ export class BrandsService {
         logoDarkUrl: dto.logoDarkUrl,
         shareLogoLightUrl: dto.shareLogoLightUrl,
         shareLogoDarkUrl: dto.shareLogoDarkUrl,
+        appIconUrl: dto.appIconUrl,
         themeMode: dto.themeMode,
         currencyCode: dto.currencyCode,
         timeFormat: dto.timeFormat,
@@ -84,6 +88,7 @@ export class BrandsService {
           logoDarkUrl: dto.logoDarkUrl,
           shareLogoLightUrl: dto.shareLogoLightUrl,
           shareLogoDarkUrl: dto.shareLogoDarkUrl,
+          appIconUrl: dto.appIconUrl,
           themeMode: dto.themeMode,
           currencyCode: dto.currencyCode,
           timeFormat: dto.timeFormat,

@@ -15,12 +15,22 @@ const PRODUCT_LABELS: Record<string, string> = {
   BET_BUILDER: 'Bet builder',
 };
 
-const LOGO_SLOTS: { slot: BrandLogoSlot; label: string; urlField: 'logoLightUrl' | 'logoDarkUrl' | 'shareLogoLightUrl' | 'shareLogoDarkUrl' }[] = [
+const LOGO_SLOTS: {
+  slot: BrandLogoSlot;
+  label: string;
+  urlField: 'logoLightUrl' | 'logoDarkUrl' | 'shareLogoLightUrl' | 'shareLogoDarkUrl' | 'appIconUrl';
+}[] = [
   { slot: 'SITE_LIGHT', label: 'Site logo (light)', urlField: 'logoLightUrl' },
   { slot: 'SITE_DARK', label: 'Site logo (dark)', urlField: 'logoDarkUrl' },
   { slot: 'SHARE_LIGHT', label: 'Bet-share logo (light)', urlField: 'shareLogoLightUrl' },
   { slot: 'SHARE_DARK', label: 'Bet-share logo (dark)', urlField: 'shareLogoDarkUrl' },
 ];
+
+const APP_ICON_SLOT: { slot: BrandLogoSlot; label: string; urlField: 'appIconUrl' } = {
+  slot: 'APP_ICON',
+  label: 'App / homescreen icon',
+  urlField: 'appIconUrl',
+};
 
 export default function BrandDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -180,6 +190,27 @@ export default function BrandDetailPage() {
                 {uploadLogoMutation.error instanceof Error ? uploadLogoMutation.error.message : 'Failed to upload logo.'}
               </p>
             )}
+          </Card>
+
+          <Card className="mt-4">
+            <h2 className="text-sm font-medium text-text-secondary">App icon</h2>
+            <p className="mt-1 text-xs text-text-secondary">
+              A dedicated square icon for the browser tab, iOS "Add to Home Screen", and the Android/desktop app
+              install prompt - separate from the header logo above, since a wide logo usually looks bad forced into a
+              small square. Falls back to the site logo (favicon/home screen) or a generic icon (app install) when
+              unset.
+            </p>
+            <div className="mt-3">
+              <LogoSlotUploader
+                inputId={`brand-logo-${APP_ICON_SLOT.slot}`}
+                label={APP_ICON_SLOT.label}
+                url={brand[APP_ICON_SLOT.urlField]}
+                isUploading={uploadLogoMutation.isPending && uploadLogoMutation.variables?.slot === APP_ICON_SLOT.slot}
+                isRemoving={removeLogoMutation.isPending && removeLogoMutation.variables === APP_ICON_SLOT.slot}
+                onFileSelected={(file) => uploadLogoMutation.mutate({ slot: APP_ICON_SLOT.slot, file })}
+                onRemove={() => removeLogoMutation.mutate(APP_ICON_SLOT.slot)}
+              />
+            </div>
           </Card>
 
           <Card className="mt-4">

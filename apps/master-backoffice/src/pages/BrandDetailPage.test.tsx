@@ -19,6 +19,7 @@ const brand: Brand = {
   logoDarkUrl: null,
   shareLogoLightUrl: null,
   shareLogoDarkUrl: null,
+  appIconUrl: null,
   themeMode: 'LIGHT',
   timeFormat: 'H24',
   currencyCode: 'EUR',
@@ -124,6 +125,38 @@ describe('BrandDetailPage', () => {
     expect(await screen.findByRole('img', { name: 'Site logo (light) preview' })).toHaveAttribute(
       'src',
       '/backend/public/brands/brand-1/logo/SITE_LIGHT',
+    );
+  });
+
+  it('uploading an app icon file POSTs it to the APP_ICON slot, separate from the site/share logos', async () => {
+    const withAppIcon: Brand = { ...brand, appIconUrl: '/backend/public/brands/brand-1/logo/APP_ICON' };
+
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const method = init?.method ?? 'GET';
+
+      if (method === 'POST' && url === '/backend/master/brands/brand-1/logo/APP_ICON') {
+        expect(init!.body).toBeInstanceOf(FormData);
+        expect((init!.body as FormData).get('file')).toBeInstanceOf(File);
+        return new Response(JSON.stringify(withAppIcon), { status: 200 });
+      }
+      if (method === 'GET' && url === '/backend/master/brands/brand-1') {
+        return new Response(JSON.stringify(brand), { status: 200 });
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderBrandDetailPage();
+    await screen.findByDisplayValue('Acme Sportsbook');
+    expect(screen.queryByRole('img', { name: 'App / homescreen icon preview' })).not.toBeInTheDocument();
+
+    const file = new File(['fake-bytes'], 'icon.png', { type: 'image/png' });
+    await userEvent.upload(screen.getByLabelText('App / homescreen icon'), file);
+
+    expect(await screen.findByRole('img', { name: 'App / homescreen icon preview' })).toHaveAttribute(
+      'src',
+      '/backend/public/brands/brand-1/logo/APP_ICON',
     );
   });
 

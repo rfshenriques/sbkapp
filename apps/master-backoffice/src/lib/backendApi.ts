@@ -23,7 +23,7 @@ export type TimeFormat = (typeof TIME_FORMATS)[number];
 /** Common ISO 4217 codes offered in the brand currency picker - any valid 3-letter code is accepted by the backend, this is just a curated shortlist. */
 export const CURRENCY_CODES = ['EUR', 'USD', 'GBP', 'BRL', 'MXN', 'CAD', 'AUD', 'CHF'] as const;
 
-export const BRAND_LOGO_SLOTS = ['SITE_LIGHT', 'SITE_DARK', 'SHARE_LIGHT', 'SHARE_DARK'] as const;
+export const BRAND_LOGO_SLOTS = ['SITE_LIGHT', 'SITE_DARK', 'SHARE_LIGHT', 'SHARE_DARK', 'APP_ICON'] as const;
 export type BrandLogoSlot = (typeof BRAND_LOGO_SLOTS)[number];
 
 export const GRADIENT_DIRECTIONS = ['to-t', 'to-b', 'to-l', 'to-r', 'to-tl', 'to-tr', 'to-bl', 'to-br'] as const;
@@ -65,6 +65,7 @@ export interface Brand {
   logoDarkUrl: string | null;
   shareLogoLightUrl: string | null;
   shareLogoDarkUrl: string | null;
+  appIconUrl: string | null;
   themeMode: ThemeMode;
   currencyCode: string;
   timeFormat: TimeFormat;
@@ -90,6 +91,7 @@ export interface CreateBrandPayload {
   logoDarkUrl?: string;
   shareLogoLightUrl?: string;
   shareLogoDarkUrl?: string;
+  appIconUrl?: string;
   themeMode?: ThemeMode;
   currencyCode?: string;
   timeFormat?: TimeFormat;
@@ -109,6 +111,7 @@ export interface UpdateBrandPayload {
   logoDarkUrl?: string;
   shareLogoLightUrl?: string;
   shareLogoDarkUrl?: string;
+  appIconUrl?: string;
   themeMode?: ThemeMode;
   currencyCode?: string;
   timeFormat?: TimeFormat;

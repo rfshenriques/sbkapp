@@ -13,7 +13,7 @@ describe('IsUrlOrOwnLogoPath (via UpdateBrandDto)', () => {
   });
 
   it('accepts every logo slot path', async () => {
-    for (const slot of ['SITE_LIGHT', 'SITE_DARK', 'SHARE_LIGHT', 'SHARE_DARK']) {
+    for (const slot of ['SITE_LIGHT', 'SITE_DARK', 'SHARE_LIGHT', 'SHARE_DARK', 'APP_ICON']) {
       const dto = Object.assign(new UpdateBrandDto(), {
         logoLightUrl: `/backend/public/brands/brand-1/logo/${slot}`,
       });
