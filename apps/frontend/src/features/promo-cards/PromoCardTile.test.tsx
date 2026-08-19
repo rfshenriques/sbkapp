@@ -11,6 +11,7 @@ const decorativeCard: PromoCardItem = {
   mimeType: 'image/png',
   title: 'Welcome offer',
   subtitle: null,
+  ctaLabel: null,
   sortOrder: 0,
   betAndGetCampaignId: null,
   depositCampaignId: null,
@@ -114,5 +115,34 @@ describe('PromoCardTile', () => {
     await vi.waitFor(() =>
       expect(useDepositCampaignModalStore.getState().campaign?.id).toBe('deposit-campaign-1'),
     );
+  });
+
+  it('shows the CTA button text on an imaged card when ctaLabel is set', () => {
+    render(
+      <MemoryRouter>
+        <PromoCardTile card={{ ...decorativeCard, ctaLabel: 'Claim Now' }} brandId="brand-1" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Claim Now')).toBeInTheDocument();
+  });
+
+  it('shows the CTA button text on a no-image (banner) card when ctaLabel is set', () => {
+    render(
+      <MemoryRouter>
+        <PromoCardTile
+          card={{ ...decorativeCard, hasImage: false, mimeType: null, ctaLabel: 'Join Now' }}
+          brandId="brand-1"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Join Now')).toBeInTheDocument();
+  });
+
+  it('omits the CTA button entirely when ctaLabel is not set', () => {
+    render(<PromoCardTile card={decorativeCard} brandId="brand-1" />);
+
+    expect(document.querySelector('.promo-cta')).not.toBeInTheDocument();
   });
 });

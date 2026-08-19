@@ -229,6 +229,7 @@ function NewPromoCardForm({
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
+  const [ctaLabel, setCtaLabel] = useState('');
   const [selection, setSelection] = useState<CampaignSelection>(EMPTY_SELECTION);
   const [error, setError] = useState<string | null>(null);
 
@@ -238,6 +239,7 @@ function NewPromoCardForm({
         file: file as File,
         title: title.trim() || undefined,
         subtitle: subtitle.trim() || undefined,
+        ctaLabel: ctaLabel.trim() || undefined,
         betAndGetCampaignId: selection.betAndGetCampaignId || undefined,
         depositCampaignId: selection.depositCampaignId || undefined,
         registerCampaignId: selection.registerCampaignId || undefined,
@@ -247,6 +249,7 @@ function NewPromoCardForm({
       setFile(null);
       setTitle('');
       setSubtitle('');
+      setCtaLabel('');
       setSelection(EMPTY_SELECTION);
       setError(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -313,6 +316,24 @@ function NewPromoCardForm({
       </div>
 
       <div>
+        <label className="block text-xs text-text-secondary" htmlFor="promo-card-cta">
+          CTA button text (optional)
+        </label>
+        <input
+          id="promo-card-cta"
+          type="text"
+          value={ctaLabel}
+          onChange={(event) => setCtaLabel(event.target.value)}
+          placeholder="e.g. Claim Now"
+          className="mt-1 w-full max-w-xs rounded-md border border-border bg-background px-2 py-1.5 text-sm"
+        />
+        <p className="mt-1 text-xs text-text-secondary">
+          Shown as a button on the card. Leave blank for no button - the whole card still links through when a
+          campaign is linked below.
+        </p>
+      </div>
+
+      <div>
         <label className="block text-xs text-text-secondary" htmlFor="promo-card-campaign">
           Linked campaign
         </label>
@@ -365,6 +386,7 @@ function PromoCardRow({
   const [isExpanded, setIsExpanded] = useState(false);
   const [title, setTitle] = useState(card.title ?? '');
   const [subtitle, setSubtitle] = useState(card.subtitle ?? '');
+  const [ctaLabel, setCtaLabel] = useState(card.ctaLabel ?? '');
   const [selection, setSelection] = useState<CampaignSelection>({
     betAndGetCampaignId: card.betAndGetCampaignId ?? '',
     depositCampaignId: card.depositCampaignId ?? '',
@@ -376,6 +398,7 @@ function PromoCardRow({
   useEffect(() => {
     setTitle(card.title ?? '');
     setSubtitle(card.subtitle ?? '');
+    setCtaLabel(card.ctaLabel ?? '');
     setSelection({
       betAndGetCampaignId: card.betAndGetCampaignId ?? '',
       depositCampaignId: card.depositCampaignId ?? '',
@@ -389,6 +412,7 @@ function PromoCardRow({
       backendApi.updatePromoCard(card.id, {
         title: title.trim() || null,
         subtitle: subtitle.trim() || null,
+        ctaLabel: ctaLabel.trim() || null,
         betAndGetCampaignId: selection.betAndGetCampaignId || null,
         depositCampaignId: selection.depositCampaignId || null,
         registerCampaignId: selection.registerCampaignId || null,
@@ -436,6 +460,7 @@ function PromoCardRow({
   const isDirty =
     title.trim() !== (card.title ?? '') ||
     subtitle.trim() !== (card.subtitle ?? '') ||
+    ctaLabel.trim() !== (card.ctaLabel ?? '') ||
     selection.betAndGetCampaignId !== (card.betAndGetCampaignId ?? '') ||
     selection.depositCampaignId !== (card.depositCampaignId ?? '') ||
     selection.registerCampaignId !== (card.registerCampaignId ?? '') ||
@@ -521,6 +546,19 @@ function PromoCardRow({
                 className="mt-1 w-full rounded-md border border-border bg-surface px-2 py-1.5 text-sm"
               />
             </div>
+          </div>
+          <div>
+            <label className="block text-xs text-text-secondary" htmlFor={`cta-${card.id}`}>
+              CTA button text
+            </label>
+            <input
+              id={`cta-${card.id}`}
+              type="text"
+              value={ctaLabel}
+              onChange={(event) => setCtaLabel(event.target.value)}
+              placeholder="e.g. Claim Now"
+              className="mt-1 w-full max-w-xs rounded-md border border-border bg-surface px-2 py-1.5 text-sm"
+            />
           </div>
           <div>
             <label className="block text-xs text-text-secondary" htmlFor={`campaign-${card.id}`}>

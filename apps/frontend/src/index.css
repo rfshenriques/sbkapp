@@ -405,6 +405,16 @@ body {
 .btn-primary:active {
   transform: scale(0.97);
 }
+/* Small CTA pill overlaid on a promo card (see PromoCardTile) - the whole
+   card is already the click target, so this is a visual affordance, not
+   its own button. Compound selector (not a Tailwind utility override) so
+   it reliably wins over .btn-primary's own size properties regardless of
+   layer ordering - same reasoning as .tab-sm overriding .tab. */
+.btn-primary.promo-cta {
+  padding: 6px 14px;
+  font-size: 11px;
+  border-radius: 10px;
+}
 
 .btn-ghost {
   font-family: var(--font-display);

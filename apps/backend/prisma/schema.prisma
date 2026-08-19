@@ -1364,6 +1364,15 @@ model PromoCard {
   mimeType    String?
   title       String?
   subtitle    String?
+  /**
+   * Optional call-to-action button label shown on the card (e.g. "Claim
+   * Now", "Join Now") - unset renders no button, same "only what staff
+   * actually configured" rule as title/subtitle. The card's own click-
+   * through (see PromoCardTile) already navigates wherever this button
+   * would, so the button is a visual affordance on top of that, not a
+   * separate destination.
+   */
+  ctaLabel    String?
   sortOrder   Int
   autoCreated Boolean  @default(false)
   createdAt   DateTime @default(now())

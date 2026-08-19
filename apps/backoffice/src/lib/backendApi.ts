@@ -1834,6 +1834,8 @@ export interface PromoCard {
   mimeType: string | null;
   title: string | null;
   subtitle: string | null;
+  /** Optional CTA button label shown on the card (e.g. "Claim Now") - null renders no button. */
+  ctaLabel: string | null;
   sortOrder: number;
   autoCreated: boolean;
   betAndGetCampaignId: string | null;
@@ -1852,6 +1854,7 @@ export interface AddPromoCardPayload {
   file: File;
   title?: string;
   subtitle?: string;
+  ctaLabel?: string;
   betAndGetCampaignId?: string;
   depositCampaignId?: string;
   registerCampaignId?: string;
@@ -1861,6 +1864,7 @@ export interface AddPromoCardPayload {
 export interface UpdatePromoCardPayload {
   title?: string | null;
   subtitle?: string | null;
+  ctaLabel?: string | null;
   betAndGetCampaignId?: string | null;
   depositCampaignId?: string | null;
   registerCampaignId?: string | null;
@@ -1878,6 +1882,7 @@ export async function addPromoCard(payload: AddPromoCardPayload): Promise<PromoC
   formData.append('file', payload.file);
   if (payload.title) formData.append('title', payload.title);
   if (payload.subtitle) formData.append('subtitle', payload.subtitle);
+  if (payload.ctaLabel) formData.append('ctaLabel', payload.ctaLabel);
   if (payload.betAndGetCampaignId) formData.append('betAndGetCampaignId', payload.betAndGetCampaignId);
   if (payload.depositCampaignId) formData.append('depositCampaignId', payload.depositCampaignId);
   if (payload.registerCampaignId) formData.append('registerCampaignId', payload.registerCampaignId);

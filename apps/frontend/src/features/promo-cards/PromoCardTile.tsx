@@ -68,9 +68,16 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
       {hasCaption && (
         <>
           <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/10 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1 p-4 text-white">
+          <div className="absolute inset-x-0 bottom-0 flex flex-col items-start gap-1.5 p-4 text-white">
             {card.title && <p className="font-display text-lg leading-tight">{card.title}</p>}
             {card.subtitle && <p className="text-sm text-white/80">{card.subtitle}</p>}
+            {card.ctaLabel && (
+              // A span, not a nested <button>/<a> - the whole card is
+              // already the click target (see the Link/button this
+              // renders inside below), so this is a visual affordance
+              // only, not a second interactive element.
+              <span className="btn-primary promo-cta mt-1 inline-block">{card.ctaLabel}</span>
+            )}
           </div>
         </>
       )}
@@ -83,6 +90,14 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
       {isChallenge && <TrophyIcon width={18} height={18} className="mb-0.5" style={{ color: brandContrast }} />}
       {card.title && <p className="font-display text-lg leading-tight">{card.title}</p>}
       {card.subtitle && <p className="text-sm opacity-85">{card.subtitle}</p>}
+      {card.ctaLabel && (
+        <span
+          className="mt-1 rounded-xl px-4 py-1.5 text-xs font-bold"
+          style={{ backgroundColor: brandContrast, color: 'var(--color-brand)' }}
+        >
+          {card.ctaLabel}
+        </span>
+      )}
     </div>
   );
 

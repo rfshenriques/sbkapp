@@ -12,6 +12,10 @@ export class UpdatePromoCardDto {
 
   @IsOptional()
   @IsString()
+  ctaLabel?: string | null;
+
+  @IsOptional()
+  @IsString()
   betAndGetCampaignId?: string | null;
 
   @IsOptional()

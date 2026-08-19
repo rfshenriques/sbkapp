@@ -659,6 +659,8 @@ export interface PromoCardItem {
   mimeType: string | null;
   title: string | null;
   subtitle: string | null;
+  /** Optional CTA button label shown on the card (e.g. "Claim Now") - null renders no button, see PromoCardTile. */
+  ctaLabel: string | null;
   sortOrder: number;
   betAndGetCampaignId: string | null;
   depositCampaignId: string | null;

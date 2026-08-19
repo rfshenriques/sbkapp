@@ -73,6 +73,7 @@ const decorativeCard: PromoCard = {
   mimeType: 'image/png',
   title: 'Welcome offer',
   subtitle: null,
+  ctaLabel: null,
   sortOrder: 0,
   autoCreated: false,
   betAndGetCampaignId: null,
@@ -232,6 +233,53 @@ describe('CmsPromoCardsPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Add promo card' }));
 
     expect(fetchMock).toHaveBeenCalledWith('/backend/admin/promo-cards', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('uploading a new card includes the CTA button text in the multipart form data', async () => {
+    const fetchMock = stubFetch((url, method, init) => {
+      if (method === 'GET' && url === '/backend/admin/promo-cards') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'POST' && url === '/backend/admin/promo-cards') {
+        const formData = init!.body as FormData;
+        expect(formData.get('ctaLabel')).toBe('Claim Now');
+        return new Response(JSON.stringify({ ...decorativeCard, ctaLabel: 'Claim Now' }), { status: 200 });
+      }
+      return undefined;
+    });
+
+    renderPage();
+    await screen.findByText('No campaign (decorative only)');
+
+    const file = new File(['bytes'], 'promo.png', { type: 'image/png' });
+    await userEvent.upload(screen.getByLabelText('Image'), file);
+    await userEvent.type(screen.getByLabelText('CTA button text (optional)'), 'Claim Now');
+    await userEvent.click(screen.getByRole('button', { name: 'Add promo card' }));
+
+    expect(fetchMock).toHaveBeenCalledWith('/backend/admin/promo-cards', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('editing a card saves its CTA button text', async () => {
+    const fetchMock = stubFetch((url, method, init) => {
+      if (method === 'GET' && url === '/backend/admin/promo-cards') {
+        return new Response(JSON.stringify([decorativeCard]), { status: 200 });
+      }
+      if (method === 'PATCH' && url === '/backend/admin/promo-cards/card-1') {
+        expect(JSON.parse(init!.body as string)).toMatchObject({ ctaLabel: 'Join Now' });
+        return new Response(JSON.stringify({ ...decorativeCard, ctaLabel: 'Join Now' }), { status: 200 });
+      }
+      return undefined;
+    });
+
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: /Welcome offer/ }));
+    await userEvent.type(screen.getByLabelText('CTA button text'), 'Join Now');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/promo-cards/card-1',
+      expect.objectContaining({ method: 'PATCH' }),
+    );
   });
 
   it('linking a card to a deposit campaign shows it grouped separately and saves depositCampaignId', async () => {

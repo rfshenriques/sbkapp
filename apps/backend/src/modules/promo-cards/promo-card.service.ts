@@ -15,6 +15,7 @@ const METADATA_SELECT = {
   mimeType: true,
   title: true,
   subtitle: true,
+  ctaLabel: true,
   sortOrder: true,
   autoCreated: true,
   betAndGetCampaignId: true,
@@ -31,6 +32,7 @@ export interface PromoCardMetadata {
   mimeType: string | null;
   title: string | null;
   subtitle: string | null;
+  ctaLabel: string | null;
   sortOrder: number;
   autoCreated: boolean;
   betAndGetCampaignId: string | null;
@@ -49,6 +51,7 @@ export interface PromoCardForViewer extends PromoCardMetadata {
 export interface PromoCardFields {
   title?: string | null;
   subtitle?: string | null;
+  ctaLabel?: string | null;
   betAndGetCampaignId?: string | null;
   depositCampaignId?: string | null;
   registerCampaignId?: string | null;
@@ -260,6 +263,7 @@ export class PromoCardService {
         mimeType,
         title: fields.title,
         subtitle: fields.subtitle,
+        ctaLabel: fields.ctaLabel,
         betAndGetCampaignId: fields.betAndGetCampaignId,
         depositCampaignId: fields.depositCampaignId,
         registerCampaignId: fields.registerCampaignId,
