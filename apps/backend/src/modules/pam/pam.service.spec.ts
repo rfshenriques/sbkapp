@@ -2127,6 +2127,69 @@ describe('PamService', () => {
     expect(enrichedRollbackBet.accaRollbackRewardCents).toBe(500);
   });
 
+  it('getBets also enriches a bet with its register-campaign name/reward, not just Bet & Get/deposit - regression for the campaign-reward note showing "NaN" (registerCampaignRedemption was never fetched here, so the field was always undefined)', async () => {
+    const userId = await createTestUser(100_000);
+    const campaign = await registerCampaignService.create(
+      testBrandId,
+      {
+        name: 'Welcome Bonus',
+        rewardType: 'FIXED',
+        rewardAmountCents: 500,
+        requiresBet: true,
+        qualifyingBetWindowDays: 7,
+        trigger: 'PLACEMENT',
+      },
+      TEST_ACTOR,
+    );
+    await registerCampaignService.update(testBrandId, campaign.id, { enabled: true }, TEST_ACTOR);
+    await prisma.registerCampaignRedemption.create({
+      data: { registerCampaignId: campaign.id, userId, brandId: testBrandId, status: 'PENDING_BET' },
+    });
+
+    const placedBet = await pamService.placeBet(userId, {
+      selections: [buildSelection({ odds: 2.0 })],
+      stakeCents: 1_000,
+    });
+    expect(placedBet.registerCampaignRedemptionId).not.toBeNull();
+
+    const bets = await pamService.getBets(userId);
+    const enrichedBet = bets.find((bet) => bet.id === placedBet.id)!;
+    expect(enrichedBet.registerCampaignName).toBe('Welcome Bonus');
+    expect(enrichedBet.registerCampaignRewardCents).toBe(500);
+  });
+
+  it('getBets shows a null (not undefined/NaN) register-campaign name/reward once the campaign is deleted, cascading away the redemption', async () => {
+    const userId = await createTestUser(100_000);
+    const campaign = await registerCampaignService.create(
+      testBrandId,
+      {
+        name: 'Welcome Bonus',
+        rewardType: 'FIXED',
+        rewardAmountCents: 500,
+        requiresBet: true,
+        qualifyingBetWindowDays: 7,
+        trigger: 'PLACEMENT',
+      },
+      TEST_ACTOR,
+    );
+    await registerCampaignService.update(testBrandId, campaign.id, { enabled: true }, TEST_ACTOR);
+    await prisma.registerCampaignRedemption.create({
+      data: { registerCampaignId: campaign.id, userId, brandId: testBrandId, status: 'PENDING_BET' },
+    });
+
+    const placedBet = await pamService.placeBet(userId, {
+      selections: [buildSelection({ odds: 2.0 })],
+      stakeCents: 1_000,
+    });
+
+    await prisma.registerCampaign.delete({ where: { id: campaign.id } });
+
+    const bets = await pamService.getBets(userId);
+    const enrichedBet = bets.find((bet) => bet.id === placedBet.id)!;
+    expect(enrichedBet.registerCampaignName).toBeNull();
+    expect(enrichedBet.registerCampaignRewardCents).toBeNull();
+  });
+
   describe('getUnseenCelebrations / acknowledgeCelebrations', () => {
     it('returns a WON bet with winNotifiedAt still null, but not a PENDING one', async () => {
       const userId = await createTestUser(100_000);

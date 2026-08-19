@@ -999,6 +999,11 @@ export class PamService {
         selections: true,
         betAndGetCampaign: { select: { name: true, rewardType: true, rewardAmountCents: true, rewardPercent: true, rewardCapCents: true } },
         depositCampaignRedemption: { include: { depositCampaign: { select: { name: true } } } },
+        registerCampaignRedemption: {
+          include: {
+            registerCampaign: { select: { name: true, rewardType: true, rewardAmountCents: true, rewardPercent: true, rewardCapCents: true } },
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -1024,6 +1029,11 @@ export class PamService {
           selections: true,
           betAndGetCampaign: { select: { name: true, rewardType: true, rewardAmountCents: true, rewardPercent: true, rewardCapCents: true } },
           depositCampaignRedemption: { include: { depositCampaign: { select: { name: true } } } },
+          registerCampaignRedemption: {
+            include: {
+              registerCampaign: { select: { name: true, rewardType: true, rewardAmountCents: true, rewardPercent: true, rewardCapCents: true } },
+            },
+          },
         },
         orderBy: { settledAt: 'asc' },
       }),
@@ -1090,6 +1100,11 @@ export class PamService {
         user: { select: { id: true, username: true, email: true } },
         betAndGetCampaign: { select: { name: true, rewardType: true, rewardAmountCents: true, rewardPercent: true, rewardCapCents: true } },
         depositCampaignRedemption: { include: { depositCampaign: { select: { name: true } } } },
+        registerCampaignRedemption: {
+          include: {
+            registerCampaign: { select: { name: true, rewardType: true, rewardAmountCents: true, rewardPercent: true, rewardCapCents: true } },
+          },
+        },
       },
       orderBy: { createdAt: 'asc' },
     });
@@ -1145,6 +1160,15 @@ export class PamService {
         rewardCapCents: number | null;
       } | null;
       depositCampaignRedemption: { depositCampaign: { name: string }; rewardAmountCents: number } | null;
+      registerCampaignRedemption: {
+        registerCampaign: {
+          name: string;
+          rewardType: 'FIXED' | 'PERCENTAGE';
+          rewardAmountCents: number | null;
+          rewardPercent: number | null;
+          rewardCapCents: number | null;
+        };
+      } | null;
     },
   >(bets: T[]) {
     const betIds = bets.map((bet) => bet.id);
@@ -1157,7 +1181,7 @@ export class PamService {
     const rollbackRewardByBetId = new Map(rollbackGrants.map((grant) => [grant.sourceBetId, grant.amountCents]));
 
     return bets.map((bet) => {
-      const { betAndGetCampaign, depositCampaignRedemption, ...rest } = bet;
+      const { betAndGetCampaign, depositCampaignRedemption, registerCampaignRedemption, ...rest } = bet;
       return {
         ...rest,
         betAndGetCampaignName: betAndGetCampaign?.name ?? null,
@@ -1166,6 +1190,10 @@ export class PamService {
           : null,
         depositCampaignName: depositCampaignRedemption?.depositCampaign.name ?? null,
         depositCampaignRewardCents: depositCampaignRedemption?.rewardAmountCents ?? null,
+        registerCampaignName: registerCampaignRedemption?.registerCampaign.name ?? null,
+        registerCampaignRewardCents: registerCampaignRedemption
+          ? calculateBetAndGetRewardCents(registerCampaignRedemption.registerCampaign, bet.stakeCents)
+          : null,
         accaRollbackRewardCents: rollbackRewardByBetId.get(bet.id) ?? null,
       };
     });
