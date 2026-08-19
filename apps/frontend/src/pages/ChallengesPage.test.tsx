@@ -99,6 +99,30 @@ describe('ChallengesPage', () => {
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
   });
 
+  it('only switches to a 2-column grid on a real desktop browser (mouse + hover), not mobile or tablet', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockReturnValue({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }),
+    );
+    stubFetch([
+      {
+        id: 'card-1',
+        mimeType: 'image/png',
+        title: 'Champions League Promo',
+        subtitle: 'Bet & get €10',
+        sortOrder: 0,
+        betAndGetCampaignId: 'campaign-1',
+        depositCampaignId: null,
+        hasImage: true,
+        status: 'ACTIVE',
+      },
+    ]);
+    renderPage();
+
+    const card = await screen.findByText('Champions League Promo');
+    expect(card.closest('.grid')).toHaveClass('grid-cols-2');
+  });
+
   it('shows an "Early ended" section for cards past their campaign endAt', async () => {
     stubFetch([
       {

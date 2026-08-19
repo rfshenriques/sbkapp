@@ -4,6 +4,9 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { useBrandStore } from '../features/brand/brandStore';
 import { PromoCardTile } from '../features/promo-cards/PromoCardTile';
 import { usePromoCards } from '../features/promo-cards/usePromoCards';
+import { cn } from '../lib/cn';
+import { DESKTOP_POINTER_QUERY } from '../lib/deviceTier';
+import { useMediaQuery } from '../lib/useMediaQuery';
 
 /**
  * Renders whatever CMS-managed promo cards the brand has set up (see the
@@ -16,6 +19,10 @@ export default function ChallengesPage() {
   const { data: promoCards, isPending } = usePromoCards();
   const brandId = useBrandStore((state) => state.brandId);
   const hasCards = Boolean(promoCards && promoCards.length > 0 && brandId);
+  // 2 columns only on a real desktop browser (mouse + hover) - mobile and
+  // tablet both stay single-column, same tier split as the rest of the app.
+  const isDesktopPointer = useMediaQuery(DESKTOP_POINTER_QUERY);
+  const gridClassName = cn('grid grid-cols-1 gap-4', isDesktopPointer && 'grid-cols-2');
 
   // No-image cards (a campaign that went live before staff uploaded
   // artwork - see PromoCardTile) get their own short full-width row rather
@@ -35,7 +42,7 @@ export default function ChallengesPage() {
       </div>
 
       {isPending ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2" aria-label="Loading challenges" role="status">
+        <div className={gridClassName} aria-label="Loading challenges" role="status">
           <Skeleton className="h-48 w-full" />
           <Skeleton className="h-48 w-full" />
         </div>
@@ -46,7 +53,7 @@ export default function ChallengesPage() {
           ))}
 
           {activeImaged.length > 0 && (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className={gridClassName}>
               {activeImaged.map((card) => (
                 <PromoCardTile key={card.id} card={card} brandId={brandId!} className="h-48" />
               ))}
@@ -56,7 +63,7 @@ export default function ChallengesPage() {
           {earlyEnded.length > 0 && (
             <div>
               <p className="mb-3 text-xs font-bold tracking-wide text-text-muted uppercase">Early ended</p>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className={gridClassName}>
                 {earlyEnded.map((card) => (
                   <PromoCardTile
                     key={card.id}
