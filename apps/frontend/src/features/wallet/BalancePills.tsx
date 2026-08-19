@@ -21,6 +21,16 @@ interface BalancePillsProps {
   freebetsTargetId?: string;
   /** Shows a small green gift-badge in the cash pill's corner when this player has an eligible, unredeemed deposit campaign - header-only, same as onAddFunds. */
   hasEligibleDepositCampaign?: boolean;
+  /**
+   * Omits the wallet glyph from the cash pill - header-only. The header
+   * packs this pill next to the account menu button in a fairly tight
+   * space; once a balance reaches cents-heavy values (or the "+" add-funds
+   * button and deposit-bonus badge are both present) the icon was the
+   * first thing to go to keep the account menu from getting crowded off
+   * to the side. The bet slip and account menu's own pills have more room
+   * and keep it.
+   */
+  hideCashIcon?: boolean;
 }
 
 /**
@@ -39,6 +49,7 @@ export function BalancePills({
   onAddFunds,
   freebetsTargetId,
   hasEligibleDepositCampaign,
+  hideCashIcon,
 }: BalancePillsProps) {
   const flyActive = useFreebetFlyStore((state) => state.active);
   const flyTargetId = useFreebetFlyStore((state) => state.targetId);
@@ -63,7 +74,7 @@ export function BalancePills({
             <GiftBadgeIcon width={16} height={16} />
           </span>
         )}
-        <WalletIcon width={14} height={14} className="shrink-0" />
+        {!hideCashIcon && <WalletIcon width={14} height={14} className="shrink-0" />}
         <span className="font-semibold text-text-primary">{formatCents(cashCents)}</span>
         {onAddFunds && (
           <button

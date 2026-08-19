@@ -147,6 +147,10 @@ export function AppShell() {
     : 0;
   const navigate = useNavigate();
   const location = useLocation();
+  // Quicklinks (SecondaryNavBar) are a homepage-specific shortcut strip,
+  // not a global secondary nav every page carries - see both of its
+  // render sites below.
+  const isHomepage = location.pathname === '/';
   const touchStartRef = useRef<{ x: number; y: number; skip: boolean } | null>(null);
 
   // The header is position:fixed (see below) so it never scrolls away, even
@@ -466,6 +470,7 @@ export function AppShell() {
                     onAddFunds={openDepositModal}
                     freebetsTargetId={HEADER_FREEBETS_BALANCE_ID}
                     hasEligibleDepositCampaign={Boolean(eligibleDepositCampaign)}
+                    hideCashIcon
                   />
                 )}
                 <AccountMenu />
@@ -484,15 +489,17 @@ export function AppShell() {
             )}
           </div>
         </div>
-        {/* Mobile/tablet only - full width, part of the fixed header like
-            everything else at this tier (no persistent side columns to
-            avoid pushing down, see below). Desktop renders this same
+        {/* Homepage only - quicklinks are a homepage-specific shortcut
+            strip, not a global secondary nav every page should carry.
+            Mobile/tablet only here - full width, part of the fixed header
+            like everything else at this tier (no persistent side columns
+            to avoid pushing down, see below). Desktop renders this same
             component inside <main> instead (see below) so it only pushes
             the center content column down, leaving the sidebar and bet
             slip columns pinned at the header's own height rather than
             shifting every column down by however tall the quicklinks row
             happens to be. */}
-        {!isDesktopPointer && (
+        {isHomepage && !isDesktopPointer && (
           <div className="mx-auto max-w-[1680px] px-4">
             <SecondaryNavBar />
           </div>
@@ -538,13 +545,14 @@ export function AppShell() {
         )}
 
         <main className="min-w-0 flex-1">
-          {/* Desktop only - see the header's own comment above for why this
-              renders here instead of inside the fixed header on this tier:
-              it pushes just this column down by its own height, while the
-              sidebar/bet-slip columns stay pinned at the shorter header's
-              height (sticky top: headerHeight). Mobile/tablet render the
-              same component inside the header instead. */}
-          {isDesktopPointer && <SecondaryNavBar />}
+          {/* Homepage + desktop only - see the header's own comment above
+              for both the homepage-only and the desktop-only-here halves
+              of this gate: it pushes just this column down by its own
+              height, while the sidebar/bet-slip columns stay pinned at the
+              shorter header's height (sticky top: headerHeight).
+              Mobile/tablet render the same component inside the header
+              instead. */}
+          {isHomepage && isDesktopPointer && <SecondaryNavBar />}
           <LiveMatchesStrip />
           <Suspense fallback={<PageSkeleton />}>
             <div key={location.pathname} className="fade-in-up">

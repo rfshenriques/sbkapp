@@ -570,6 +570,64 @@ describe('AppShell', () => {
     });
   });
 
+  describe('quicklinks (SecondaryNavBar)', () => {
+    function stubBrandAndTopNav() {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: RequestInfo | URL) => {
+          const url = typeof input === 'string' ? input : input.toString();
+          if (url.includes('/public/brands/by-domain/')) {
+            return new Response(
+              JSON.stringify({
+                id: 'brand-1',
+                name: 'Sportsbook',
+                logoLightUrl: null,
+                logoDarkUrl: null,
+                shareLogoLightUrl: null,
+                shareLogoDarkUrl: null,
+                appIconUrl: null,
+                themeMode: 'DARK',
+                backgroundColor: null,
+                buttonColor: null,
+                highlightColor: null,
+                filterColor: null,
+                textColor: null,
+                supportHelplineText: null,
+              }),
+              { status: 200 },
+            );
+          }
+          if (url === '/backend/public/top-nav/brand-1') {
+            return new Response(
+              JSON.stringify([
+                { id: '1', kind: 'TODAY', label: "Today's matches", icon: 'STAR', sport: null, competition: null, matchId: null, sortOrder: 0 },
+              ]),
+              { status: 200 },
+            );
+          }
+          return new Response(null, { status: 404 });
+        }),
+      );
+    }
+
+    it('shows quicklinks on the homepage', async () => {
+      stubBrandAndTopNav();
+
+      renderShell(['/']);
+
+      expect(await screen.findByRole('navigation', { name: 'Quick links' })).toBeInTheDocument();
+    });
+
+    it('does not show quicklinks on a non-homepage route', async () => {
+      stubBrandAndTopNav();
+
+      renderShell(['/live']);
+
+      await screen.findByText('Live page content');
+      expect(screen.queryByRole('navigation', { name: 'Quick links' })).not.toBeInTheDocument();
+    });
+  });
+
   describe('tablet tier (touch/coarse-pointer device, e.g. a real tablet - never a desktop browser regardless of its viewport width)', () => {
     /** Overrides the file-level stubDesktopPointer() from beforeEach - a coarse/no-hover pointer, at least tablet-sized in both dimensions. */
     function stubTabletPointer() {

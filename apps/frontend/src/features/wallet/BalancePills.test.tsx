@@ -22,4 +22,16 @@ describe('BalancePills', () => {
 
     expect(screen.queryByTitle('Freebets balance')).not.toBeInTheDocument();
   });
+
+  it('shows the wallet glyph in the cash pill by default', () => {
+    render(<BalancePills cashCents={1_000} freebetsCents={0} />);
+
+    expect(screen.getByTitle('Cash balance (paper)').querySelector('svg')).toBeInTheDocument();
+  });
+
+  it('omits the wallet glyph when hideCashIcon is set - the header uses this so a large balance never crowds the account menu button to the side', () => {
+    render(<BalancePills cashCents={1_000} freebetsCents={0} hideCashIcon />);
+
+    expect(screen.getByTitle('Cash balance (paper)').querySelector('svg')).not.toBeInTheDocument();
+  });
 });
