@@ -4,6 +4,7 @@ import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAuthStore } from '../features/auth/authStore';
+import { AT_LEAST_TABLET_DIMENSIONS_QUERY } from '../lib/deviceTier';
 import { useAuthModalStore } from '../features/auth/authModalStore';
 import { useBetPlacedModalStore } from '../features/bet-slip/betPlacedModalStore';
 import { useBetSlipSheetStore } from '../features/bet-slip/betSlipSheetStore';
@@ -122,6 +123,7 @@ describe('AppShell', () => {
   });
 
   it('does not show the mobile floating bar when the slip is empty', () => {
+    stubMobileWidth();
     renderShell();
 
     expect(screen.queryByText('Single')).not.toBeInTheDocument();
@@ -129,6 +131,7 @@ describe('AppShell', () => {
   });
 
   it('the mobile floating bar reads "Single" with that one odd aligned to the right for exactly one selection', async () => {
+    stubMobileWidth();
     useBetSlipStore.setState({ selections: [homeSelection] });
     renderShell();
 
@@ -138,6 +141,7 @@ describe('AppShell', () => {
   });
 
   it('the mobile floating bar reads "Accumulator" with the combined odds for 2+ selections', async () => {
+    stubMobileWidth();
     useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
     renderShell();
 
@@ -148,6 +152,7 @@ describe('AppShell', () => {
   });
 
   it('the mobile floating bar reads "Singles" with a slash for two selections from the same event', async () => {
+    stubMobileWidth();
     const totalGoalsSelection = {
       ...homeSelection,
       marketId: 'total-goals',
@@ -165,6 +170,7 @@ describe('AppShell', () => {
   });
 
   it('clicking the mobile floating bar opens the bet slip modal', async () => {
+    stubMobileWidth();
     useBetSlipStore.setState({ selections: [homeSelection] });
     renderShell();
 
@@ -175,6 +181,7 @@ describe('AppShell', () => {
   });
 
   it('auto-closes the mobile bet slip sheet once the last selection is removed', async () => {
+    stubMobileWidth();
     useBetSlipStore.setState({ selections: [homeSelection] });
     renderShell();
 
@@ -187,6 +194,7 @@ describe('AppShell', () => {
   });
 
   it('auto-closes the mobile bet slip sheet once a bet is placed, so the confirmation is not stacked on top of it', async () => {
+    stubMobileWidth();
     useBetSlipStore.setState({ selections: [homeSelection] });
     renderShell();
 
@@ -393,6 +401,7 @@ describe('AppShell', () => {
     }
 
     it('shows a gift badge on the mobile floating pill when the current bet qualifies for a campaign', async () => {
+      stubMobileWidth();
       useBetSlipStore.setState({ selections: [homeSelection], stake: '10.00', singleStakes: {} });
       stubBrandFetch((url, method) => {
         if (method === 'POST' && url === '/backend/public/campaign-preview/brand-1') {
@@ -411,12 +420,11 @@ describe('AppShell', () => {
 
       renderShell();
 
-      // Two floating-pill copies exist now (mobile and tablet-width, see
-      // AppShell) - either carries the badge identically.
       expect((await screen.findAllByTitle('This bet qualifies for a campaign reward')).length).toBeGreaterThan(0);
     });
 
     it('does not show a gift badge on the floating pill when the current bet qualifies for no campaign', async () => {
+      stubMobileWidth();
       useBetSlipStore.setState({ selections: [homeSelection], stake: '10.00', singleStakes: {} });
       stubBrandFetch((url, method) => {
         if (method === 'POST' && url === '/backend/public/campaign-preview/brand-1') {
@@ -486,12 +494,12 @@ describe('AppShell', () => {
   });
 
   describe('tablet tier (touch/coarse-pointer device, e.g. a real tablet - never a desktop browser regardless of its viewport width)', () => {
-    /** Overrides the file-level stubDesktopPointer() from beforeEach - a coarse/no-hover pointer, at least sm:-width. */
+    /** Overrides the file-level stubDesktopPointer() from beforeEach - a coarse/no-hover pointer, at least tablet-sized in both dimensions. */
     function stubTabletPointer() {
       vi.stubGlobal(
         'matchMedia',
         vi.fn().mockImplementation((query: string) => ({
-          matches: query === '(min-width: 640px)',
+          matches: query === AT_LEAST_TABLET_DIMENSIONS_QUERY,
           addEventListener: vi.fn(),
           removeEventListener: vi.fn(),
         })),
@@ -565,5 +573,23 @@ describe('AppShell', () => {
 
       expect(screen.queryByRole('button', { name: 'Open bet slip' })).not.toBeInTheDocument();
     });
+  });
+
+  it('never shows the tablet hamburger on a phone in landscape - wide enough to pass a plain min-width check, but its short (height) side is still phone-sized', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation((query: string) => ({
+        // A phone in landscape reports a wide width but a short height -
+        // AT_LEAST_TABLET_DIMENSIONS_QUERY requires both, so it never
+        // matches here even though a plain "(min-width: 640px)" would.
+        matches: query === '(min-width: 640px)',
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
+    renderShell();
+
+    await screen.findByRole('navigation', { name: 'App navigation' });
+    expect(screen.queryByRole('button', { name: 'Open sports navigation' })).not.toBeInTheDocument();
   });
 });

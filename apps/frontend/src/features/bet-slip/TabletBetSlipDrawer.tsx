@@ -1,4 +1,5 @@
 import { CloseIcon } from '../../components/ui/CloseIcon';
+import { AT_LEAST_TABLET_DIMENSIONS_QUERY, DESKTOP_POINTER_QUERY } from '../../lib/deviceTier';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { useScrollLock } from '../../lib/useScrollLock';
 import { BetSlipPanel } from './BetSlipPanel';
@@ -14,9 +15,12 @@ export interface TabletBetSlipDrawerProps {
  * easily exceed 1024px CSS width and get mistaken for a desktop browser
  * window by a pure width check - never gets the persistent desktop column
  * (that's real-mouse-and-hover devices only, see AppShell's isDesktopPointer),
- * but there's more room than a phone, so instead of mobile's full-height
- * bottom sheet this floats over the content anchored to the right edge,
- * opened/closed via the same betSlipSheetStore the mobile sheet uses.
+ * but there's more room than a phone (checked via
+ * AT_LEAST_TABLET_DIMENSIONS_QUERY, not a plain min-width - a phone in
+ * landscape can itself exceed 640px CSS width and get mistaken for a
+ * tablet by width alone), so instead of mobile's full-height bottom sheet
+ * this floats over the content anchored to the right edge, opened/closed
+ * via the same betSlipSheetStore the mobile sheet uses.
  *
  * Renders nothing outside that tier - not just CSS-hidden - rather than a
  * bare Tailwind class on the root: the mobile BottomSheet is mounted
@@ -27,8 +31,8 @@ export interface TabletBetSlipDrawerProps {
  * keeping a redundant off-screen BetSlipPanel instance around.
  */
 export function TabletBetSlipDrawer({ onClose, closeLabel }: TabletBetSlipDrawerProps) {
-  const isAtLeastTabletWidth = useMediaQuery('(min-width: 640px)');
-  const isDesktopPointer = useMediaQuery('(hover: hover) and (pointer: fine)');
+  const isAtLeastTabletWidth = useMediaQuery(AT_LEAST_TABLET_DIMENSIONS_QUERY);
+  const isDesktopPointer = useMediaQuery(DESKTOP_POINTER_QUERY);
   const isTabletTier = isAtLeastTabletWidth && !isDesktopPointer;
   useScrollLock(isTabletTier);
 

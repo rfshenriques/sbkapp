@@ -43,6 +43,7 @@ import { SecondaryNavBar } from '../features/navigation/SecondaryNavBar';
 import { Sidebar } from '../features/navigation/Sidebar';
 import { FireIcon, GiftBadgeIcon, LiveIcon, MenuIcon, MyBetsIcon, SearchIcon, TrophyIcon } from '../components/ui/NavIcons';
 import { cn } from '../lib/cn';
+import { AT_LEAST_TABLET_DIMENSIONS_QUERY, DESKTOP_POINTER_QUERY } from '../lib/deviceTier';
 import { useMediaQuery } from '../lib/useMediaQuery';
 import { useScrollLock } from '../lib/useScrollLock';
 import LoginPage from '../pages/LoginPage';
@@ -77,16 +78,21 @@ export function AppShell() {
   // exceeds 1024px CSS width and gets mistaken for a desktop window. Only
   // isDesktopPointer devices get the persistent sidebar/bet-slip columns;
   // every touch device (any width) gets the tablet-tier drawers instead,
-  // narrowed further to phone-vs-tablet by the existing sm: width floor
-  // (see the tablet nav drawer and TabletBetSlipDrawer below).
-  const isDesktopPointer = useMediaQuery('(hover: hover) and (pointer: fine)');
+  // narrowed further to phone-vs-tablet by isAtLeastTabletWidth below (see
+  // the tablet nav drawer and TabletBetSlipDrawer).
+  const isDesktopPointer = useMediaQuery(DESKTOP_POINTER_QUERY);
   // Distinguishes the mobile top-drawer's isNavOpen content from the tablet
-  // side-drawer's below - both are keyed off the same isNavOpen boolean and
-  // only differ by CSS breakpoint classes (sm:hidden vs hidden sm:block),
-  // which jsdom doesn't evaluate at all in tests, so without this JS check
-  // both would mount their own <Sidebar> (and its own search box) at once
-  // whenever isNavOpen is true, in any test.
-  const isAtLeastTabletWidth = useMediaQuery('(min-width: 640px)');
+  // side-drawer's below, and gates the tablet-only header hamburger and
+  // floating bet-slip trigger - a plain min-width check isn't enough here,
+  // since a phone in landscape can exceed even 1024px CSS width (see
+  // AT_LEAST_TABLET_DIMENSIONS_QUERY's own doc comment for why min-width
+  // AND min-height together is what actually holds regardless of
+  // orientation). Also incidentally what keeps the mobile and tablet
+  // drawers from both mounting their own <Sidebar> (and its own search box)
+  // at once in tests, where jsdom doesn't evaluate the sm:hidden/hidden
+  // sm:block CSS breakpoint classes those two blocks are additionally
+  // marked with.
+  const isAtLeastTabletWidth = useMediaQuery(AT_LEAST_TABLET_DIMENSIONS_QUERY);
   const betPlacedSummary = useBetPlacedModalStore((state) => state.summary);
   // Placing a bet opens BetPlacedModal on top of everything else - the
   // mobile bet slip bottom sheet needs to close itself first, otherwise the
@@ -345,14 +351,17 @@ export function AppShell() {
                 instead of the persistent desktop sidebar, so it needs its
                 own trigger; a real desktop never shows this (isDesktopPointer),
                 and mobile has its own bottom-nav Search tab for the same
-                drawer content instead. */}
-            {!isDesktopPointer && (
+                drawer content instead. Both isDesktopPointer and
+                isAtLeastTabletWidth are checked (not just a sm: CSS class) -
+                a phone in landscape can exceed even a 1024px CSS width, so
+                width alone isn't enough to exclude it. */}
+            {!isDesktopPointer && isAtLeastTabletWidth && (
               <button
                 type="button"
                 aria-label="Open sports navigation"
                 aria-expanded={isNavOpen}
                 onClick={() => setIsNavOpen((open) => !open)}
-                className="icon-toggle hidden shrink-0 sm:flex"
+                className="icon-toggle flex shrink-0"
               >
                 <MenuIcon width={18} height={18} />
               </button>
@@ -543,10 +552,16 @@ export function AppShell() {
 
       <Footer />
 
-      {/* Hidden while the sports nav drawer is open - it's z-30 (above the
-          drawer's z-20, so the bottom nav stays reachable above it) and was
-          poking a rounded corner up over the drawer's own bottom edge. */}
-      {selections.length > 0 && !isNavOpen && (
+      {/* Mobile-tier only - !isAtLeastTabletWidth, not a plain sm:hidden
+          CSS class, since a phone in landscape can exceed 640px CSS width
+          (see AT_LEAST_TABLET_DIMENSIONS_QUERY's own doc comment) and would
+          otherwise lose this without the tablet-tier trigger below picking
+          it up either (that one correctly excludes a landscape phone too,
+          via the same check). Hidden while the sports nav drawer is open -
+          it's z-30 (above the drawer's z-20, so the bottom nav stays
+          reachable above it) and was poking a rounded corner up over the
+          drawer's own bottom edge. */}
+      {selections.length > 0 && !isAtLeastTabletWidth && !isNavOpen && (
         <button
           type="button"
           onClick={openSlip}
@@ -556,7 +571,7 @@ export function AppShell() {
           // home-indicator safe area, and a fixed rem value drifts the
           // moment the nav's real height doesn't match it.
           style={{ bottom: bottomNavHeight }}
-          className="btn-primary cta-spring-in fixed inset-x-3 z-30 flex items-center justify-between gap-2.5 rounded-2xl px-4 py-3 text-left shadow-lg sm:hidden"
+          className="btn-primary cta-spring-in fixed inset-x-3 z-30 flex items-center justify-between gap-2.5 rounded-2xl px-4 py-3 text-left shadow-lg"
         >
           {hasQualifyingCampaign && (
             <span
@@ -584,20 +599,21 @@ export function AppShell() {
         </button>
       )}
 
-      {/* Tablet-tier only (touch device, sm:+ width - see the persistent
-          bet-slip aside above and isDesktopPointer) - there's no bottom nav
-          at this tier to anchor above (that's mobile-only, sm:hidden below),
-          so this floats free in the corner instead of spanning the width
-          like the mobile pill above. No lg:hidden cap - a wide landscape
-          tablet still gets this floating trigger, never the persistent
-          desktop column. Hidden while the sports nav drawer is open, same
-          reasoning as the mobile pill above. */}
-      {selections.length > 0 && !isDesktopPointer && !isNavOpen && (
+      {/* Tablet-tier only (touch device, at least tablet-sized - see the
+          persistent bet-slip aside above, isDesktopPointer, and
+          isAtLeastTabletWidth) - there's no bottom nav at this tier to
+          anchor above (that's mobile-only, sm:hidden below), so this floats
+          free in the corner instead of spanning the width like the mobile
+          pill above. No upper width cap - a wide landscape tablet still
+          gets this floating trigger, never the persistent desktop column.
+          Hidden while the sports nav drawer is open, same reasoning as the
+          mobile pill above. */}
+      {selections.length > 0 && !isDesktopPointer && isAtLeastTabletWidth && !isNavOpen && (
         <button
           type="button"
           onClick={openSlip}
           aria-label="Open bet slip"
-          className="btn-primary cta-spring-in fixed right-4 bottom-4 z-30 hidden items-center gap-2 rounded-full px-4 py-3 text-left shadow-lg sm:flex"
+          className="btn-primary cta-spring-in fixed right-4 bottom-4 z-30 flex items-center gap-2 rounded-full px-4 py-3 text-left shadow-lg"
         >
           {hasQualifyingCampaign && (
             <span
@@ -615,10 +631,19 @@ export function AppShell() {
       )}
 
       {/* Same GPU-layer fix as the header above - the fixed bottom nav shares
-          the identical backdrop-blur + fixed-positioning combination. */}
+          the identical backdrop-blur + fixed-positioning combination.
+          Mobile-tier only - hidden via isAtLeastTabletWidth (not a plain
+          sm:hidden class), since a phone in landscape can exceed 640px CSS
+          width (see AT_LEAST_TABLET_DIMENSIONS_QUERY's own doc comment) and
+          would otherwise lose all bottom navigation without the
+          tablet-tier hamburger picking it up either (that one correctly
+          excludes a landscape phone too, via the same check). */}
       <nav
         ref={bottomNavRef}
-        className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 transform-gpu border-t border-border bg-background/95 px-1 py-1 backdrop-blur will-change-transform sm:hidden"
+        className={cn(
+          'fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 transform-gpu border-t border-border bg-background/95 px-1 py-1 backdrop-blur will-change-transform',
+          isAtLeastTabletWidth && 'hidden',
+        )}
         style={{ paddingBottom: 'calc(0.25rem + env(safe-area-inset-bottom))' }}
         aria-label="App navigation"
       >
@@ -674,14 +699,16 @@ export function AppShell() {
         </NavLink>
       </nav>
 
-      {/* Mobile-only: the same bottom-sheet presentation as login/register
-          (see BottomSheet) rather than a full-height side drawer - sm:hidden
-          keeps it from ever coexisting with the persistent desktop aside
-          above. bodyClassName is overridden to plain padding (no scroll of
+      {/* Mobile-tier only: the same bottom-sheet presentation as
+          login/register (see BottomSheet) rather than a full-height side
+          drawer - !isAtLeastTabletWidth (not a plain sm:hidden class, same
+          landscape-phone reasoning as elsewhere in this file) keeps it from
+          ever coexisting with the persistent desktop aside or the tablet
+          drawer. bodyClassName is overridden to plain padding (no scroll of
           its own) since BetSlipPanel already manages its own scrollable
           region and fixed footer internally. */}
-      {isSlipOpen && (
-        <div className="sm:hidden">
+      {isSlipOpen && !isAtLeastTabletWidth && (
+        <div>
           <BottomSheet
             title="Bet Slip"
             onClose={closeSlip}

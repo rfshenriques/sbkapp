@@ -3,14 +3,15 @@ import { render, screen } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AT_LEAST_TABLET_DIMENSIONS_QUERY } from '../../lib/deviceTier';
 import { TabletBetSlipDrawer } from './TabletBetSlipDrawer';
 
-/** Real tablet tier: at least 640px wide, but a coarse/no-hover (touch) pointer, never a real mouse. */
+/** Real tablet tier: at least tablet-sized in both dimensions, but a coarse/no-hover (touch) pointer, never a real mouse. */
 function stubTabletTier() {
   vi.stubGlobal(
     'matchMedia',
     vi.fn().mockImplementation((query: string) => ({
-      matches: query === '(min-width: 640px)',
+      matches: query === AT_LEAST_TABLET_DIMENSIONS_QUERY,
       addEventListener: vi.fn(),
       removeEventListener: vi.fn(),
     })),
@@ -61,6 +62,23 @@ describe('TabletBetSlipDrawer', () => {
 
   it('renders nothing on a real desktop browser, even a wide/landscape one - hover+fine-pointer wins over width', () => {
     stubDesktopPointer();
+    const { container } = renderDrawer();
+
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('renders nothing on a phone in landscape - wide enough to pass a plain min-width check, but its short (height) side is still phone-sized', () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation((query: string) => ({
+        // A phone in landscape reports a wide width but a short height -
+        // AT_LEAST_TABLET_DIMENSIONS_QUERY requires both, so it never
+        // matches here even though a plain "(min-width: 640px)" would.
+        matches: query === '(min-width: 640px)',
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      })),
+    );
     const { container } = renderDrawer();
 
     expect(container).toBeEmptyDOMElement();
