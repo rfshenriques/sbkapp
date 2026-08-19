@@ -461,6 +461,8 @@ interface SingleBetRowProps {
   /** undefined for a logged-out player - quick stakes are a logged-in, server-stored preference (see useBetSlipSettings). */
   quickStakes?: number[];
   onQuickStake: (amount: number) => void;
+  /** Docks a settings button into this row's own quick-stake row, right where the amounts it configures actually sit - same as the accumulator/lone-selection StakeField below. Undefined for a logged-out player. */
+  onOpenSettings?: () => void;
 }
 
 /**
@@ -479,6 +481,7 @@ function SingleBetRow({
   isFreebetMode,
   quickStakes,
   onQuickStake,
+  onOpenSettings,
 }: SingleBetRowProps) {
   const removeSelection = useBetSlipStore((state) => state.removeSelection);
   const stakeId = useId();
@@ -524,6 +527,7 @@ function SingleBetRow({
             hideOdds
             quickStakes={quickStakes}
             onQuickStake={onQuickStake}
+            onOpenSettings={onOpenSettings}
           />
           <StakeLimitAlert stakeCents={Math.round(Number(stake) * 100)} preview={stakeLimitPreview} />
           <CampaignQualificationNote preview={campaignPreview} />
@@ -1041,6 +1045,7 @@ export function BetSlipPanel({
                 isFreebetMode={isFreebetMode}
                 quickStakes={isAuthenticated ? quickStakes : undefined}
                 onQuickStake={(amount) => handleQuickStake(amount, (value) => setSingleStake(selection, value))}
+                onOpenSettings={isAuthenticated ? () => setIsSettingsOpen(true) : undefined}
               />
             ))}
           </div>
@@ -1227,32 +1232,9 @@ export function BetSlipPanel({
     );
   }
 
-  // The settings button normally docks beside the "primary" StakeField's
-  // quick-stake row instead (see onOpenSettings above) - accumulator, or a
-  // lone single selection. Neither renders when the slip is empty or when
-  // 2+ singles each get their own per-row stake field with no single
-  // "primary" one to dock onto, so this stays as the fallback entry point
-  // for those cases rather than disappearing. Never for a logged-out
-  // player either way - custom quick stakes and auto-update-odds are a
-  // server-stored, logged-in-only preference (see useBetSlipSettings).
-  const showTopSettingsButton =
-    isAuthenticated && !(tab === 'accumulator' && selections.length > 0) && !singleSelection;
-
   return (
     <div className="relative flex h-full min-h-0 flex-col">
       {isSettingsOpen && <BetSlipSettingsPanel onClose={() => setIsSettingsOpen(false)} />}
-      {showTopSettingsButton && (
-        <div className="mb-1 flex shrink-0 items-center justify-end">
-          <button
-            type="button"
-            aria-label="Bet slip settings"
-            onClick={() => setIsSettingsOpen(true)}
-            className="rounded-xl p-1.5 text-text-muted transition-colors hover:bg-surface-2 hover:text-text-primary"
-          >
-            <GearIcon width={17} height={17} />
-          </button>
-        </div>
-      )}
       {isAuthenticated && wallet && (!hideBalances || (hasFreebets && selections.length > 0)) && (
         <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
           {!hideBalances && (

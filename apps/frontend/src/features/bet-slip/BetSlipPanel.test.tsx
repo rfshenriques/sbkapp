@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -1203,9 +1203,40 @@ describe('BetSlipPanel', () => {
       expect(screen.getByLabelText('Stake')).toBeInTheDocument();
     });
 
+    it('never shows the settings gear when the bet slip is empty', () => {
+      useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+      stubWallet(10000);
+      renderPanel();
+
+      expect(screen.queryByRole('button', { name: 'Bet slip settings' })).not.toBeInTheDocument();
+    });
+
+    it('docks a settings gear into every row when there are 2+ singles, each aligned with its own stake box', async () => {
+      useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
+      stubWallet(10000);
+      useBetSlipStore.setState({ selections: [homeSelection, awaySelection] });
+      renderPanel();
+      await userEvent.click(await screen.findByRole('tab', { name: 'Singles' }));
+
+      const gears = await screen.findAllByRole('button', { name: 'Bet slip settings' });
+      expect(gears).toHaveLength(2);
+      // Each gear sits inside the same selection card as its own stake
+      // input, not off in a separate standalone row somewhere else in the
+      // panel.
+      gears.forEach((gear) => {
+        const card = gear.closest('.bg-surface-2');
+        expect(card).not.toBeNull();
+        expect(within(card as HTMLElement).getByLabelText('Stake')).toBeInTheDocument();
+      });
+
+      await userEvent.click(gears[0]!);
+      expect(screen.getByText('Bet slip settings')).toBeInTheDocument();
+    });
+
     it('opens the settings panel from the gear icon and closes it again', async () => {
       useAuthStore.setState({ accessToken: 'header.payload.signature', user: null, isInitialized: true });
       stubWallet(10000);
+      useBetSlipStore.setState({ selections: [homeSelection] });
       renderPanel();
 
       expect(screen.queryByText('Bet slip settings')).not.toBeInTheDocument();
