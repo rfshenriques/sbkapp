@@ -163,18 +163,27 @@ describe('SecondaryNavBar', () => {
     renderNav();
 
     const links = await screen.findAllByRole('link');
-    expect(links.map((link) => link.getAttribute('aria-label'))).toEqual(["Today's matches", 'Tennis']);
+    expect(links.map((link) => link.textContent)).toEqual(["Today's matches", 'Tennis']);
   });
 
-  it('renders an icon, not the label, as visible content', async () => {
+  it("renders each item's label as visible text next to its icon, not just as a hover-only title a touch device never shows", async () => {
     stubFetch([
       { id: '1', kind: 'SPORT', label: 'Football', icon: 'TROPHY', sport: 'Football', competition: null, matchId: null, sortOrder: 0 },
     ]);
     renderNav();
 
     const link = await screen.findByRole('link', { name: 'Football' });
-    expect(link).not.toHaveTextContent('Football');
+    expect(link).toHaveTextContent('Football');
     expect(link.querySelector('svg, img')).toBeInTheDocument();
+  });
+
+  it("shows a staff-set custom label instead of the item's default name", async () => {
+    stubFetch([
+      { id: '1', kind: 'SPORT', label: 'Footy', icon: 'TROPHY', sport: 'Football', competition: null, matchId: null, sortOrder: 0 },
+    ]);
+    renderNav();
+
+    expect(await screen.findByRole('link', { name: 'Footy' })).toBeInTheDocument();
   });
 
   it("renders a SPORT item's own sport icon instead of its staff-picked generic icon", async () => {

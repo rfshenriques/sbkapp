@@ -73,13 +73,16 @@ function resolvedSport(item: TopNavItem, matches: Match[] | undefined, competiti
  * inside the header, which already handles a variable-height second row via
  * its own ResizeObserver.
  *
- * Icon-only, not a text label. A SPORT/COMPETITION/MATCH entry always shows
- * its actual sport's icon (see resolvedSport/SportIcon) - a football
- * quicklink looks like football, not a staff-picked glyph. TODAY/TOMORROW
- * have no sport to derive from, so those use a staff-picked icon from a
- * fixed, consistently-designed generic set instead (see TopNavIcon). Reuses
- * .icon-toggle, the same circular pill the kickoff-time filter uses, rather
- * than a new one-off shape.
+ * Icon + label pill (reuses .tab, the same primitive Sidebar's suggested-
+ * sport chips use), not an icon-only glyph - each item's label (either the
+ * kind's own default name, or the staff-set custom name from the
+ * backoffice's "Display label" field) needs to actually be visible to a
+ * player, not just present as a hover-only title attribute a touch device
+ * never shows. A SPORT/COMPETITION/MATCH entry's icon always reflects its
+ * actual sport (see resolvedSport/SportIcon) - a football quicklink looks
+ * like football, not a staff-picked glyph. TODAY/TOMORROW have no sport to
+ * derive from, so those use a staff-picked icon from a fixed, consistently-
+ * designed generic set instead (see TopNavIcon).
  */
 export function SecondaryNavBar() {
   const { data: items } = useTopNavItems();
@@ -100,11 +103,11 @@ export function SecondaryNavBar() {
           <Link
             key={item.id}
             to={hrefForItem(item, competitionSports)}
-            className="icon-toggle shrink-0"
+            className="tab shrink-0"
             aria-label={item.label}
-            title={item.label}
           >
             {sport ? <SportIcon sport={sport} size={16} /> : <TopNavIcon icon={item.icon} width={16} height={16} />}
+            {item.label}
           </Link>
         );
       })}

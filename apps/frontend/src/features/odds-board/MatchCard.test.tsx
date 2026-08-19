@@ -66,8 +66,14 @@ describe('MatchCard', () => {
     renderMatchCard(baseMatch);
 
     const buttons = screen.getAllByRole('button');
+    // Every button reserves the boosted layout's 2-line height (an
+    // invisible placeholder line duplicating the price) so odds buttons
+    // are a uniform size across a list regardless of which ones happen to
+    // be boosted right now (see MarketSelections' reserveBoostSpace) - the
+    // placeholder's text is still part of textContent even though it's
+    // visually hidden.
     const texts = buttons.map((button) => button.textContent);
-    expect(texts).toEqual(['Home2.10', 'Draw3.40', 'Away3.20']);
+    expect(texts).toEqual(['Home2.102.10', 'Draw3.403.40', 'Away3.203.20']);
   });
 
   it('renders both team names stacked, with no score, for a pre-match fixture', () => {

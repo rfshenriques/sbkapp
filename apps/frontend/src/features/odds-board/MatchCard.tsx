@@ -125,6 +125,7 @@ export function MatchCard({ match, style, animate = true }: MatchCardProps) {
                 competition={match.competition}
                 market={matchResult}
                 variant="inline"
+                reserveBoostSpace
               />
             </div>
             {/* Same navigation as the rest of the card - a visual affordance
