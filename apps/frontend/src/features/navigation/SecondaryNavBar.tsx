@@ -5,9 +5,59 @@ import { CountryFlag } from '../../components/ui/CountryFlag';
 import { SportIcon } from '../../components/ui/SportIcon';
 import { TopNavIcon } from '../../components/ui/TopNavIcon';
 import type { TopNavItem } from '../../lib/backendApi';
+import { useLeaderboardCampaigns } from '../leaderboards/useLeaderboardCampaigns';
+import { matchDateBucket } from '../../lib/matchDateBucket';
+import { useBoosts } from '../odds-board/useBoosts';
 import { useMatches } from '../odds-board/useMatches';
+import { useSpecials } from '../odds-board/useSpecials';
 import { competitionCountryMap, competitionSportMap } from './buildSportTree';
 import { useTopNavItems } from './useTopNavItems';
+
+interface QuicklinkAvailability {
+  matches: Match[] | undefined;
+  boosts: unknown[] | undefined;
+  specials: unknown[] | undefined;
+  leaderboardCampaignIds: Set<string> | undefined;
+}
+
+/**
+ * Whether this quicklink actually has something to land on right now - a
+ * competition with no games today, a Today/Tomorrow with nothing kicking
+ * off, or a Boosts/Specials/Leaderboard link with nothing currently active
+ * is a dead end for the player, not a real shortcut. While the relevant
+ * data is still loading (undefined), the item is shown optimistically
+ * rather than flashing away and back once the request resolves - only a
+ * definitively-empty result hides it. CHALLENGE has no player-facing "list
+ * every active Bet & Get campaign" endpoint to check against (campaigns
+ * are only ever resolved per-match/per-bet, see CampaignContextBanner), so
+ * it's always shown, same as before this filtering existed.
+ */
+function hasContent(item: TopNavItem, availability: QuicklinkAvailability): boolean {
+  switch (item.kind) {
+    case 'SPORT':
+      return !availability.matches || availability.matches.some((match) => match.sport === item.sport);
+    case 'COMPETITION':
+      return !availability.matches || availability.matches.some((match) => match.competition === item.competition);
+    case 'MATCH':
+      return !availability.matches || availability.matches.some((match) => match.id === item.matchId);
+    case 'TODAY':
+      return (
+        !availability.matches || availability.matches.some((match) => matchDateBucket(match) === 'today')
+      );
+    case 'TOMORROW':
+      return (
+        !availability.matches || availability.matches.some((match) => matchDateBucket(match) === 'tomorrow')
+      );
+    case 'BOOSTS':
+      return !availability.boosts || availability.boosts.length > 0;
+    case 'SPECIALS':
+      return !availability.specials || availability.specials.length > 0;
+    case 'LEADERBOARD':
+      return !availability.leaderboardCampaignIds || availability.leaderboardCampaignIds.has(item.leaderboardCampaignId ?? '');
+    case 'CHALLENGE':
+      return true;
+  }
+}
 
 /**
  * A COMPETITION item has no sport of its own (see backend's TopNavItem) -
@@ -116,10 +166,19 @@ function ItemIcon({
 export function SecondaryNavBar() {
   const { data: items } = useTopNavItems();
   const { data: matches } = useMatches();
+  const { data: boosts } = useBoosts();
+  const { data: specials } = useSpecials();
+  const { data: leaderboardCampaigns } = useLeaderboardCampaigns();
   const competitionSports = useMemo(() => competitionSportMap(matches ?? []), [matches]);
   const competitionCountries = useMemo(() => competitionCountryMap(matches ?? []), [matches]);
+  const leaderboardCampaignIds = useMemo(
+    () => (leaderboardCampaigns ? new Set(leaderboardCampaigns.map((campaign) => campaign.id)) : undefined),
+    [leaderboardCampaigns],
+  );
+  const availability: QuicklinkAvailability = { matches, boosts, specials, leaderboardCampaignIds };
+  const visibleItems = (items ?? []).filter((item) => hasContent(item, availability));
 
-  if (!items || items.length === 0) return null;
+  if (visibleItems.length === 0) return null;
 
   return (
     <nav
@@ -127,7 +186,7 @@ export function SecondaryNavBar() {
       className="scrollbar-hide -mx-4 flex gap-2 overflow-x-auto px-4 pb-2.5 sm:mx-0 sm:px-0"
       data-horizontal-scroll="true"
     >
-      {items.map((item) => (
+      {visibleItems.map((item) => (
         <Link
           key={item.id}
           to={hrefForItem(item, competitionSports)}
