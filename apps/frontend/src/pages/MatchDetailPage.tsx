@@ -17,6 +17,7 @@ import { LeaderboardContextBanner } from '../features/leaderboards/LeaderboardCo
 import { useLeaderboardsForMatch } from '../features/leaderboards/useLeaderboardsForMatch';
 import { LiveMatchTracker } from '../features/match-detail/LiveMatchTracker';
 import { useLiveMatch } from '../features/match-detail/useLiveMatch';
+import { useLiveScoreboard } from '../features/match-detail/useLiveScoreboard';
 import { useMatch } from '../features/match-detail/useMatch';
 import { useMatches } from '../features/odds-board/useMatches';
 import { useTeamColors } from '../features/odds-board/useTeamColors';
@@ -42,6 +43,14 @@ export default function MatchDetailPage() {
   const [selectedCategory, setSelectedCategory] = useState<MarketCategory>('main');
   const { data: match, isPending, isError } = useMatch(matchId);
   const { data: liveState } = useLiveMatch(matchId, match?.isLive ?? false);
+  // Score/clock prefer the bulk scoreboard (reliable regardless of how many
+  // other matches are live right now - see useLiveScoreboard) and fall back
+  // to the detailed single-match tracker's own state when this happens to
+  // be the one it's currently following and the bulk scoreboard hasn't
+  // resolved yet. Momentum/events/stats below have no bulk equivalent, so
+  // those stay tied to the detailed liveState alone.
+  const { data: scoreboard } = useLiveScoreboard();
+  const scoreEntry = (match && scoreboard?.[match.id]) ?? liveState;
   const { data: allMatches } = useMatches();
   const { data: applicableCampaigns } = useCampaignsForMatch(match?.id);
   const { data: applicableLeaderboards } = useLeaderboardsForMatch(match?.id);
@@ -149,9 +158,9 @@ export default function MatchDetailPage() {
                 shouting LIVE at the player on every glance - the dot alone
                 is the status, the text next to it is the detail. */}
             <span className="live-dot" aria-hidden="true" />
-            {liveState && (
+            {scoreEntry && (
               <span className="tabular-nums">
-                {matchPeriodLabel(liveState.period)} · {liveState.minute}'
+                {matchPeriodLabel(scoreEntry.period)} · {scoreEntry.minute}'
               </span>
             )}
             <span className="sr-only">Live</span>
@@ -168,12 +177,12 @@ export default function MatchDetailPage() {
             className="h-4 shrink-0 sm:h-6"
           />
           <span className="min-w-0 truncate">{homeTeamLabel}</span>
-          {match.isLive && liveState ? (
+          {match.isLive && scoreEntry ? (
             // A pill, not bare text, so the score reads as its own distinct
             // element rather than blurring into the team names on either
             // side of it.
             <span className="shrink-0 rounded-full bg-surface-2 px-2.5 py-1 font-display tabular-nums">
-              {liveState.homeScore} - {liveState.awayScore}
+              {scoreEntry.homeScore} - {scoreEntry.awayScore}
             </span>
           ) : (
             <span className="shrink-0 text-sm font-normal text-text-muted normal-case sm:text-base">vs</span>

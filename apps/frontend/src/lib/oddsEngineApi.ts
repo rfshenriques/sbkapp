@@ -1,4 +1,4 @@
-import type { LiveMatchState } from '@sportsbook/shared';
+import type { LiveMatchState, LiveScoreboardEntry } from '@sportsbook/shared';
 
 // Same-origin path - Vite's dev server proxies /api to the odds-engine (see
 // vite.config.ts), so the browser never needs a second URL or CORS at all.
@@ -24,4 +24,21 @@ export async function fetchLiveMatch(matchId: string): Promise<LiveMatchState | 
     throw new Error(`Failed to fetch live state for match ${matchId}: ${response.status}`);
   }
   return (await response.json()) as LiveMatchState;
+}
+
+/**
+ * Score + clock for EVERY currently-live match at once, keyed by matchId -
+ * see apps/odds-engine's LiveScoreboardService. Unlike fetchLiveMatch above
+ * (one match's full events/stats, server-side singleton - only one match
+ * can ever be the tracked one), this scales to however many matches are
+ * live simultaneously, at the cost of only the bare score/clock. Missing
+ * from the map just means no live-data match was found for that fixture -
+ * "no live data to show", not an error, same as fetchLiveMatch's 404.
+ */
+export async function fetchLiveScoreboard(): Promise<Record<string, LiveScoreboardEntry>> {
+  const response = await fetch(`${BASE_URL}/events/live-scores`);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch live scoreboard: ${response.status}`);
+  }
+  return (await response.json()) as Record<string, LiveScoreboardEntry>;
 }

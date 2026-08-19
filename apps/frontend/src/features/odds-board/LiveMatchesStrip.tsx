@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
 import { LiveIcon } from '../../components/ui/NavIcons';
 import { useDisplayNames } from '../display-names/useDisplayNames';
-import { useLiveMatch } from '../match-detail/useLiveMatch';
+import { useLiveScoreboard } from '../match-detail/useLiveScoreboard';
 import { matchPeriodLabel } from '../../lib/matchPeriodLabel';
 import { usePrefetchMatchDetail } from './usePrefetchMatchDetail';
 import { useMatches } from './useMatches';
@@ -21,7 +21,8 @@ const MAX_CHIPS = 12;
 export function LiveMatchChip({ match }: { match: Match }) {
   const displayName = useDisplayNames();
   const prefetchMatchDetail = usePrefetchMatchDetail();
-  const { data: liveState } = useLiveMatch(match.id, true);
+  const { data: scoreboard } = useLiveScoreboard();
+  const liveState = scoreboard?.[match.id];
   const homeTeamLabel = displayName('TEAM', match.homeTeam);
   const awayTeamLabel = displayName('TEAM', match.awayTeam);
 

@@ -1,6 +1,6 @@
 import { vi } from 'vitest';
 import { mockMatches } from '../mocks/matches';
-import type { LiveMatchState, Match } from '@sportsbook/shared';
+import type { LiveMatchState, LiveScoreboardEntry, Match } from '@sportsbook/shared';
 import { useBrandStore } from '../features/brand/brandStore';
 
 const ODDS_ENGINE_BASE_URL = '/api';
@@ -81,6 +81,23 @@ export function stubOddsEngineFetch(
       return state
         ? new Response(JSON.stringify(state), { status: 200 })
         : new Response(null, { status: 404 });
+    }
+
+    if (url === `${ODDS_ENGINE_BASE_URL}/events/live-scores`) {
+      const scoreboard: Record<string, LiveScoreboardEntry> = Object.fromEntries(
+        Object.entries(liveStates).map(([matchId, state]) => [
+          matchId,
+          {
+            matchId: state.matchId,
+            minute: state.minute,
+            period: state.period,
+            homeScore: state.homeScore,
+            awayScore: state.awayScore,
+            updatedAt: state.updatedAt,
+          },
+        ]),
+      );
+      return new Response(JSON.stringify(scoreboard), { status: 200 });
     }
 
     const matchByIdMatch = new RegExp(`^${BACKEND_BASE_URL}/public/matches/${TEST_BRAND_ID}/([^/]+)$`).exec(url);

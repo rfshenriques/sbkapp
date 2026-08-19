@@ -41,3 +41,22 @@ export interface LiveMatchState {
   momentum: LiveMatchMomentum;
   updatedAt: string;
 }
+
+/**
+ * Score + clock only, no events/stats/momentum - the cheap, always-on
+ * scoreboard (see LiveScoreboardService in apps/odds-engine) that covers
+ * every currently-live match in a single upstream request, unlike
+ * LiveMatchState's fuller per-match tracker (events, stats - 3 requests,
+ * one match at a time, see LiveTrackerService's own budget comment). Match
+ * cards and the live-matches strip use this so a score/clock actually shows
+ * for every live match at once, not just whichever one happens to be the
+ * single match LiveMatchState is currently tracking.
+ */
+export interface LiveScoreboardEntry {
+  matchId: string;
+  minute: number;
+  period: string;
+  homeScore: number;
+  awayScore: number;
+  updatedAt: string;
+}

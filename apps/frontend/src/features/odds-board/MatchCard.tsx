@@ -6,7 +6,7 @@ import { TeamColorAccent } from '../../components/ui/TeamColorAccent';
 import { MarketSelections } from '../bet-slip/MarketSelections';
 import { useDisplayNames } from '../display-names/useDisplayNames';
 import { usePrefetchMatchDetail } from './usePrefetchMatchDetail';
-import { useLiveMatch } from '../match-detail/useLiveMatch';
+import { useLiveScoreboard } from '../match-detail/useLiveScoreboard';
 import { useTeamColors } from './useTeamColors';
 import { fallbackTeamColor } from '../../lib/fallbackTeamColor';
 import { formatKickoff } from '../../lib/formatKickoff';
@@ -34,7 +34,8 @@ export function MatchCard({ match, style, animate = true }: MatchCardProps) {
   const matchLabel = `${homeTeamLabel} vs ${awayTeamLabel}`;
   const kickoff = new Date(match.kickoff);
   const matchHref = `/matches/${match.id}`;
-  const { data: liveState } = useLiveMatch(match.id, match.isLive);
+  const { data: scoreboard } = useLiveScoreboard();
+  const liveState = scoreboard?.[match.id];
   const teamColors = useTeamColors();
 
   return (

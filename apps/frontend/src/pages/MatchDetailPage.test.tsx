@@ -261,8 +261,12 @@ describe('MatchDetailPage', () => {
 
     renderAt('match-3');
 
+    // The header's score/clock come from the bulk live-scoreboard fetch
+    // and the events/stats tracker below from the separate detailed
+    // per-match live fetch (see useLiveScoreboard vs useLiveMatch) - both
+    // awaited independently since either can resolve first.
     expect(await screen.findByText("2nd Half · 57'")).toBeInTheDocument();
-    expect(screen.getByText('Vinicius Jr')).toBeInTheDocument();
+    expect(await screen.findByText('Vinicius Jr')).toBeInTheDocument();
     expect(screen.getByText('Corner Kicks')).toBeInTheDocument();
   });
 

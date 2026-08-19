@@ -7,6 +7,7 @@ import {
   createLiveTrackerService,
   type LiveTrackerService,
 } from './providers/api-sports/live-tracker-service';
+import { createLiveScoreboardService, type LiveScoreboardService } from './providers/api-sports/live-scoreboard-service';
 import { createTheOddsApiClient } from './providers/the-odds-api/client';
 import {
   createEventsService,
@@ -28,6 +29,15 @@ export interface OddsEngineOptions {
    * once the engine itself is under construction.
    */
   createLiveTrackerService?: (onUpdate: (state: LiveMatchState) => void) => LiveTrackerService;
+  /**
+   * Powers GET /events/live-scores - a pre-built instance (not a factory
+   * like createLiveTrackerService above) since it needs nothing from the
+   * engine's own internals (no WS broadcast to hook into), just the
+   * api-sports client and eventsService.listMatches, both already
+   * available wherever this option is constructed. Started on listen(),
+   * stopped on close().
+   */
+  liveScoreboardService?: LiveScoreboardService;
 }
 
 export interface OddsEngine {
@@ -45,7 +55,7 @@ export interface OddsEngine {
  */
 export function createOddsEngine(options: OddsEngineOptions = {}): OddsEngine {
   const tickIntervalMs = options.tickIntervalMs ?? 5000;
-  const { eventsService } = options;
+  const { eventsService, liveScoreboardService } = options;
 
   const wsClients = new Set<WebSocket>();
 
@@ -130,6 +140,12 @@ export function createOddsEngine(options: OddsEngineOptions = {}): OddsEngine {
       return;
     }
 
+    if (liveScoreboardService && pathname === '/events/live-scores') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(liveScoreboardService.getScoreboard()));
+      return;
+    }
+
     const eventIdMatch = eventsService ? /^\/events\/([^/]+)$/.exec(pathname) : null;
     if (eventsService && eventIdMatch) {
       eventsService
@@ -173,13 +189,16 @@ export function createOddsEngine(options: OddsEngineOptions = {}): OddsEngine {
 
   return {
     httpServer,
-    listen: (port: number) =>
-      new Promise<void>((resolve) => {
+    listen: (port: number) => {
+      void liveScoreboardService?.start();
+      return new Promise<void>((resolve) => {
         httpServer.listen(port, resolve);
-      }),
+      });
+    },
     close: () =>
       new Promise<void>((resolve, reject) => {
         liveTrackerService?.stop();
+        liveScoreboardService?.stop();
         wss.close();
         httpServer.close((error) => (error ? reject(error) : resolve()));
       }),
@@ -208,16 +227,25 @@ if (require.main === module) {
   }
 
   let createLiveTrackerServiceOption: OddsEngineOptions['createLiveTrackerService'];
+  let liveScoreboardService: LiveScoreboardService | undefined;
   if (apiSportsKey) {
     const apiSportsClient = createApiSportsClient({ apiKey: apiSportsKey });
     createLiveTrackerServiceOption = (onUpdate) =>
       createLiveTrackerService({ client: apiSportsClient, onUpdate });
+    if (eventsService) {
+      const boundEventsService = eventsService;
+      liveScoreboardService = createLiveScoreboardService({
+        client: apiSportsClient,
+        listLiveMatches: async () => (await boundEventsService.listMatches()).filter((match) => match.isLive),
+      });
+    }
   } else {
-    console.warn('API_SPORTS_KEY not set - GET /events/:id/live will 404.');
+    console.warn('API_SPORTS_KEY not set - GET /events/:id/live and /events/live-scores will 404.');
   }
 
   void createOddsEngine({
     eventsService,
     createLiveTrackerService: createLiveTrackerServiceOption,
+    liveScoreboardService,
   }).listen(port);
 }
