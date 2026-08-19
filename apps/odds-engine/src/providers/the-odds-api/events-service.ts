@@ -39,15 +39,8 @@ const EVENTS_CACHE_TTL_MS = 24 * 60 * 60_000;
  * uses) and the more regional sports (CFL, NCAAF, AFL, KBO/MiLB/NPB
  * baseball, cricket formats, lacrosse, NRL) to keep per-refresh request
  * count down given the tight monthly quota - see the cache-TTL comment
- * above. At 12 keys x 1 request/24h, each request now costing 2 quota
- * units (markets=h2h,totals - see client.ts's default), this is
- * ~720 units/month against the 500/month free-tier cap. This is expected
- * to run over the free tier over a full month; a stale cache (last
- * fetched result kept until the next successful call - see
- * `if (... failedSportKeys === sportKeys.length) return matches;` below)
- * degrades this to "board stops updating" rather than "board goes empty"
- * once the quota is exhausted. Revisit (fewer sport keys, or a paid plan)
- * if this isn't an acceptable tradeoff.
+ * above. At 12 keys x 1 request/24h this is ~360 requests/month, leaving
+ * headroom under the 500/month cap.
  *
  * Other confirmed-real European leagues not included here for the same
  * quota reason - add if broader coverage is wanted: soccer_efl_champ

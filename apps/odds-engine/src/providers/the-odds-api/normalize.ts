@@ -102,42 +102,33 @@ function toMatchResultSelections(
   });
 }
 
-/** The totals market only ever carries one line (Over/Under X) per bookmaker on this endpoint - not the multi-line ladder some providers offer. */
-function toTotalsSelections(outcomes: TheOddsApiOutcome[]): Selection[] {
-  return outcomes.map((outcome) => ({
-    id: outcome.name.toLowerCase() === 'over' ? 'over' : 'under',
-    name: outcome.point !== undefined ? `${outcome.name} ${outcome.point}` : outcome.name,
-    odds: outcome.price,
-  }));
-}
-
 /**
  * Maps a raw per-league odds response entry (one event, its own odds
  * embedded) to our internal Match/Market/Selection shape, taking the h2h
  * market from a single preferred bookmaker (mirrors odds-api.io's
  * DEFAULT_BOOKMAKER approach - see PROJECT_BRIEF.md odds ingestion notes).
+ *
+ * h2h is the only market ever requested (see client.ts's GetOddsParams) -
+ * a previous attempt to also request "totals" made most of the board
+ * disappear (a market a sport/bookmaker/plan doesn't support fails the
+ * *whole* sport-key request, not just that market - see the doc comment on
+ * GetOddsParams.markets), so don't reintroduce a second market here without
+ * confirming it's actually offered for every RELEVANT_SPORT_KEYS entry
+ * first.
  */
 export function normalizeTheOddsApiEventOdds(raw: TheOddsApiEventOdds, now?: () => number): Match {
   const bookmaker = raw.bookmakers.length > 0 ? pickBookmaker(raw.bookmakers) : undefined;
   const h2h = bookmaker?.markets.find((market) => market.key === 'h2h');
-  const totals = bookmaker?.markets.find((market) => market.key === 'totals');
 
-  const markets: Market[] = [];
-  if (h2h) {
-    markets.push({
-      id: 'match-result',
-      name: 'Match Result',
-      selections: toMatchResultSelections(h2h.outcomes, raw.home_team, raw.away_team),
-    });
-  }
-  if (totals && totals.outcomes.length > 0) {
-    const line = totals.outcomes[0]?.point;
-    markets.push({
-      id: 'total-goals',
-      name: line !== undefined ? `Total Goals ${line}` : 'Total Goals',
-      selections: toTotalsSelections(totals.outcomes),
-    });
-  }
+  const markets: Market[] = h2h
+    ? [
+        {
+          id: 'match-result',
+          name: 'Match Result',
+          selections: toMatchResultSelections(h2h.outcomes, raw.home_team, raw.away_team),
+        },
+      ]
+    : [];
 
   return {
     id: raw.id,

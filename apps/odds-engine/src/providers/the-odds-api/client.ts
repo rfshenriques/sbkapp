@@ -20,7 +20,16 @@ export interface GetOddsParams {
   sportKey: string;
   /** Comma-separated region codes (us/uk/eu/au). */
   regions?: string;
-  /** Comma-separated market keys, e.g. "h2h,totals" (the default - see normalize.ts). */
+  /**
+   * Comma-separated market keys, e.g. "h2h" (the default). A request for a
+   * market this sport/bookmaker/plan doesn't actually offer comes back as a
+   * non-ok response for the *whole* sport key (see fetchWithKeyFallback) -
+   * every match for that key then vanishes from the board, not just that
+   * one market, so don't widen this beyond h2h without confirming the
+   * additional market is actually available for every RELEVANT_SPORT_KEYS
+   * entry against the real API first (a previous attempt at "h2h,totals"
+   * caused most of the board - including live matches - to disappear).
+   */
   markets?: string;
   oddsFormat?: 'decimal' | 'american';
 }
@@ -117,7 +126,7 @@ export function createTheOddsApiClient(options: TheOddsApiClientOptions): TheOdd
     // UK/Ireland bookmaker and wasn't present in a real eu-region response
     // we checked. Also keeps request cost down (cost scales with region
     // count) since we only need the one region.
-    const { sportKey, regions = 'uk', markets = 'h2h,totals', oddsFormat = 'decimal' } = params;
+    const { sportKey, regions = 'uk', markets = 'h2h', oddsFormat = 'decimal' } = params;
     const label = `GET /sports/${sportKey}/odds`;
 
     const response = await fetchWithKeyFallback((apiKey) => {
