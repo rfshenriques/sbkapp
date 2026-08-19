@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import type { Match } from '@sportsbook/shared';
+import { CountryFlag } from '../../components/ui/CountryFlag';
 import { SportIcon } from '../../components/ui/SportIcon';
 import { TopNavIcon } from '../../components/ui/TopNavIcon';
 import type { TopNavItem } from '../../lib/backendApi';
 import { useMatches } from '../odds-board/useMatches';
-import { competitionSportMap } from './buildSportTree';
+import { competitionCountryMap, competitionSportMap } from './buildSportTree';
 import { useTopNavItems } from './useTopNavItems';
 
 /**
@@ -48,20 +49,44 @@ function hrefForItem(item: TopNavItem, competitionSports: Map<string, string>): 
 }
 
 /**
- * A SPORT/COMPETITION/MATCH item always renders its actual sport's icon
- * (see SportIcon) rather than the staff-picked generic TopNavIconKey - a
- * football quicklink should look like football, not whichever star/flag/
- * trophy glyph happened to get chosen. TODAY/TOMORROW have no sport to
- * derive from, so those still use the manual icon (see TopNavIcon below).
- * Undefined when a COMPETITION/MATCH item's sport can't be resolved from
- * the live feed right now (no live match for it) - caller falls back to
- * the manual icon rather than rendering nothing.
+ * A SPORT/MATCH item always renders its actual sport's icon (see SportIcon)
+ * rather than the staff-picked generic TopNavIconKey - a football quicklink
+ * should look like football, not whichever star/flag/trophy glyph happened
+ * to get chosen. A COMPETITION item shows its country flag instead (see
+ * ItemIcon below) - the competition's own sport is already implied by its
+ * label/destination, so the flag is the more identifying glyph of the two
+ * (e.g. distinguishing "Premier League" from "La Liga" at a glance, which a
+ * shared football icon can't). TODAY/TOMORROW have no sport to derive from,
+ * so those still use the manual icon (see TopNavIcon below). Undefined when
+ * a MATCH item's sport can't be resolved from the live feed right now (no
+ * live match for it) - caller falls back to the manual icon rather than
+ * rendering nothing.
  */
-function resolvedSport(item: TopNavItem, matches: Match[] | undefined, competitionSports: Map<string, string>): string | undefined {
+function resolvedSport(item: TopNavItem, matches: Match[] | undefined): string | undefined {
   if (item.kind === 'SPORT') return item.sport ?? undefined;
-  if (item.kind === 'COMPETITION') return competitionSports.get(item.competition ?? '');
   if (item.kind === 'MATCH') return matches?.find((match) => match.id === item.matchId)?.sport;
   return undefined;
+}
+
+function ItemIcon({
+  item,
+  matches,
+  competitionCountries,
+}: {
+  item: TopNavItem;
+  matches: Match[] | undefined;
+  competitionCountries: Map<string, string>;
+}) {
+  if (item.kind === 'COMPETITION') {
+    const country = competitionCountries.get(item.competition ?? '');
+    return country ? (
+      <CountryFlag country={country} size={16} />
+    ) : (
+      <TopNavIcon icon={item.icon} width={16} height={16} />
+    );
+  }
+  const sport = resolvedSport(item, matches);
+  return sport ? <SportIcon sport={sport} size={16} /> : <TopNavIcon icon={item.icon} width={16} height={16} />;
 }
 
 /**
@@ -74,20 +99,25 @@ function resolvedSport(item: TopNavItem, matches: Match[] | undefined, competiti
  * its own ResizeObserver.
  *
  * Icon + label pill (reuses .tab, the same primitive Sidebar's suggested-
- * sport chips use), not an icon-only glyph - each item's label (either the
- * kind's own default name, or the staff-set custom name from the
- * backoffice's "Display label" field) needs to actually be visible to a
- * player, not just present as a hover-only title attribute a touch device
- * never shows. A SPORT/COMPETITION/MATCH entry's icon always reflects its
- * actual sport (see resolvedSport/SportIcon) - a football quicklink looks
- * like football, not a staff-picked glyph. TODAY/TOMORROW have no sport to
- * derive from, so those use a staff-picked icon from a fixed, consistently-
- * designed generic set instead (see TopNavIcon).
+ * sport chips use, sized down via .tab-sm - see index.css), not an icon-only
+ * glyph - each item's label (either the kind's own default name, or the
+ * staff-set custom name from the backoffice's "Display label" field) needs
+ * to actually be visible to a player, not just present as a hover-only
+ * title attribute a touch device never shows. Smaller than a regular .tab:
+ * staff can add as many quicklinks as they want, and the full-size text
+ * only fit 3-4 before running out of header width and forcing every
+ * remaining one off-screen behind the scroll. A SPORT/MATCH entry's icon
+ * always reflects its actual sport (see ItemIcon/SportIcon) - a football
+ * quicklink looks like football, not a staff-picked glyph. A COMPETITION
+ * entry shows its country flag instead (see ItemIcon). TODAY/TOMORROW have
+ * no sport to derive from, so those use a staff-picked icon from a fixed,
+ * consistently-designed generic set instead (see TopNavIcon).
  */
 export function SecondaryNavBar() {
   const { data: items } = useTopNavItems();
   const { data: matches } = useMatches();
   const competitionSports = useMemo(() => competitionSportMap(matches ?? []), [matches]);
+  const competitionCountries = useMemo(() => competitionCountryMap(matches ?? []), [matches]);
 
   if (!items || items.length === 0) return null;
 
@@ -97,20 +127,17 @@ export function SecondaryNavBar() {
       className="scrollbar-hide -mx-4 flex gap-2 overflow-x-auto px-4 pb-2.5 sm:mx-0 sm:px-0"
       data-horizontal-scroll="true"
     >
-      {items.map((item) => {
-        const sport = resolvedSport(item, matches, competitionSports);
-        return (
-          <Link
-            key={item.id}
-            to={hrefForItem(item, competitionSports)}
-            className="tab shrink-0"
-            aria-label={item.label}
-          >
-            {sport ? <SportIcon sport={sport} size={16} /> : <TopNavIcon icon={item.icon} width={16} height={16} />}
-            {item.label}
-          </Link>
-        );
-      })}
+      {items.map((item) => (
+        <Link
+          key={item.id}
+          to={hrefForItem(item, competitionSports)}
+          className="tab tab-sm shrink-0"
+          aria-label={item.label}
+        >
+          <ItemIcon item={item} matches={matches} competitionCountries={competitionCountries} />
+          {item.label}
+        </Link>
+      ))}
     </nav>
   );
 }

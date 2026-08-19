@@ -100,6 +100,28 @@ describe('SecondaryNavBar', () => {
     );
   });
 
+  it("shows a COMPETITION item's country flag instead of its sport icon - more identifying than a shared sport icon for telling e.g. Premier League apart from La Liga", async () => {
+    stubFetch(
+      [
+        {
+          id: '1',
+          kind: 'COMPETITION',
+          label: 'Premier League',
+          icon: 'STAR',
+          sport: null,
+          competition: 'Premier League',
+          matchId: null,
+          sortOrder: 0,
+        },
+      ],
+      [buildMatch()],
+    );
+    renderNav();
+
+    const link = await screen.findByRole('link', { name: 'Premier League' });
+    expect(link.querySelector('[role="img"][aria-label="England"]')).toBeInTheDocument();
+  });
+
   it('falls back to the /sports/all umbrella for a COMPETITION item with no live match to resolve its sport', async () => {
     stubFetch([
       {
@@ -175,6 +197,16 @@ describe('SecondaryNavBar', () => {
     const link = await screen.findByRole('link', { name: 'Football' });
     expect(link).toHaveTextContent('Football');
     expect(link.querySelector('svg, img')).toBeInTheDocument();
+  });
+
+  it('uses the smaller .tab-sm pill size, not the regular .tab, so several quicklinks fit before running out of header width', async () => {
+    stubFetch([
+      { id: '1', kind: 'SPORT', label: 'Football', icon: 'TROPHY', sport: 'Football', competition: null, matchId: null, sortOrder: 0 },
+    ]);
+    renderNav();
+
+    const link = await screen.findByRole('link', { name: 'Football' });
+    expect(link).toHaveClass('tab', 'tab-sm');
   });
 
   it("shows a staff-set custom label instead of the item's default name", async () => {

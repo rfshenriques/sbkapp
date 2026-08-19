@@ -450,6 +450,19 @@ body {
   color: #000;
 }
 
+/* Smaller modifier for a .tab that needs to fit many at once without
+   forcing most of them off-screen behind a scroll (see SecondaryNavBar's
+   quicklinks row) - shorter height, tighter gap/padding, smaller text than
+   the base .tab, which is sized for a handful of filter chips instead. */
+.tab-sm {
+  height: 28px;
+  gap: 4px;
+  padding: 0 10px;
+  border-radius: 10px;
+  font-size: 10.5px;
+  letter-spacing: 0.4px;
+}
+
 /* Circular counterpart to .tab, for an icon-only filter toggle whose icon
    is itself round (e.g. the kickoff-time clock filter) - a rounded-rect
    pill reads as visually mismatched next to a circular glyph. Same

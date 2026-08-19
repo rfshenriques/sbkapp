@@ -484,17 +484,19 @@ export function AppShell() {
             )}
           </div>
         </div>
-        {/* Constrained to the center content column on desktop, not the
-            header's full width - offsets mirror the row below's own p-4
-            edge padding plus the sidebar's width+gap (1rem + sm:w-96 +
-            gap-4) on the left and the bet slip column's (1rem + lg:w-80 +
-            gap-4) on the right, matching where those columns themselves
-            appear (isDesktopPointer, same gate the columns below use -
-            neither renders at all on a touch/tablet device regardless of
-            width, so this stays full width there too via the base px-4). */}
-        <div className={cn('mx-auto max-w-[1680px] px-4', isDesktopPointer && 'sm:pl-[26rem] lg:pr-[22rem]')}>
-          <SecondaryNavBar />
-        </div>
+        {/* Mobile/tablet only - full width, part of the fixed header like
+            everything else at this tier (no persistent side columns to
+            avoid pushing down, see below). Desktop renders this same
+            component inside <main> instead (see below) so it only pushes
+            the center content column down, leaving the sidebar and bet
+            slip columns pinned at the header's own height rather than
+            shifting every column down by however tall the quicklinks row
+            happens to be. */}
+        {!isDesktopPointer && (
+          <div className="mx-auto max-w-[1680px] px-4">
+            <SecondaryNavBar />
+          </div>
+        )}
       </header>
       <div style={{ height: headerHeight }} aria-hidden="true" />
 
@@ -536,6 +538,13 @@ export function AppShell() {
         )}
 
         <main className="min-w-0 flex-1">
+          {/* Desktop only - see the header's own comment above for why this
+              renders here instead of inside the fixed header on this tier:
+              it pushes just this column down by its own height, while the
+              sidebar/bet-slip columns stay pinned at the shorter header's
+              height (sticky top: headerHeight). Mobile/tablet render the
+              same component inside the header instead. */}
+          {isDesktopPointer && <SecondaryNavBar />}
           <LiveMatchesStrip />
           <Suspense fallback={<PageSkeleton />}>
             <div key={location.pathname} className="fade-in-up">
