@@ -1,6 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode, type SVGProps } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import { CampaignRewardAlert } from '../../components/ui/CampaignRewardAlert';
 import { ChevronIcon } from '../../components/ui/ChevronIcon';
@@ -1197,14 +1196,14 @@ export function BetSlipPanel({
         )}
         {error && error !== 'Insufficient balance' && <p className="text-xs text-danger">{error}</p>}
         {isAuthenticated ? (
-          <Button
-            variant="primary"
-            className="w-full"
+          <button
+            type="button"
             disabled={!isValid || isPending || isRecheckingOdds}
             onClick={() => void handlePlaceBet()}
+            className="btn-primary block w-full text-center disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isRecheckingOdds ? 'Checking odds…' : isPending ? 'Placing…' : 'Place Bet'}
-          </Button>
+          </button>
         ) : (
           <button
             type="button"
@@ -1245,7 +1244,7 @@ export function BetSlipPanel({
         </div>
       )}
       {isAuthenticated && wallet && (
-        <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
+        <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
           <BalancePills
             cashCents={wallet.balanceCents}
             freebetsCents={sumFreebetsCents(freebets)}

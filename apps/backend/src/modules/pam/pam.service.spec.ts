@@ -874,8 +874,32 @@ describe('PamService', () => {
       expect(bet.stakeCents).toBe(50_000);
     });
 
-    it('rejects a bet on a boosted price once its match is in-play, unless staysLiveDuringInplay is set', async () => {
+    it('places a bet normally (boost limits not enforced) once a boosted match goes in-play, unless staysLiveDuringInplay is set', async () => {
+      // Once the match is in-play, applyBoosts (BoostService) already stops
+      // showing this boost to players - the bet slip re-fetches and submits
+      // the plain unboosted price. The boost row still existing shouldn't
+      // reject the bet; it should just be treated as if it never applied,
+      // same as any other unboosted selection (no boost stake cap enforced).
       const boost = await boostService.setBoost(testBrandId, 'live-match', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await boostService.setLimits(testBrandId, boost.id, { maxStakeCents: 100 }, TEST_ACTOR);
+      const userId = await createTestUser(100_000);
+      vi.mocked(oddsEngineClient.fetchMatchById).mockImplementation(async (matchId: string) => ({
+        ...fakeMatch(matchId),
+        isLive: matchId === 'live-match',
+      }));
+
+      const bet = await pamService.placeBet(userId, {
+        selections: [
+          buildSelection({ matchId: 'live-match', marketId: 'match-result', selectionId: 'home', odds: 2.0 }),
+        ],
+        stakeCents: 1_000,
+      });
+      expect(bet.stakeCents).toBe(1_000);
+    });
+
+    it('still enforces the boost stake cap when staysLiveDuringInplay is set', async () => {
+      const boost = await boostService.setBoost(testBrandId, 'live-match', 'match-result', 'home', 6, undefined, TEST_ACTOR);
+      await boostService.setLimits(testBrandId, boost.id, { staysLiveDuringInplay: true, maxStakeCents: 100 }, TEST_ACTOR);
       const userId = await createTestUser(100_000);
       vi.mocked(oddsEngineClient.fetchMatchById).mockImplementation(async (matchId: string) => ({
         ...fakeMatch(matchId),
@@ -884,9 +908,7 @@ describe('PamService', () => {
 
       await expect(
         pamService.placeBet(userId, {
-          selections: [
-            buildSelection({ matchId: 'live-match', marketId: 'match-result', selectionId: 'home' }),
-          ],
+          selections: [buildSelection({ matchId: 'live-match', marketId: 'match-result', selectionId: 'home' })],
           stakeCents: 1_000,
         }),
       ).rejects.toThrow(BadRequestException);

@@ -449,10 +449,15 @@ export class PamService {
         continue;
       }
 
-      // A boosted price has no live re-pricing behind the boost itself -
-      // defense in depth, same rationale as the manual market check above.
+      // Once a match is in-play, applyBoosts (see BoostService) already
+      // stops offering this boost to players - GET /public/matches shows
+      // (and the bet slip's pre-placement live-odds re-check re-fetches)
+      // the plain unboosted price. Treat the boost the same way here: as
+      // if it never existed, not as something to reject the bet over -
+      // this row still existing in the DB just means a trader hasn't
+      // cleared it, not that the player is trying to bet at a stale price.
       if (matchesById.get(selection.matchId)?.isLive && !boost.staysLiveDuringInplay) {
-        throw new BadRequestException('This boosted price is no longer available now that this match is in-play');
+        continue;
       }
 
       if (boost.maxStakeCents !== null && dto.stakeCents > boost.maxStakeCents) {
