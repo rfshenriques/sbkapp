@@ -40,7 +40,7 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
   const openDepositCampaignModal = useDepositCampaignModalStore((state) => state.open);
   const [isLoadingDepositCampaign, setIsLoadingDepositCampaign] = useState(false);
   const brandContrast = useContrastColor('--color-brand');
-  const hasCaption = Boolean(card.title || card.subtitle);
+  const hasCaption = Boolean(card.title || card.subtitle || card.ctaLabel);
   const isChallenge = Boolean(
     card.betAndGetCampaignId || card.depositCampaignId || card.registerCampaignId || card.leaderboardCampaignId,
   );

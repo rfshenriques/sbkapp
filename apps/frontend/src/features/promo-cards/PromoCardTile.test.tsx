@@ -145,4 +145,17 @@ describe('PromoCardTile', () => {
 
     expect(document.querySelector('.promo-cta')).not.toBeInTheDocument();
   });
+
+  it('shows the CTA button on an imaged card even with no title or subtitle set', () => {
+    render(
+      <MemoryRouter>
+        <PromoCardTile
+          card={{ ...decorativeCard, title: null, subtitle: null, ctaLabel: 'Claim Now' }}
+          brandId="brand-1"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Claim Now')).toBeInTheDocument();
+  });
 });
