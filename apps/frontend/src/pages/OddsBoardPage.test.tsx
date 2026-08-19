@@ -126,7 +126,7 @@ describe('OddsBoardPage', () => {
     renderPageWithRouting();
 
     await screen.findAllByRole('heading', { name: 'Real Madrid vs Barcelona' });
-    const oddsButtons = screen.getAllByRole('button', { name: /Home/ });
+    const oddsButtons = screen.getAllByRole('button', { name: /Real Madrid/ });
     await userEvent.click(oddsButtons[0] as HTMLElement);
 
     expect(screen.queryByText('Match detail page')).not.toBeInTheDocument();

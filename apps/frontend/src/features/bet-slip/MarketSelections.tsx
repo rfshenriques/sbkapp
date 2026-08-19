@@ -15,32 +15,54 @@ interface MarketSelectionsProps {
   /** Raw feed competition name, e.g. "EPL" - checked against competition-level suspensions, which lock every selection here regardless of any market/selection-level suspension. */
   competition: string;
   market: Market;
-  /** 'stacked' (default) is the label-above-value .odd-btn used by the bet
-   * slip and match-detail page's per-market cards. 'inline' is the
-   * label-beside-value compact style MatchCard's Lucky.fun-style match
-   * list rows use. */
-  variant?: 'stacked' | 'inline';
-  /** Reserves the taller boosted-price layout (struck-through previous
-   * price above the current one) even for a selection that isn't actually
-   * boosted, via an invisible placeholder line - so every card in a set
-   * ends up the same height regardless of which ones happen to carry a
-   * boost right now. Only Match of the day's featured cards need this
-   * (see OddsBoardPage's FeaturedMatchCard) - elsewhere a plain one-line
-   * price is correct. */
-  reserveBoostSpace?: boolean;
+  /**
+   * When set (both required together), a match-result market's Home/Away
+   * buttons show the actual team name in place of the generic "Home"/"Away"
+   * wording - 1 is always the home team, 2 is always the away team, so the
+   * team name identifies the pick more usefully than the generic label
+   * does. Draw's own button gets the same small-caption treatment for
+   * visual consistency across the row, still reading "Draw". Omitted (or a
+   * non-match-result market, or a market this component's own home/away
+   * detection doesn't recognize) falls back to the plain generic label,
+   * unchanged - see captionFor.
+   */
+  homeTeamLabel?: string;
+  awayTeamLabel?: string;
 }
 
 interface SelectionButtonProps {
   selection: Selection;
   label: string;
+  /** The small team-name/"Draw" caption shown in the label's place - see MarketSelectionsProps.homeTeamLabel. Undefined uses the plain `label` instead, unstyled as a caption. */
+  caption?: string;
   isSelected: boolean;
   isSuspended: boolean;
-  variant: 'stacked' | 'inline';
-  reserveBoostSpace: boolean;
   onSelect: () => void;
 }
 
-function SelectionButton({ selection, label, isSelected, isSuspended, variant, reserveBoostSpace, onSelect }: SelectionButtonProps) {
+/**
+ * Home/Away -> the real team name, Draw -> "Draw" - only when both team
+ * labels are supplied by the caller (see MarketSelectionsProps) and this
+ * selection is actually part of a recognizable match-result shape (reuses
+ * the same Home/Away detection as sortMatchResultSelections, rather than
+ * checking market.id, since that's the one thing every caller already
+ * agrees on for "is this the 1X2 market").
+ */
+function captionFor(
+  selectionName: string,
+  drawLabel: string,
+  homeTeamLabel?: string,
+  awayTeamLabel?: string,
+): string | undefined {
+  if (!homeTeamLabel || !awayTeamLabel) return undefined;
+  const lower = selectionName.toLowerCase();
+  if (lower === 'home') return homeTeamLabel;
+  if (lower === 'away') return awayTeamLabel;
+  if (lower === 'draw') return drawLabel;
+  return undefined;
+}
+
+function SelectionButton({ selection, label, caption, isSelected, isSuspended, onSelect }: SelectionButtonProps) {
   const flash = useOddsFlash(selection.odds);
   // originalOdds is only ever set by the backend when a boost actually changed the price (see BoostService.applyBoosts).
   const isBoosted = selection.originalOdds !== undefined;
@@ -51,16 +73,16 @@ function SelectionButton({ selection, label, isSelected, isSuspended, variant, r
       disabled={isSuspended}
       aria-label={
         isSuspended
-          ? `${label} suspended`
+          ? `${caption ?? label} suspended`
           : isBoosted
-            ? `${label} boosted to ${selection.odds.toFixed(2)}, was ${selection.originalOdds!.toFixed(2)}${
+            ? `${caption ?? label} boosted to ${selection.odds.toFixed(2)}, was ${selection.originalOdds!.toFixed(2)}${
                 selection.maxStakeCents !== undefined
                   ? `, max stake ${formatMoney(selection.maxStakeCents)}`
                   : ''
               }`
             : undefined
       }
-      className={`odd-btn${variant === 'inline' ? ' inline-odds' : ''}${isSelected ? ' selected' : ''}${isSuspended ? ' suspended' : ''}${flash ? ` flash-${flash}` : ''}`}
+      className={`odd-btn${isSelected ? ' selected' : ''}${isSuspended ? ' suspended' : ''}${flash ? ` flash-${flash}` : ''}`}
       onClick={(event) => {
         // MatchCard's whole card is clickable and navigates to the match -
         // stop this from also triggering that when picking an odd.
@@ -70,8 +92,7 @@ function SelectionButton({ selection, label, isSelected, isSuspended, variant, r
     >
       {isBoosted && !isSuspended && (
         // Corner badge, not a centered label pill - centered over the whole
-        // button read as floating/detached from the price on the wider
-        // label-beside-value row layout (variant="inline"), and overlapped
+        // button read as floating/detached from the price, and overlapped
         // the label text above it on narrow cards. A small icon-only badge
         // in the corner (same spot the boosted-odds reference mockup used)
         // stays out of the way of both the label and the price it marks.
@@ -82,28 +103,20 @@ function SelectionButton({ selection, label, isSelected, isSuspended, variant, r
           <BoostIcon className="h-2.5 w-2.5" />
         </span>
       )}
-      <span className="odd-label">{label}</span>
+      <span className={caption ? 'odd-team-label' : 'odd-label'}>{caption ?? label}</span>
       {isSuspended ? (
         <LockIcon className="h-4 w-4" aria-hidden="true" />
-      ) : isBoosted ? (
-        // Stacked, not side-by-side: the narrowest match cards (e.g. the
-        // homepage's featured/hero card) only have ~60px per column, too
-        // tight to fit a struck-through price and the new one on one line.
-        <span className="flex flex-col items-center leading-none">
-          <span className="prev-odds text-xs font-semibold line-through decoration-1">
-            {selection.originalOdds!.toFixed(2)}
-          </span>
-          <span className="odd-value text-highlight">{selection.odds.toFixed(2)}</span>
-        </span>
-      ) : reserveBoostSpace ? (
-        <span className="flex flex-col items-center leading-none">
-          <span className="prev-odds invisible text-xs font-semibold" aria-hidden="true">
-            {selection.odds.toFixed(2)}
-          </span>
-          <span className="odd-value">{selection.odds.toFixed(2)}</span>
-        </span>
       ) : (
-        <span className="odd-value">{selection.odds.toFixed(2)}</span>
+        // Boosted selections show only the new price, same single-line
+        // shape as every other odds button, not a struck-through previous
+        // price stacked above it - that stacked treatment is what the
+        // dedicated boosted-odds block (BoostedOddsRow, the Boosts page and
+        // match-detail page's Boosts section) still uses; here it's one
+        // price among three/several in a regular market row, and reads
+        // better staying visually consistent with its neighbors. The
+        // highlight color is what still marks it as boosted, matching the
+        // corner badge's own highlight-colored fill.
+        <span className={`odd-value${isBoosted ? ' text-highlight' : ''}`}>{selection.odds.toFixed(2)}</span>
       )}
     </button>
   );
@@ -114,8 +127,8 @@ export function MarketSelections({
   matchLabel,
   competition,
   market,
-  variant = 'stacked',
-  reserveBoostSpace = false,
+  homeTeamLabel,
+  awayTeamLabel,
 }: MarketSelectionsProps) {
   const toggleSelection = useBetSlipStore((state) => state.toggleSelection);
   const selectedSelectionId = useBetSlipStore(
@@ -137,15 +150,20 @@ export function MarketSelections({
     >
       {orderedSelections.map((selection) => {
         const selectionLabel = displayName('SELECTION', selection.name);
+        const caption = captionFor(
+          selection.name,
+          displayName('SELECTION', 'Draw'),
+          homeTeamLabel,
+          awayTeamLabel,
+        );
         return (
           <SelectionButton
             key={selection.id}
             selection={selection}
             label={selectionLabel}
+            caption={caption}
             isSelected={selectedSelectionId === selection.id}
             isSuspended={competitionSuspended || isSuspended(matchId, market.id, selection.id)}
-            variant={variant}
-            reserveBoostSpace={reserveBoostSpace}
             onSelect={() => {
               track('CLICK', {
                 metadata: {

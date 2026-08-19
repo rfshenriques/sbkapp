@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import { userEvent } from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -62,24 +62,21 @@ describe('MatchCard', () => {
     expect(link).toHaveAttribute('href', '/matches/match-1');
   });
 
-  it('renders the match-result selections with their odds', () => {
+  it('renders the match-result selections with their odds, captioned with the actual team names/Draw', () => {
     renderMatchCard(baseMatch);
 
     const buttons = screen.getAllByRole('button');
-    // Every button reserves the boosted layout's 2-line height (an
-    // invisible placeholder line duplicating the price) so odds buttons
-    // are a uniform size across a list regardless of which ones happen to
-    // be boosted right now (see MarketSelections' reserveBoostSpace) - the
-    // placeholder's text is still part of textContent even though it's
-    // visually hidden.
     const texts = buttons.map((button) => button.textContent);
-    expect(texts).toEqual(['Home2.102.10', 'Draw3.403.40', 'Away3.203.20']);
+    expect(texts).toEqual(['Arsenal2.10', 'Draw3.40', 'Chelsea3.20']);
   });
 
   it('renders both team names stacked, with no score, for a pre-match fixture', () => {
     renderMatchCard(baseMatch);
-    expect(screen.getByText('Arsenal')).toBeInTheDocument();
-    expect(screen.getByText('Chelsea')).toBeInTheDocument();
+    // "Arsenal"/"Chelsea" also appear as the odds buttons' own captions now
+    // (see the test above) - scope to the team-name link, not the odds row.
+    const teamNameLink = screen.getByRole('link', { name: 'Arsenal vs Chelsea' });
+    expect(within(teamNameLink).getByText('Arsenal')).toBeInTheDocument();
+    expect(within(teamNameLink).getByText('Chelsea')).toBeInTheDocument();
     expect(screen.queryByText('vs')).not.toBeInTheDocument();
   });
 
@@ -214,7 +211,7 @@ describe('MatchCard', () => {
       </QueryClientProvider>,
     );
 
-    await userEvent.click(screen.getByRole('button', { name: 'Home2.10' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Arsenal2.10' }));
 
     expect(screen.queryByText('Match detail page')).not.toBeInTheDocument();
     expect(useBetSlipStore.getState().selections).toHaveLength(1);

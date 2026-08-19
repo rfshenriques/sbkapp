@@ -287,6 +287,8 @@ export default function MatchDetailPage() {
                   matchLabel={matchLabel}
                   competition={match.competition}
                   market={market}
+                  homeTeamLabel={homeTeamLabel}
+                  awayTeamLabel={awayTeamLabel}
                 />
               </Card>
             ))}
@@ -316,6 +318,8 @@ export default function MatchDetailPage() {
                   matchLabel={matchLabel}
                   competition={match.competition}
                   market={market}
+                  homeTeamLabel={homeTeamLabel}
+                  awayTeamLabel={awayTeamLabel}
                 />
                 {(market.maxStakeCents !== undefined || market.singlesOnly) && (
                   <p className="mt-1.5 text-[11px] text-text-secondary">

@@ -309,7 +309,7 @@ describe('MarketSelections', () => {
     expect(homeButton).not.toBeDisabled();
   });
 
-  it('shows the original price struck through next to the boosted price, plus a corner boost badge, when originalOdds is set', () => {
+  it('shows only the new boosted price (no struck-through previous price), colored to match the corner boost badge, when originalOdds is set', () => {
     const boostedMarket: Market = {
       ...matchResult,
       selections: [
@@ -326,13 +326,19 @@ describe('MarketSelections', () => {
       />,
     );
 
+    // The struck-through previous price is what the dedicated
+    // BoostedOddsRow block (Boosts page / match-detail Boosts section)
+    // still shows - a regular market row stays visually consistent with
+    // its non-boosted neighbors instead, showing just the one price.
     const homeButton = screen.getByRole('button', { name: /Home boosted to 2.50, was 2.10/ });
     expect(homeButton.querySelector('svg')).toBeInTheDocument();
-    expect(screen.getByText('2.10')).toBeInTheDocument();
-    expect(screen.getByText('2.50')).toBeInTheDocument();
-    // Draw/Away have no originalOdds, so no boost badge for them.
+    expect(screen.queryByText('2.10')).not.toBeInTheDocument();
+    const oddValue = screen.getByText('2.50');
+    expect(oddValue).toHaveClass('odd-value', 'text-highlight');
+    // Draw/Away have no originalOdds, so no boost badge or highlight color for them.
     const drawButton = screen.getByRole('button', { name: 'Draw3.40' });
     expect(drawButton.querySelector('svg')).not.toBeInTheDocument();
+    expect(screen.getByText('3.40')).not.toHaveClass('text-highlight');
   });
 
   it('captures the boosted odds and originalOdds when a boosted selection is added to the bet slip', async () => {
@@ -357,5 +363,82 @@ describe('MarketSelections', () => {
     expect(useBetSlipStore.getState().selections).toEqual([
       expect.objectContaining({ odds: 2.5, originalOdds: 2.1 }),
     ]);
+  });
+
+  describe('team-name captions on a match-result market', () => {
+    it("shows the real team names/'Draw' in place of the generic label when both team labels are supplied", () => {
+      renderWithQueryClient(
+        <MarketSelections
+          matchId="match-1"
+          matchLabel="Arsenal vs Chelsea"
+          competition={COMPETITION}
+          market={matchResult}
+          homeTeamLabel="Arsenal"
+          awayTeamLabel="Chelsea"
+        />,
+      );
+
+      expect(screen.getByRole('button', { name: 'Arsenal2.10' }).querySelector('.odd-team-label')).toHaveTextContent(
+        'Arsenal',
+      );
+      expect(screen.getByRole('button', { name: 'Draw3.40' }).querySelector('.odd-team-label')).toHaveTextContent(
+        'Draw',
+      );
+      expect(screen.getByRole('button', { name: 'Chelsea3.20' }).querySelector('.odd-team-label')).toHaveTextContent(
+        'Chelsea',
+      );
+    });
+
+    it('still captures the plain selection name (not the team name) as the bet slip pick, since the caption is purely visual', async () => {
+      renderWithQueryClient(
+        <MarketSelections
+          matchId="match-1"
+          matchLabel="Arsenal vs Chelsea"
+          competition={COMPETITION}
+          market={matchResult}
+          homeTeamLabel="Arsenal"
+          awayTeamLabel="Chelsea"
+        />,
+      );
+
+      await userEvent.click(screen.getByRole('button', { name: 'Arsenal2.10' }));
+
+      expect(useBetSlipStore.getState().selections).toEqual([
+        expect.objectContaining({ selectionName: 'Home' }),
+      ]);
+    });
+
+    it('falls back to the plain generic label when team labels are not supplied', () => {
+      renderMarketSelections();
+
+      const homeButton = screen.getByRole('button', { name: 'Home2.10' });
+      expect(homeButton.querySelector('.odd-team-label')).not.toBeInTheDocument();
+      expect(homeButton.querySelector('.odd-label')).toHaveTextContent('Home');
+    });
+
+    it('does not caption a non-match-result market even when team labels are supplied', () => {
+      const overUnder: Market = {
+        id: 'over-under-2.5',
+        name: 'Over/Under 2.5',
+        selections: [
+          { id: 'over', name: 'Over', odds: 1.9 },
+          { id: 'under', name: 'Under', odds: 1.9 },
+        ],
+      };
+      renderWithQueryClient(
+        <MarketSelections
+          matchId="match-1"
+          matchLabel="Arsenal vs Chelsea"
+          competition={COMPETITION}
+          market={overUnder}
+          homeTeamLabel="Arsenal"
+          awayTeamLabel="Chelsea"
+        />,
+      );
+
+      const overButton = screen.getByRole('button', { name: 'Over1.90' });
+      expect(overButton.querySelector('.odd-team-label')).not.toBeInTheDocument();
+      expect(overButton.querySelector('.odd-label')).toHaveTextContent('Over');
+    });
   });
 });

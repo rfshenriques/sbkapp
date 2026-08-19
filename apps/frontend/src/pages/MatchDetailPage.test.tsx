@@ -328,7 +328,7 @@ describe('MatchDetailPage', () => {
   it('lets you add a selection to the bet slip from the match detail page', async () => {
     renderAt('match-1');
 
-    const homeButton = await screen.findByRole('button', { name: 'Home2.10' });
+    const homeButton = await screen.findByRole('button', { name: 'Arsenal2.10' });
     await userEvent.click(homeButton);
 
     expect(useBetSlipStore.getState().selections).toEqual([

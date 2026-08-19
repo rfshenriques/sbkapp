@@ -1,7 +1,6 @@
 import type { CSSProperties } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
-import { ChevronIcon } from '../../components/ui/ChevronIcon';
 import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
 import { TeamColorAccent } from '../../components/ui/TeamColorAccent';
 import { MarketSelections } from '../bet-slip/MarketSelections';
@@ -117,30 +116,14 @@ export function MatchCard({ match, style, animate = true }: MatchCardProps) {
           <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
             {displayName('MARKET', matchResult.name)}
           </p>
-          <div className="flex items-stretch gap-1.5">
-            <div className="min-w-0 flex-1">
-              <MarketSelections
-                matchId={match.id}
-                matchLabel={matchLabel}
-                competition={match.competition}
-                market={matchResult}
-                variant="inline"
-                reserveBoostSpace
-              />
-            </div>
-            {/* Same navigation as the rest of the card - a visual affordance
-                into the match's full market list, not a separate expand
-                behavior (the card doesn't inline any markets beyond this
-                one). */}
-            <Link
-              to={matchHref}
-              onClick={(event) => event.stopPropagation()}
-              aria-label="More markets"
-              className="flex shrink-0 items-center justify-center rounded-xl border border-border bg-surface-hover px-2.5 text-text-secondary transition-colors hover:text-text-primary"
-            >
-              <ChevronIcon width={14} height={14} className="-rotate-90" />
-            </Link>
-          </div>
+          <MarketSelections
+            matchId={match.id}
+            matchLabel={matchLabel}
+            competition={match.competition}
+            market={matchResult}
+            homeTeamLabel={homeTeamLabel}
+            awayTeamLabel={awayTeamLabel}
+          />
         </div>
       ) : (
         // No odds to show inline yet (feed hasn't priced this match, or

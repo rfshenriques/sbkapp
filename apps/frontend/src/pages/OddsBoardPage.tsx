@@ -187,7 +187,8 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
               matchLabel={`${homeTeamLabel} vs ${awayTeamLabel}`}
               competition={match.competition}
               market={matchResult}
-              reserveBoostSpace
+              homeTeamLabel={homeTeamLabel}
+              awayTeamLabel={awayTeamLabel}
             />
           </div>
         </div>
