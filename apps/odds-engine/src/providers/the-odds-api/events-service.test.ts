@@ -128,6 +128,27 @@ describe('createEventsService', () => {
     ]);
   });
 
+  it('recomputes isLive fresh on every read from a cache hit, rather than freezing it at cache-population time', async () => {
+    // Kicks off 30 minutes after the cache is first populated - well within
+    // the 24h cache TTL, so every subsequent read for the rest of that
+    // window must come from the cache, not a fresh fetch.
+    const getOdds = vi
+      .fn()
+      .mockResolvedValue([buildEventOdds({ id: 'e1', commence_time: '2026-07-19T19:30:00Z' })]);
+    const client = buildClient({ getOdds });
+    let currentTime = new Date('2026-07-19T19:00:00Z').getTime();
+    const service = createEventsService({ client, sportKeys: ['soccer_epl'], now: () => currentTime });
+
+    const beforeKickoff = await service.listMatches();
+    expect(beforeKickoff[0]?.isLive).toBe(false);
+
+    // Still inside the 24h cache TTL - this must be served from cache.
+    currentTime = new Date('2026-07-19T19:45:00Z').getTime();
+    const afterKickoff = await service.listMatches();
+    expect(getOdds).toHaveBeenCalledTimes(1);
+    expect(afterKickoff[0]?.isLive).toBe(true);
+  });
+
   it('returns undefined for an id that was never in the list', async () => {
     const client = buildClient();
     const service = createEventsService({ client, sportKeys: ['soccer_epl'] });

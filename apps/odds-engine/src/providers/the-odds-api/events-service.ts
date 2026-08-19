@@ -1,6 +1,6 @@
 import type { Match } from '@sportsbook/shared';
 import type { TheOddsApiClient } from './client';
-import { normalizeTheOddsApiEventOdds } from './normalize';
+import { isLikelyLive, normalizeTheOddsApiEventOdds } from './normalize';
 
 /**
  * The Odds API's free tier is 500 requests/MONTH total (confirmed via the
@@ -39,8 +39,15 @@ const EVENTS_CACHE_TTL_MS = 24 * 60 * 60_000;
  * uses) and the more regional sports (CFL, NCAAF, AFL, KBO/MiLB/NPB
  * baseball, cricket formats, lacrosse, NRL) to keep per-refresh request
  * count down given the tight monthly quota - see the cache-TTL comment
- * above. At 12 keys x 1 request/24h this is ~360 requests/month, leaving
- * headroom under the 500/month cap.
+ * above. At 12 keys x 1 request/24h, each request now costing 2 quota
+ * units (markets=h2h,totals - see client.ts's default), this is
+ * ~720 units/month against the 500/month free-tier cap. This is expected
+ * to run over the free tier over a full month; a stale cache (last
+ * fetched result kept until the next successful call - see
+ * `if (... failedSportKeys === sportKeys.length) return matches;` below)
+ * degrades this to "board stops updating" rather than "board goes empty"
+ * once the quota is exhausted. Revisit (fewer sport keys, or a paid plan)
+ * if this isn't an acceptable tradeoff.
  *
  * Other confirmed-real European leagues not included here for the same
  * quota reason - add if broader coverage is wanted: soccer_efl_champ
@@ -112,10 +119,24 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
 
   let eventsCache: CacheEntry<Match[]> | undefined;
 
+  /**
+   * isLive is a function of kickoff + the current time, not of anything the
+   * feed itself reports (see isLikelyLive) - baking it into the cached
+   * Match objects would freeze it at whatever it was when the 24h cache was
+   * last populated, so a match that kicks off partway through that window
+   * would sit at isLive: false (never showing live score/tracker UI, and
+   * never appearing in the live-matches strip) until the next cache
+   * refresh, up to 24h later. Recompute fresh on every read instead,
+   * whether the read comes from cache or a fresh fetch.
+   */
+  function withFreshLiveFlags(matches: Match[], currentTime: number): Match[] {
+    return matches.map((match) => ({ ...match, isLive: isLikelyLive(match.kickoff, () => currentTime) }));
+  }
+
   async function listMatches(): Promise<Match[]> {
     const currentTime = now();
     if (eventsCache && eventsCache.expiresAt > currentTime) {
-      return eventsCache.value;
+      return withFreshLiveFlags(eventsCache.value, currentTime);
     }
 
     const results = await Promise.allSettled(
@@ -151,11 +172,11 @@ export function createEventsService(options: EventsServiceOptions): EventsServic
     // Leave the cache untouched so the next call retries against the API
     // instead of serving this transient empty result for hours.
     if (sportKeys.length > 0 && failedSportKeys === sportKeys.length) {
-      return matches;
+      return withFreshLiveFlags(matches, currentTime);
     }
 
     eventsCache = { value: matches, expiresAt: currentTime + EVENTS_CACHE_TTL_MS };
-    return matches;
+    return withFreshLiveFlags(matches, currentTime);
   }
 
   async function getMatchOdds(eventId: string): Promise<Match | undefined> {

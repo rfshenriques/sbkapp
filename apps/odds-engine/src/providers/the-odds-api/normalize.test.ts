@@ -185,6 +185,50 @@ describe('normalizeTheOddsApiEventOdds', () => {
     expect(match.country).toBe('International');
   });
 
+  it('adds a Total Goals market from the totals market when the preferred bookmaker offers one', () => {
+    const now = () => new Date('2026-07-19T10:00:00Z').getTime();
+    const withTotals: TheOddsApiEventOdds = {
+      ...pendingEventOdds,
+      bookmakers: [
+        {
+          key: 'paddypower',
+          title: 'Paddy Power',
+          last_update: '2026-07-19T18:05:00Z',
+          markets: [
+            {
+              key: 'h2h',
+              last_update: '2026-07-19T18:05:00Z',
+              outcomes: [
+                { name: 'Arsenal', price: 1.95 },
+                { name: 'Draw', price: 3.6 },
+                { name: 'Chelsea', price: 4.0 },
+              ],
+            },
+            {
+              key: 'totals',
+              last_update: '2026-07-19T18:05:00Z',
+              outcomes: [
+                { name: 'Over', price: 1.9, point: 2.5 },
+                { name: 'Under', price: 1.9, point: 2.5 },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const match = normalizeTheOddsApiEventOdds(withTotals, now);
+    const totalGoals = match.markets.find((market) => market.id === 'total-goals');
+    expect(totalGoals).toEqual({
+      id: 'total-goals',
+      name: 'Total Goals 2.5',
+      selections: [
+        { id: 'over', name: 'Over 2.5', odds: 1.9 },
+        { id: 'under', name: 'Under 2.5', odds: 1.9 },
+      ],
+    });
+  });
+
   it('returns an empty markets list when no bookmaker offers h2h', () => {
     const now = () => new Date('2026-07-19T10:00:00Z').getTime();
     const noOdds: TheOddsApiEventOdds = { ...pendingEventOdds, bookmakers: [] };

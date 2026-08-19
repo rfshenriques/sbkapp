@@ -102,6 +102,15 @@ function toMatchResultSelections(
   });
 }
 
+/** The totals market only ever carries one line (Over/Under X) per bookmaker on this endpoint - not the multi-line ladder some providers offer. */
+function toTotalsSelections(outcomes: TheOddsApiOutcome[]): Selection[] {
+  return outcomes.map((outcome) => ({
+    id: outcome.name.toLowerCase() === 'over' ? 'over' : 'under',
+    name: outcome.point !== undefined ? `${outcome.name} ${outcome.point}` : outcome.name,
+    odds: outcome.price,
+  }));
+}
+
 /**
  * Maps a raw per-league odds response entry (one event, its own odds
  * embedded) to our internal Match/Market/Selection shape, taking the h2h
@@ -111,16 +120,24 @@ function toMatchResultSelections(
 export function normalizeTheOddsApiEventOdds(raw: TheOddsApiEventOdds, now?: () => number): Match {
   const bookmaker = raw.bookmakers.length > 0 ? pickBookmaker(raw.bookmakers) : undefined;
   const h2h = bookmaker?.markets.find((market) => market.key === 'h2h');
+  const totals = bookmaker?.markets.find((market) => market.key === 'totals');
 
-  const markets: Market[] = h2h
-    ? [
-        {
-          id: 'match-result',
-          name: 'Match Result',
-          selections: toMatchResultSelections(h2h.outcomes, raw.home_team, raw.away_team),
-        },
-      ]
-    : [];
+  const markets: Market[] = [];
+  if (h2h) {
+    markets.push({
+      id: 'match-result',
+      name: 'Match Result',
+      selections: toMatchResultSelections(h2h.outcomes, raw.home_team, raw.away_team),
+    });
+  }
+  if (totals && totals.outcomes.length > 0) {
+    const line = totals.outcomes[0]?.point;
+    markets.push({
+      id: 'total-goals',
+      name: line !== undefined ? `Total Goals ${line}` : 'Total Goals',
+      selections: toTotalsSelections(totals.outcomes),
+    });
+  }
 
   return {
     id: raw.id,

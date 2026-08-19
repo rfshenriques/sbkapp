@@ -20,7 +20,7 @@ export interface GetOddsParams {
   sportKey: string;
   /** Comma-separated region codes (us/uk/eu/au). */
   regions?: string;
-  /** Comma-separated market keys, e.g. "h2h". */
+  /** Comma-separated market keys, e.g. "h2h,totals" (the default - see normalize.ts). */
   markets?: string;
   oddsFormat?: 'decimal' | 'american';
 }
@@ -117,7 +117,7 @@ export function createTheOddsApiClient(options: TheOddsApiClientOptions): TheOdd
     // UK/Ireland bookmaker and wasn't present in a real eu-region response
     // we checked. Also keeps request cost down (cost scales with region
     // count) since we only need the one region.
-    const { sportKey, regions = 'uk', markets = 'h2h', oddsFormat = 'decimal' } = params;
+    const { sportKey, regions = 'uk', markets = 'h2h,totals', oddsFormat = 'decimal' } = params;
     const label = `GET /sports/${sportKey}/odds`;
 
     const response = await fetchWithKeyFallback((apiKey) => {
