@@ -1836,6 +1836,8 @@ export interface PromoCard {
   subtitle: string | null;
   /** Optional CTA button label shown on the card (e.g. "Claim Now") - null renders no button. */
   ctaLabel: string | null;
+  /** Optional internal path (e.g. "/sports/all?date=today") the whole card links to - takes priority over a campaign link if both are set. Null falls back to the campaign link, or no link at all. */
+  linkUrl: string | null;
   sortOrder: number;
   autoCreated: boolean;
   betAndGetCampaignId: string | null;
@@ -1855,6 +1857,7 @@ export interface AddPromoCardPayload {
   title?: string;
   subtitle?: string;
   ctaLabel?: string;
+  linkUrl?: string;
   betAndGetCampaignId?: string;
   depositCampaignId?: string;
   registerCampaignId?: string;
@@ -1865,6 +1868,7 @@ export interface UpdatePromoCardPayload {
   title?: string | null;
   subtitle?: string | null;
   ctaLabel?: string | null;
+  linkUrl?: string | null;
   betAndGetCampaignId?: string | null;
   depositCampaignId?: string | null;
   registerCampaignId?: string | null;
@@ -1883,6 +1887,7 @@ export async function addPromoCard(payload: AddPromoCardPayload): Promise<PromoC
   if (payload.title) formData.append('title', payload.title);
   if (payload.subtitle) formData.append('subtitle', payload.subtitle);
   if (payload.ctaLabel) formData.append('ctaLabel', payload.ctaLabel);
+  if (payload.linkUrl) formData.append('linkUrl', payload.linkUrl);
   if (payload.betAndGetCampaignId) formData.append('betAndGetCampaignId', payload.betAndGetCampaignId);
   if (payload.depositCampaignId) formData.append('depositCampaignId', payload.depositCampaignId);
   if (payload.registerCampaignId) formData.append('registerCampaignId', payload.registerCampaignId);

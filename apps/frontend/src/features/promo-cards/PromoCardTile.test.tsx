@@ -12,6 +12,7 @@ const decorativeCard: PromoCardItem = {
   title: 'Welcome offer',
   subtitle: null,
   ctaLabel: null,
+  linkUrl: null,
   sortOrder: 0,
   betAndGetCampaignId: null,
   depositCampaignId: null,
@@ -157,5 +158,28 @@ describe('PromoCardTile', () => {
     );
 
     expect(screen.getByText('Claim Now')).toBeInTheDocument();
+  });
+
+  it('renders the CTA button full width', () => {
+    render(
+      <MemoryRouter>
+        <PromoCardTile card={{ ...decorativeCard, ctaLabel: 'Claim Now' }} brandId="brand-1" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByText('Claim Now')).toHaveClass('w-full');
+  });
+
+  it('links to a custom linkUrl, taking priority over a campaign id', () => {
+    render(
+      <MemoryRouter>
+        <PromoCardTile
+          card={{ ...decorativeCard, linkUrl: '/sports/all?date=today', betAndGetCampaignId: 'campaign-1' }}
+          brandId="brand-1"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('link')).toHaveAttribute('href', '/sports/all?date=today');
   });
 });

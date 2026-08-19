@@ -1367,12 +1367,21 @@ model PromoCard {
   /**
    * Optional call-to-action button label shown on the card (e.g. "Claim
    * Now", "Join Now") - unset renders no button, same "only what staff
-   * actually configured" rule as title/subtitle. The card's own click-
-   * through (see PromoCardTile) already navigates wherever this button
-   * would, so the button is a visual affordance on top of that, not a
-   * separate destination.
+   * actually configured" rule as title/subtitle. Purely a visual
+   * affordance - the whole card is already the click target, wherever
+   * linkUrl/the campaign link below sends it.
    */
   ctaLabel    String?
+  /**
+   * Optional internal path (e.g. "/sports/all?date=today", "/boosts") the
+   * whole card navigates to - lets staff point a card anywhere on the
+   * site, not just at one of the 4 campaign types below. Takes priority
+   * over a campaign link if both happen to be set (see PromoCardTile) -
+   * the CMS form treats them as alternatives, not something meant to be
+   * combined. Always a same-origin relative path - never a full external
+   * URL (see the DTO's regex validation).
+   */
+  linkUrl     String?
   sortOrder   Int
   autoCreated Boolean  @default(false)
   createdAt   DateTime @default(now())

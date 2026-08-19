@@ -230,6 +230,7 @@ function NewPromoCardForm({
   const [title, setTitle] = useState('');
   const [subtitle, setSubtitle] = useState('');
   const [ctaLabel, setCtaLabel] = useState('');
+  const [linkUrl, setLinkUrl] = useState('');
   const [selection, setSelection] = useState<CampaignSelection>(EMPTY_SELECTION);
   const [error, setError] = useState<string | null>(null);
 
@@ -240,6 +241,7 @@ function NewPromoCardForm({
         title: title.trim() || undefined,
         subtitle: subtitle.trim() || undefined,
         ctaLabel: ctaLabel.trim() || undefined,
+        linkUrl: linkUrl.trim() || undefined,
         betAndGetCampaignId: selection.betAndGetCampaignId || undefined,
         depositCampaignId: selection.depositCampaignId || undefined,
         registerCampaignId: selection.registerCampaignId || undefined,
@@ -250,6 +252,7 @@ function NewPromoCardForm({
       setTitle('');
       setSubtitle('');
       setCtaLabel('');
+      setLinkUrl('');
       setSelection(EMPTY_SELECTION);
       setError(null);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -270,8 +273,8 @@ function NewPromoCardForm({
     <Card className="space-y-3">
       <h2 className="text-sm font-semibold">New promo card</h2>
       <p className="text-xs text-text-secondary">
-        Shown on the homepage and Promotions page. Link it to a Bet & Get or deposit campaign to make it
-        clickable, or leave unlinked for a purely decorative card.
+        Shown on the homepage and Promotions page. Link it to a Bet &amp; Get or deposit campaign, or a custom
+        link path, to make it clickable, or leave both unset for a purely decorative card.
       </p>
 
       <div>
@@ -328,8 +331,26 @@ function NewPromoCardForm({
           className="mt-1 w-full max-w-xs rounded-md border border-border bg-background px-2 py-1.5 text-sm"
         />
         <p className="mt-1 text-xs text-text-secondary">
-          Shown as a button on the card. Leave blank for no button - the whole card still links through when a
-          campaign is linked below.
+          Shown as a button on the card. Leave blank for no button - the whole card still links through
+          whenever a campaign or link path is set below.
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-xs text-text-secondary" htmlFor="promo-card-link-url">
+          Link path (optional)
+        </label>
+        <input
+          id="promo-card-link-url"
+          type="text"
+          value={linkUrl}
+          onChange={(event) => setLinkUrl(event.target.value)}
+          placeholder="e.g. /sports/all?date=today"
+          className="mt-1 w-full max-w-xs rounded-md border border-border bg-background px-2 py-1.5 text-sm font-mono"
+        />
+        <p className="mt-1 text-xs text-text-secondary">
+          Sends the whole card anywhere on the site - a sport/date filter, Boosts, Specials, etc. Takes
+          priority over the linked campaign below if both are set.
         </p>
       </div>
 
@@ -387,6 +408,7 @@ function PromoCardRow({
   const [title, setTitle] = useState(card.title ?? '');
   const [subtitle, setSubtitle] = useState(card.subtitle ?? '');
   const [ctaLabel, setCtaLabel] = useState(card.ctaLabel ?? '');
+  const [linkUrl, setLinkUrl] = useState(card.linkUrl ?? '');
   const [selection, setSelection] = useState<CampaignSelection>({
     betAndGetCampaignId: card.betAndGetCampaignId ?? '',
     depositCampaignId: card.depositCampaignId ?? '',
@@ -399,6 +421,7 @@ function PromoCardRow({
     setTitle(card.title ?? '');
     setSubtitle(card.subtitle ?? '');
     setCtaLabel(card.ctaLabel ?? '');
+    setLinkUrl(card.linkUrl ?? '');
     setSelection({
       betAndGetCampaignId: card.betAndGetCampaignId ?? '',
       depositCampaignId: card.depositCampaignId ?? '',
@@ -413,6 +436,7 @@ function PromoCardRow({
         title: title.trim() || null,
         subtitle: subtitle.trim() || null,
         ctaLabel: ctaLabel.trim() || null,
+        linkUrl: linkUrl.trim() || null,
         betAndGetCampaignId: selection.betAndGetCampaignId || null,
         depositCampaignId: selection.depositCampaignId || null,
         registerCampaignId: selection.registerCampaignId || null,
@@ -461,6 +485,7 @@ function PromoCardRow({
     title.trim() !== (card.title ?? '') ||
     subtitle.trim() !== (card.subtitle ?? '') ||
     ctaLabel.trim() !== (card.ctaLabel ?? '') ||
+    linkUrl.trim() !== (card.linkUrl ?? '') ||
     selection.betAndGetCampaignId !== (card.betAndGetCampaignId ?? '') ||
     selection.depositCampaignId !== (card.depositCampaignId ?? '') ||
     selection.registerCampaignId !== (card.registerCampaignId ?? '') ||
@@ -559,6 +584,23 @@ function PromoCardRow({
               placeholder="e.g. Claim Now"
               className="mt-1 w-full max-w-xs rounded-md border border-border bg-surface px-2 py-1.5 text-sm"
             />
+          </div>
+          <div>
+            <label className="block text-xs text-text-secondary" htmlFor={`link-url-${card.id}`}>
+              Link path
+            </label>
+            <input
+              id={`link-url-${card.id}`}
+              type="text"
+              value={linkUrl}
+              onChange={(event) => setLinkUrl(event.target.value)}
+              placeholder="e.g. /sports/all?date=today"
+              className="mt-1 w-full max-w-xs rounded-md border border-border bg-surface px-2 py-1.5 text-sm font-mono"
+            />
+            <p className="mt-1 text-xs text-text-secondary">
+              Sends the whole card anywhere on the site. Takes priority over the linked campaign below if both
+              are set.
+            </p>
           </div>
           <div>
             <label className="block text-xs text-text-secondary" htmlFor={`campaign-${card.id}`}>

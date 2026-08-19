@@ -74,6 +74,7 @@ const decorativeCard: PromoCard = {
   title: 'Welcome offer',
   subtitle: null,
   ctaLabel: null,
+  linkUrl: null,
   sortOrder: 0,
   autoCreated: false,
   betAndGetCampaignId: null,
@@ -274,6 +275,55 @@ describe('CmsPromoCardsPage', () => {
     renderPage();
     await userEvent.click(await screen.findByRole('button', { name: /Welcome offer/ }));
     await userEvent.type(screen.getByLabelText('CTA button text'), 'Join Now');
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/backend/admin/promo-cards/card-1',
+      expect.objectContaining({ method: 'PATCH' }),
+    );
+  });
+
+  it('uploading a new card includes the link path in the multipart form data', async () => {
+    const fetchMock = stubFetch((url, method, init) => {
+      if (method === 'GET' && url === '/backend/admin/promo-cards') {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+      if (method === 'POST' && url === '/backend/admin/promo-cards') {
+        const formData = init!.body as FormData;
+        expect(formData.get('linkUrl')).toBe('/sports/all?date=today');
+        return new Response(JSON.stringify({ ...decorativeCard, linkUrl: '/sports/all?date=today' }), {
+          status: 200,
+        });
+      }
+      return undefined;
+    });
+
+    renderPage();
+    await screen.findByText('No campaign (decorative only)');
+
+    const file = new File(['bytes'], 'promo.png', { type: 'image/png' });
+    await userEvent.upload(screen.getByLabelText('Image'), file);
+    await userEvent.type(screen.getByLabelText('Link path (optional)'), '/sports/all?date=today');
+    await userEvent.click(screen.getByRole('button', { name: 'Add promo card' }));
+
+    expect(fetchMock).toHaveBeenCalledWith('/backend/admin/promo-cards', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('editing a card saves its link path', async () => {
+    const fetchMock = stubFetch((url, method, init) => {
+      if (method === 'GET' && url === '/backend/admin/promo-cards') {
+        return new Response(JSON.stringify([decorativeCard]), { status: 200 });
+      }
+      if (method === 'PATCH' && url === '/backend/admin/promo-cards/card-1') {
+        expect(JSON.parse(init!.body as string)).toMatchObject({ linkUrl: '/boosts' });
+        return new Response(JSON.stringify({ ...decorativeCard, linkUrl: '/boosts' }), { status: 200 });
+      }
+      return undefined;
+    });
+
+    renderPage();
+    await userEvent.click(await screen.findByRole('button', { name: /Welcome offer/ }));
+    await userEvent.type(screen.getByLabelText('Link path'), '/boosts');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(fetchMock).toHaveBeenCalledWith(

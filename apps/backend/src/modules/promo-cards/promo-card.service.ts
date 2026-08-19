@@ -16,6 +16,7 @@ const METADATA_SELECT = {
   title: true,
   subtitle: true,
   ctaLabel: true,
+  linkUrl: true,
   sortOrder: true,
   autoCreated: true,
   betAndGetCampaignId: true,
@@ -33,6 +34,7 @@ export interface PromoCardMetadata {
   title: string | null;
   subtitle: string | null;
   ctaLabel: string | null;
+  linkUrl: string | null;
   sortOrder: number;
   autoCreated: boolean;
   betAndGetCampaignId: string | null;
@@ -52,6 +54,7 @@ export interface PromoCardFields {
   title?: string | null;
   subtitle?: string | null;
   ctaLabel?: string | null;
+  linkUrl?: string | null;
   betAndGetCampaignId?: string | null;
   depositCampaignId?: string | null;
   registerCampaignId?: string | null;
@@ -236,6 +239,21 @@ export class PromoCardService {
     }
   }
 
+  /**
+   * A single leading slash, never "//" (a protocol-relative URL browsers
+   * treat as external) - checked here rather than relying solely on
+   * UpdatePromoCardDto's validation, since add() takes raw multipart
+   * fields with no DTO pipeline in front of it. linkUrl drives real
+   * navigation (see PromoCardTile), unlike the other free-text fields
+   * here, so it's the one worth guarding against an open redirect even
+   * on the unvalidated path.
+   */
+  private assertValidLinkUrl(linkUrl: string | null | undefined) {
+    if (linkUrl && !/^\/(?!\/).*$/.test(linkUrl)) {
+      throw new BadRequestException('linkUrl must be an internal path starting with a single "/"');
+    }
+  }
+
   async add(
     brandId: string,
     fileData: Buffer,
@@ -249,6 +267,7 @@ export class PromoCardService {
       registerCampaignId: fields.registerCampaignId ?? null,
       leaderboardCampaignId: fields.leaderboardCampaignId ?? null,
     });
+    this.assertValidLinkUrl(fields.linkUrl);
     const data = Buffer.from(fileData);
     const highest = await this.prisma.promoCard.findFirst({
       where: { brandId },
@@ -264,6 +283,7 @@ export class PromoCardService {
         title: fields.title,
         subtitle: fields.subtitle,
         ctaLabel: fields.ctaLabel,
+        linkUrl: fields.linkUrl,
         betAndGetCampaignId: fields.betAndGetCampaignId,
         depositCampaignId: fields.depositCampaignId,
         registerCampaignId: fields.registerCampaignId,

@@ -15,14 +15,18 @@ export interface PromoCardTileProps {
 
 /**
  * One CMS-managed promo card, with an optional title/subtitle and an
- * optional click-through to its linked campaign - a Bet & Get campaign
- * navigates to its matches page, a deposit campaign reopens the same modal
- * the post-login trigger uses (see DepositCampaignModal), a leaderboard
- * navigates to its detail page. A register campaign has no browsable page
- * of its own (it's an automatic welcome bonus, not something to browse),
- * so it only contributes to the trophy badge below, never a click target.
- * A card with none of the 4 ids set is purely decorative (no link). See
- * apps/backend's PromoCardService and the backoffice's CMS Promo Cards page.
+ * optional click-through. `linkUrl` (a staff-typed internal path, e.g.
+ * "/sports/all?date=today" or "/boosts") takes priority when set, sending
+ * the whole card anywhere on the site rather than one of the 4 fixed
+ * campaign destinations below - a Bet & Get campaign navigates to its
+ * matches page, a deposit campaign reopens the same modal the post-login
+ * trigger uses (see DepositCampaignModal), a leaderboard navigates to its
+ * detail page. A register campaign has no browsable page of its own (it's
+ * an automatic welcome bonus, not something to browse), so it only
+ * contributes to the trophy badge below, never a click target. A card with
+ * neither linkUrl nor any of the 4 campaign ids set is purely decorative
+ * (no link). See apps/backend's PromoCardService and the backoffice's CMS
+ * Promo Cards page.
  *
  * `hasImage: false` (see PromoCardAutoSyncService) means a campaign went
  * live before staff uploaded any artwork for it - rendered as a short,
@@ -75,8 +79,10 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
               // A span, not a nested <button>/<a> - the whole card is
               // already the click target (see the Link/button this
               // renders inside below), so this is a visual affordance
-              // only, not a second interactive element.
-              <span className="btn-primary promo-cta mt-1 inline-block">{card.ctaLabel}</span>
+              // only, not a second interactive element. Full width (the
+              // parent's p-4 padding is the "margin" inset from the
+              // card edges) rather than an inline pill.
+              <span className="btn-primary promo-cta mt-1 block w-full text-center">{card.ctaLabel}</span>
             )}
           </div>
         </>
@@ -92,7 +98,7 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
       {card.subtitle && <p className="text-sm opacity-85">{card.subtitle}</p>}
       {card.ctaLabel && (
         <span
-          className="mt-1 rounded-xl px-4 py-1.5 text-xs font-bold"
+          className="mt-1 block w-full rounded-xl px-4 py-1.5 text-center text-xs font-bold"
           style={{ backgroundColor: brandContrast, color: 'var(--color-brand)' }}
         >
           {card.ctaLabel}
@@ -102,6 +108,18 @@ export function PromoCardTile({ card, brandId, className }: PromoCardTileProps) 
   );
 
   const frameClassName = [isEarlyEnded ? 'grayscale' : ''].filter(Boolean).join(' ');
+
+  if (card.linkUrl) {
+    return (
+      <Link
+        to={card.linkUrl}
+        onClick={() => track('CLICK', { metadata: { target: 'promo_card', kind: 'custom_link', linkUrl: card.linkUrl } })}
+        className={`relative block overflow-hidden rounded-3xl ${frameClassName} ${className ?? ''}`}
+      >
+        {content}
+      </Link>
+    );
+  }
 
   if (card.betAndGetCampaignId) {
     return (

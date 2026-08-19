@@ -27,6 +27,7 @@ interface AuthenticatedStaffRequest {
     title?: string;
     subtitle?: string;
     ctaLabel?: string;
+    linkUrl?: string;
     betAndGetCampaignId?: string;
     depositCampaignId?: string;
     registerCampaignId?: string;
@@ -70,6 +71,7 @@ export class PromoCardAdminController {
         title: req.body.title,
         subtitle: req.body.subtitle,
         ctaLabel: req.body.ctaLabel,
+        linkUrl: req.body.linkUrl,
         betAndGetCampaignId: req.body.betAndGetCampaignId,
         depositCampaignId: req.body.depositCampaignId,
         registerCampaignId: req.body.registerCampaignId,

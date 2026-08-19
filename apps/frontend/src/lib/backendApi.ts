@@ -661,6 +661,8 @@ export interface PromoCardItem {
   subtitle: string | null;
   /** Optional CTA button label shown on the card (e.g. "Claim Now") - null renders no button, see PromoCardTile. */
   ctaLabel: string | null;
+  /** Optional internal path (e.g. "/sports/all?date=today") the whole card links to - takes priority over a campaign link, see PromoCardTile. */
+  linkUrl: string | null;
   sortOrder: number;
   betAndGetCampaignId: string | null;
   depositCampaignId: string | null;
