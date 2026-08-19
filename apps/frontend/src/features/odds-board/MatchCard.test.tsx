@@ -101,7 +101,9 @@ describe('MatchCard', () => {
     expect(screen.queryByText('vs')).not.toBeInTheDocument();
     expect(await screen.findByText('2')).toBeInTheDocument();
     expect(screen.getByText('1')).toBeInTheDocument();
-    expect(screen.getByText("2nd Half · 40'")).toBeInTheDocument();
+    // The minute rolls into the corner LIVE badge itself now, not shown
+    // separately as its own period/minute text.
+    expect(screen.getByText("LIVE 40'")).toBeInTheDocument();
   });
 
   it('shows a dash placeholder per team for a live match before the score has loaded', () => {

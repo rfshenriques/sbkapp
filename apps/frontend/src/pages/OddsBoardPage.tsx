@@ -2,6 +2,7 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { LiveMatchChip } from '../features/odds-board/LiveMatchesStrip';
 import { MatchCard } from '../features/odds-board/MatchCard';
+import { useLiveScoreboard } from '../features/match-detail/useLiveScoreboard';
 import { MatchListSkeleton } from '../features/odds-board/MatchListSkeleton';
 import { useMatches } from '../features/odds-board/useMatches';
 import { useMatchOfTheDay } from '../features/odds-board/useMatchOfTheDay';
@@ -100,6 +101,8 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
   const awayTeamLabel = displayName('TEAM', match.awayTeam);
   const homeColor = teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam);
   const awayColor = teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam);
+  const { data: scoreboard } = useLiveScoreboard();
+  const liveState = scoreboard?.[match.id];
 
   return (
     <div
@@ -115,16 +118,27 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
       >
         <div className="match-card-glow" aria-hidden="true" />
 
+        {match.isLive && (
+          // Corner badge, same treatment as the regular MatchCard - the
+          // minute rolls into the badge itself (see useLiveScoreboard)
+          // rather than sitting as separate text elsewhere on the card.
+          <span className="absolute top-2 right-2 z-20 shrink-0 rounded-full bg-price-down px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-white">
+            LIVE{liveState ? ` ${liveState.minute}'` : ''}
+          </span>
+        )}
+
         <div className="relative z-10 flex flex-1 flex-col p-3 sm:p-4">
           <div className="flex items-center justify-between gap-2">
             <span
-              className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-white uppercase"
+              className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-white uppercase"
               style={{ backgroundColor: 'var(--color-brand)' }}
             >
               <StarIcon className="h-2.5 w-2.5" />
               Match of the day
             </span>
-            <span className="text-[11px] font-bold tracking-wide text-text-muted uppercase">
+            <span
+              className={`min-w-0 truncate text-[11px] font-bold tracking-wide text-text-muted uppercase ${match.isLive ? 'pr-14' : ''}`}
+            >
               {displayName('COMPETITION', match.competition)}
             </span>
           </div>
@@ -165,11 +179,7 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
             </span>
             <span className="flex shrink-0 flex-col items-end gap-1 text-right">
               <span className="text-[11px] font-bold tracking-wide text-text-muted uppercase">vs</span>
-              {match.isLive ? (
-                <span className="rounded-full bg-price-down px-2 py-0.5 text-[10px] font-extrabold text-white">
-                  LIVE
-                </span>
-              ) : (
+              {!match.isLive && (
                 <span className="text-xs font-bold text-highlight">{formatKickoff(new Date(match.kickoff))}</span>
               )}
             </span>

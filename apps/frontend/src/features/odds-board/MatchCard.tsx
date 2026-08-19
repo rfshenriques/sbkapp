@@ -10,7 +10,6 @@ import { useLiveScoreboard } from '../match-detail/useLiveScoreboard';
 import { useTeamColors } from './useTeamColors';
 import { fallbackTeamColor } from '../../lib/fallbackTeamColor';
 import { formatKickoff } from '../../lib/formatKickoff';
-import { matchPeriodLabel } from '../../lib/matchPeriodLabel';
 import type { Match } from '@sportsbook/shared';
 
 interface MatchCardProps {
@@ -46,32 +45,30 @@ export function MatchCard({ match, style, animate = true }: MatchCardProps) {
       onMouseEnter={() => prefetchMatchDetail(match.id)}
       onTouchStart={() => prefetchMatchDetail(match.id)}
     >
-      <p className="mb-1 flex min-w-0 items-center gap-1.5 text-[10px] font-semibold text-text-muted">
+      {match.isLive && (
+        // Corner badge, not inline with the competition row - a live card's
+        // status shouldn't compete for space with the country/competition
+        // label, and the minute rolls into the badge itself (see
+        // useLiveScoreboard) rather than sitting as separate text beside it.
+        <span className="absolute top-2 right-2 z-10 shrink-0 rounded-full bg-price-down px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest text-white">
+          LIVE{liveState ? ` ${liveState.minute}'` : ''}
+        </span>
+      )}
+
+      <p
+        className={`flex min-w-0 items-center gap-1.5 text-[10px] font-semibold text-text-muted ${match.isLive ? 'mb-3 pr-16' : 'mb-1'}`}
+      >
         <SportCountryBadge sport={match.sport} country={match.country} size={14} />
         <span className="min-w-0 flex-1 truncate">
           {displayName('COUNTRY', match.country)} · {displayName('COMPETITION', match.competition)}
         </span>
       </p>
 
-      <div className="mb-2 flex items-center justify-between gap-2">
-        {match.isLive ? (
-          // The red LIVE pill below already says "live" - this slot only
-          // adds something when there's a genuine period/minute to show,
-          // rather than repeating "Live" as plain text next to it.
-          liveState && (
-            <span className="text-[11px] font-bold text-highlight">
-              {matchPeriodLabel(liveState.period)} · {liveState.minute}'
-            </span>
-          )
-        ) : (
+      {!match.isLive && (
+        <div className="mb-2 flex items-center justify-between gap-2">
           <span className="text-[11px] font-semibold text-text-secondary">{formatKickoff(kickoff)}</span>
-        )}
-        {match.isLive && (
-          <span className="ml-auto shrink-0 rounded-full bg-price-down px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest text-white">
-            LIVE
-          </span>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Team rows always stacked, one per line - a narrow card splitting
           its width between two team names plus a centered "vs" truncates
