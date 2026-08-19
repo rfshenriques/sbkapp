@@ -14,10 +14,11 @@ import { useBoosts } from '../odds-board/useBoosts';
 import { useSpecials } from '../odds-board/useSpecials';
 import { useCompetitionRankings } from '../odds-board/useCompetitionRankings';
 import { useCompetitionQuicklinks } from '../odds-board/useCompetitionQuicklinks';
-import { rankMapFromRankings } from '../odds-board/sortMatches';
+import { rankMapFromRankings, sortMatches } from '../odds-board/sortMatches';
 import { useLeaderboardCampaigns } from '../leaderboards/useLeaderboardCampaigns';
 import { usePromoCards } from '../promo-cards/usePromoCards';
 import { buildSportTree, competitionCountryMap, competitionSportMap } from './buildSportTree';
+import { formatKickoff } from '../../lib/formatKickoff';
 
 /** Sidebar stays short and scannable - the rest is reachable through the sport/country/competition drill-down below. */
 const MAX_QUICKLINKS = 6;
@@ -128,19 +129,23 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
     () => sortSportsByPriority(Array.from(new Set((matches ?? []).map((match) => match.sport)))).slice(0, MAX_SUGGESTED_SPORTS),
     [matches],
   );
+  const rankByCompetition = useMemo(() => rankMapFromRankings(rankings ?? []), [rankings]);
 
   // Most searches (a team, a country) are looking for matches to bet on -
   // show those directly rather than making the player drill into a league
   // first. The sport/country/competition tree only comes back into play as
-  // a fallback when the search matches no actual match.
+  // a fallback when the search matches no actual match. Live matches first,
+  // then by staff-configured competition importance, then by kickoff -
+  // same ranking used for the odds board itself (see sortMatches).
   const matchingMatches = useMemo(() => {
     if (!isSearching) return [];
-    return (matches ?? []).filter((match) =>
+    const filtered = (matches ?? []).filter((match) =>
       [match.sport, match.country, match.competition, match.homeTeam, match.awayTeam].some((field) =>
         field.toLowerCase().includes(trimmedQuery),
       ),
     );
-  }, [matches, trimmedQuery, isSearching]);
+    return sortMatches(filtered, 'importance', rankByCompetition);
+  }, [matches, trimmedQuery, isSearching, rankByCompetition]);
   const hasMatchResults = isSearching && matchingMatches.length > 0;
 
   // Debounced rather than one event per keystroke - only the query the
@@ -159,7 +164,6 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
   // when a search finds no matches to show directly.
   const showLeagues = !isSearching || !hasMatchResults;
   const treeSourceMatches = showLeagues ? (isSearching ? matchingMatches : (matches ?? [])) : [];
-  const rankByCompetition = useMemo(() => rankMapFromRankings(rankings ?? []), [rankings]);
   const tree = useMemo(
     () => buildSportTree(treeSourceMatches, rankByCompetition),
     [treeSourceMatches, rankByCompetition],
@@ -394,6 +398,15 @@ export function Sidebar({ onNavigate, stickyBgClassName = 'bg-surface' }: Sideba
                         {displayName('COMPETITION', match.competition)}
                       </span>
                     </span>
+                    {match.isLive ? (
+                      <span className="shrink-0 rounded-full bg-price-down px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest text-white">
+                        LIVE
+                      </span>
+                    ) : (
+                      <span className="shrink-0 text-xs font-semibold text-text-muted">
+                        {formatKickoff(new Date(match.kickoff))}
+                      </span>
+                    )}
                   </Link>
                 </li>
               ))}
