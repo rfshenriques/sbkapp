@@ -58,14 +58,29 @@ function stubFetch(
   return fetchMock;
 }
 
-/** A match kicking off later today, real-clock-relative - matchDateBucket buckets off the actual current time, not a fixed fixture date. */
-function todayMatch(overrides: Partial<Match> = {}): Match {
-  return buildMatch({ kickoff: new Date(Date.now() + 60 * 60_000).toISOString(), ...overrides });
+/**
+ * Local noon on today + `days` - matchDateBucket buckets off calendar-day
+ * components in the viewer's local time (see isSameCalendarDay), not a
+ * fixed fixture date, so this has to be real-clock-relative. Noon (rather
+ * than "now + N hours") keeps it safely inside the target calendar day
+ * regardless of what time of day the test happens to run - a "+1 hour" or
+ * "+26 hours" offset can silently land on the wrong day close to midnight.
+ */
+function localNoonOffsetDays(days: number): Date {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  date.setHours(12, 0, 0, 0);
+  return date;
 }
 
-/** A match kicking off tomorrow, real-clock-relative - see todayMatch. */
+/** A match kicking off later today - see localNoonOffsetDays. */
+function todayMatch(overrides: Partial<Match> = {}): Match {
+  return buildMatch({ kickoff: localNoonOffsetDays(0).toISOString(), ...overrides });
+}
+
+/** A match kicking off tomorrow - see localNoonOffsetDays. */
 function tomorrowMatch(overrides: Partial<Match> = {}): Match {
-  return buildMatch({ kickoff: new Date(Date.now() + 26 * 60 * 60_000).toISOString(), ...overrides });
+  return buildMatch({ kickoff: localNoonOffsetDays(1).toISOString(), ...overrides });
 }
 
 function renderNav() {
