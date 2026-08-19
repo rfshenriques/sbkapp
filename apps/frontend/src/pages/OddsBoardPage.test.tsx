@@ -424,6 +424,49 @@ describe('OddsBoardPage', () => {
     );
   });
 
+  it('still shows promo cards in the carousel when matches fail to load entirely (a feed outage, not just an empty Match of the day pick)', async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === `/backend/public/matches/${TEST_BRAND_ID}`) {
+        return new Response(null, { status: 502 });
+      }
+      if (url === `/backend/public/promo-cards/${TEST_BRAND_ID}`) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: 'card-1',
+              mimeType: 'image/png',
+              title: 'Champions League Promo',
+              subtitle: null,
+              sortOrder: 0,
+              betAndGetCampaignId: 'campaign-1',
+              depositCampaignId: null,
+              hasImage: true,
+              status: 'ACTIVE',
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+      return new Response(null, { status: 404 });
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    useBrandStore.setState({ brandId: TEST_BRAND_ID });
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <OddsBoardPage />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const featuredSlot = await screen.findByRole('group', { name: 'Featured content' });
+    expect(within(featuredSlot).getByText('Champions League Promo')).toBeInTheDocument();
+    expect(screen.getByText('Failed to load matches.')).toBeInTheDocument();
+  });
+
   it('omits promo cards from the carousel entirely when the brand has none active, rather than showing fabricated placeholder copy', async () => {
     stubOddsEngineFetch(mockMatches, {}, ['match-3']);
     renderPage();
