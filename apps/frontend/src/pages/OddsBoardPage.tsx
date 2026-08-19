@@ -383,7 +383,7 @@ export default function OddsBoardPage() {
           <div className="mb-3 flex items-center gap-2">
             {sportsPresent.length > 1 && (
               <div
-                className="scrollbar-hide -mx-1 flex flex-1 gap-2 overflow-x-auto px-1 pb-1"
+                className="scrollbar-hide -mx-1 flex flex-1 gap-2 overflow-x-auto p-1"
                 role="group"
                 aria-label="Filter by sport"
                 data-horizontal-scroll="true"
@@ -473,7 +473,7 @@ export default function OddsBoardPage() {
         {sportsPresent.length > 1 && (
           <div className="mb-3 flex items-center gap-2">
             <div
-              className="scrollbar-hide -mx-1 flex flex-1 gap-2 overflow-x-auto px-1 pb-1"
+              className="scrollbar-hide -mx-1 flex flex-1 gap-2 overflow-x-auto p-1"
               role="group"
               aria-label="Filter by sport"
               data-horizontal-scroll="true"
