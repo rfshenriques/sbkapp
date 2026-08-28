@@ -15,6 +15,9 @@ import {
   RELEVANT_SPORT_KEYS,
   type EventsService,
 } from './providers/the-odds-api/events-service';
+import { createTheRundownClient } from './providers/therundown/client';
+import { createTheRundownEventsService } from './providers/therundown/events-service';
+import { createMergedEventsService } from './providers/merged-events-service';
 
 export interface OddsEngineOptions {
   /** How often to push a stub odds tick to connected clients. */
@@ -216,14 +219,41 @@ if (require.main === module) {
     .map((key) => key.trim())
     .filter((key) => key.length > 0);
   const apiSportsKey = process.env.API_SPORTS_KEY;
+  const theRundownKey = process.env.THERUNDOWN_API_KEY;
 
-  let eventsService: EventsService | undefined;
+  let theOddsApiEventsService: EventsService | undefined;
   if (apiKeys.length > 0) {
     const theOddsApiClient = createTheOddsApiClient({ apiKeys });
-    eventsService = createEventsService({ client: theOddsApiClient });
+    theOddsApiEventsService = createEventsService({ client: theOddsApiClient });
     void verifySportKeys(theOddsApiClient, RELEVANT_SPORT_KEYS);
   } else {
-    console.warn('THE_ODDS_API_KEY not set - /events endpoints will 404.');
+    console.warn('THE_ODDS_API_KEY not set - the-odds-api will contribute no events.');
+  }
+
+  let theRundownEventsService: EventsService | undefined;
+  if (theRundownKey) {
+    const theRundownClient = createTheRundownClient({ apiKey: theRundownKey });
+    theRundownEventsService = createTheRundownEventsService({ client: theRundownClient });
+  } else {
+    console.warn('THERUNDOWN_API_KEY not set - therundown.io will contribute no events.');
+  }
+
+  // Both providers run independently and always - neither substitutes for
+  // the other (see merged-events-service.ts). If only one key is
+  // configured (today's default: just THE_ODDS_API_KEY), this collapses to
+  // exactly that one provider with no merge overhead - existing
+  // single-provider behavior is unchanged.
+  const configuredEventsServices = [theOddsApiEventsService, theRundownEventsService].filter(
+    (service): service is EventsService => service !== undefined,
+  );
+  const eventsService: EventsService | undefined =
+    configuredEventsServices.length === 0
+      ? undefined
+      : configuredEventsServices.length === 1
+        ? configuredEventsServices[0]
+        : createMergedEventsService(configuredEventsServices);
+  if (configuredEventsServices.length === 0) {
+    console.warn('Neither THE_ODDS_API_KEY nor THERUNDOWN_API_KEY set - /events endpoints will 404.');
   }
 
   let createLiveTrackerServiceOption: OddsEngineOptions['createLiveTrackerService'];

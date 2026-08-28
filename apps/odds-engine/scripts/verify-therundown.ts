@@ -10,14 +10,18 @@
  */
 import { config } from 'dotenv';
 import { createTheRundownClient } from '../src/providers/therundown/client';
+import { normalizeTheRundownEvent } from '../src/providers/therundown/normalize';
 
 config();
 
-const apiKey = process.env.THERUNDOWN_API_KEY;
-if (!apiKey) {
+const rawApiKey = process.env.THERUNDOWN_API_KEY;
+if (!rawApiKey) {
   console.error('THERUNDOWN_API_KEY not set in apps/odds-engine/.env - nothing to test.');
   process.exit(1);
 }
+// TS can't narrow a closed-over outer variable inside the main() closure
+// below just from the guard above - bind it to a properly-typed const instead.
+const apiKey: string = rawApiKey;
 
 // A few sport IDs likely to have something in-season regardless of when
 // this runs - see the v2 sports list: 11=EPL, 4=NBA, 3=MLB, 6=NHL.
@@ -54,6 +58,10 @@ async function main() {
         foundAny = true;
         const [first] = events;
         console.log('Sample event:', JSON.stringify(first, null, 2).slice(0, 1500));
+
+        console.log('\n--- Through our own normalize.ts (proves the full pipeline, not just raw connectivity) ---');
+        const normalized = first ? normalizeTheRundownEvent(first) : undefined;
+        console.log(normalized ?? '(sport_id not in RELEVANT_SPORT_IDS, or no home/away team - see normalize.ts)');
       }
     }
   }
