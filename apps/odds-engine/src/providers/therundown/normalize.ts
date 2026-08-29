@@ -32,6 +32,18 @@ export const RELEVANT_SPORT_IDS: Array<{ id: number; sport: string; country: str
 
 const SPORT_META_BY_ID = new Map(RELEVANT_SPORT_IDS.map((entry) => [entry.id, entry]));
 
+/**
+ * 1=Moneyline, 2=Handicap/Spread, 3=Totals - the only market IDs
+ * toMatchResultSelections/toHandicapSelections/toTotalsSelections below
+ * actually read off a TheRundownEvent. Passed to the client's
+ * getEventsBySportAndDate so the request itself is scoped to these -
+ * asking for TheRundown's full default market set per event (player
+ * props, team totals, alternate lines, live period variants, every
+ * affiliate, ...) costs "data points" against the free tier's separate
+ * 20k/day cap even though none of that extra data is ever used.
+ */
+export const PARSED_MARKET_IDS = '1,2,3';
+
 /** Off-the-board sentinel per TheRundown's docs - pricing temporarily pulled, not a real price. */
 const OFF_BOARD_PRICE = 0.0001;
 

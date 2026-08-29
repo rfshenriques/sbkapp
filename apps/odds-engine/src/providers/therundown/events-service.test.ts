@@ -84,6 +84,24 @@ describe('createTheRundownEventsService', () => {
     expect(matches.every((match) => match.id.startsWith('therundown:'))).toBe(true);
   });
 
+  it('scopes every request to only the market IDs it actually parses, not TheRundown\'s full default set', async () => {
+    // Requesting every market TheRundown returns by default (player props,
+    // team totals, alternate lines, ...) costs "data points" against the
+    // free tier's separate daily cap even though normalize.ts only ever
+    // reads market_id 1/2/3 off the response - this is what burned a whole
+    // day's 20k-point budget in a handful of refresh cycles despite the
+    // 1 req/sec rate limit being respected.
+    const getEventsBySportAndDate = vi.fn().mockResolvedValue([buildEvent()]);
+    const client = buildClient({ getEventsBySportAndDate });
+    const service = createTheRundownEventsService({ client, sportIds: [EPL], sleep: noSleep });
+
+    await service.listMatches();
+
+    for (const call of getEventsBySportAndDate.mock.calls) {
+      expect(call[0]).toMatchObject({ marketIds: '1,2,3' });
+    }
+  });
+
   it('spaces requests out with sleep() instead of firing them all at once', async () => {
     const getEventsBySportAndDate = vi.fn().mockResolvedValue([buildEvent()]);
     const client = buildClient({ getEventsBySportAndDate });

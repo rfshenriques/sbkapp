@@ -1,7 +1,7 @@
 import type { Match } from '@sportsbook/shared';
 import type { EventsService } from '../the-odds-api/events-service';
 import type { TheRundownClient } from './client';
-import { normalizeTheRundownEvent, RELEVANT_SPORT_IDS } from './normalize';
+import { normalizeTheRundownEvent, RELEVANT_SPORT_IDS, PARSED_MARKET_IDS } from './normalize';
 
 export type { EventsService };
 
@@ -88,7 +88,20 @@ export function createTheRundownEventsService(options: TheRundownEventsServiceOp
         await sleep(requestIntervalMs);
       }
       try {
-        const events = await client.getEventsBySportAndDate({ sportId: sport.id, date });
+        // Restricted to the market IDs normalizeTheRundownEvent actually
+        // parses (moneyline/handicap/totals) - without this, TheRundown
+        // returns its full default market set per event (player props, team
+        // totals, alternate lines, live variants, every affiliate, ...),
+        // none of which we use. That's a "data point" cost, not a request-
+        // count one: the free tier's 1 req/sec limit (see requestIntervalMs
+        // above) is a different cap from its 20k-data-points/day one, and
+        // the unrestricted request was blowing through the daily one in a
+        // handful of refresh cycles even with request *rate* well-behaved.
+        const events = await client.getEventsBySportAndDate({
+          sportId: sport.id,
+          date,
+          marketIds: PARSED_MARKET_IDS,
+        });
         for (const event of events) {
           const match = normalizeTheRundownEvent(event);
           // today+tomorrow can return the same event twice (a match starting
