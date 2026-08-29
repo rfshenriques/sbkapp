@@ -2,12 +2,13 @@ import type { CSSProperties } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
-import { TeamColorAccent } from '../../components/ui/TeamColorAccent';
+import { TeamBadge } from '../../components/ui/TeamBadge';
 import { MarketSelections } from '../bet-slip/MarketSelections';
 import { useDisplayNames } from '../display-names/useDisplayNames';
 import { usePrefetchMatchDetail } from './usePrefetchMatchDetail';
 import { useLiveScoreboard } from '../match-detail/useLiveScoreboard';
 import { useTeamColors } from './useTeamColors';
+import { useTeamAcronyms } from './useTeamAcronyms';
 import { fallbackTeamColor } from '../../lib/fallbackTeamColor';
 import { formatKickoff } from '../../lib/formatKickoff';
 import type { Match } from '@sportsbook/shared';
@@ -36,82 +37,83 @@ export function MatchCard({ match, style, animate = true }: MatchCardProps) {
   const { data: scoreboard } = useLiveScoreboard();
   const liveState = scoreboard?.[match.id];
   const teamColors = useTeamColors();
+  const teamAcronyms = useTeamAcronyms();
 
   return (
     <Card
-      className={`${animate ? 'fade-in-up ' : ''}match-card relative cursor-pointer transition-colors`}
+      className={`${animate ? 'fade-in-up ' : ''}match-card cursor-pointer transition-colors`}
       style={style}
       onClick={() => navigate(matchHref)}
       onMouseEnter={() => prefetchMatchDetail(match.id)}
       onTouchStart={() => prefetchMatchDetail(match.id)}
     >
-      {match.isLive && (
-        // Corner badge, not inline with the competition row - a live card's
-        // status shouldn't compete for space with the country/competition
-        // label, and the minute rolls into the badge itself (see
-        // useLiveScoreboard) rather than sitting as separate text beside it.
-        <span className="absolute top-2 right-2 z-10 shrink-0 rounded-full bg-price-down px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest text-white">
-          LIVE{liveState ? ` ${liveState.minute}'` : ''}
-        </span>
-      )}
+      {/* Competition on the left, kickoff time (or the live badge, once
+          in-play) on the right - one row, not stacked, so a live match
+          doesn't need its own absolutely-positioned corner badge to avoid
+          overlapping the competition text below it. */}
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <p className="flex min-w-0 items-center gap-1.5 text-[10px] font-semibold text-text-muted">
+          <SportCountryBadge sport={match.sport} country={match.country} size={14} />
+          <span className="min-w-0 flex-1 truncate">
+            {displayName('COUNTRY', match.country)} · {displayName('COMPETITION', match.competition)}
+          </span>
+        </p>
+        {match.isLive ? (
+          <span className="flex shrink-0 items-center gap-1 rounded-full bg-price-down px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-widest text-white">
+            <span className="h-1 w-1 rounded-full bg-white" aria-hidden="true" />
+            LIVE{liveState ? ` ${liveState.minute}'` : ''}
+          </span>
+        ) : (
+          <span className="shrink-0 text-[11px] font-semibold text-text-secondary">{formatKickoff(kickoff)}</span>
+        )}
+      </div>
 
-      <p
-        className={`flex min-w-0 items-center gap-1.5 text-[10px] font-semibold text-text-muted ${match.isLive ? 'mb-3 pr-16' : 'mb-1'}`}
-      >
-        <SportCountryBadge sport={match.sport} country={match.country} size={14} />
-        <span className="min-w-0 flex-1 truncate">
-          {displayName('COUNTRY', match.country)} · {displayName('COMPETITION', match.competition)}
-        </span>
-      </p>
-
-      {!match.isLive && (
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <span className="text-[11px] font-semibold text-text-secondary">{formatKickoff(kickoff)}</span>
-        </div>
-      )}
-
-      {/* Team rows always stacked, one per line - a narrow card splitting
-          its width between two team names plus a centered "vs" truncates
-          both names hard, and stacking reads closer to how a real sportsbook
-          list row shows the two sides regardless of live/pre-match state. */}
+      {/* Team columns sit either side of a centered vs/score capsule
+          instead of a stacked list - each team gets the same acronym
+          badge Match of the Day uses (real team color + initials) as an
+          honest stand-in for a crest, since the data model has no team
+          logos. */}
       <Link
         to={matchHref}
-        className="mb-2.5 block min-w-0 space-y-1.5"
+        className="mb-3 flex items-center justify-between gap-2"
         aria-label={matchLabel}
         // Avoid a duplicate history entry from the card's own onClick
         // (React Router navigates internally on the link's click before it
         // bubbles to the card).
         onClick={(event) => event.stopPropagation()}
       >
-        <span className="flex items-center gap-2">
-          <TeamColorAccent
+        <span className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+          <TeamBadge
+            name={match.homeTeam}
             colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)}
-            className="h-2 w-2 shrink-0 rounded-full"
+            acronym={teamAcronyms.get(match.homeTeam)}
           />
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{homeTeamLabel}</span>
-          {match.isLive && (
-            <span className="shrink-0 font-display text-sm tabular-nums">
-              {liveState ? liveState.homeScore : '-'}
-            </span>
+          <span className="max-w-full truncate text-center text-[12.5px] font-semibold">{homeTeamLabel}</span>
+        </span>
+        <span className="flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 px-3.5 py-1.5">
+          {match.isLive ? (
+            <>
+              <span className="font-display text-sm tabular-nums">{liveState ? liveState.homeScore : '-'}</span>
+              <span className="text-[10px] font-semibold text-text-muted">v</span>
+              <span className="font-display text-sm tabular-nums">{liveState ? liveState.awayScore : '-'}</span>
+            </>
+          ) : (
+            <span className="text-[10px] font-bold tracking-wide text-text-muted uppercase">vs</span>
           )}
         </span>
-        <span className="flex items-center gap-2">
-          <TeamColorAccent
+        <span className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+          <TeamBadge
+            name={match.awayTeam}
             colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)}
-            className="h-2 w-2 shrink-0 rounded-full"
+            acronym={teamAcronyms.get(match.awayTeam)}
           />
-          <span className="min-w-0 flex-1 truncate text-sm font-semibold">{awayTeamLabel}</span>
-          {match.isLive && (
-            <span className="shrink-0 font-display text-sm tabular-nums">
-              {liveState ? liveState.awayScore : '-'}
-            </span>
-          )}
+          <span className="max-w-full truncate text-center text-[12.5px] font-semibold">{awayTeamLabel}</span>
         </span>
       </Link>
 
       {matchResult ? (
         <div>
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+          <p className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wide text-text-muted">
             {displayName('MARKET', matchResult.name)}
           </p>
           <MarketSelections

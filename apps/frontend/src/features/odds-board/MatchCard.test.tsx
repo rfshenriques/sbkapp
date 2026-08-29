@@ -70,14 +70,14 @@ describe('MatchCard', () => {
     expect(texts).toEqual(['Arsenal2.10', 'Draw3.40', 'Chelsea3.20']);
   });
 
-  it('renders both team names stacked, with no score, for a pre-match fixture', () => {
+  it('renders both team names with a "vs" capsule between them, and no score, for a pre-match fixture', () => {
     renderMatchCard(baseMatch);
     // "Arsenal"/"Chelsea" also appear as the odds buttons' own captions now
     // (see the test above) - scope to the team-name link, not the odds row.
     const teamNameLink = screen.getByRole('link', { name: 'Arsenal vs Chelsea' });
     expect(within(teamNameLink).getByText('Arsenal')).toBeInTheDocument();
     expect(within(teamNameLink).getByText('Chelsea')).toBeInTheDocument();
-    expect(screen.queryByText('vs')).not.toBeInTheDocument();
+    expect(within(teamNameLink).getByText('vs')).toBeInTheDocument();
   });
 
   it('shows each team\'s live score once it loads for a live match', async () => {

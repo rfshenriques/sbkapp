@@ -22,6 +22,7 @@ import { usePromoCards } from '../features/promo-cards/usePromoCards';
 import { useHomepageCarouselConfig } from '../features/promo-cards/useHomepageCarouselConfig';
 import { useTeamColors } from '../features/odds-board/useTeamColors';
 import { useTeamAcronyms } from '../features/odds-board/useTeamAcronyms';
+import { TeamBadge } from '../components/ui/TeamBadge';
 import { fallbackTeamColor } from '../lib/fallbackTeamColor';
 import { formatKickoff } from '../lib/formatKickoff';
 import { sortSportsByPriority } from '../lib/sportPriority';
@@ -30,36 +31,6 @@ import type { Market, Match } from '@sportsbook/shared';
 
 /** Homepage sections start capped at this many items; Upcoming's own "Load more" reveals more in place, this many at a time (see visibleUpcomingCount). */
 const MAX_HOMEPAGE_ITEMS = 10;
-
-/** "Real Madrid" -> "REA", "Chelsea" -> "CHE" - a 3-letter badge fallback for a team with no admin-assigned acronym yet (see Team Colors backoffice). */
-function fallbackAcronym(name: string): string {
-  const words = name.trim().split(/\s+/);
-  if (words.length === 1) return words[0]!.slice(0, 3).toUpperCase();
-  if (words.length === 2) return (words[0]![0]! + words[1]!.slice(0, 2)).toUpperCase();
-  return (words[0]![0]! + words[1]![0]! + words[2]![0]!).toUpperCase();
-}
-
-/**
- * Circular team badge - fills with the team's admin-assigned color (see
- * Team Colors backoffice) when there is one, a deterministic per-team
- * fallback color otherwise. The 3-letter acronym itself (same backoffice
- * page, falling back to fallbackAcronym above when unset) renders larger
- * than the circle and slightly overflows its edge rather than being
- * clipped to fit inside it - a layered text-shadow fakes the letters
- * standing up off the badge instead of sitting flat on it (see
- * .team-acronym in index.css).
- */
-function TeamBadge({ name, colorHex, acronym }: { name: string; colorHex: string; acronym?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="relative flex h-6 w-6 shrink-0 items-center justify-center rounded-full sm:h-7 sm:w-7"
-      style={{ backgroundColor: colorHex }}
-    >
-      <span className="team-acronym">{acronym ?? fallbackAcronym(name)}</span>
-    </span>
-  );
-}
 
 function StarIcon(props: { className?: string }) {
   return (
