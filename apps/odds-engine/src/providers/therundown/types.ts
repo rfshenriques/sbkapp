@@ -83,3 +83,56 @@ export interface TheRundownEventsResponse {
   meta: { delta_last_id: string } | null;
   events: TheRundownEvent[];
 }
+
+/** One stat's catalog entry - name/units, not a value. See GET /api/v2/stats. */
+export interface TheRundownStatDefinition {
+  id: number;
+  name: string;
+  display_name: string;
+  abbreviation: string;
+  description?: string;
+  sport_id: number;
+}
+
+export interface TheRundownTeamGameStat {
+  team_id: number | null;
+  stat_id: number | null;
+  stat: TheRundownStatDefinition;
+  event_id: string;
+  /** Always a string in the raw feed, even for numeric stats (e.g. "42", "2.26") - parse at the call site if a number is needed. */
+  value: string;
+}
+
+export interface TheRundownTeamGameStatResponse {
+  team: TheRundownTeam;
+  meta: { complete: boolean };
+  stats: TheRundownTeamGameStat[];
+}
+
+export interface TheRundownPlayer {
+  id: number;
+  sport_id: number;
+  team_id: number;
+  first_name: string;
+  last_name: string;
+  display_name: string;
+  jersey?: string;
+  position?: string;
+  position_abbreviation?: string;
+}
+
+export interface TheRundownPlayerGameStat {
+  event_id: string;
+  player_id: number | null;
+  stat_id: number | null;
+  stat: TheRundownStatDefinition;
+  /** Always a string in the raw feed - see TheRundownTeamGameStat.value. */
+  value: string;
+  updated_at?: string;
+}
+
+export interface TheRundownPlayerGameStatResponse {
+  player: TheRundownPlayer;
+  meta: { complete: boolean };
+  stats: TheRundownPlayerGameStat[];
+}

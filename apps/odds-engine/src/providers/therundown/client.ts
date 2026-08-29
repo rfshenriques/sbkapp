@@ -1,4 +1,11 @@
-import type { TheRundownEvent, TheRundownEventsResponse, TheRundownSport, TheRundownSportsResponse } from './types';
+import type {
+  TheRundownEvent,
+  TheRundownEventsResponse,
+  TheRundownPlayerGameStatResponse,
+  TheRundownSport,
+  TheRundownSportsResponse,
+  TheRundownTeamGameStatResponse,
+} from './types';
 
 const BASE_URL = 'https://therundown.io';
 
@@ -26,7 +33,12 @@ export interface TheRundownClient {
   getSports(): Promise<TheRundownSport[]>;
   /** The primary "build an odds screen" endpoint - one sport, one day, full market/odds data per event. */
   getEventsBySportAndDate(params: GetEventsBySportAndDateParams): Promise<TheRundownEvent[]>;
+  /** All of these `eventId` params take TheRundown's own raw event id, not our prefixed `therundown:<id>` Match.id - strip the prefix before calling. */
   getEventById(eventId: string): Promise<TheRundownEvent | undefined>;
+  /** Team in-game stats (rebounds, assist/turnover ratio, ...) - meaningful for a live or completed event, empty/incomplete for one that hasn't started. */
+  getTeamStats(eventId: string, statIds?: string[]): Promise<TheRundownTeamGameStatResponse[]>;
+  /** Player in-game stats. `playerIds` caps at 6 per the provider's own limit - pass none to get every player. */
+  getPlayerStats(eventId: string, statIds?: string[], playerIds?: string[]): Promise<TheRundownPlayerGameStatResponse[]>;
 }
 
 export function createTheRundownClient(options: TheRundownClientOptions): TheRundownClient {
@@ -63,6 +75,17 @@ export function createTheRundownClient(options: TheRundownClientOptions): TheRun
     getEventById: async (eventId) => {
       const body = await request<TheRundownEventsResponse>(`/api/v2/events/${eventId}`);
       return body.events[0];
+    },
+    getTeamStats: (eventId, statIds) => {
+      const params: Record<string, string> = {};
+      if (statIds && statIds.length > 0) params.stats_ids = statIds.join(',');
+      return request<TheRundownTeamGameStatResponse[]>(`/api/v2/events/${eventId}/stats`, params);
+    },
+    getPlayerStats: (eventId, statIds, playerIds) => {
+      const params: Record<string, string> = {};
+      if (statIds && statIds.length > 0) params.stats_ids = statIds.join(',');
+      if (playerIds && playerIds.length > 0) params.player_ids = playerIds.join(',');
+      return request<TheRundownPlayerGameStatResponse[]>(`/api/v2/events/${eventId}/players/stats`, params);
     },
   };
 }

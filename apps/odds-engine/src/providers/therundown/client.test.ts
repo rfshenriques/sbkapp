@@ -62,6 +62,51 @@ describe('createTheRundownClient', () => {
     expect(missing).toBeUndefined();
   });
 
+  it('getTeamStats builds the event stats path and passes stat_ids through', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      jsonResponse([{ team: { team_id: 11, name: 'Atlanta', mascot: 'Hawks', abbreviation: 'ATL' }, meta: { complete: true }, stats: [] }]),
+    );
+    const client = createTheRundownClient({ apiKey: 'test-key', fetchImpl });
+
+    const stats = await client.getTeamStats('e1', ['1242', '1243']);
+
+    expect(stats[0]?.team.name).toBe('Atlanta');
+    const url = new URL(String(fetchImpl.mock.calls[0]![0]));
+    expect(url.pathname).toBe('/api/v2/events/e1/stats');
+    expect(url.searchParams.get('stats_ids')).toBe('1242,1243');
+  });
+
+  it('getTeamStats omits stats_ids when none are passed', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(jsonResponse([]));
+    const client = createTheRundownClient({ apiKey: 'test-key', fetchImpl });
+
+    await client.getTeamStats('e1');
+
+    const url = new URL(String(fetchImpl.mock.calls[0]![0]));
+    expect(url.searchParams.has('stats_ids')).toBe(false);
+  });
+
+  it('getPlayerStats builds the player stats path and passes stat_ids/player_ids through', async () => {
+    const fetchImpl = vi.fn().mockResolvedValue(
+      jsonResponse([
+        {
+          player: { id: 16627, sport_id: 4, team_id: 11, first_name: 'Trae', last_name: 'Young', display_name: 'Trae Young' },
+          meta: { complete: true },
+          stats: [],
+        },
+      ]),
+    );
+    const client = createTheRundownClient({ apiKey: 'test-key', fetchImpl });
+
+    const stats = await client.getPlayerStats('e1', ['1288', '1289'], ['16627']);
+
+    expect(stats[0]?.player.display_name).toBe('Trae Young');
+    const url = new URL(String(fetchImpl.mock.calls[0]![0]));
+    expect(url.pathname).toBe('/api/v2/events/e1/players/stats');
+    expect(url.searchParams.get('stats_ids')).toBe('1288,1289');
+    expect(url.searchParams.get('player_ids')).toBe('16627');
+  });
+
   it('throws a descriptive error on a non-ok response', async () => {
     const fetchImpl = vi.fn().mockResolvedValue(jsonResponse({ error: 'bad key' }, { ok: false, status: 401, statusText: 'Unauthorized' }));
     const client = createTheRundownClient({ apiKey: 'bad-key', fetchImpl });

@@ -47,6 +47,8 @@ function buildClient(overrides: Partial<TheRundownClient> = {}): TheRundownClien
     getSports: vi.fn().mockResolvedValue([]),
     getEventsBySportAndDate: vi.fn().mockResolvedValue([]),
     getEventById: vi.fn(),
+    getTeamStats: vi.fn().mockResolvedValue([]),
+    getPlayerStats: vi.fn().mockResolvedValue([]),
     ...overrides,
   };
 }
