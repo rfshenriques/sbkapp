@@ -120,7 +120,7 @@ describe('normalizeTheRundownEvent', () => {
     expect(home?.odds).toBeLessThan(100);
   });
 
-  it('excludes the 0.0001 off-the-board sentinel from consideration', () => {
+  it('excludes the 0.0001 off-the-board sentinel from consideration, omitting the market entirely when nothing is left', () => {
     const event = soccerEvent();
     for (const participant of event.markets![0]!.participants) {
       for (const line of participant.lines) {
@@ -131,7 +131,7 @@ describe('normalizeTheRundownEvent', () => {
     }
 
     const match = normalizeTheRundownEvent(event);
-    expect(match?.markets[0]?.selections).toEqual([]);
+    expect(match?.markets).toEqual([]);
   });
 
   it('derives isLive from the real event_status field, not a kickoff-time guess', () => {
@@ -155,5 +155,165 @@ describe('normalizeTheRundownEvent', () => {
   it('returns an empty markets array when there is no moneyline market', () => {
     const match = normalizeTheRundownEvent(soccerEvent({ markets: [] }));
     expect(match?.markets).toEqual([]);
+  });
+
+  it('maps the handicap market with real team names and a formatted spread value, ignoring non-main alt lines', () => {
+    const event = soccerEvent({
+      markets: [
+        {
+          market_id: 2,
+          name: 'handicap',
+          participants: [
+            {
+              id: 1,
+              type: 'TYPE_TEAM',
+              name: 'Crystal Palace',
+              lines: [
+                { value: '+1.5', prices: { '19': { price: -110, is_main_line: true, updated_at: '2026-08-28T00:00:00Z' } } },
+                // Alt line, not the main one - must never win even though its price alone looks great.
+                { value: '+4.5', prices: { '19': { price: -900, is_main_line: false, updated_at: '2026-08-28T00:00:00Z' } } },
+              ],
+            },
+            {
+              id: 2,
+              type: 'TYPE_TEAM',
+              name: 'Manchester City',
+              lines: [{ value: '-1.5', prices: { '19': { price: -110, is_main_line: true, updated_at: '2026-08-28T00:00:00Z' } } }],
+            },
+          ],
+        },
+      ],
+    });
+
+    const match = normalizeTheRundownEvent(event);
+    const handicap = match?.markets.find((market) => market.id === 'handicap');
+
+    expect(handicap?.name).toBe('Handicap');
+    expect(handicap?.selections).toEqual([
+      { id: 'home', name: 'Crystal Palace +1.5', odds: americanToDecimal(-110) },
+      { id: 'away', name: 'Manchester City -1.5', odds: americanToDecimal(-110) },
+    ]);
+  });
+
+  it('prepends "+" to a positive spread value that does not already carry a sign', () => {
+    const event = soccerEvent({
+      markets: [
+        {
+          market_id: 2,
+          name: 'handicap',
+          participants: [
+            {
+              id: 1,
+              type: 'TYPE_TEAM',
+              name: 'Crystal Palace',
+              // No leading sign, unlike the fixture above - a plan/sport that sends bare numbers.
+              lines: [{ value: '1.5', prices: { '19': { price: -110, is_main_line: true, updated_at: '2026-08-28T00:00:00Z' } } }],
+            },
+            {
+              id: 2,
+              type: 'TYPE_TEAM',
+              name: 'Manchester City',
+              lines: [{ value: '-1.5', prices: { '19': { price: -110, is_main_line: true, updated_at: '2026-08-28T00:00:00Z' } } }],
+            },
+          ],
+        },
+      ],
+    });
+
+    const match = normalizeTheRundownEvent(event);
+    const home = match?.markets.find((market) => market.id === 'handicap')?.selections.find((s) => s.id === 'home');
+    expect(home?.name).toBe('Crystal Palace +1.5');
+  });
+
+  it('maps the totals market as Over/Under with the total value in the selection name', () => {
+    const event = soccerEvent({
+      markets: [
+        {
+          market_id: 3,
+          name: 'totals',
+          participants: [
+            {
+              id: 1001,
+              type: 'TYPE_RESULT',
+              name: 'Over',
+              lines: [{ value: '2.5', prices: { '19': { price: -105, is_main_line: true, updated_at: '2026-08-28T00:00:00Z' } } }],
+            },
+            {
+              id: 1002,
+              type: 'TYPE_RESULT',
+              name: 'Under',
+              lines: [{ value: '2.5', prices: { '19': { price: -115, is_main_line: true, updated_at: '2026-08-28T00:00:00Z' } } }],
+            },
+          ],
+        },
+      ],
+    });
+
+    const match = normalizeTheRundownEvent(event);
+    const totals = match?.markets.find((market) => market.id === 'total-goals');
+
+    expect(totals?.name).toBe('Total Goals');
+    expect(totals?.selections).toEqual([
+      { id: 'over', name: 'Over 2.5', odds: americanToDecimal(-105) },
+      { id: 'under', name: 'Under 2.5', odds: americanToDecimal(-115) },
+    ]);
+  });
+
+  it('names the totals market "Totals" (not "Total Goals") for a non-football sport', () => {
+    const event = soccerEvent({
+      sport_id: 6, // NHL
+      markets: [
+        {
+          market_id: 3,
+          name: 'totals',
+          participants: [
+            {
+              id: 1001,
+              type: 'TYPE_RESULT',
+              name: 'Over',
+              lines: [{ value: '5.5', prices: { '19': { price: -110, is_main_line: true, updated_at: '2026-08-28T00:00:00Z' } } }],
+            },
+            {
+              id: 1002,
+              type: 'TYPE_RESULT',
+              name: 'Under',
+              lines: [{ value: '5.5', prices: { '19': { price: -110, is_main_line: true, updated_at: '2026-08-28T00:00:00Z' } } }],
+            },
+          ],
+        },
+      ],
+    });
+
+    const match = normalizeTheRundownEvent(event);
+    expect(match?.markets.find((market) => market.id === 'total-goals')?.name).toBe('Totals');
+  });
+
+  it('omits the handicap/totals market entirely when no affiliate prices both sides', () => {
+    const event = soccerEvent({
+      markets: [
+        {
+          market_id: 2,
+          name: 'handicap',
+          participants: [
+            {
+              id: 1,
+              type: 'TYPE_TEAM',
+              name: 'Crystal Palace',
+              lines: [{ value: '+1.5', prices: { '19': { price: -110, is_main_line: true, updated_at: '2026-08-28T00:00:00Z' } } }],
+            },
+            {
+              id: 2,
+              type: 'TYPE_TEAM',
+              name: 'Manchester City',
+              // Only affiliate 23 prices the away side - no single affiliate covers the whole market.
+              lines: [{ value: '-1.5', prices: { '23': { price: -110, is_main_line: true, updated_at: '2026-08-28T00:00:00Z' } } }],
+            },
+          ],
+        },
+      ],
+    });
+
+    const match = normalizeTheRundownEvent(event);
+    expect(match?.markets.find((market) => market.id === 'handicap')).toBeUndefined();
   });
 });

@@ -40,18 +40,37 @@ export function americanToDecimal(americanOdds: number): number {
   return americanOdds > 0 ? 1 + americanOdds / 100 : 1 + 100 / Math.abs(americanOdds);
 }
 
-function classifySelection(
-  event: TheRundownEvent,
-  participant: TheRundownMarketParticipant,
-): { id: string; name: string } {
-  if (participant.type === 'TYPE_TEAM') {
-    const homeTeamId = event.teams.find((team) => team.is_home)?.team_id;
-    const isHome = participant.id === homeTeamId;
-    return isHome ? { id: 'home', name: 'Home' } : { id: 'away', name: 'Away' };
-  }
+interface ClassifiedParticipant {
+  participant: TheRundownMarketParticipant;
+  id: string;
+  name: string;
+}
+
+/** Home/Away by cross-referencing the event's own team_id/is_home - works for moneyline and handicap alike (both carry only TYPE_TEAM participants, moneyline additionally carries the draw below). */
+function classifyTeamParticipant(event: TheRundownEvent, participant: TheRundownMarketParticipant): ClassifiedParticipant {
+  const homeTeamId = event.teams.find((team) => team.is_home)?.team_id;
+  const isHome = participant.id === homeTeamId;
+  return { participant, id: isHome ? 'home' : 'away', name: isHome ? 'Home' : 'Away' };
+}
+
+function classifyMoneylineParticipant(event: TheRundownEvent, participant: TheRundownMarketParticipant): ClassifiedParticipant {
+  if (participant.type === 'TYPE_TEAM') return classifyTeamParticipant(event, participant);
   // Only a soccer moneyline carries a TYPE_RESULT participant (the draw) -
   // the North American leagues in RELEVANT_SPORT_IDS never do.
-  return { id: 'draw', name: 'Draw' };
+  return { participant, id: 'draw', name: 'Draw' };
+}
+
+function classifyTotalsParticipant(participant: TheRundownMarketParticipant): ClassifiedParticipant {
+  // TYPE_RESULT "Over"/"Under" - the participant's own `name` already says
+  // which, no event cross-reference needed (unlike moneyline/handicap).
+  const isOver = participant.name.toLowerCase() === 'over';
+  return { participant, id: isOver ? 'over' : 'under', name: isOver ? 'Over' : 'Under' };
+}
+
+/** One (affiliate, selection)'s winning price - the line value travels with it since handicap/totals need it in the displayed name (e.g. "+1.5", "224.5"), unlike moneyline where every line's value is always empty. */
+interface PricedSelection {
+  decimal: number;
+  lineValue: string;
 }
 
 /**
@@ -66,26 +85,27 @@ function classifySelection(
  * bettor-favorable *complete* market available from a single coherent
  * source - and use that affiliate's own prices throughout. The 0.0001
  * "off the board" sentinel is excluded; a book with pricing pulled isn't a
- * real quote to consider.
+ * real quote to consider. Returns undefined when no affiliate prices every
+ * selection (the market isn't usable from any single coherent source).
  */
-function toMatchResultSelections(event: TheRundownEvent, participants: TheRundownMarketParticipant[]): Selection[] {
-  const classified = participants.map((participant) => ({ participant, ...classifySelection(event, participant) }));
-
-  const decimalOddsByAffiliate = new Map<string, Map<string, number>>();
+function bestAffiliatePricing(classified: ClassifiedParticipant[]): Map<string, PricedSelection> | undefined {
+  const byAffiliate = new Map<string, Map<string, PricedSelection>>();
   for (const { participant, id: selectionId } of classified) {
     for (const line of participant.lines) {
       for (const [affiliateId, price] of Object.entries(line.prices)) {
         if (!price.is_main_line || price.price === OFF_BOARD_PRICE) continue;
-        let bySelection = decimalOddsByAffiliate.get(affiliateId);
+        let bySelection = byAffiliate.get(affiliateId);
         if (!bySelection) {
           bySelection = new Map();
-          decimalOddsByAffiliate.set(affiliateId, bySelection);
+          byAffiliate.set(affiliateId, bySelection);
         }
         const decimal = americanToDecimal(price.price);
         // Defensive: keep the best if the same affiliate+selection somehow
         // appears more than once (shouldn't happen for a single main line).
         const existing = bySelection.get(selectionId);
-        if (existing === undefined || decimal > existing) bySelection.set(selectionId, decimal);
+        if (existing === undefined || decimal > existing.decimal) {
+          bySelection.set(selectionId, { decimal, lineValue: line.value });
+        }
       }
     }
   }
@@ -93,18 +113,69 @@ function toMatchResultSelections(event: TheRundownEvent, participants: TheRundow
   const expectedSelectionCount = new Set(classified.map((entry) => entry.id)).size;
   let bestAffiliateId: string | undefined;
   let bestOverround = Infinity;
-  for (const [affiliateId, prices] of decimalOddsByAffiliate) {
+  for (const [affiliateId, prices] of byAffiliate) {
     if (prices.size !== expectedSelectionCount) continue; // only a book pricing the whole market is a candidate
-    const overround = [...prices.values()].reduce((sum, decimal) => sum + 1 / decimal, 0);
+    const overround = [...prices.values()].reduce((sum, { decimal }) => sum + 1 / decimal, 0);
     if (overround < bestOverround) {
       bestOverround = overround;
       bestAffiliateId = affiliateId;
     }
   }
-  if (!bestAffiliateId) return [];
+  return bestAffiliateId ? byAffiliate.get(bestAffiliateId) : undefined;
+}
 
-  const winningPrices = decimalOddsByAffiliate.get(bestAffiliateId)!;
-  return classified.map(({ id, name }) => ({ id, name, odds: winningPrices.get(id)! }));
+function toMatchResultSelections(event: TheRundownEvent, participants: TheRundownMarketParticipant[]): Selection[] {
+  const classified = participants.map((participant) => classifyMoneylineParticipant(event, participant));
+  const winning = bestAffiliatePricing(classified);
+  if (!winning) return [];
+  return classified.map(({ id, name }) => ({ id, name, odds: winning.get(id)!.decimal }));
+}
+
+/**
+ * Renders a spread value with an explicit "+" for positive lines. A real
+ * response we checked already sends the sign itself (e.g. "+1.5", "-1.5"),
+ * but that's not guaranteed for every sport/market - only prepend one when
+ * the raw string doesn't already carry it.
+ */
+function formatSpread(lineValue: string): string {
+  if (lineValue.startsWith('+') || lineValue.startsWith('-')) return lineValue;
+  const numeric = Number(lineValue);
+  if (!Number.isFinite(numeric)) return lineValue;
+  return numeric > 0 ? `+${lineValue}` : lineValue;
+}
+
+/**
+ * The real team name (not the generic "Home"/"Away" match-result uses) is
+ * baked directly into the selection name here, since there's no existing
+ * frontend caption-substitution for handicap/totals the way MarketSelections'
+ * captionFor already does for match-result's exact "home"/"away"/"draw"
+ * labels - a suffixed name like "Home +1.5" wouldn't match that check
+ * anyway. If a future frontend pass adds a dedicated line-value affordance,
+ * this can go back to the generic label plus a separate field then.
+ */
+function toHandicapSelections(event: TheRundownEvent, participants: TheRundownMarketParticipant[]): Selection[] {
+  const classified = participants.map((participant) => classifyTeamParticipant(event, participant));
+  const winning = bestAffiliatePricing(classified);
+  if (!winning) return [];
+
+  const homeTeam = event.teams.find((team) => team.is_home);
+  const awayTeam = event.teams.find((team) => team.is_away);
+  return classified.map(({ id }) => {
+    const { decimal, lineValue } = winning.get(id)!;
+    const team = id === 'home' ? homeTeam : awayTeam;
+    const teamName = team ? `${team.name} ${team.mascot}`.trim() : id === 'home' ? 'Home' : 'Away';
+    return { id, name: `${teamName} ${formatSpread(lineValue)}`, odds: decimal };
+  });
+}
+
+function toTotalsSelections(participants: TheRundownMarketParticipant[]): Selection[] {
+  const classified = participants.map((participant) => classifyTotalsParticipant(participant));
+  const winning = bestAffiliatePricing(classified);
+  if (!winning) return [];
+  return classified.map(({ id, name }) => {
+    const { decimal, lineValue } = winning.get(id)!;
+    return { id, name: `${name} ${lineValue}`, odds: decimal };
+  });
 }
 
 /**
@@ -120,11 +191,13 @@ function isLiveStatus(eventStatus: string | undefined): boolean {
 
 /**
  * Maps one TheRundown v2 event to our internal Match/Market/Selection shape.
- * Only the moneyline (market_id 1) is mapped for now - handicap/totals
- * markets exist in the raw feed (see types.ts) but need a "which alternate
- * line is the one to show" decision the app doesn't have UI for yet
- * (MarketSelections shows one market row, not a line picker); add them once
- * that's designed rather than guessing at a single alt line here.
+ * Full-game, main-line only for moneyline (1), handicap/spread (2), and
+ * totals (3) - period markets (1st half, quarters, ...) and live in-play
+ * variants exist in the raw feed too but aren't mapped here; add them once
+ * there's a frontend concept of "which period" to attach them to. Market
+ * ids ('match-result'/'handicap'/'total-goals') deliberately match the
+ * prefixes apps/frontend/src/lib/marketCategory.ts already routes into the
+ * Main/Handicaps/Totals tabs.
  */
 export function normalizeTheRundownEvent(raw: TheRundownEvent): Match | undefined {
   const meta = SPORT_META_BY_ID.get(raw.sport_id);
@@ -134,16 +207,31 @@ export function normalizeTheRundownEvent(raw: TheRundownEvent): Match | undefine
   const awayTeam = raw.teams.find((team) => team.is_away);
   if (!homeTeam || !awayTeam) return undefined;
 
+  const markets: Market[] = [];
+
   const moneyline = raw.markets?.find((market) => market.market_id === 1);
-  const markets: Market[] = moneyline
-    ? [
-        {
-          id: 'match-result',
-          name: 'Match Result',
-          selections: toMatchResultSelections(raw, moneyline.participants),
-        },
-      ]
-    : [];
+  if (moneyline) {
+    const selections = toMatchResultSelections(raw, moneyline.participants);
+    if (selections.length > 0) markets.push({ id: 'match-result', name: 'Match Result', selections });
+  }
+
+  const handicap = raw.markets?.find((market) => market.market_id === 2);
+  if (handicap) {
+    const selections = toHandicapSelections(raw, handicap.participants);
+    if (selections.length > 0) markets.push({ id: 'handicap', name: 'Handicap', selections });
+  }
+
+  const totals = raw.markets?.find((market) => market.market_id === 3);
+  if (totals) {
+    const selections = toTotalsSelections(totals.participants);
+    if (selections.length > 0) {
+      markets.push({
+        id: 'total-goals',
+        name: meta.sport === 'Football' ? 'Total Goals' : 'Totals',
+        selections,
+      });
+    }
+  }
 
   return {
     id: `therundown:${raw.event_id}`,
