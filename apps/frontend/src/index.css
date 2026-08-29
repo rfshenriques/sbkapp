@@ -381,6 +381,67 @@ body {
   animation: none;
 }
 
+/* Outcome-row selection (MarketSelections layout='row') - the
+   Polymarket-inspired match card's team-name-plus-colored-price-pill row,
+   used instead of .odd-btn's stacked box. Selected/suspended/flash states
+   mirror .odd-btn's own (same keyframes, same suspended muting) so a
+   picked/suspended/moving price reads identically regardless of which
+   layout rendered it - only the resting-state shape and per-team tinting
+   (set inline by MarketSelections, not here) differ. */
+.oc-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  transition: opacity 0.15s;
+}
+.oc-row:active {
+  transform: scale(0.98);
+}
+.oc-row.suspended {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.oc-pill {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  min-width: 48px;
+  text-align: center;
+  background-color: var(--color-surface-2);
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  transition:
+    background-color 0.15s,
+    color 0.15s;
+}
+/* Same solid diagonal-gradient-plus-black-text formula as .odd-btn.selected - see there. */
+.oc-row.selected .oc-pill {
+  background: var(--gradient-highlight, var(--fallback-gradient-highlight));
+  color: #000;
+}
+.oc-row.suspended .oc-pill {
+  background-color: var(--color-surface);
+  color: var(--color-text-muted);
+}
+.oc-row.flash-up .oc-pill {
+  animation: odds-flash-up 1s ease-out;
+}
+.oc-row.flash-down .oc-pill {
+  animation: odds-flash-down 1s ease-out;
+}
+.oc-row.suspended.flash-up .oc-pill,
+.oc-row.suspended.flash-down .oc-pill {
+  animation: none;
+}
+
 /* CTAs only (Register, Place Bet, Browse matches, ...) - the one place
    --color-brand appears. Filters/tabs/badges use --color-highlight instead
    (see .tab.active below) so an actual call-to-action never blends into the

@@ -99,7 +99,7 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
         )}
 
         <div className="relative z-10 flex flex-1 flex-col p-3 sm:p-4">
-          <div className="flex items-center justify-between gap-2">
+          <div className={`flex items-center gap-2 ${match.isLive ? 'pr-14' : ''}`}>
             <span
               className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-white uppercase"
               style={{ backgroundColor: 'var(--color-brand)' }}
@@ -107,52 +107,61 @@ function FeaturedMatchCard({ match, matchResult, className }: FeaturedMatchCardP
               <StarIcon className="h-2.5 w-2.5" />
               Match of the day
             </span>
-            <span
-              className={`min-w-0 truncate text-[11px] font-bold tracking-wide text-text-muted uppercase ${match.isLive ? 'pr-14' : ''}`}
-            >
+            <span className="min-w-0 flex-1 truncate text-[11px] font-bold tracking-wide text-text-muted uppercase">
               {displayName('COMPETITION', match.competition)}
             </span>
+            {!match.isLive && (
+              <span className="shrink-0 text-xs font-bold text-highlight">{formatKickoff(new Date(match.kickoff))}</span>
+            )}
           </div>
 
+          {/* Same compare-row layout every regular match card uses (Variant
+              C) - team avatar above name in a centered column either side of
+              a vs/score capsule - kept as an <h1> (not a Link) so this hero
+              stays distinguishable from a plain MatchCard by role alone (see
+              OddsBoardPage.test.tsx). */}
           <h1
             aria-label={`${homeTeamLabel} vs ${awayTeamLabel}`}
-            className="mt-3 flex items-center justify-between gap-3"
+            className="mt-3 flex items-center justify-between gap-2"
           >
-            <span className="flex flex-col gap-1.5">
-              <span className="flex items-center gap-3">
-                <TeamBadge
-                  name={homeTeamLabel}
-                  colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)}
-                  acronym={teamAcronyms.get(match.homeTeam)}
-                />
-                <Link
-                  to={href}
-                  className="font-display text-sm leading-tight font-bold hover:underline sm:text-base"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  {homeTeamLabel}
-                </Link>
-              </span>
-              <span className="flex items-center gap-3">
-                <TeamBadge
-                  name={awayTeamLabel}
-                  colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)}
-                  acronym={teamAcronyms.get(match.awayTeam)}
-                />
-                <Link
-                  to={href}
-                  className="font-display text-sm leading-tight font-bold hover:underline sm:text-base"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  {awayTeamLabel}
-                </Link>
-              </span>
+            <span className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+              <TeamBadge
+                name={homeTeamLabel}
+                colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)}
+                acronym={teamAcronyms.get(match.homeTeam)}
+              />
+              <Link
+                to={href}
+                className="max-w-full truncate text-center text-[12.5px] font-semibold hover:underline"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {homeTeamLabel}
+              </Link>
             </span>
-            <span className="flex shrink-0 flex-col items-end gap-1 text-right">
-              <span className="text-[11px] font-bold tracking-wide text-text-muted uppercase">vs</span>
-              {!match.isLive && (
-                <span className="text-xs font-bold text-highlight">{formatKickoff(new Date(match.kickoff))}</span>
+            <span className="flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 px-3.5 py-1.5">
+              {match.isLive ? (
+                <>
+                  <span className="font-display text-sm tabular-nums">{liveState ? liveState.homeScore : '-'}</span>
+                  <span className="text-[10px] font-semibold text-text-muted">v</span>
+                  <span className="font-display text-sm tabular-nums">{liveState ? liveState.awayScore : '-'}</span>
+                </>
+              ) : (
+                <span className="text-[10px] font-bold tracking-wide text-text-muted uppercase">vs</span>
               )}
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+              <TeamBadge
+                name={awayTeamLabel}
+                colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)}
+                acronym={teamAcronyms.get(match.awayTeam)}
+              />
+              <Link
+                to={href}
+                className="max-w-full truncate text-center text-[12.5px] font-semibold hover:underline"
+                onClick={(event) => event.stopPropagation()}
+              >
+                {awayTeamLabel}
+              </Link>
             </span>
           </h1>
 

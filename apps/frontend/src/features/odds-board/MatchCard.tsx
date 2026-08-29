@@ -2,13 +2,11 @@ import type { CSSProperties } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Card } from '../../components/ui/Card';
 import { SportCountryBadge } from '../../components/ui/SportCountryBadge';
-import { TeamBadge } from '../../components/ui/TeamBadge';
 import { MarketSelections } from '../bet-slip/MarketSelections';
 import { useDisplayNames } from '../display-names/useDisplayNames';
 import { usePrefetchMatchDetail } from './usePrefetchMatchDetail';
 import { useLiveScoreboard } from '../match-detail/useLiveScoreboard';
 import { useTeamColors } from './useTeamColors';
-import { useTeamAcronyms } from './useTeamAcronyms';
 import { fallbackTeamColor } from '../../lib/fallbackTeamColor';
 import { formatKickoff } from '../../lib/formatKickoff';
 import type { Match } from '@sportsbook/shared';
@@ -24,6 +22,11 @@ interface MatchCardProps {
   animate?: boolean;
 }
 
+/** "5 markets" / "1 market" - real data (match.markets.length), never a fabricated count. */
+function marketCountLabel(count: number): string {
+  return `${count} market${count === 1 ? '' : 's'}`;
+}
+
 export function MatchCard({ match, style, animate = true }: MatchCardProps) {
   const matchResult = match.markets.find((market) => market.id === 'match-result');
   const prefetchMatchDetail = usePrefetchMatchDetail();
@@ -37,7 +40,6 @@ export function MatchCard({ match, style, animate = true }: MatchCardProps) {
   const { data: scoreboard } = useLiveScoreboard();
   const liveState = scoreboard?.[match.id];
   const teamColors = useTeamColors();
-  const teamAcronyms = useTeamAcronyms();
 
   return (
     <Card
@@ -68,54 +70,22 @@ export function MatchCard({ match, style, animate = true }: MatchCardProps) {
         )}
       </div>
 
-      {/* Team columns sit either side of a centered vs/score capsule
-          instead of a stacked list - each team gets the same acronym
-          badge Match of the Day uses (real team color + initials) as an
-          honest stand-in for a crest, since the data model has no team
-          logos. */}
+      {/* Outcome rows, not a stacked team list plus a separate odds grid -
+          each row IS the team (real color-coded edge marker, same source
+          TeamBadge/TeamColorAccent use elsewhere) with its own price pill,
+          live score inline where the team name used to be. One aria-labeled
+          Link still wraps the whole block for navigation/prefetch, same
+          contract every other match surface already relies on. */}
       <Link
         to={matchHref}
-        className="mb-3 flex items-center justify-between gap-2"
+        className="mb-2.5 block min-w-0"
         aria-label={matchLabel}
         // Avoid a duplicate history entry from the card's own onClick
         // (React Router navigates internally on the link's click before it
         // bubbles to the card).
         onClick={(event) => event.stopPropagation()}
       >
-        <span className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-          <TeamBadge
-            name={match.homeTeam}
-            colorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)}
-            acronym={teamAcronyms.get(match.homeTeam)}
-          />
-          <span className="max-w-full truncate text-center text-[12.5px] font-semibold">{homeTeamLabel}</span>
-        </span>
-        <span className="flex shrink-0 items-center justify-center gap-1.5 rounded-full border border-border bg-surface-2 px-3.5 py-1.5">
-          {match.isLive ? (
-            <>
-              <span className="font-display text-sm tabular-nums">{liveState ? liveState.homeScore : '-'}</span>
-              <span className="text-[10px] font-semibold text-text-muted">v</span>
-              <span className="font-display text-sm tabular-nums">{liveState ? liveState.awayScore : '-'}</span>
-            </>
-          ) : (
-            <span className="text-[10px] font-bold tracking-wide text-text-muted uppercase">vs</span>
-          )}
-        </span>
-        <span className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-          <TeamBadge
-            name={match.awayTeam}
-            colorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)}
-            acronym={teamAcronyms.get(match.awayTeam)}
-          />
-          <span className="max-w-full truncate text-center text-[12.5px] font-semibold">{awayTeamLabel}</span>
-        </span>
-      </Link>
-
-      {matchResult ? (
-        <div>
-          <p className="mb-1 text-center text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-            {displayName('MARKET', matchResult.name)}
-          </p>
+        {matchResult ? (
           <MarketSelections
             matchId={match.id}
             matchLabel={matchLabel}
@@ -123,8 +93,22 @@ export function MatchCard({ match, style, animate = true }: MatchCardProps) {
             market={matchResult}
             homeTeamLabel={homeTeamLabel}
             awayTeamLabel={awayTeamLabel}
+            layout="row"
+            homeColorHex={teamColors.get(match.homeTeam) ?? fallbackTeamColor(match.homeTeam)}
+            awayColorHex={teamColors.get(match.awayTeam) ?? fallbackTeamColor(match.awayTeam)}
+            homeScore={match.isLive ? (liveState ? liveState.homeScore : '-') : undefined}
+            awayScore={match.isLive ? (liveState ? liveState.awayScore : '-') : undefined}
           />
-        </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <span className="truncate text-sm font-semibold">{homeTeamLabel}</span>
+            <span className="truncate text-sm font-semibold">{awayTeamLabel}</span>
+          </div>
+        )}
+      </Link>
+
+      {matchResult ? (
+        <p className="text-[10.5px] font-semibold text-text-muted">{marketCountLabel(match.markets.length)}</p>
       ) : (
         // No odds to show inline yet (feed hasn't priced this match, or
         // every market's currently suspended) - a full-width CTA into the

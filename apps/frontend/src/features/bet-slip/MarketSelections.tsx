@@ -28,6 +28,22 @@ interface MarketSelectionsProps {
    */
   homeTeamLabel?: string;
   awayTeamLabel?: string;
+  /**
+   * 'grid' (default): the original three-boxes-in-a-row look (.odd-btn) -
+   * used everywhere except the Polymarket-inspired match card. 'row':
+   * each selection is a full-width row, home/away tinted with that team's
+   * own color (see homeColorHex/awayColorHex) - matches the outcome-row
+   * card style. Only meaningfully different for a recognizable
+   * home/draw/away market; a market layout='row' can't caption (see
+   * captionFor) still renders as plain rows, just without the color tint.
+   */
+  layout?: 'grid' | 'row';
+  /** layout='row' only - the actual team colors (see useTeamColors), used to tint the home/away rows and their price pills. Omitted (or the market isn't a recognizable match-result) falls back to an untinted row, same as Draw's. */
+  homeColorHex?: string;
+  awayColorHex?: string;
+  /** layout='row' only - shows the live score inline next to each team's name instead of nothing, when the match is live and scores have loaded. */
+  homeScore?: number | string;
+  awayScore?: number | string;
 }
 
 interface SelectionButtonProps {
@@ -38,6 +54,11 @@ interface SelectionButtonProps {
   isSelected: boolean;
   isSuspended: boolean;
   onSelect: () => void;
+  layout?: 'grid' | 'row';
+  /** layout='row' only - see MarketSelectionsProps.homeColorHex/awayColorHex; undefined for Draw or an unrecognized selection. */
+  colorHex?: string;
+  /** layout='row' only - see MarketSelectionsProps.homeScore/awayScore. */
+  score?: number | string;
 }
 
 /**
@@ -62,30 +83,106 @@ function captionFor(
   return undefined;
 }
 
-function SelectionButton({ selection, label, caption, isSelected, isSuspended, onSelect }: SelectionButtonProps) {
+function SelectionButton({
+  selection,
+  label,
+  caption,
+  isSelected,
+  isSuspended,
+  onSelect,
+  layout = 'grid',
+  colorHex,
+  score,
+}: SelectionButtonProps) {
   const flash = useOddsFlash(selection.odds);
   // originalOdds is only ever set by the backend when a boost actually changed the price (see BoostService.applyBoosts).
   const isBoosted = selection.originalOdds !== undefined;
+  const ariaLabel = isSuspended
+    ? `${caption ?? label} suspended`
+    : isBoosted
+      ? `${caption ?? label} boosted to ${selection.odds.toFixed(2)}, was ${selection.originalOdds!.toFixed(2)}${
+          selection.maxStakeCents !== undefined ? `, max stake ${formatMoney(selection.maxStakeCents)}` : ''
+        }`
+      : undefined;
+
+  if (layout === 'row') {
+    // color-mix, not a hardcoded rgba - tints from whatever this selection's
+    // actual team color is (see MarketSelectionsProps.homeColorHex/
+    // awayColorHex), same source TeamBadge/TeamColorAccent already use.
+    // Draw (colorHex undefined) falls back to the same neutral surface-2
+    // pill every other untinted price in the app already uses. Selected
+    // (like boosted) skips this inline style entirely - .oc-row.selected's
+    // CSS gradient needs to win over the team tint, and an inline style
+    // here would otherwise always beat it.
+    const pillStyle =
+      colorHex && !isSelected
+        ? {
+            backgroundColor: `color-mix(in srgb, ${colorHex} 20%, transparent)`,
+            color: `color-mix(in srgb, ${colorHex} 65%, white)`,
+          }
+        : undefined;
+
+    return (
+      <button
+        type="button"
+        disabled={isSuspended}
+        aria-label={ariaLabel}
+        className={`oc-row${isSelected ? ' selected' : ''}${isSuspended ? ' suspended' : ''}${flash ? ` flash-${flash}` : ''}`}
+        onClick={(event) => {
+          // This row sits inside MatchCard's own navigational <Link> (see
+          // there) - stopPropagation alone only stops the click from
+          // reaching that Link's own onClick, which is also the only place
+          // that calls preventDefault() on the click. Skip that handler and
+          // nothing ever cancels the anchor's native "follow this href"
+          // default action, so the click both toggles the selection AND
+          // navigates. preventDefault() here closes that gap directly.
+          event.preventDefault();
+          event.stopPropagation();
+          onSelect();
+        }}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          {colorHex && (
+            <span aria-hidden="true" className="h-3.5 w-[3px] shrink-0 rounded-full" style={{ backgroundColor: colorHex }} />
+          )}
+          <span className={`min-w-0 truncate text-[13px] font-semibold${colorHex ? '' : ' pl-[11px]'}`}>
+            {caption ?? label}
+          </span>
+          {score !== undefined && <span className="font-display shrink-0 text-[13px] tabular-nums">{score}</span>}
+        </span>
+        <span className="flex shrink-0 items-center gap-2">
+          {isBoosted && !isSuspended && (
+            <BoostIcon className="h-3.5 w-3.5 text-highlight" aria-hidden="true" />
+          )}
+          {isSuspended ? (
+            <LockIcon className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <span
+              className={`oc-pill${isBoosted ? ' text-highlight' : ''}`}
+              style={isBoosted ? undefined : pillStyle}
+            >
+              {selection.odds.toFixed(2)}
+            </span>
+          )}
+        </span>
+      </button>
+    );
+  }
 
   return (
     <button
       type="button"
       disabled={isSuspended}
-      aria-label={
-        isSuspended
-          ? `${caption ?? label} suspended`
-          : isBoosted
-            ? `${caption ?? label} boosted to ${selection.odds.toFixed(2)}, was ${selection.originalOdds!.toFixed(2)}${
-                selection.maxStakeCents !== undefined
-                  ? `, max stake ${formatMoney(selection.maxStakeCents)}`
-                  : ''
-              }`
-            : undefined
-      }
+      aria-label={ariaLabel}
       className={`odd-btn${isSelected ? ' selected' : ''}${isSuspended ? ' suspended' : ''}${flash ? ` flash-${flash}` : ''}`}
       onClick={(event) => {
         // MatchCard's whole card is clickable and navigates to the match -
-        // stop this from also triggering that when picking an odd.
+        // stop this from also triggering that when picking an odd. Also
+        // preventDefault - harmless here, but the same button component is
+        // reused (layout='row') inside a navigational Link elsewhere (see
+        // that branch's own comment), so this stays consistent between the
+        // two rather than only one of them being safe against that.
+        event.preventDefault();
         event.stopPropagation();
         onSelect();
       }}
@@ -122,6 +219,30 @@ function SelectionButton({ selection, label, caption, isSelected, isSuspended, o
   );
 }
 
+/** layout='row' only - the color to tint this selection's row/pill with, or undefined for Draw/unrecognized. */
+function colorHexFor(
+  selectionName: string,
+  homeColorHex?: string,
+  awayColorHex?: string,
+): string | undefined {
+  const lower = selectionName.toLowerCase();
+  if (lower === 'home') return homeColorHex;
+  if (lower === 'away') return awayColorHex;
+  return undefined;
+}
+
+/** layout='row' only - the live score to show inline next to this selection's team name, or undefined for Draw/unrecognized. */
+function scoreFor(
+  selectionName: string,
+  homeScore?: number | string,
+  awayScore?: number | string,
+): number | string | undefined {
+  const lower = selectionName.toLowerCase();
+  if (lower === 'home') return homeScore;
+  if (lower === 'away') return awayScore;
+  return undefined;
+}
+
 export function MarketSelections({
   matchId,
   matchLabel,
@@ -129,6 +250,11 @@ export function MarketSelections({
   market,
   homeTeamLabel,
   awayTeamLabel,
+  layout = 'grid',
+  homeColorHex,
+  awayColorHex,
+  homeScore,
+  awayScore,
 }: MarketSelectionsProps) {
   const toggleSelection = useBetSlipStore((state) => state.toggleSelection);
   const selectedSelectionId = useBetSlipStore(
@@ -145,8 +271,8 @@ export function MarketSelections({
 
   return (
     <div
-      className="grid gap-2"
-      style={{ gridTemplateColumns: `repeat(${orderedSelections.length}, minmax(0, 1fr))` }}
+      className={layout === 'row' ? 'flex flex-col gap-2' : 'grid gap-2'}
+      style={layout === 'row' ? undefined : { gridTemplateColumns: `repeat(${orderedSelections.length}, minmax(0, 1fr))` }}
     >
       {orderedSelections.map((selection) => {
         const selectionLabel = displayName('SELECTION', selection.name);
@@ -168,6 +294,9 @@ export function MarketSelections({
               isSuspended(matchId, market.id, selection.id) ||
               selection.odds < MIN_BETTABLE_ODDS
             }
+            layout={layout}
+            colorHex={colorHexFor(selection.name, homeColorHex, awayColorHex)}
+            score={scoreFor(selection.name, homeScore, awayScore)}
             onSelect={() => {
               track('CLICK', {
                 metadata: {
