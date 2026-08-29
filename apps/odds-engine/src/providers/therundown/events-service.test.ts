@@ -56,6 +56,10 @@ function buildClient(overrides: Partial<TheRundownClient> = {}): TheRundownClien
 const EPL = { id: 11, sport: 'Football', country: 'England', competition: 'Premier League' };
 const LA_LIGA = { id: 14, sport: 'Football', country: 'Spain', competition: 'La Liga' };
 
+// Every test injects a no-op sleep so a run doesn't take real seconds - the
+// production default (~1.1s between requests) is exercised separately below.
+const noSleep = async () => undefined;
+
 describe('createTheRundownEventsService', () => {
   it('fetches today and tomorrow for every configured sport and merges the results', async () => {
     const getEventsBySportAndDate = vi
@@ -65,7 +69,12 @@ describe('createTheRundownEventsService', () => {
       );
     const client = buildClient({ getEventsBySportAndDate });
     const currentTime = new Date('2026-08-28T12:00:00Z').getTime();
-    const service = createTheRundownEventsService({ client, sportIds: [EPL, LA_LIGA], now: () => currentTime });
+    const service = createTheRundownEventsService({
+      client,
+      sportIds: [EPL, LA_LIGA],
+      now: () => currentTime,
+      sleep: noSleep,
+    });
 
     const matches = await service.listMatches();
 
@@ -75,10 +84,25 @@ describe('createTheRundownEventsService', () => {
     expect(matches.every((match) => match.id.startsWith('therundown:'))).toBe(true);
   });
 
+  it('spaces requests out with sleep() instead of firing them all at once', async () => {
+    const getEventsBySportAndDate = vi.fn().mockResolvedValue([buildEvent()]);
+    const client = buildClient({ getEventsBySportAndDate });
+    const sleep = vi.fn().mockResolvedValue(undefined);
+    const service = createTheRundownEventsService({ client, sportIds: [EPL, LA_LIGA], requestIntervalMs: 1100, sleep });
+
+    await service.listMatches();
+
+    // 4 requests (2 sports x 2 dates) -> 3 gaps between them, none before the first.
+    expect(sleep).toHaveBeenCalledTimes(3);
+    expect(sleep).toHaveBeenCalledWith(1100);
+    // The requests themselves happen sequentially, not concurrently.
+    expect(getEventsBySportAndDate.mock.invocationCallOrder[0]).toBeLessThan(sleep.mock.invocationCallOrder[0]!);
+  });
+
   it('de-dupes the same event id returned for both today and tomorrow', async () => {
     const getEventsBySportAndDate = vi.fn().mockResolvedValue([buildEvent({ event_id: 'shared' })]);
     const client = buildClient({ getEventsBySportAndDate });
-    const service = createTheRundownEventsService({ client, sportIds: [EPL] });
+    const service = createTheRundownEventsService({ client, sportIds: [EPL], sleep: noSleep });
 
     const matches = await service.listMatches();
 
@@ -92,7 +116,7 @@ describe('createTheRundownEventsService', () => {
     });
     const client = buildClient({ getEventsBySportAndDate });
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
-    const service = createTheRundownEventsService({ client, sportIds: [EPL, LA_LIGA] });
+    const service = createTheRundownEventsService({ client, sportIds: [EPL, LA_LIGA], sleep: noSleep });
 
     const matches = await service.listMatches();
 
@@ -104,7 +128,7 @@ describe('createTheRundownEventsService', () => {
     const getEventsBySportAndDate = vi.fn().mockResolvedValue([buildEvent()]);
     const client = buildClient({ getEventsBySportAndDate });
     let currentTime = 0;
-    const service = createTheRundownEventsService({ client, sportIds: [EPL], now: () => currentTime });
+    const service = createTheRundownEventsService({ client, sportIds: [EPL], now: () => currentTime, sleep: noSleep });
 
     await service.listMatches();
     await service.listMatches();
@@ -119,7 +143,7 @@ describe('createTheRundownEventsService', () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const getEventsBySportAndDate = vi.fn().mockRejectedValue(new Error('therundown GET ... failed: 401'));
     const client = buildClient({ getEventsBySportAndDate });
-    const service = createTheRundownEventsService({ client, sportIds: [EPL] });
+    const service = createTheRundownEventsService({ client, sportIds: [EPL], sleep: noSleep });
 
     const first = await service.listMatches();
     const second = await service.listMatches();
@@ -130,10 +154,28 @@ describe('createTheRundownEventsService', () => {
     errorSpy.mockRestore();
   });
 
+  it('keeps going after one request fails partway through the sequence', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const getEventsBySportAndDate = vi
+      .fn()
+      .mockImplementationOnce(() => Promise.reject(new Error('therundown GET ... failed: 429')))
+      .mockImplementation(({ sportId, date }: { sportId: number; date: string }) =>
+        Promise.resolve([buildEvent({ event_id: `${sportId}-${date}`, sport_id: sportId })]),
+      );
+    const client = buildClient({ getEventsBySportAndDate });
+    const service = createTheRundownEventsService({ client, sportIds: [EPL, LA_LIGA], sleep: noSleep });
+
+    const matches = await service.listMatches();
+
+    expect(getEventsBySportAndDate).toHaveBeenCalledTimes(4); // the failure doesn't stop the rest of the sequence
+    expect(matches).toHaveLength(3); // 4 requests - 1 failed
+    errorSpy.mockRestore();
+  });
+
   it('looks up a single match from the cached list without an extra request', async () => {
     const getEventsBySportAndDate = vi.fn().mockResolvedValue([buildEvent({ event_id: 'e1' })]);
     const client = buildClient({ getEventsBySportAndDate });
-    const service = createTheRundownEventsService({ client, sportIds: [EPL] });
+    const service = createTheRundownEventsService({ client, sportIds: [EPL], sleep: noSleep });
 
     await service.listMatches();
     const match = await service.getMatchOdds('therundown:e1');
@@ -144,7 +186,7 @@ describe('createTheRundownEventsService', () => {
 
   it('returns undefined for an id that was never in the list', async () => {
     const client = buildClient();
-    const service = createTheRundownEventsService({ client, sportIds: [EPL] });
+    const service = createTheRundownEventsService({ client, sportIds: [EPL], sleep: noSleep });
 
     const match = await service.getMatchOdds('therundown:unknown');
     expect(match).toBeUndefined();

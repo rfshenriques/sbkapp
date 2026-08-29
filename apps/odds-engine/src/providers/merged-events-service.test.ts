@@ -68,12 +68,20 @@ describe('isSameGame', () => {
 });
 
 describe('pickBetterMatch', () => {
-  it('picks the match whose match-result market has the lower overround', () => {
+  it('always keeps identity fields (id, teams, kickoff) from the first match', () => {
+    const a = buildMatch({ id: 'a1', homeTeam: 'Arsenal' });
+    const b = buildMatch({ id: 'therundown:b1', homeTeam: 'Arsenal FC' });
+
+    expect(pickBetterMatch(a, b).id).toBe('a1');
+    expect(pickBetterMatch(b, a).id).toBe('therundown:b1');
+  });
+
+  it('picks the tighter of the two match-result markets by overround, regardless of which side it came from', () => {
     // Tighter market: 1/1.95 + 1/3.6 + 1/4.0 ≈ 1.036
-    const tighter = buildMatch({ id: 'tight' });
+    const tighter = buildMatch({ id: 'a1' });
     // Looser market: overround ≈ 1.30
     const looser = buildMatch({
-      id: 'loose',
+      id: 'therundown:b1',
       markets: [
         {
           id: 'match-result',
@@ -87,16 +95,33 @@ describe('pickBetterMatch', () => {
       ],
     });
 
-    expect(pickBetterMatch(tighter, looser).id).toBe('tight');
-    expect(pickBetterMatch(looser, tighter).id).toBe('tight');
+    expect(pickBetterMatch(tighter, looser).markets).toEqual(tighter.markets);
+    // Same market content wins even when it arrives as the second argument -
+    // only its identity fields are discarded, not its (tighter) pricing.
+    expect(pickBetterMatch(looser, tighter).markets).toEqual(tighter.markets);
   });
 
-  it('picks whichever match actually has a priced match-result market', () => {
-    const priced = buildMatch({ id: 'priced' });
-    const unpriced = buildMatch({ id: 'unpriced', markets: [] });
+  it('keeps a market only one side has (e.g. a TheRundown-only handicap market) rather than dropping it', () => {
+    const a = buildMatch({ id: 'a1' }); // only has match-result
+    const b = buildMatch({
+      id: 'therundown:b1',
+      markets: [
+        ...buildMatch().markets,
+        { id: 'handicap', name: 'Handicap', selections: [{ id: 'home', name: 'Arsenal +1.5', odds: 1.9 }] },
+      ],
+    });
 
-    expect(pickBetterMatch(priced, unpriced).id).toBe('priced');
-    expect(pickBetterMatch(unpriced, priced).id).toBe('priced');
+    const merged = pickBetterMatch(a, b);
+
+    expect(merged.markets.map((market) => market.id)).toEqual(['match-result', 'handicap']);
+  });
+
+  it('picks whichever side actually has a priced match-result market', () => {
+    const priced = buildMatch({ id: 'a1' });
+    const unpriced = buildMatch({ id: 'therundown:b1', markets: [] });
+
+    expect(pickBetterMatch(priced, unpriced).markets).toEqual(priced.markets);
+    expect(pickBetterMatch(unpriced, priced).markets).toEqual(priced.markets);
   });
 });
 

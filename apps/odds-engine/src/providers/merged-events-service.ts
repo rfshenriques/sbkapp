@@ -56,20 +56,56 @@ function overround(market: Market | undefined): number | undefined {
 
 /**
  * Same "one coherent source, never blend" principle as
- * therundown/normalize.ts's own per-market bookmaker choice, one level up:
- * two providers both covering the same game is redundancy, not a reason to
- * mix their prices selection-by-selection into one market. Whichever
- * provider's match-result market has the lower overround (the tighter,
- * more bettor-favorable complete market) wins outright - every market on
- * that Match comes from that one provider, not just match-result.
+ * therundown/normalize.ts's own per-market bookmaker choice, one level down:
+ * within a single market (e.g. match-result), never mix two providers'
+ * prices selection-by-selection - whichever provider's version of that
+ * market has the lower overround (the tighter, more bettor-favorable
+ * complete market) wins outright for that market only. A market only one
+ * provider has (e.g. TheRundown-only handicap/totals) passes through
+ * unchanged - this is the actual "aggregate and map so all is one thing
+ * only" behaviour, done market-by-market rather than picking one provider's
+ * entire match wholesale.
+ */
+function mergeMarkets(a: Market[], b: Market[]): Market[] {
+  const byId = new Map<string, Market>();
+  const order: string[] = [];
+
+  for (const market of a) {
+    byId.set(market.id, market);
+    order.push(market.id);
+  }
+
+  for (const market of b) {
+    const existing = byId.get(market.id);
+    if (!existing) {
+      byId.set(market.id, market);
+      order.push(market.id);
+      continue;
+    }
+    const existingOverround = overround(existing);
+    const candidateOverround = overround(market);
+    if (candidateOverround !== undefined && (existingOverround === undefined || candidateOverround < existingOverround)) {
+      byId.set(market.id, market);
+    }
+  }
+
+  return order.map((id) => byId.get(id)!);
+}
+
+/**
+ * Merges two providers' views of the same real-world game into one Match.
+ * Identity fields (id, team names, kickoff, ...) always come from `a` - in
+ * practice this is always the-odds-api's match (server.ts merges providers
+ * in that order), whose 24h cache barely changes match to match, unlike
+ * TheRundown's 5-minute one. Keeping id sourced from the more stable side
+ * is what makes a match's id stay resolvable via getMatchOdds() between the
+ * board render and a click into it - previously this returned whichever
+ * provider's match-result market was tighter *wholesale*, so the exposed id
+ * could flip provider (and therefore value) between refreshes, which is
+ * what caused "match not found" moments after the match was shown.
  */
 export function pickBetterMatch(a: Match, b: Match): Match {
-  const overroundA = overround(a.markets.find((market) => market.id === 'match-result'));
-  const overroundB = overround(b.markets.find((market) => market.id === 'match-result'));
-
-  if (overroundA === undefined) return overroundB === undefined ? a : b;
-  if (overroundB === undefined) return a;
-  return overroundA <= overroundB ? a : b;
+  return { ...a, markets: mergeMarkets(a.markets, b.markets) };
 }
 
 /**

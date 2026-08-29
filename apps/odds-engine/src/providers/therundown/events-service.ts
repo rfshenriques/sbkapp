@@ -10,13 +10,24 @@ export type { EventsService };
  * monthly credit budget like the-odds-api - so unlike that provider's 24h
  * cache, there's no need to hoard requests. 5 minutes matches the free
  * tier's own documented data-freshness ceiling ("5 min delay") - polling
- * faster wouldn't see fresher data anyway, and this still keeps a full
- * refresh (RELEVANT_SPORT_IDS x 2 dates) well clear of the per-second limit
- * when spread across a 5-minute window.
+ * faster wouldn't see fresher data anyway, and a full sequential refresh
+ * (RELEVANT_SPORT_IDS x 2 dates, ~1 req/sec) takes well under a minute.
  */
 const EVENTS_CACHE_TTL_MS = 5 * 60_000;
 
 const PARTIAL_FAILURE_CACHE_TTL_MS = 60_000;
+
+/**
+ * Spacing between outbound requests within one listMatches() refresh. The
+ * free tier is capped at 1 req/sec - firing all ~20 (sport x date) requests
+ * at once blows straight through that and gets most of them 429'd. A full
+ * refresh at this spacing takes ~20s, well inside the 5-minute cache TTL.
+ */
+const DEFAULT_REQUEST_INTERVAL_MS = 1100;
+
+function defaultSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 interface CacheEntry<T> {
   value: T;
@@ -27,6 +38,9 @@ export interface TheRundownEventsServiceOptions {
   client: TheRundownClient;
   sportIds?: typeof RELEVANT_SPORT_IDS;
   now?: () => number;
+  /** Overridable in tests so a refresh doesn't take real seconds to run. */
+  requestIntervalMs?: number;
+  sleep?: (ms: number) => Promise<void>;
 }
 
 function todayAndTomorrow(currentTime: number): string[] {
@@ -43,7 +57,13 @@ function todayAndTomorrow(currentTime: number): string[] {
  * key, since this provider's events endpoint is date-scoped.
  */
 export function createTheRundownEventsService(options: TheRundownEventsServiceOptions): EventsService {
-  const { client, sportIds = RELEVANT_SPORT_IDS, now = Date.now } = options;
+  const {
+    client,
+    sportIds = RELEVANT_SPORT_IDS,
+    now = Date.now,
+    requestIntervalMs = DEFAULT_REQUEST_INTERVAL_MS,
+    sleep = defaultSleep,
+  } = options;
 
   let eventsCache: CacheEntry<Match[]> | undefined;
 
@@ -56,31 +76,34 @@ export function createTheRundownEventsService(options: TheRundownEventsServiceOp
     const dates = todayAndTomorrow(currentTime);
     const requests = sportIds.flatMap((sport) => dates.map((date) => ({ sport, date })));
 
-    const results = await Promise.allSettled(
-      requests.map(({ sport, date }) => client.getEventsBySportAndDate({ sportId: sport.id, date })),
-    );
-
+    // Sequential and spaced, not Promise.all - the free tier is 1 req/sec
+    // and firing every (sport, date) request at once gets most of them
+    // rate-limited, which is why the board would go from a handful of
+    // matches to none between refreshes.
     const matches: Match[] = [];
     const seenIds = new Set<string>();
     let failedRequests = 0;
-    for (const [index, result] of results.entries()) {
-      if (result.status === 'rejected') {
+    for (const [index, { sport, date }] of requests.entries()) {
+      if (index > 0) {
+        await sleep(requestIntervalMs);
+      }
+      try {
+        const events = await client.getEventsBySportAndDate({ sportId: sport.id, date });
+        for (const event of events) {
+          const match = normalizeTheRundownEvent(event);
+          // today+tomorrow can return the same event twice (a match starting
+          // right around the UTC day boundary) - de-dupe by our own prefixed id.
+          if (match && !seenIds.has(match.id)) {
+            seenIds.add(match.id);
+            matches.push(match);
+          }
+        }
+      } catch (error) {
         failedRequests += 1;
-        const { sport, date } = requests[index]!;
         console.error(
           `therundown listMatches: ${sport.competition} on ${date} failed:`,
-          result.reason instanceof Error ? result.reason.message : result.reason,
+          error instanceof Error ? error.message : error,
         );
-        continue;
-      }
-      for (const event of result.value) {
-        const match = normalizeTheRundownEvent(event);
-        // today+tomorrow can return the same event twice (a match starting
-        // right around the UTC day boundary) - de-dupe by our own prefixed id.
-        if (match && !seenIds.has(match.id)) {
-          seenIds.add(match.id);
-          matches.push(match);
-        }
       }
     }
 
