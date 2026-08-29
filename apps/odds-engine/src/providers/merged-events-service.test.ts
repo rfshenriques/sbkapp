@@ -192,4 +192,45 @@ describe('createMergedEventsService', () => {
     const missing = await service.getMatchOdds('nope');
     expect(missing).toBeUndefined();
   });
+
+  it('getMatchOdds resolves a provider-owned id directly, even when that game now overlaps and the merge would assign a different identity', async () => {
+    // Both providers list the same real game - the merge would collapse
+    // them and (per pickBetterMatch) expose it under providerA's id. A
+    // card already rendered with providerB's id must still resolve.
+    const providerA = buildService(async () => [buildMatch({ id: 'a1', homeTeam: 'Arsenal', awayTeam: 'Chelsea' })]);
+    const providerB = buildService(async () => [
+      buildMatch({ id: 'therundown:b1', homeTeam: 'Arsenal', awayTeam: 'Chelsea' }),
+    ]);
+    const service = createMergedEventsService([providerA, providerB]);
+
+    // Confirm the merge itself does collapse to providerA's id...
+    const merged = await service.listMatches();
+    expect(merged.map((match) => match.id)).toEqual(['a1']);
+
+    // ...but the now-superseded id is still directly resolvable.
+    const match = await service.getMatchOdds('therundown:b1');
+    expect(match?.id).toBe('therundown:b1');
+  });
+
+  it('getMatchOdds falls back to the last known merged snapshot when a match drops out of every provider\'s fresh list', async () => {
+    let providerAMatches = [buildMatch({ id: 'a1' })];
+    const providerA = buildService(async () => providerAMatches);
+    const providerB = buildService(async () => []);
+    const service = createMergedEventsService([providerA, providerB]);
+
+    await service.listMatches(); // populates the last-known snapshot with 'a1'
+    providerAMatches = []; // the match vanishes from the provider's own fresh list (e.g. went live)
+
+    const match = await service.getMatchOdds('a1');
+    expect(match?.id).toBe('a1');
+  });
+
+  it('getMatchOdds still returns undefined for an id that was never seen anywhere', async () => {
+    const providerA = buildService(async () => [buildMatch({ id: 'a1' })]);
+    const providerB = buildService(async () => []);
+    const service = createMergedEventsService([providerA, providerB]);
+
+    const missing = await service.getMatchOdds('never-existed');
+    expect(missing).toBeUndefined();
+  });
 });

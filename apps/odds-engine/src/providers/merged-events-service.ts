@@ -151,6 +151,10 @@ export function mergeMatches(a: Match[], b: Match[]): Match[] {
  * merged board down with it.
  */
 export function createMergedEventsService(providers: EventsService[]): EventsService {
+  // The most recently computed full merge - see getMatchOdds's third
+  // fallback below for why this is kept around.
+  let lastKnownMatches: Match[] = [];
+
   async function listMatches(): Promise<Match[]> {
     const results = await Promise.allSettled(providers.map((provider) => provider.listMatches()));
     const matchLists = results.map((result) => {
@@ -161,12 +165,48 @@ export function createMergedEventsService(providers: EventsService[]): EventsSer
       );
       return [];
     });
-    return matchLists.reduce((merged, matches) => mergeMatches(merged, matches), [] as Match[]);
+    const merged = matchLists.reduce((merged, matches) => mergeMatches(merged, matches), [] as Match[]);
+    lastKnownMatches = merged;
+    return merged;
   }
 
+  /**
+   * Three-step lookup, each step catching a different reason a naive
+   * "re-merge everything, then find by id" can 404 a match that a moment
+   * ago was sitting right there on the board:
+   *
+   * 1. Ask each provider directly for this exact id. A merged match's id
+   *    is always one specific provider's own raw id (see pickBetterMatch -
+   *    identity always comes from the first-listed match, whole). Whether
+   *    or not that game is *currently* overlapping with the other provider
+   *    doesn't matter here - if the provider that originally issued this id
+   *    still lists the event under it, this finds it directly, without
+   *    caring what the "official" merged identity for that real-world game
+   *    happens to be on this particular refresh.
+   * 2. Fall back to a fresh full merge, in case neither provider's raw list
+   *    contains the id but the merge itself produces it some other way.
+   * 3. Fall back to the last full merge this service actually computed. A
+   *    match - especially a live one - can legitimately vanish from a
+   *    fresh listMatches() for reasons that have nothing to do with id
+   *    reassignment (e.g. the-odds-api stops returning odds for an event
+   *    once it goes in-play). Serving the last known-good snapshot for one
+   *    more lookup keeps a card the user is already looking at resolvable
+   *    instead of 404ing the instant an upstream feed's composition shifts.
+   */
   async function getMatchOdds(eventId: string): Promise<Match | undefined> {
-    const matches = await listMatches();
-    return matches.find((match) => match.id === eventId);
+    for (const provider of providers) {
+      const match = await provider.getMatchOdds(eventId);
+      if (match) return match;
+    }
+
+    // Captured before the listMatches() call below overwrites it.
+    const previousKnownMatches = lastKnownMatches;
+
+    const fresh = await listMatches();
+    const freshMatch = fresh.find((match) => match.id === eventId);
+    if (freshMatch) return freshMatch;
+
+    return previousKnownMatches.find((match) => match.id === eventId);
   }
 
   return { listMatches, getMatchOdds };
